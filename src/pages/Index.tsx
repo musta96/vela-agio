@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
+import { NavLink } from "@/components/NavLink";
 
 const Index = () => {
   const featuredStocks = [
@@ -24,12 +25,12 @@ const Index = () => {
               <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
             </div>
             <div className="flex items-center space-x-6">
-              <a href="#dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/" className="text-sm font-medium text-foreground transition-colors" activeClassName="text-primary">
                 Dashboard
-              </a>
-              <a href="#stocks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Stocks
-              </a>
+              </NavLink>
+              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Sentiment
+              </NavLink>
               <a href="#analysis" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Analysis
               </a>

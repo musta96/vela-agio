@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, TrendingUp, TrendingDown, Play, RotateCcw, Calendar, Target, Shield, DollarSign, BarChart3 } from "lucide-react";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { NavLink } from "@/components/NavLink";
+import { useNavigate } from "react-router-dom";
 
 // Mock backtesting results data
 const equityCurveData = [
@@ -65,6 +66,7 @@ const tradeHistory = [
 ];
 
 const BacktestingModule = () => {
+  const navigate = useNavigate();
   const [isRunning, setIsRunning] = useState(false);
 
   const handleRunBacktest = () => {
@@ -84,13 +86,13 @@ const BacktestingModule = () => {
               <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
             </div>
             <div className="flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:text-primary transition-colors">
                 Dashboard
               </NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:text-primary transition-colors">
                 Sentiment
               </NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-foreground transition-colors" activeClassName="text-primary">
+              <NavLink to="/backtest" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
                 Backtest
               </NavLink>
             </div>
@@ -170,11 +172,11 @@ const BacktestingModule = () => {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button onClick={handleRunBacktest} disabled={isRunning} className="flex-1 gap-2">
+                <Button onClick={handleRunBacktest} disabled={isRunning} className="flex-1 gap-2 hover-scale">
                   <Play className="h-4 w-4" />
                   {isRunning ? "Running..." : "Run Backtest"}
                 </Button>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="hover-scale" onClick={() => window.location.reload()}>
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
@@ -434,17 +436,18 @@ const BacktestingModule = () => {
                   {tradeHistory.map((trade) => (
                     <div
                       key={trade.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors"
+                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/10 hover:border-primary/50 transition-all duration-300 cursor-pointer hover-scale group"
+                      onClick={() => navigate(`/stock/${trade.symbol}`)}
                     >
                       <div className="flex items-center gap-4 flex-1">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{trade.symbol}</span>
+                            <span className="font-semibold group-hover:text-primary transition-colors">{trade.symbol}</span>
                             <Badge variant="outline" className="text-xs">
                               {trade.type}
                             </Badge>
                           </div>
-                          <div className="text-sm text-muted-foreground">{trade.date}</div>
+                          <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{trade.date}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-muted-foreground">Entry</div>

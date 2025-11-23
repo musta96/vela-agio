@@ -5,8 +5,16 @@ import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
 import { NavLink } from "@/components/NavLink";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
+
+  const scrollToStocks = () => {
+    const stocksSection = document.getElementById('stocks');
+    stocksSection?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const featuredStocks = [
     { symbol: "ENEL.MI", name: "Enel", price: 6.42, change: 2.4, volume: "15.2M" },
     { symbol: "ENI.MI", name: "Eni", price: 14.28, change: -0.8, volume: "8.7M" },
@@ -25,16 +33,16 @@ const Index = () => {
               <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
             </div>
             <div className="flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-foreground transition-colors" activeClassName="text-primary">
+              <NavLink to="/" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
                 Dashboard
               </NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
                 Sentiment
               </NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
                 Backtest
               </NavLink>
-              <Button variant="default" size="sm">
+              <Button variant="default" size="sm" className="hover-scale" onClick={() => navigate('/backtest')}>
                 Sign In
               </Button>
             </div>
@@ -56,11 +64,11 @@ const Index = () => {
             Comprehensive fundamental analysis combined with real-time sentiment tracking for Italy's top 40 stocks
           </p>
           <div className="flex gap-4 justify-center">
-            <Button size="lg" className="gap-2">
+            <Button size="lg" className="gap-2 hover-scale" onClick={() => navigate('/backtest')}>
               <Target className="h-5 w-5" />
               Start Analysis
             </Button>
-            <Button size="lg" variant="outline" className="gap-2">
+            <Button size="lg" variant="outline" className="gap-2 hover-scale" onClick={scrollToStocks}>
               <BarChart3 className="h-5 w-5" />
               View Dashboard
             </Button>
@@ -71,7 +79,10 @@ const Index = () => {
       {/* Key Features */}
       <section className="container mx-auto px-6 py-16">
         <div className="grid md:grid-cols-3 gap-6 animate-slide-up">
-          <Card className="p-6 card-gradient border-border hover:shadow-lg transition-all duration-300">
+          <Card 
+            className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
+            onClick={() => navigate('/stock/ENEL.MI')}
+          >
             <div className="rounded-lg bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
               <Brain className="h-6 w-6 text-primary" />
             </div>
@@ -81,7 +92,10 @@ const Index = () => {
             </p>
           </Card>
 
-          <Card className="p-6 card-gradient border-border hover:shadow-lg transition-all duration-300">
+          <Card 
+            className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
+            onClick={() => navigate('/sentiment')}
+          >
             <div className="rounded-lg bg-secondary/10 w-12 h-12 flex items-center justify-center mb-4">
               <LineChart className="h-6 w-6 text-secondary" />
             </div>
@@ -91,7 +105,10 @@ const Index = () => {
             </p>
           </Card>
 
-          <Card className="p-6 card-gradient border-border hover:shadow-lg transition-all duration-300">
+          <Card 
+            className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
+            onClick={() => navigate('/backtest')}
+          >
             <div className="rounded-lg bg-accent/10 w-12 h-12 flex items-center justify-center mb-4">
               <Shield className="h-6 w-6 text-accent" />
             </div>
@@ -104,7 +121,7 @@ const Index = () => {
       </section>
 
       {/* Market Overview */}
-      <section className="container mx-auto px-6 py-16">
+      <section id="stocks" className="container mx-auto px-6 py-16">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Market Overview</h2>
           <p className="text-muted-foreground">Real-time data from FTSE MIB components</p>
@@ -151,7 +168,7 @@ const Index = () => {
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
             Get instant access to comprehensive analysis tools, real-time data, and AI-powered insights
           </p>
-          <Button size="lg" className="gap-2">
+          <Button size="lg" className="gap-2 hover-scale" onClick={() => navigate('/backtest')}>
             Get Started Free
             <TrendingUp className="h-5 w-5" />
           </Button>

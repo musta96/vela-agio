@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, TrendingUp, TrendingDown, Newspaper, Twitter, MessageSquare, BarChart3, LineChart } from "lucide-react";
 import { LineChart as RechartsLine, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
 import { NavLink } from "@/components/NavLink";
+import { useNavigate } from "react-router-dom";
 
 // Mock data - will be replaced with real API data
 const sentimentTrendData = [
@@ -80,6 +81,8 @@ const sentimentDistribution = [
 ];
 
 const SentimentDashboard = () => {
+  const navigate = useNavigate();
+
   const getSentimentColor = (score: number) => {
     if (score >= 70) return "text-chart-1";
     if (score >= 50) return "text-chart-3";
@@ -107,13 +110,13 @@ const SentimentDashboard = () => {
               <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
             </div>
             <div className="flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:text-primary transition-colors">
                 Dashboard
               </NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-foreground transition-colors" activeClassName="text-primary">
+              <NavLink to="/sentiment" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
                 Sentiment
               </NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:text-primary transition-colors">
                 Backtest
               </NavLink>
             </div>
@@ -294,12 +297,13 @@ const SentimentDashboard = () => {
               {stockSentiment.map((stock) => (
                 <div
                   key={stock.symbol}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors"
+                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/10 hover:border-primary/50 transition-all duration-300 cursor-pointer hover-scale group"
+                  onClick={() => navigate(`/stock/${stock.symbol}`)}
                 >
                   <div className="flex items-center gap-4 flex-1">
                     <div className="flex-1">
-                      <div className="font-semibold">{stock.name}</div>
-                      <div className="text-sm text-muted-foreground">{stock.symbol}</div>
+                      <div className="font-semibold group-hover:text-primary transition-colors">{stock.name}</div>
+                      <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{stock.symbol}</div>
                     </div>
                     <div className="text-right">
                       <div className={`text-2xl font-bold ${getSentimentColor(stock.score)}`}>
@@ -351,7 +355,7 @@ const SentimentDashboard = () => {
                 {newsArticles.map((article) => (
                   <div
                     key={article.id}
-                    className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors"
+                    className="p-4 rounded-lg border border-border hover:bg-accent/10 hover:border-primary/30 transition-all duration-300 cursor-pointer group"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -361,7 +365,7 @@ const SentimentDashboard = () => {
                           <span className="text-xs text-muted-foreground">•</span>
                           <span className="text-xs text-muted-foreground">{article.time}</span>
                         </div>
-                        <h4 className="font-semibold mb-2 hover:text-primary transition-colors cursor-pointer">
+                        <h4 className="font-semibold mb-2 group-hover:text-primary transition-colors">
                           {article.title}
                         </h4>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">

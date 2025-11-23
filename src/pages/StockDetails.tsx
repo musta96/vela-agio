@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Target, AlertCircle, CheckCircle, DollarSign } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Target, AlertCircle, CheckCircle, DollarSign, Calculator, Zap, Shield as ShieldIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 
 // Mock data - will be replaced with real data later
 const stockDetails = {
@@ -81,6 +85,11 @@ const MetricItem = ({ label, value, suffix = "" }: MetricItemProps) => (
 const StockDetails = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const stock = stockDetails[symbol as keyof typeof stockDetails];
+
+  // Price Target Calculator State
+  const [growthRate, setGrowthRate] = useState<number>(8.5);
+  const [targetPE, setTargetPE] = useState<number>(12.5);
+  const [timeHorizon, setTimeHorizon] = useState<number>(12);
 
   if (!stock) {
     return (
@@ -325,6 +334,272 @@ const StockDetails = () => {
               </div>
             </div>
           </CardContent>
+        </Card>
+
+        {/* Price Target Calculator */}
+        <Card className="card-gradient border-border mb-8 overflow-hidden animate-fade-in">
+          <div className="bg-gradient-to-r from-secondary/5 to-accent/5 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Calculator className="h-8 w-8 text-secondary" />
+              <div>
+                <h2 className="text-2xl font-bold">Price Target Calculator</h2>
+                <p className="text-muted-foreground">Scenario-based valuation projections</p>
+              </div>
+            </div>
+
+            {/* Calculator Inputs */}
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              <Card className="border-border">
+                <CardContent className="pt-6">
+                  <Label className="text-sm font-medium mb-3 block">EPS Growth Rate (%)</Label>
+                  <Slider
+                    value={[growthRate]}
+                    onValueChange={(value) => setGrowthRate(value[0])}
+                    min={-10}
+                    max={30}
+                    step={0.5}
+                    className="mb-3"
+                  />
+                  <Input
+                    type="number"
+                    value={growthRate}
+                    onChange={(e) => setGrowthRate(parseFloat(e.target.value) || 0)}
+                    className="text-center font-semibold"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="pt-6">
+                  <Label className="text-sm font-medium mb-3 block">Target P/E Ratio</Label>
+                  <Slider
+                    value={[targetPE]}
+                    onValueChange={(value) => setTargetPE(value[0])}
+                    min={5}
+                    max={25}
+                    step={0.5}
+                    className="mb-3"
+                  />
+                  <Input
+                    type="number"
+                    value={targetPE}
+                    onChange={(e) => setTargetPE(parseFloat(e.target.value) || 0)}
+                    className="text-center font-semibold"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="pt-6">
+                  <Label className="text-sm font-medium mb-3 block">Time Horizon (months)</Label>
+                  <Slider
+                    value={[timeHorizon]}
+                    onValueChange={(value) => setTimeHorizon(value[0])}
+                    min={3}
+                    max={36}
+                    step={3}
+                    className="mb-3"
+                  />
+                  <Input
+                    type="number"
+                    value={timeHorizon}
+                    onChange={(e) => setTimeHorizon(parseInt(e.target.value) || 12)}
+                    className="text-center font-semibold"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Scenario Results */}
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Bear Case */}
+              {(() => {
+                const bearGrowth = growthRate * 0.5;
+                const bearPE = targetPE * 0.8;
+                const bearEPS = stock.metrics.growth.eps * Math.pow(1 + bearGrowth / 100, timeHorizon / 12);
+                const bearTarget = bearEPS * bearPE;
+                const bearUpside = ((bearTarget - currentPrice) / currentPrice) * 100;
+                
+                return (
+                  <Card className="border-chart-2/30 bg-chart-2/5 hover:shadow-lg transition-all duration-300 animate-scale-in">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <ShieldIcon className="h-5 w-5 text-chart-2" />
+                          Bear Case
+                        </CardTitle>
+                        <Badge className="bg-chart-2/20 text-chart-2 hover:bg-chart-2/30">
+                          Conservative
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Assumptions</div>
+                          <div className="text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span>Growth Rate:</span>
+                              <span className="font-semibold">{bearGrowth.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Target P/E:</span>
+                              <span className="font-semibold">{bearPE.toFixed(1)}x</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Future EPS:</span>
+                              <span className="font-semibold">€{bearEPS.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <div className="text-sm text-muted-foreground mb-2">Price Target</div>
+                          <div className="text-3xl font-bold text-chart-2 mb-2">
+                            €{bearTarget.toFixed(2)}
+                          </div>
+                          <div className={`text-sm font-semibold ${bearUpside >= 0 ? 'text-chart-1' : 'text-chart-2'}`}>
+                            {bearUpside >= 0 ? '+' : ''}{bearUpside.toFixed(1)}% upside
+                          </div>
+                          <Progress value={Math.min(100, Math.max(0, 50 + bearUpside / 2))} className="mt-3 h-2" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Base Case */}
+              {(() => {
+                const baseEPS = stock.metrics.growth.eps * Math.pow(1 + growthRate / 100, timeHorizon / 12);
+                const baseTarget = baseEPS * targetPE;
+                const baseUpside = ((baseTarget - currentPrice) / currentPrice) * 100;
+                
+                return (
+                  <Card className="border-chart-3/30 bg-chart-3/5 hover:shadow-lg transition-all duration-300 animate-scale-in" style={{ animationDelay: '0.1s' }}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Target className="h-5 w-5 text-chart-3" />
+                          Base Case
+                        </CardTitle>
+                        <Badge className="bg-chart-3/20 text-chart-3 hover:bg-chart-3/30">
+                          Expected
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Assumptions</div>
+                          <div className="text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span>Growth Rate:</span>
+                              <span className="font-semibold">{growthRate.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Target P/E:</span>
+                              <span className="font-semibold">{targetPE.toFixed(1)}x</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Future EPS:</span>
+                              <span className="font-semibold">€{baseEPS.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <div className="text-sm text-muted-foreground mb-2">Price Target</div>
+                          <div className="text-3xl font-bold text-chart-3 mb-2">
+                            €{baseTarget.toFixed(2)}
+                          </div>
+                          <div className={`text-sm font-semibold ${baseUpside >= 0 ? 'text-chart-1' : 'text-chart-2'}`}>
+                            {baseUpside >= 0 ? '+' : ''}{baseUpside.toFixed(1)}% upside
+                          </div>
+                          <Progress value={Math.min(100, Math.max(0, 50 + baseUpside / 2))} className="mt-3 h-2" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Bull Case */}
+              {(() => {
+                const bullGrowth = growthRate * 1.5;
+                const bullPE = targetPE * 1.2;
+                const bullEPS = stock.metrics.growth.eps * Math.pow(1 + bullGrowth / 100, timeHorizon / 12);
+                const bullTarget = bullEPS * bullPE;
+                const bullUpside = ((bullTarget - currentPrice) / currentPrice) * 100;
+                
+                return (
+                  <Card className="border-chart-1/30 bg-chart-1/5 hover:shadow-lg transition-all duration-300 animate-scale-in" style={{ animationDelay: '0.2s' }}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-chart-1" />
+                          Bull Case
+                        </CardTitle>
+                        <Badge className="bg-chart-1/20 text-chart-1 hover:bg-chart-1/30">
+                          Optimistic
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Assumptions</div>
+                          <div className="text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span>Growth Rate:</span>
+                              <span className="font-semibold">{bullGrowth.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Target P/E:</span>
+                              <span className="font-semibold">{bullPE.toFixed(1)}x</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Future EPS:</span>
+                              <span className="font-semibold">€{bullEPS.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <div className="text-sm text-muted-foreground mb-2">Price Target</div>
+                          <div className="text-3xl font-bold text-chart-1 mb-2">
+                            €{bullTarget.toFixed(2)}
+                          </div>
+                          <div className={`text-sm font-semibold ${bullUpside >= 0 ? 'text-chart-1' : 'text-chart-2'}`}>
+                            {bullUpside >= 0 ? '+' : ''}{bullUpside.toFixed(1)}% upside
+                          </div>
+                          <Progress value={Math.min(100, Math.max(0, 50 + bullUpside / 2))} className="mt-3 h-2" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </div>
+
+            {/* Summary */}
+            <div className="mt-6 p-4 rounded-lg bg-accent/5 border border-border">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 mt-0.5 text-primary" />
+                <div className="flex-1">
+                  <h4 className="font-semibold mb-1">Scenario Analysis Summary</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Based on the current inputs, the {timeHorizon}-month price targets range from{' '}
+                    <span className="font-semibold text-chart-2">
+                      €{(stock.metrics.growth.eps * Math.pow(1 + (growthRate * 0.5) / 100, timeHorizon / 12) * targetPE * 0.8).toFixed(2)}
+                    </span>
+                    {' '}(bear) to{' '}
+                    <span className="font-semibold text-chart-1">
+                      €{(stock.metrics.growth.eps * Math.pow(1 + (growthRate * 1.5) / 100, timeHorizon / 12) * targetPE * 1.2).toFixed(2)}
+                    </span>
+                    {' '}(bull). Adjust the parameters above to explore different scenarios.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </Card>
 
         <Tabs defaultValue="valuation" className="w-full">

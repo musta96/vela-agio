@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import StockDetails from "./pages/StockDetails";
 import SentimentDashboard from "./pages/SentimentDashboard";
+import BacktestingModule from "./pages/BacktestingModule";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/sentiment" element={<SentimentDashboard />} />
+          <Route path="/backtest" element={<BacktestingModule />} />
           <Route path="/stock/:symbol" element={<StockDetails />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

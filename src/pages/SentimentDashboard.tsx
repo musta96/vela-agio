@@ -113,9 +113,9 @@ const SentimentDashboard = () => {
               <NavLink to="/sentiment" className="text-sm font-medium text-foreground transition-colors" activeClassName="text-primary">
                 Sentiment
               </NavLink>
-              <a href="#analysis" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Analysis
-              </a>
+              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Backtest
+              </NavLink>
             </div>
           </div>
         </div>

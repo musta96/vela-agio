@@ -31,9 +31,9 @@ const Index = () => {
               <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Sentiment
               </NavLink>
-              <a href="#analysis" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Analysis
-              </a>
+              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Backtest
+              </NavLink>
               <Button variant="default" size="sm">
                 Sign In
               </Button>

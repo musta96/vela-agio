@@ -1,26 +1,50 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield, Search, Briefcase } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const scrollToStocks = () => {
     const stocksSection = document.getElementById('stocks');
     stocksSection?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const featuredStocks = [
-    { symbol: "ENEL.MI", name: "Enel", price: 6.42, change: 2.4, volume: "15.2M" },
-    { symbol: "ENI.MI", name: "Eni", price: 14.28, change: -0.8, volume: "8.7M" },
-    { symbol: "ISP.MI", name: "Intesa Sanpaolo", price: 3.45, change: 1.2, volume: "42.1M" },
-    { symbol: "UCG.MI", name: "UniCredit", price: 38.92, change: 3.1, volume: "11.4M" },
+  const handleSignIn = () => {
+    toast({
+      title: "Sign In Coming Soon",
+      description: "Authentication feature will be available soon!",
+    });
+  };
+
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const allStocks = [
+    { symbol: "ENEL", name: "Enel", price: 6.42, change: 2.4, volume: "15.2M" },
+    { symbol: "ENI", name: "Eni", price: 14.28, change: -0.8, volume: "8.7M" },
+    { symbol: "ISP", name: "Intesa Sanpaolo", price: 3.45, change: 1.2, volume: "42.1M" },
+    { symbol: "UCG", name: "UniCredit", price: 38.92, change: 3.1, volume: "11.4M" },
+    { symbol: "TIT", name: "Telecom Italia", price: 0.23, change: -1.5, volume: "95.3M" },
+    { symbol: "STM", name: "STMicroelectronics", price: 42.15, change: 3.8, volume: "7.2M" },
+    { symbol: "TEN", name: "Tenaris", price: 15.67, change: 1.9, volume: "3.8M" },
+    { symbol: "LDO", name: "Leonardo", price: 23.45, change: 2.1, volume: "4.5M" },
   ];
+
+  const filteredStocks = searchQuery
+    ? allStocks.filter(stock => 
+        stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        stock.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allStocks.slice(0, 4);
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,7 +66,11 @@ const Index = () => {
               <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
                 Backtest
               </NavLink>
-              <Button variant="default" size="sm" className="hover-scale" onClick={() => navigate('/backtest')}>
+              <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
+                Portfolio
+              </NavLink>
+              <Button variant="default" size="sm" className="gap-2 hover-scale" onClick={handleSignIn}>
+                <Briefcase className="h-4 w-4" />
                 Sign In
               </Button>
             </div>
@@ -122,9 +150,21 @@ const Index = () => {
 
       {/* Market Overview */}
       <section id="stocks" className="container mx-auto px-6 py-16">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Market Overview</h2>
-          <p className="text-muted-foreground">Real-time data from FTSE MIB components</p>
+        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Market Overview</h2>
+            <p className="text-muted-foreground">Real-time data from FTSE MIB components</p>
+          </div>
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search stocks by symbol or name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
         <div className="grid md:grid-cols-4 gap-4 mb-8">
@@ -155,9 +195,15 @@ const Index = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {featuredStocks.map((stock) => (
-            <StockCard key={stock.symbol} stock={stock} />
-          ))}
+          {filteredStocks.length > 0 ? (
+            filteredStocks.map((stock) => (
+              <StockCard key={stock.symbol} stock={stock} />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <p className="text-muted-foreground">No stocks found matching "{searchQuery}"</p>
+            </div>
+          )}
         </div>
       </section>
 

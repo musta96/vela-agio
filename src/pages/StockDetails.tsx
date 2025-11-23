@@ -1,8 +1,9 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Target, AlertCircle, CheckCircle, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 
 // Mock data - will be replaced with real data later
 const stockDetails = {
@@ -98,6 +99,27 @@ const StockDetails = () => {
   }
 
   const isPositive = stock.change > 0;
+  
+  // Intrinsic value calculations
+  const intrinsicValue = stock.metrics.valuationModels.intrinsicValue;
+  const ddmValue = stock.metrics.valuationModels.ddm;
+  const dcfValue = stock.metrics.valuationModels.dcf;
+  const currentPrice = stock.price;
+  
+  const valuationDifference = ((intrinsicValue - currentPrice) / currentPrice) * 100;
+  const isUndervalued = currentPrice < intrinsicValue;
+  const marginOfSafety = isUndervalued ? valuationDifference : 0;
+  
+  // Calculate valuation gauge (0-100 scale where 50 is fair value)
+  const gaugeValue = Math.min(100, Math.max(0, 50 + (valuationDifference / 2)));
+  
+  const getValuationStatus = () => {
+    if (Math.abs(valuationDifference) < 5) return { status: "Fair Value", color: "text-chart-3", bgColor: "bg-chart-3/10", icon: CheckCircle };
+    if (isUndervalued) return { status: "Undervalued", color: "text-chart-1", bgColor: "bg-chart-1/10", icon: TrendingDown };
+    return { status: "Overvalued", color: "text-chart-2", bgColor: "bg-chart-2/10", icon: TrendingUp };
+  };
+  
+  const valuationStatus = getValuationStatus();
 
   return (
     <div className="min-h-screen bg-background">
@@ -127,8 +149,184 @@ const StockDetails = () => {
         </div>
       </div>
 
-      {/* Metrics */}
+      {/* Intrinsic Value Analysis */}
       <div className="max-w-7xl mx-auto px-8 py-8">
+        <Card className="card-gradient border-border mb-8 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/5 to-secondary/5 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Target className="h-8 w-8 text-primary" />
+              <div>
+                <h2 className="text-2xl font-bold">Intrinsic Value Analysis</h2>
+                <p className="text-muted-foreground">Comprehensive valuation assessment</p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Current Price Card */}
+              <Card className="border-border">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Current Market Price</div>
+                    <div className="text-4xl font-bold text-foreground mb-2">€{currentPrice.toFixed(2)}</div>
+                    <DollarSign className="h-6 w-6 text-muted-foreground mx-auto" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Intrinsic Value Card */}
+              <Card className="border-primary/50 bg-primary/5">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Calculated Intrinsic Value</div>
+                    <div className="text-4xl font-bold text-primary mb-2">€{intrinsicValue.toFixed(2)}</div>
+                    <div className="flex items-center justify-center gap-1">
+                      <valuationStatus.icon className={`h-5 w-5 ${valuationStatus.color}`} />
+                      <span className={`text-sm font-semibold ${valuationStatus.color}`}>
+                        {valuationStatus.status}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Valuation Status Card */}
+              <Card className={`border-border ${valuationStatus.bgColor}`}>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Valuation Difference</div>
+                    <div className={`text-4xl font-bold mb-2 ${valuationStatus.color}`}>
+                      {valuationDifference > 0 ? "+" : ""}{valuationDifference.toFixed(1)}%
+                    </div>
+                    {isUndervalued && marginOfSafety > 0 && (
+                      <Badge className="bg-chart-1/20 text-chart-1 hover:bg-chart-1/30">
+                        Margin of Safety: {marginOfSafety.toFixed(1)}%
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Valuation Gauge */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-chart-2">Overvalued</span>
+                <span className="text-sm font-medium text-chart-3">Fair Value</span>
+                <span className="text-sm font-medium text-chart-1">Undervalued</span>
+              </div>
+              <Progress value={gaugeValue} className="h-3" />
+              <div className="flex justify-center mt-2">
+                <Badge variant="outline" className="text-xs">
+                  Current Position: {gaugeValue.toFixed(0)}/100
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          {/* Multiple Valuation Methods */}
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-semibold mb-4">Valuation Methods Breakdown</h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              {/* DCF Valuation */}
+              <div className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">DCF Model</span>
+                  {currentPrice < dcfValue ? (
+                    <Badge className="bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 text-xs">
+                      Undervalued
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-chart-2/10 text-chart-2 hover:bg-chart-2/20 text-xs">
+                      Overvalued
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold">€{dcfValue.toFixed(2)}</span>
+                  <span className={`text-sm ${currentPrice < dcfValue ? 'text-chart-1' : 'text-chart-2'}`}>
+                    {((dcfValue - currentPrice) / currentPrice * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Based on future cash flow projections
+                </p>
+              </div>
+
+              {/* DDM Valuation */}
+              <div className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">DDM Model</span>
+                  {currentPrice < ddmValue ? (
+                    <Badge className="bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 text-xs">
+                      Undervalued
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-chart-2/10 text-chart-2 hover:bg-chart-2/20 text-xs">
+                      Overvalued
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold">€{ddmValue.toFixed(2)}</span>
+                  <span className={`text-sm ${currentPrice < ddmValue ? 'text-chart-1' : 'text-chart-2'}`}>
+                    {((ddmValue - currentPrice) / currentPrice * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Based on dividend discount model
+                </p>
+              </div>
+
+              {/* P/E Based Valuation */}
+              <div className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">P/E Based</span>
+                  {stock.metrics.valuation.pe < 15 ? (
+                    <Badge className="bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 text-xs">
+                      Attractive
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-chart-3/10 text-chart-3 hover:bg-chart-3/20 text-xs">
+                      Average
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold">{stock.metrics.valuation.pe.toFixed(1)}x</span>
+                  <span className="text-sm text-muted-foreground">P/E Ratio</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Relative to earnings multiple
+                </p>
+              </div>
+            </div>
+
+            {/* Investment Recommendation */}
+            <div className="mt-6 p-4 rounded-lg bg-accent/5 border border-border">
+              <div className="flex items-start gap-3">
+                <AlertCircle className={`h-5 w-5 mt-0.5 ${valuationStatus.color}`} />
+                <div className="flex-1">
+                  <h4 className="font-semibold mb-1">Investment Assessment</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {isUndervalued && marginOfSafety > 10 && (
+                      <>Strong buy opportunity. The stock is trading significantly below its intrinsic value with a margin of safety of {marginOfSafety.toFixed(1)}%. Multiple valuation models suggest upside potential.</>
+                    )}
+                    {isUndervalued && marginOfSafety <= 10 && marginOfSafety > 5 && (
+                      <>Moderate buy opportunity. The stock appears slightly undervalued with a {marginOfSafety.toFixed(1)}% margin of safety. Consider accumulating on further weakness.</>
+                    )}
+                    {Math.abs(valuationDifference) < 5 && (
+                      <>Fairly valued. The stock is trading close to its intrinsic value. Current price reflects fundamental value reasonably well.</>
+                    )}
+                    {!isUndervalued && Math.abs(valuationDifference) > 5 && (
+                      <>The stock appears overvalued by {Math.abs(valuationDifference).toFixed(1)}%. Consider waiting for a better entry point or taking profits if holding.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="valuation" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-8">
             <TabsTrigger value="valuation">Valuation</TabsTrigger>

@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import StockDetails from "./pages/StockDetails";
 import SentimentDashboard from "./pages/SentimentDashboard";
 import BacktestingModule from "./pages/BacktestingModule";
+import Portfolio from "./pages/Portfolio";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/sentiment" element={<SentimentDashboard />} />
           <Route path="/backtest" element={<BacktestingModule />} />
+          <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/stock/:symbol" element={<StockDetails />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

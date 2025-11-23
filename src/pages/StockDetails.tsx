@@ -63,7 +63,48 @@ const stockDetails = {
       },
     },
   },
-  // Add more stocks as needed
+  ENI: {
+    symbol: "ENI",
+    name: "Eni S.p.A",
+    price: 14.28,
+    change: -0.8,
+    metrics: {
+      valuation: { pe: 8.3, pb: 0.9, priceToFCF: 5.1, priceToEPS: 7.8, evToEbitda: 3.2, dividendYield: 5.8 },
+      profitability: { roe: 11.2, roa: 4.5, roi: 7.3, operatingMargin: 12.4, ebitda: 18500, nopat: 5200 },
+      financialHealth: { debtToEquity: 0.85, currentRatio: 1.4, quickRatio: 1.1, interestCoverage: 8.2, debtToEbitda: 1.8, netDebt: 28000 },
+      growth: { eps: 1.72, epsGrowth: -2.1, revenueGrowth: 3.8, fcfGrowth: 6.5 },
+      cashFlow: { fcf: 4200, fcff: 3900, fcfe: 3500, capex: 6200, changeInNowc: -320 },
+      valuationModels: { ddm: 15.10, dcf: 15.80, capm: 7.2, wacc: 5.8, intrinsicValue: 15.45 },
+    },
+  },
+  ISP: {
+    symbol: "ISP",
+    name: "Intesa Sanpaolo",
+    price: 3.45,
+    change: 1.2,
+    metrics: {
+      valuation: { pe: 6.8, pb: 0.7, priceToFCF: 4.2, priceToEPS: 6.5, evToEbitda: 2.8, dividendYield: 6.2 },
+      profitability: { roe: 9.8, roa: 0.8, roi: 5.2, operatingMargin: 38.5, ebitda: 12800, nopat: 3200 },
+      financialHealth: { debtToEquity: 0.32, currentRatio: 0.95, quickRatio: 0.92, interestCoverage: 12.5, debtToEbitda: 0.8, netDebt: 8500 },
+      growth: { eps: 0.51, epsGrowth: 15.2, revenueGrowth: 8.1, fcfGrowth: 18.3 },
+      cashFlow: { fcf: 2800, fcff: 2600, fcfe: 2400, capex: 1200, changeInNowc: -180 },
+      valuationModels: { ddm: 3.80, dcf: 4.20, capm: 6.8, wacc: 4.5, intrinsicValue: 4.00 },
+    },
+  },
+  UCG: {
+    symbol: "UCG",
+    name: "UniCredit",
+    price: 38.92,
+    change: 3.1,
+    metrics: {
+      valuation: { pe: 5.2, pb: 0.6, priceToFCF: 3.8, priceToEPS: 5.1, evToEbitda: 2.1, dividendYield: 7.5 },
+      profitability: { roe: 12.5, roa: 0.9, roi: 6.8, operatingMargin: 42.1, ebitda: 16200, nopat: 4100 },
+      financialHealth: { debtToEquity: 0.28, currentRatio: 0.98, quickRatio: 0.94, interestCoverage: 15.2, debtToEbitda: 0.6, netDebt: 9200 },
+      growth: { eps: 7.49, epsGrowth: 22.8, revenueGrowth: 12.3, fcfGrowth: 25.6 },
+      cashFlow: { fcf: 5200, fcff: 4900, fcfe: 4600, capex: 1800, changeInNowc: -250 },
+      valuationModels: { ddm: 42.50, dcf: 45.80, capm: 5.5, wacc: 4.2, intrinsicValue: 44.10 },
+    },
+  },
 };
 
 interface MetricItemProps {

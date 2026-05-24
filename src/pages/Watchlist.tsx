@@ -33,6 +33,7 @@ const Watchlist = () => {
               <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Dashboard</NavLink>
               <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Sentiment</NavLink>
               <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Backtest</NavLink>
+              <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">AI Picks</NavLink>
               <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
               <NavLink to="/watchlist" className="text-sm font-medium text-foreground hover:text-primary transition-colors" activeClassName="text-primary">Watchlist</NavLink>
               <Button variant="default" size="sm" className="gap-2 hover-scale">

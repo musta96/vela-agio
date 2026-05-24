@@ -2,18 +2,23 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, Briefcase } from "lucide-react";
+import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, Briefcase, BellRing, Trash2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useToast } from "@/hooks/use-toast";
 import { useMemo } from "react";
+import { AlertSettingsDialog } from "@/components/AlertSettingsDialog";
+import { useAlerts } from "@/hooks/useAlerts";
+import { useAlertMonitor } from "@/hooks/useAlertMonitor";
 
 const Watchlist = () => {
   const { items, remove } = useWatchlist();
   const { toast } = useToast();
   const symbols = useMemo(() => items.map((i) => i.symbol), [items]);
   const { quotes, loading, lastUpdated, refresh } = useLiveQuotes(symbols, 30000);
+  const { rules, history, clearHistory } = useAlerts();
+  useAlertMonitor();
 
   const handleRemove = (symbol: string, name: string) => {
     remove(symbol);
@@ -70,6 +75,47 @@ const Watchlist = () => {
           )}
         </div>
 
+        {items.length > 0 && (
+          <Card className="p-4 mb-6 card-gradient border-border">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BellRing className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold">Triggered alerts</h2>
+                <Badge variant="outline" className="text-xs">{history.length}</Badge>
+              </div>
+              {history.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearHistory} className="gap-2 text-muted-foreground">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Clear
+                </Button>
+              )}
+            </div>
+            {history.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No alerts have fired yet. Set price or sentiment conditions on any watched stock — you'll get a toast
+                {typeof Notification !== "undefined" ? " and a browser notification" : ""} when conditions match.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {history.slice(0, 25).map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-3 p-2 rounded-md bg-muted/30 border border-border">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{e.symbol}</span>
+                        <Badge variant="outline" className="text-[10px]">{e.kind.replace(/-/g, " ")}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{e.message}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(e.at).toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
         {items.length === 0 ? (
           <Card className="p-12 text-center card-gradient border-border">
             <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -87,6 +133,7 @@ const Watchlist = () => {
               const q = quotes[item.symbol];
               const change = q?.change ?? 0;
               const isPositive = change >= 0;
+              const rule = rules.find((r) => r.symbol === item.symbol);
               return (
                 <Card key={item.symbol} className="p-4 card-gradient border-border hover:border-primary/50 transition-all">
                   <div className="flex items-center justify-between gap-4">
@@ -95,6 +142,16 @@ const Watchlist = () => {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold group-hover:text-primary transition-colors">{item.symbol}</div>
                         <div className="text-sm text-muted-foreground truncate">{item.name}</div>
+                        {rule?.enabled && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {rule.priceAbove != null && <Badge variant="outline" className="text-[10px]">≥ {rule.priceAbove}</Badge>}
+                            {rule.priceBelow != null && <Badge variant="outline" className="text-[10px]">≤ {rule.priceBelow}</Badge>}
+                            {rule.changeUpPct != null && <Badge variant="outline" className="text-[10px]">+{rule.changeUpPct}%</Badge>}
+                            {rule.changeDownPct != null && <Badge variant="outline" className="text-[10px]">-{rule.changeDownPct}%</Badge>}
+                            {rule.sentimentAbove != null && <Badge variant="outline" className="text-[10px]">sent ≥ {rule.sentimentAbove}</Badge>}
+                            {rule.sentimentBelow != null && <Badge variant="outline" className="text-[10px]">sent ≤ {rule.sentimentBelow}</Badge>}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         {q ? (
@@ -114,6 +171,7 @@ const Watchlist = () => {
                         )}
                       </div>
                     </Link>
+                    <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={q?.price} />
                     <Button
                       variant="ghost"
                       size="icon"

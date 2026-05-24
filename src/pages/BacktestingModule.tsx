@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,12 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NavLink } from "@/components/NavLink";
-import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3 } from "lucide-react";
+import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
+import { exportBacktestCsv, exportBacktestPdf } from "@/lib/backtestExport";
 
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
@@ -44,6 +51,7 @@ const BacktestingModule = () => {
   const [initialCapital, setInitialCapital] = useState("100000");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const suggestions = useMemo(() => (query ? searchCatalog(query, 6) : []), [query]);
 
@@ -104,6 +112,64 @@ const BacktestingModule = () => {
 
   const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   const chartData = result?.equity.map(e => ({ date: new Date(e.t).toLocaleDateString(), Portfolio: Math.round(e.value), Benchmark: Math.round(e.benchmark) })) || [];
+
+  const captureChartPng = async (): Promise<string | undefined> => {
+    const svg = chartRef.current?.querySelector("svg");
+    if (!svg) return undefined;
+    try {
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      const rect = svg.getBoundingClientRect();
+      const w = Math.max(rect.width || svg.clientWidth || 800, 400);
+      const h = Math.max(rect.height || svg.clientHeight || 320, 200);
+      clone.setAttribute("width", String(w));
+      clone.setAttribute("height", String(h));
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      // Inline a white background for PDF legibility
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("width", "100%");
+      bg.setAttribute("height", "100%");
+      bg.setAttribute("fill", "#ffffff");
+      clone.insertBefore(bg, clone.firstChild);
+      const xml = new XMLSerializer().serializeToString(clone);
+      const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        img.onload = () => {
+          const scale = 2;
+          const canvas = document.createElement("canvas");
+          canvas.width = w * scale;
+          canvas.height = h * scale;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("no ctx"));
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+        img.src = url;
+      });
+      return dataUrl;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!result) return;
+    exportBacktestCsv(result);
+    toast({ title: "CSV downloaded", description: "Backtest report saved to your device." });
+  };
+
+  const handleExportPdf = async () => {
+    if (!result) return;
+    const chartImg = await captureChartPng();
+    exportBacktestPdf(result, chartImg);
+    toast({ title: "PDF downloaded", description: "Backtest report saved to your device." });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -239,6 +305,24 @@ const BacktestingModule = () => {
             )}
             {result && (
               <div className="space-y-4">
+                <div className="flex justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Export report
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleExportPdf} className="gap-2">
+                        <FileText className="h-4 w-4" /> Download PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportCsv} className="gap-2">
+                        <FileSpreadsheet className="h-4 w-4" /> Download CSV
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="card-gradient border-border">
                     <CardContent className="pt-4">
@@ -276,6 +360,7 @@ const BacktestingModule = () => {
                     <CardDescription>Strategy vs Buy &amp; Hold benchmark</CardDescription>
                   </CardHeader>
                   <CardContent>
+                    <div ref={chartRef}>
                     <ResponsiveContainer width="100%" height={320}>
                       <AreaChart data={chartData}>
                         <defs>
@@ -297,6 +382,7 @@ const BacktestingModule = () => {
                         <Area type="monotone" dataKey="Benchmark" stroke="hsl(var(--primary))" fill="url(#cB)" strokeWidth={2} strokeDasharray="5 5" />
                       </AreaChart>
                     </ResponsiveContainer>
+                    </div>
                   </CardContent>
                 </Card>
 

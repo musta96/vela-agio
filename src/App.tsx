@@ -10,7 +10,9 @@ import BacktestingModule from "./pages/BacktestingModule";
 import Portfolio from "./pages/Portfolio";
 import Watchlist from "./pages/Watchlist";
 import SmartPicks from "./pages/SmartPicks";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
 
@@ -20,8 +22,10 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthProvider>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/sentiment" element={<SentimentDashboard />} />
           <Route path="/backtest" element={<BacktestingModule />} />
           <Route path="/portfolio" element={<Portfolio />} />
@@ -31,6 +35,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

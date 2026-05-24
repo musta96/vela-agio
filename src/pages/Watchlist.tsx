@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, Briefcase, BellRing, Trash2 } from "lucide-react";
+import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, BellRing, Trash2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { AlertSettingsDialog } from "@/components/AlertSettingsDialog";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAlertMonitor } from "@/hooks/useAlertMonitor";
+import { AuthButton } from "@/components/AuthButton";
 
 const Watchlist = () => {
   const { items, remove } = useWatchlist();
@@ -41,10 +42,7 @@ const Watchlist = () => {
               <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">AI Picks</NavLink>
               <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
               <NavLink to="/watchlist" className="text-sm font-medium text-foreground hover:text-primary transition-colors" activeClassName="text-primary">Watchlist</NavLink>
-              <Button variant="default" size="sm" className="gap-2 hover-scale">
-                <Briefcase className="h-4 w-4" />
-                Sign In
-              </Button>
+              <AuthButton />
             </div>
           </div>
         </div>

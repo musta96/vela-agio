@@ -23,6 +23,7 @@ import { exportBacktestCsv, exportBacktestPdf } from "@/lib/backtestExport";
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
   strategy: string; range: string; holdings: string[];
+  benchmark?: string | null; benchmarkLabel?: string;
   equity: { t: number; value: number; benchmark: number }[];
   trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number }[];
   metrics: {
@@ -31,6 +32,20 @@ interface BacktestResult {
     totalTrades: number; winningTrades: number;
   };
 }
+
+const BENCHMARKS: { value: string; label: string }[] = [
+  { value: "self", label: "Buy & Hold (selected basket)" },
+  { value: "FTSEMIB.MI", label: "FTSE MIB (Italy)" },
+  { value: "^GSPC", label: "S&P 500" },
+  { value: "^NDX", label: "NASDAQ 100" },
+  { value: "^IXIC", label: "NASDAQ Composite" },
+  { value: "^DJI", label: "Dow Jones" },
+  { value: "^STOXX50E", label: "Euro Stoxx 50" },
+  { value: "^FTSE", label: "FTSE 100 (UK)" },
+  { value: "^GDAXI", label: "DAX (Germany)" },
+  { value: "^FCHI", label: "CAC 40 (France)" },
+  { value: "^N225", label: "Nikkei 225 (Japan)" },
+];
 
 const BacktestingModule = () => {
   const { toast } = useToast();
@@ -49,6 +64,7 @@ const BacktestingModule = () => {
   const [strategy, setStrategy] = useState("buy_hold");
   const [range, setRange] = useState("1Y");
   const [initialCapital, setInitialCapital] = useState("100000");
+  const [benchmark, setBenchmark] = useState<string>("self");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -98,7 +114,11 @@ const BacktestingModule = () => {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("backtest-strategy", {
-        body: { holdings: holdings.map(h => ({ symbol: h.symbol, weight: h.weight })), strategy, range, initialCapital: Number(initialCapital) },
+        body: {
+          holdings: holdings.map(h => ({ symbol: h.symbol, weight: h.weight })),
+          strategy, range, initialCapital: Number(initialCapital),
+          benchmark: benchmark === "self" ? null : benchmark,
+        },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -111,7 +131,13 @@ const BacktestingModule = () => {
   };
 
   const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  const chartData = result?.equity.map(e => ({ date: new Date(e.t).toLocaleDateString(), Portfolio: Math.round(e.value), Benchmark: Math.round(e.benchmark) })) || [];
+  const benchLabel = result?.benchmarkLabel
+    ? (BENCHMARKS.find(b => b.value === result.benchmarkLabel)?.label || result.benchmarkLabel)
+    : (BENCHMARKS.find(b => b.value === benchmark)?.label || "Benchmark");
+  const benchShort = result?.benchmark
+    ? (BENCHMARKS.find(b => b.value === result.benchmark)?.label.split(" (")[0] || result.benchmark)
+    : "Buy & Hold";
+  const chartData = result?.equity.map(e => ({ date: new Date(e.t).toLocaleDateString(), Portfolio: Math.round(e.value), [benchShort]: Math.round(e.benchmark) })) || [];
 
   const captureChartPng = async (): Promise<string | undefined> => {
     const svg = chartRef.current?.querySelector("svg");
@@ -278,6 +304,19 @@ const BacktestingModule = () => {
               </div>
 
               <div className="space-y-2">
+                <Label>Benchmark</Label>
+                <Select value={benchmark} onValueChange={setBenchmark}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BENCHMARKS.map(b => (
+                      <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Index used as comparison in the equity chart and KPI cards.</p>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Initial Capital</Label>
                 <Input type="number" value={initialCapital} onChange={(e) => setInitialCapital(e.target.value)} />
               </div>
@@ -334,7 +373,7 @@ const BacktestingModule = () => {
                   </Card>
                   <Card className="card-gradient border-border">
                     <CardContent className="pt-4">
-                      <p className="text-xs text-muted-foreground">Buy &amp; Hold</p>
+                      <p className="text-xs text-muted-foreground truncate" title={benchLabel}>{benchShort}</p>
                       <p className={`text-2xl font-bold ${result.metrics.benchReturn >= 0 ? "text-success" : "text-destructive"}`}>
                         {result.metrics.benchReturn >= 0 ? "+" : ""}{result.metrics.benchReturn.toFixed(2)}%
                       </p>
@@ -357,7 +396,7 @@ const BacktestingModule = () => {
                 <Card className="card-gradient border-border">
                   <CardHeader>
                     <CardTitle>Equity Curve</CardTitle>
-                    <CardDescription>Strategy vs Buy &amp; Hold benchmark</CardDescription>
+                    <CardDescription>Strategy vs {benchLabel}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div ref={chartRef}>
@@ -379,7 +418,7 @@ const BacktestingModule = () => {
                         <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} formatter={(v: number) => fmt(v)} />
                         <Legend />
                         <Area type="monotone" dataKey="Portfolio" stroke="hsl(var(--success))" fill="url(#cP)" strokeWidth={2} />
-                        <Area type="monotone" dataKey="Benchmark" stroke="hsl(var(--primary))" fill="url(#cB)" strokeWidth={2} strokeDasharray="5 5" />
+                        <Area type="monotone" dataKey={benchShort} stroke="hsl(var(--primary))" fill="url(#cB)" strokeWidth={2} strokeDasharray="5 5" />
                       </AreaChart>
                     </ResponsiveContainer>
                     </div>

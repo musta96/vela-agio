@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
+import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
+import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 
 interface PortfolioStock {
   symbol: string;
@@ -24,6 +26,7 @@ const Portfolio = () => {
   ]);
   
   const [showAddForm, setShowAddForm] = useState(false);
+  const [range, setRange] = useState<HistoryRange>("1M");
   const [newStock, setNewStock] = useState({
     symbol: "",
     name: "",
@@ -171,6 +174,13 @@ const Portfolio = () => {
             <p className="text-3xl font-bold text-foreground">{portfolio.length}</p>
           </Card>
         </div>
+
+        {/* Performance Chart */}
+        <PortfolioPerformanceChart
+          holdings={portfolio.map((p) => ({ symbol: p.symbol, shares: p.shares, avgPrice: p.avgPrice }))}
+          range={range}
+          onRangeChange={setRange}
+        />
 
         {/* Add Stock Form */}
         {showAddForm && (

@@ -88,6 +88,9 @@ const Index = () => {
               <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
                 Portfolio
               </NavLink>
+              <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
+                Watchlist
+              </NavLink>
               <Button variant="default" size="sm" className="gap-2 hover-scale" onClick={handleSignIn}>
                 <Briefcase className="h-4 w-4" />
                 Sign In

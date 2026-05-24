@@ -50,7 +50,7 @@ export const StockCard = ({ stock }: StockCardProps) => {
             >
               <Star
                 className={`h-4 w-4 transition-colors ${
-                  watched ? "fill-warning text-warning" : "text-muted-foreground hover:text-foreground"
+                  watched ? "fill-primary text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               />
             </button>

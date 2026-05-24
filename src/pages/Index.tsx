@@ -103,10 +103,7 @@ const Index = () => {
               <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
                 AI Picks
               </NavLink>
-              <Button variant="default" size="sm" className="gap-2 hover-scale" onClick={handleSignIn}>
-                <Briefcase className="h-4 w-4" />
-                Sign In
-              </Button>
+              <AuthButton />
             </div>
           </div>
         </div>

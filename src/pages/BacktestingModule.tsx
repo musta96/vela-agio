@@ -1,490 +1,335 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, TrendingUp, TrendingDown, Play, RotateCcw, Calendar, Target, Shield, DollarSign, BarChart3 } from "lucide-react";
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { NavLink } from "@/components/NavLink";
-import { useNavigate } from "react-router-dom";
+import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3 } from "lucide-react";
+import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
 
-// Mock backtesting results data
-const equityCurveData = [
-  { date: "Jan", portfolio: 100000, benchmark: 100000 },
-  { date: "Feb", portfolio: 103500, benchmark: 101200 },
-  { date: "Mar", portfolio: 108200, benchmark: 102800 },
-  { date: "Apr", portfolio: 106800, benchmark: 104100 },
-  { date: "May", portfolio: 112400, benchmark: 105500 },
-  { date: "Jun", portfolio: 118900, benchmark: 107200 },
-  { date: "Jul", portfolio: 115600, benchmark: 108800 },
-  { date: "Aug", portfolio: 122300, benchmark: 110100 },
-  { date: "Sep", portfolio: 128700, benchmark: 111900 },
-  { date: "Oct", portfolio: 125400, benchmark: 113200 },
-  { date: "Nov", portfolio: 132100, benchmark: 115000 },
-  { date: "Dec", portfolio: 138500, benchmark: 116500 },
-];
-
-const drawdownData = [
-  { date: "Jan", drawdown: 0 },
-  { date: "Feb", drawdown: -2.1 },
-  { date: "Mar", drawdown: 0 },
-  { date: "Apr", drawdown: -1.3 },
-  { date: "May", drawdown: 0 },
-  { date: "Jun", drawdown: 0 },
-  { date: "Jul", drawdown: -2.8 },
-  { date: "Aug", drawdown: 0 },
-  { date: "Sep", drawdown: 0 },
-  { date: "Oct", drawdown: -2.6 },
-  { date: "Nov", drawdown: 0 },
-  { date: "Dec", drawdown: 0 },
-];
-
-const monthlyReturnsData = [
-  { month: "Jan", returns: 0 },
-  { month: "Feb", returns: 3.5 },
-  { month: "Mar", returns: 4.5 },
-  { month: "Apr", returns: -1.3 },
-  { month: "May", returns: 5.2 },
-  { month: "Jun", returns: 5.8 },
-  { month: "Jul", returns: -2.8 },
-  { month: "Aug", returns: 5.8 },
-  { month: "Sep", returns: 5.2 },
-  { month: "Oct", returns: -2.6 },
-  { month: "Nov", returns: 5.3 },
-  { month: "Dec", returns: 4.8 },
-];
-
-const tradeHistory = [
-  { id: 1, symbol: "ENEL.MI", entry: "€6.20", exit: "€6.54", profit: "+€3,400", return: "+5.48%", date: "2024-12-15", type: "Long" },
-  { id: 2, symbol: "ISP.MI", entry: "€3.30", exit: "€3.52", profit: "+€4,400", return: "+6.67%", date: "2024-12-10", type: "Long" },
-  { id: 3, symbol: "UCG.MI", entry: "€37.80", exit: "€38.92", profit: "+€2,240", return: "+2.96%", date: "2024-12-05", type: "Long" },
-  { id: 4, symbol: "ENI.MI", entry: "€14.50", exit: "€14.28", profit: "-€880", return: "-1.52%", date: "2024-11-28", type: "Long" },
-  { id: 5, symbol: "STM.MI", entry: "€42.10", exit: "€45.80", profit: "+€5,550", return: "+8.79%", date: "2024-11-22", type: "Long" },
-];
+interface Holding { symbol: string; weight: number; name?: string; }
+interface BacktestResult {
+  strategy: string; range: string; holdings: string[];
+  equity: { t: number; value: number; benchmark: number }[];
+  trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number }[];
+  metrics: {
+    finalValue: number; totalReturn: number; benchReturn: number;
+    maxDrawdown: number; sharpe: number; winRate: number;
+    totalTrades: number; winningTrades: number;
+  };
+}
 
 const BacktestingModule = () => {
-  const navigate = useNavigate();
-  const [isRunning, setIsRunning] = useState(false);
+  const { toast } = useToast();
+  const [params] = useSearchParams();
+  const initialSym = params.get("symbol");
 
-  const handleRunBacktest = () => {
-    setIsRunning(true);
-    // Simulate backtest running
-    setTimeout(() => setIsRunning(false), 2000);
+  const [mode, setMode] = useState<"single" | "portfolio">("single");
+  const [holdings, setHoldings] = useState<Holding[]>(() => {
+    if (initialSym) {
+      const meta = STOCK_CATALOG.find(c => c.symbol === initialSym);
+      return [{ symbol: initialSym, weight: 1, name: meta?.name }];
+    }
+    return [];
+  });
+  const [query, setQuery] = useState("");
+  const [strategy, setStrategy] = useState("buy_hold");
+  const [range, setRange] = useState("1Y");
+  const [initialCapital, setInitialCapital] = useState("100000");
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<BacktestResult | null>(null);
+
+  const suggestions = useMemo(() => (query ? searchCatalog(query, 6) : []), [query]);
+
+  // Load portfolio from localStorage if user picks "portfolio" mode
+  useEffect(() => {
+    if (mode === "portfolio") {
+      const stored = localStorage.getItem("portfolio_holdings");
+      if (stored) {
+        try {
+          const arr = JSON.parse(stored);
+          if (Array.isArray(arr) && arr.length) {
+            const total = arr.reduce((s, h) => s + (h.shares * h.avgPrice), 0) || 1;
+            setHoldings(arr.map((h: any) => ({
+              symbol: h.symbol, name: h.name,
+              weight: (h.shares * h.avgPrice) / total,
+            })));
+          }
+        } catch {}
+      }
+    }
+  }, [mode]);
+
+  const addHolding = (sym: string, name: string) => {
+    if (holdings.find(h => h.symbol === sym)) return;
+    const next = [...holdings, { symbol: sym, name, weight: 1 }];
+    // Equal weight rebalance for single-add convenience
+    const equal = 1 / next.length;
+    setHoldings(next.map(h => ({ ...h, weight: equal })));
+    setQuery("");
   };
+
+  const removeHolding = (sym: string) => {
+    const next = holdings.filter(h => h.symbol !== sym);
+    const equal = next.length ? 1 / next.length : 0;
+    setHoldings(next.map(h => ({ ...h, weight: equal })));
+  };
+
+  const runBacktest = async () => {
+    if (!holdings.length) {
+      toast({ title: "Select at least one symbol", variant: "destructive" });
+      return;
+    }
+    setRunning(true);
+    setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("backtest-strategy", {
+        body: { holdings: holdings.map(h => ({ symbol: h.symbol, weight: h.weight })), strategy, range, initialCapital: Number(initialCapital) },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setResult(data as BacktestResult);
+    } catch (e: any) {
+      toast({ title: "Backtest failed", description: e?.message || "Try again later", variant: "destructive" });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const chartData = result?.equity.map(e => ({ date: new Date(e.t).toLocaleDateString(), Portfolio: Math.round(e.value), Benchmark: Math.round(e.benchmark) })) || [];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
       <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
-            </div>
-            <div className="flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:text-primary transition-colors">
-                Dashboard
-              </NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:text-primary transition-colors">
-                Sentiment
-              </NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
-                Backtest
-              </NavLink>
-            </div>
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-2">
+            <Activity className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
+          </Link>
+          <div className="flex items-center space-x-6">
+            <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Dashboard</NavLink>
+            <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Sentiment</NavLink>
+            <NavLink to="/backtest" className="text-sm font-medium text-foreground" activeClassName="text-primary">Backtest</NavLink>
+            <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">AI Picks</NavLink>
+            <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
+            <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Watchlist</NavLink>
           </div>
         </div>
       </nav>
 
       <div className="container mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="mb-8 animate-fade-in">
+        <div className="mb-8">
           <div className="flex items-center gap-2 mb-2">
             <Target className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Backtesting Module</h1>
+            <h1 className="text-4xl font-bold">Strategy Backtesting</h1>
           </div>
-          <p className="text-muted-foreground text-lg">
-            Test trading strategies with historical data and comprehensive performance analytics
-          </p>
+          <p className="text-muted-foreground">Test trading strategies on a single stock or your portfolio with real historical data.</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          {/* Strategy Configuration */}
-          <Card className="lg:col-span-1 card-gradient border-border">
+          {/* Config */}
+          <Card className="card-gradient border-border">
             <CardHeader>
-              <CardTitle>Strategy Configuration</CardTitle>
-              <CardDescription>Set parameters for your backtest</CardDescription>
+              <CardTitle>Setup</CardTitle>
+              <CardDescription>Pick what to backtest, then choose a strategy.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Strategy Type</Label>
-                <Select defaultValue="fundamental">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Label>Scope</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button size="sm" variant={mode === "single" ? "default" : "outline"} onClick={() => { setMode("single"); setHoldings([]); }}>Single stock</Button>
+                  <Button size="sm" variant={mode === "portfolio" ? "default" : "outline"} onClick={() => setMode("portfolio")}>My portfolio</Button>
+                </div>
+              </div>
+
+              {mode === "single" && (
+                <div className="space-y-2">
+                  <Label>Add symbol</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="AAPL, ENEL…" className="pl-10" />
+                    {suggestions.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-md shadow-lg">
+                        {suggestions.map(s => (
+                          <button key={s.symbol} className="w-full text-left px-3 py-2 hover:bg-accent/30 text-sm"
+                                  onClick={() => addHolding(s.symbol, s.name)}>
+                            <span className="font-semibold">{s.symbol}</span> — {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {holdings.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Selected ({holdings.length})</Label>
+                  <div className="space-y-1 max-h-40 overflow-auto">
+                    {holdings.map(h => (
+                      <div key={h.symbol} className="flex items-center justify-between p-2 rounded bg-accent/10 text-sm">
+                        <span><span className="font-semibold">{h.symbol}</span> <span className="text-muted-foreground">{(h.weight * 100).toFixed(0)}%</span></span>
+                        <button onClick={() => removeHolding(h.symbol)} className="text-muted-foreground hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Strategy</Label>
+                <Select value={strategy} onValueChange={setStrategy}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fundamental">Fundamental Analysis</SelectItem>
-                    <SelectItem value="technical">Technical Analysis</SelectItem>
-                    <SelectItem value="sentiment">Sentiment-Based</SelectItem>
-                    <SelectItem value="hybrid">Hybrid Strategy</SelectItem>
+                    <SelectItem value="buy_hold">Buy &amp; Hold</SelectItem>
+                    <SelectItem value="sma_cross">SMA 20/50 Crossover</SelectItem>
+                    <SelectItem value="rsi">RSI Mean Reversion (30/70)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label>Time Period</Label>
-                <Select defaultValue="1y">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={range} onValueChange={setRange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="3m">3 Months</SelectItem>
-                    <SelectItem value="6m">6 Months</SelectItem>
-                    <SelectItem value="1y">1 Year</SelectItem>
-                    <SelectItem value="3y">3 Years</SelectItem>
-                    <SelectItem value="5y">5 Years</SelectItem>
+                    <SelectItem value="3M">3 Months</SelectItem>
+                    <SelectItem value="6M">6 Months</SelectItem>
+                    <SelectItem value="1Y">1 Year</SelectItem>
+                    <SelectItem value="3Y">3 Years</SelectItem>
+                    <SelectItem value="5Y">5 Years</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label>Initial Capital</Label>
-                <Input type="number" defaultValue="100000" placeholder="100000" />
+                <Input type="number" value={initialCapital} onChange={(e) => setInitialCapital(e.target.value)} />
               </div>
 
-              <div className="space-y-2">
-                <Label>Position Size (%)</Label>
-                <Input type="number" defaultValue="20" placeholder="20" />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Stop Loss (%)</Label>
-                <Input type="number" defaultValue="5" placeholder="5" />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Take Profit (%)</Label>
-                <Input type="number" defaultValue="15" placeholder="15" />
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button onClick={handleRunBacktest} disabled={isRunning} className="flex-1 gap-2 hover-scale">
-                  <Play className="h-4 w-4" />
-                  {isRunning ? "Running..." : "Run Backtest"}
-                </Button>
-                <Button variant="outline" size="icon" className="hover-scale" onClick={() => window.location.reload()}>
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button onClick={runBacktest} disabled={running || holdings.length === 0} className="w-full gap-2">
+                <Play className="h-4 w-4" /> {running ? "Running…" : "Run Backtest"}
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Performance Metrics */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card className="card-gradient border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Return</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-3xl font-bold text-chart-1">+38.5%</div>
-                      <p className="text-sm text-muted-foreground mt-1">vs Benchmark: +16.5%</p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-chart-1" />
-                  </div>
-                </CardContent>
+          {/* Results */}
+          <div className="lg:col-span-2">
+            {!result && !running && (
+              <Card className="p-12 text-center card-gradient border-border h-full flex flex-col items-center justify-center">
+                <Target className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No backtest yet</h3>
+                <p className="text-muted-foreground">Select a stock or your portfolio, pick a strategy, then click Run Backtest.</p>
               </Card>
+            )}
+            {running && (
+              <Card className="p-12 text-center card-gradient border-border h-full flex flex-col items-center justify-center">
+                <BarChart3 className="h-12 w-12 text-primary mb-4 animate-pulse" />
+                <p className="text-muted-foreground">Fetching historical bars and simulating strategy…</p>
+              </Card>
+            )}
+            {result && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card className="card-gradient border-border">
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Strategy Return</p>
+                      <p className={`text-2xl font-bold ${result.metrics.totalReturn >= 0 ? "text-success" : "text-destructive"}`}>
+                        {result.metrics.totalReturn >= 0 ? "+" : ""}{result.metrics.totalReturn.toFixed(2)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="card-gradient border-border">
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Buy &amp; Hold</p>
+                      <p className={`text-2xl font-bold ${result.metrics.benchReturn >= 0 ? "text-success" : "text-destructive"}`}>
+                        {result.metrics.benchReturn >= 0 ? "+" : ""}{result.metrics.benchReturn.toFixed(2)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="card-gradient border-border">
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Sharpe</p>
+                      <p className="text-2xl font-bold">{result.metrics.sharpe.toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="card-gradient border-border">
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Max Drawdown</p>
+                      <p className="text-2xl font-bold text-destructive">{result.metrics.maxDrawdown.toFixed(2)}%</p>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              <Card className="card-gradient border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Sharpe Ratio</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-3xl font-bold">1.82</div>
-                      <p className="text-sm text-chart-1 mt-1">Excellent risk-adjusted return</p>
-                    </div>
-                    <Shield className="h-8 w-8 text-primary" />
-                  </div>
-                </CardContent>
-              </Card>
+                <Card className="card-gradient border-border">
+                  <CardHeader>
+                    <CardTitle>Equity Curve</CardTitle>
+                    <CardDescription>Strategy vs Buy &amp; Hold benchmark</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="cP" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="cB" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} minTickGap={40} />
+                        <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `${fmt(v)}`} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} formatter={(v: number) => fmt(v)} />
+                        <Legend />
+                        <Area type="monotone" dataKey="Portfolio" stroke="hsl(var(--success))" fill="url(#cP)" strokeWidth={2} />
+                        <Area type="monotone" dataKey="Benchmark" stroke="hsl(var(--primary))" fill="url(#cB)" strokeWidth={2} strokeDasharray="5 5" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
 
-              <Card className="card-gradient border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Max Drawdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-3xl font-bold text-chart-2">-2.8%</div>
-                      <p className="text-sm text-muted-foreground mt-1">Risk well controlled</p>
-                    </div>
-                    <TrendingDown className="h-8 w-8 text-chart-2" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-gradient border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-3xl font-bold">78.3%</div>
-                      <p className="text-sm text-muted-foreground mt-1">47 wins / 60 trades</p>
-                    </div>
-                    <Target className="h-8 w-8 text-secondary" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid md:grid-cols-4 gap-4">
-              <Card className="card-gradient border-border">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">€138,500</div>
-                    <p className="text-xs text-muted-foreground mt-1">Final Portfolio Value</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-gradient border-border">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">60</div>
-                    <p className="text-xs text-muted-foreground mt-1">Total Trades</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-gradient border-border">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-chart-1">+€38,500</div>
-                    <p className="text-xs text-muted-foreground mt-1">Total Profit</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-gradient border-border">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">12.8</div>
-                    <p className="text-xs text-muted-foreground mt-1">Profit Factor</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                <Card className="card-gradient border-border">
+                  <CardHeader>
+                    <CardTitle>Trade Log ({result.trades.length})</CardTitle>
+                    <CardDescription>Win rate: {result.metrics.winRate.toFixed(0)}% · {result.metrics.winningTrades}/{Math.floor(result.metrics.totalTrades/2)} winning pairs</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {result.trades.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No trades executed by this strategy.</p>
+                    ) : (
+                      <div className="max-h-72 overflow-auto space-y-1">
+                        {result.trades.map((t, i) => (
+                          <div key={i} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-3">
+                              <Badge variant={t.type === "BUY" ? "default" : "secondary"}>{t.type}</Badge>
+                              <span className="text-muted-foreground">{t.date}</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span>@ {t.price.toFixed(2)}</span>
+                              <span className="text-muted-foreground">{t.shares.toFixed(2)} sh</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Charts Section */}
-        <Tabs defaultValue="equity" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="equity">Equity Curve</TabsTrigger>
-            <TabsTrigger value="drawdown">Drawdown</TabsTrigger>
-            <TabsTrigger value="returns">Monthly Returns</TabsTrigger>
-            <TabsTrigger value="trades">Trade History</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="equity">
-            <Card className="card-gradient border-border">
-              <CardHeader>
-                <CardTitle>Portfolio Equity Curve</CardTitle>
-                <CardDescription>Portfolio value vs benchmark over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={equityCurveData}>
-                    <defs>
-                      <linearGradient id="colorPortfolio" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorBenchmark" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => `€${value.toLocaleString()}`}
-                    />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="portfolio"
-                      stroke="hsl(var(--chart-1))"
-                      fillOpacity={1}
-                      fill="url(#colorPortfolio)"
-                      strokeWidth={3}
-                      name="Portfolio"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="benchmark"
-                      stroke="hsl(var(--primary))"
-                      fillOpacity={1}
-                      fill="url(#colorBenchmark)"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      name="Benchmark"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="drawdown">
-            <Card className="card-gradient border-border">
-              <CardHeader>
-                <CardTitle>Drawdown Analysis</CardTitle>
-                <CardDescription>Portfolio drawdown over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={drawdownData}>
-                    <defs>
-                      <linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => `${value}%`}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="drawdown"
-                      stroke="hsl(var(--chart-2))"
-                      fillOpacity={1}
-                      fill="url(#colorDrawdown)"
-                      strokeWidth={2}
-                      name="Drawdown"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="returns">
-            <Card className="card-gradient border-border">
-              <CardHeader>
-                <CardTitle>Monthly Returns Distribution</CardTitle>
-                <CardDescription>Monthly performance breakdown</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={monthlyReturnsData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => `${value}%`}
-                    />
-                    <Bar
-                      dataKey="returns"
-                      fill="hsl(var(--chart-1))"
-                      radius={[4, 4, 0, 0]}
-                      name="Monthly Return"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="trades">
-            <Card className="card-gradient border-border">
-              <CardHeader>
-                <CardTitle>Trade History</CardTitle>
-                <CardDescription>Complete list of executed trades</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {tradeHistory.map((trade) => (
-                    <div
-                      key={trade.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/10 hover:border-primary/50 transition-all duration-300 cursor-pointer hover-scale group"
-                      onClick={() => navigate(`/stock/${trade.symbol}`)}
-                    >
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold group-hover:text-primary transition-colors">{trade.symbol}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {trade.type}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{trade.date}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Entry</div>
-                          <div className="font-semibold">{trade.entry}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Exit</div>
-                          <div className="font-semibold">{trade.exit}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Profit</div>
-                          <div
-                            className={`font-semibold ${
-                              trade.profit.startsWith("+") ? "text-chart-1" : "text-chart-2"
-                            }`}
-                          >
-                            {trade.profit}
-                          </div>
-                        </div>
-                        <div className="text-right min-w-[80px]">
-                          <div className="text-sm text-muted-foreground">Return</div>
-                          <div
-                            className={`font-semibold ${
-                              trade.return.startsWith("+") ? "text-chart-1" : "text-chart-2"
-                            }`}
-                          >
-                            {trade.return}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
     </div>
   );

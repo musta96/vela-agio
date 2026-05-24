@@ -25,6 +25,20 @@ async function fetchBars(symbol: string): Promise<Bar[]> {
   } catch { return []; }
 }
 
+async function fetchFundamentals(symbol: string): Promise<{ sector?: string; dividendYield?: number }> {
+  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile,summaryDetail`;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) return {};
+    const j = await res.json();
+    const r = j?.quoteSummary?.result?.[0];
+    const sector: string | undefined = r?.assetProfile?.sector;
+    const dyRaw = r?.summaryDetail?.dividendYield;
+    const dy = typeof dyRaw === "number" ? dyRaw : (typeof dyRaw?.raw === "number" ? dyRaw.raw : undefined);
+    return { sector, dividendYield: typeof dy === "number" ? Number((dy * 100).toFixed(2)) : undefined };
+  } catch { return {}; }
+}
+
 function computeMetrics(bars: Bar[]) {
   const closes = bars.map(b => b.close);
   const n = closes.length;
@@ -54,6 +68,13 @@ function computeMetrics(bars: Bar[]) {
   const mean = rets.reduce((a,b)=>a+b,0)/rets.length;
   const variance = rets.reduce((a,b)=>a+(b-mean)**2,0)/rets.length;
   const volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
+  // Max drawdown over the available window (typically ~1Y)
+  let peak = closes[0]; let maxDd = 0;
+  for (let i = 0; i < n; i++) {
+    if (closes[i] > peak) peak = closes[i];
+    const dd = (closes[i] - peak) / peak;
+    if (dd < maxDd) maxDd = dd;
+  }
 
   return {
     price: Number(last.toFixed(2)),
@@ -66,6 +87,7 @@ function computeMetrics(bars: Bar[]) {
     trendUp: sma20 > sma50,
     rsi: Number(rsi.toFixed(1)),
     volatility: Number(volatility.toFixed(1)),
+    maxDrawdown: Number((maxDd * 100).toFixed(1)),
   };
 }
 
@@ -78,6 +100,11 @@ Deno.serve(async (req) => {
     const riskProfile: string = body.riskProfile || "balanced";
     const horizon: string = body.horizon || "medium";
     const topN: number = Math.min(Number(body.topN) || 6, 10);
+    const filters = body.filters || {};
+    const sectorFilter: string = (filters.sector || "All");
+    const minDividendYield: number | null = filters.minDividendYield != null ? Number(filters.minDividendYield) : null;
+    const maxVolatility: number | null = filters.maxVolatility != null ? Number(filters.maxVolatility) : null;
+    const maxDrawdown: number | null = filters.maxDrawdown != null ? Number(filters.maxDrawdown) : null; // positive number meaning allowed magnitude, e.g. 30 means drawdown >= -30%
 
     if (candidates.length === 0) {
       return new Response(JSON.stringify({ error: "candidates required" }), {
@@ -92,23 +119,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch metrics for all candidates in parallel (cap at 25)
+    // Fetch metrics + fundamentals for all candidates in parallel (cap at 25)
     const subset = candidates.slice(0, 25);
     const enriched = await Promise.all(subset.map(async c => {
-      const bars = await fetchBars(c.symbol);
+      const [bars, fund] = await Promise.all([fetchBars(c.symbol), fetchFundamentals(c.symbol)]);
       const m = computeMetrics(bars);
-      return m ? { ...c, ...m } : null;
+      return m ? { ...c, ...m, sector: fund.sector, dividendYield: fund.dividendYield } : null;
     }));
-    const valid = enriched.filter((x): x is NonNullable<typeof x> => x !== null);
+    let valid = enriched.filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // Apply advanced filters
+    const filtersApplied: string[] = [];
+    if (sectorFilter && sectorFilter !== "All") {
+      valid = valid.filter(v => (v.sector || "").toLowerCase() === sectorFilter.toLowerCase());
+      filtersApplied.push(`sector=${sectorFilter}`);
+    }
+    if (minDividendYield != null && !isNaN(minDividendYield)) {
+      valid = valid.filter(v => (v.dividendYield ?? 0) >= minDividendYield);
+      filtersApplied.push(`dividendYield>=${minDividendYield}%`);
+    }
+    if (maxVolatility != null && !isNaN(maxVolatility)) {
+      valid = valid.filter(v => v.volatility <= maxVolatility);
+      filtersApplied.push(`volatility<=${maxVolatility}%`);
+    }
+    if (maxDrawdown != null && !isNaN(maxDrawdown)) {
+      valid = valid.filter(v => v.maxDrawdown >= -Math.abs(maxDrawdown));
+      filtersApplied.push(`drawdown>=-${Math.abs(maxDrawdown)}%`);
+    }
 
     if (valid.length === 0) {
-      return new Response(JSON.stringify({ error: "No valid market data fetched" }), {
+      return new Response(JSON.stringify({ error: filtersApplied.length ? `No candidates match the selected filters (${filtersApplied.join(", ")}). Try relaxing them.` : "No valid market data fetched" }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const candidatesText = valid.map(v =>
-      `${v.symbol} (${v.name}, ${v.market}): price=${v.price}, 1M=${v.ret1M}%, 3M=${v.ret3M}%, 6M=${v.ret6M}%, 1Y=${v.ret1Y}%, RSI=${v.rsi}, trend=${v.trendUp ? "up" : "down"} (SMA20 ${v.sma20} vs SMA50 ${v.sma50}), vol=${v.volatility}%`
+      `${v.symbol} (${v.name}, ${v.market}${v.sector ? `, ${v.sector}` : ""}): price=${v.price}, 1M=${v.ret1M}%, 3M=${v.ret3M}%, 6M=${v.ret6M}%, 1Y=${v.ret1Y}%, RSI=${v.rsi}, trend=${v.trendUp ? "up" : "down"} (SMA20 ${v.sma20} vs SMA50 ${v.sma50}), vol=${v.volatility}%, maxDD=${v.maxDrawdown}%${v.dividendYield != null ? `, divYield=${v.dividendYield}%` : ""}`
     ).join("\n");
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -175,6 +221,7 @@ Deno.serve(async (req) => {
       marketCommentary: parsed.marketCommentary || "",
       generatedAt: new Date().toISOString(),
       analyzed: valid.length,
+      filtersApplied,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("smart-picks error", e);

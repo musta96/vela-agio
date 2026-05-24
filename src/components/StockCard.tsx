@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Star } from "lucide-react";
+import { useWatchlist } from "@/hooks/useWatchlist";
+import { useToast } from "@/hooks/use-toast";
 
 interface StockCardProps {
   stock: {
@@ -15,6 +17,19 @@ interface StockCardProps {
 
 export const StockCard = ({ stock }: StockCardProps) => {
   const isPositive = stock.change > 0;
+  const { isWatched, toggle } = useWatchlist();
+  const { toast } = useToast();
+  const watched = isWatched(stock.symbol);
+
+  const handleStar = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const added = toggle(stock.symbol, stock.name);
+    toast({
+      title: added ? "Added to watchlist" : "Removed from watchlist",
+      description: `${stock.symbol} — ${stock.name}`,
+    });
+  };
 
   return (
     <Link to={`/stock/${stock.symbol}`} className="block">
@@ -26,11 +41,25 @@ export const StockCard = ({ stock }: StockCardProps) => {
             </h3>
             <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{stock.name}</p>
           </div>
-          {isPositive ? (
-            <TrendingUp className="h-5 w-5 text-success group-hover:scale-110 transition-transform" />
-          ) : (
-            <TrendingDown className="h-5 w-5 text-destructive group-hover:scale-110 transition-transform" />
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleStar}
+              aria-label={watched ? "Remove from watchlist" : "Add to watchlist"}
+              className="rounded-md p-1 hover:bg-muted transition-colors"
+            >
+              <Star
+                className={`h-4 w-4 transition-colors ${
+                  watched ? "fill-warning text-warning" : "text-muted-foreground hover:text-foreground"
+                }`}
+              />
+            </button>
+            {isPositive ? (
+              <TrendingUp className="h-5 w-5 text-success group-hover:scale-110 transition-transform" />
+            ) : (
+              <TrendingDown className="h-5 w-5 text-destructive group-hover:scale-110 transition-transform" />
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">

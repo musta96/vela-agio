@@ -11,7 +11,9 @@ interface StockCardProps {
     name: string;
     price: number;
     change: number;
-    volume: string;
+    volume?: string;
+    currency?: string;
+    market?: string;
   };
 }
 
@@ -31,15 +33,25 @@ export const StockCard = ({ stock }: StockCardProps) => {
     });
   };
 
+  const currencyPrefix = stock.currency === "USD" ? "$" : stock.currency === "GBp" ? "" : stock.currency === "GBP" ? "£" : "€";
+  const currencySuffix = stock.currency === "GBp" ? "p" : "";
+
   return (
-    <Link to={`/stock/${stock.symbol}`} className="block">
+    <Link to={`/stock/${encodeURIComponent(stock.symbol)}`} className="block">
       <Card className="p-4 card-gradient border-border hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer group hover-scale">
         <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-              {stock.symbol}
-            </h3>
-            <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{stock.name}</p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                {stock.symbol}
+              </h3>
+              {stock.market && (
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal text-muted-foreground">
+                  {stock.market}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate">{stock.name}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -64,7 +76,9 @@ export const StockCard = ({ stock }: StockCardProps) => {
 
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold group-hover:text-primary transition-colors">€{stock.price.toFixed(2)}</span>
+            <span className="text-2xl font-bold group-hover:text-primary transition-colors">
+              {currencyPrefix}{stock.price.toFixed(2)}{currencySuffix}
+            </span>
             <Badge
               variant={isPositive ? "default" : "destructive"}
               className={isPositive ? "bg-success/10 text-success hover:bg-success/20" : ""}
@@ -72,9 +86,11 @@ export const StockCard = ({ stock }: StockCardProps) => {
               {isPositive ? "+" : ""}{stock.change}%
             </Badge>
           </div>
-          <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-            Volume: {stock.volume}
-          </div>
+          {stock.volume && (
+            <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              Volume: {stock.volume}
+            </div>
+          )}
         </div>
       </Card>
     </Link>

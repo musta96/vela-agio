@@ -19,9 +19,8 @@ export interface PriceBar {
 const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 
 const buildUrl = (symbol: string, range: HistoryRange) => {
-  const yfSymbol = symbol.includes(".") ? symbol : `${symbol}.MI`;
   const { range: r, interval } = RANGE_MAP[range];
-  const target = `${YF_BASE}${encodeURIComponent(yfSymbol)}?interval=${interval}&range=${r}`;
+  const target = `${YF_BASE}${encodeURIComponent(symbol)}?interval=${interval}&range=${r}`;
   return `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
 };
 

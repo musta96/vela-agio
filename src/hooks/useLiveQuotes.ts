@@ -15,8 +15,7 @@ export interface LiveQuote {
 const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 
 const buildUrl = (symbol: string) => {
-  const yfSymbol = symbol.includes(".") ? symbol : `${symbol}.MI`;
-  const target = `${YF_BASE}${encodeURIComponent(yfSymbol)}?interval=1m&range=1d`;
+  const target = `${YF_BASE}${encodeURIComponent(symbol)}?interval=1m&range=1d`;
   return `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
 };
 

@@ -10,6 +10,7 @@ import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { STOCK_CATALOG, searchCatalog, type Market } from "@/data/stockCatalog";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -28,37 +29,45 @@ const Index = () => {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeMarket, setActiveMarket] = useState<Market | "All">("All");
 
-  const baseStocks = [
-    { symbol: "ENEL", name: "Enel", price: 6.42, change: 2.4, volume: "15.2M" },
-    { symbol: "ENI", name: "Eni", price: 14.28, change: -0.8, volume: "8.7M" },
-    { symbol: "ISP", name: "Intesa Sanpaolo", price: 3.45, change: 1.2, volume: "42.1M" },
-    { symbol: "UCG", name: "UniCredit", price: 38.92, change: 3.1, volume: "11.4M" },
-    { symbol: "TIT", name: "Telecom Italia", price: 0.23, change: -1.5, volume: "95.3M" },
-    { symbol: "STM", name: "STMicroelectronics", price: 42.15, change: 3.8, volume: "7.2M" },
-    { symbol: "TEN", name: "Tenaris", price: 15.67, change: 1.9, volume: "3.8M" },
-    { symbol: "LDO", name: "Leonardo", price: 23.45, change: 2.1, volume: "4.5M" },
-  ];
+  const MARKETS: (Market | "All")[] = ["All", "FTSE MIB", "Europe", "NASDAQ", "S&P 500", "ETF"];
 
-  const symbols = useMemo(() => baseStocks.map((s) => s.symbol), []);
-  const { quotes, loading, error, lastUpdated, refresh } = useLiveQuotes(symbols, 30000);
+  // Featured tickers per market (kept small so we don't request 200+ live quotes at once)
+  const featuredPerMarket: Record<Market | "All", string[]> = {
+    All: ["ENEL.MI", "RACE.MI", "ASML.AS", "MC.PA", "AAPL", "MSFT", "NVDA", "SPY"],
+    "FTSE MIB": ["ENEL.MI", "ENI.MI", "ISP.MI", "UCG.MI", "RACE.MI", "STLAM.MI", "STM.MI", "G.MI"],
+    Europe: ["ASML.AS", "MC.PA", "SAP.DE", "NESN.SW", "NOVO-B.CO", "AZN.L", "SHEL.L", "SAN.MC"],
+    NASDAQ: ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AVGO"],
+    "S&P 500": ["BRK-B", "JPM", "V", "JNJ", "XOM", "WMT", "LLY", "HD"],
+    ETF: ["SPY", "QQQ", "VOO", "VTI", "VWCE.DE", "EUNL.DE", "GLD", "TLT"],
+  };
 
-  const allStocks = baseStocks.map((s) => {
-    const q = quotes[s.symbol];
-    if (!q) return s;
+  // Determine which catalog entries to show: search overrides everything;
+  // otherwise show featured tickers for the active market.
+  const displayedEntries = useMemo(() => {
+    if (searchQuery.trim()) return searchCatalog(searchQuery, 24);
+    const symbols = featuredPerMarket[activeMarket];
+    return symbols
+      .map((s) => STOCK_CATALOG.find((c) => c.symbol === s))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, activeMarket]);
+
+  const quotedSymbols = useMemo(() => displayedEntries.map((e) => e.symbol), [displayedEntries]);
+  const { quotes, loading, error, lastUpdated, refresh } = useLiveQuotes(quotedSymbols, 30000);
+
+  const filteredStocks = displayedEntries.map((entry) => {
+    const q = quotes[entry.symbol];
     return {
-      ...s,
-      price: q.price,
-      change: Math.round(q.change * 100) / 100,
+      symbol: entry.symbol,
+      name: entry.name,
+      market: entry.market,
+      currency: q?.currency || entry.currency,
+      price: q?.price ?? 0,
+      change: q ? Math.round(q.change * 100) / 100 : 0,
     };
   });
-
-  const filteredStocks = searchQuery
-    ? allStocks.filter(stock => 
-        stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        stock.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : allStocks.slice(0, 4);
 
   const isLive = Object.keys(quotes).length > 0;
   const updatedLabel = lastUpdated
@@ -107,11 +116,11 @@ const Index = () => {
             Advanced Trading Analytics
           </Badge>
           <h1 className="text-5xl font-bold mb-6 leading-tight">
-            FTSE MIB Stock Analysis
+            Global Stock Analysis
             <span className="block text-gradient mt-2">Powered by AI & Fundamentals</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Comprehensive fundamental analysis combined with real-time sentiment tracking for Italy's top 40 stocks
+            Real-time quotes and fundamental analysis across FTSE MIB, European blue chips, NASDAQ, S&P 500 and major ETFs
           </p>
           <div className="flex gap-4 justify-center">
             <Button size="lg" className="gap-2 hover-scale" onClick={() => navigate('/backtest')}>
@@ -131,7 +140,7 @@ const Index = () => {
         <div className="grid md:grid-cols-3 gap-6 animate-slide-up">
           <Card 
             className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
-            onClick={() => navigate('/stock/ENEL.MI')}
+            onClick={() => navigate('/stock/' + encodeURIComponent('AAPL'))}
           >
             <div className="rounded-lg bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
               <Brain className="h-6 w-6 text-primary" />
@@ -192,8 +201,8 @@ const Index = () => {
             </div>
             <p className="text-muted-foreground">
               {isLive
-                ? `Live FTSE MIB quotes via Yahoo Finance${updatedLabel ? ` · updated ${updatedLabel}` : ""}`
-                : "Real-time data from FTSE MIB components"}
+                ? `Live quotes via Yahoo Finance${updatedLabel ? ` · updated ${updatedLabel}` : ""}`
+                : "Real-time quotes across global markets"}
             </p>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto">
@@ -221,6 +230,23 @@ const Index = () => {
             </Button>
           </div>
         </div>
+
+        {/* Market filter */}
+        {!searchQuery.trim() && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {MARKETS.map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={activeMarket === m ? "default" : "outline"}
+                onClick={() => setActiveMarket(m)}
+                className="hover-scale"
+              >
+                {m}
+              </Button>
+            ))}
+          </div>
+        )}
 
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <MetricCard

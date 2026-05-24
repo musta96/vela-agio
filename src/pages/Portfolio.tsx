@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud } from "lucide-react";
+import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
@@ -12,6 +12,10 @@ import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 import { AuthButton } from "@/components/AuthButton";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { STOCK_CATALOG, currencySign } from "@/data/stockCatalog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 interface PortfolioStock {
   symbol: string;
@@ -120,15 +124,8 @@ const Portfolio = () => {
     shares: "",
     avgPrice: "",
   });
-
-  const availableStocks = [
-    { symbol: "ENEL", name: "Enel", price: 6.45 },
-    { symbol: "ENI", name: "Eni", price: 14.28 },
-    { symbol: "ISP", name: "Intesa Sanpaolo", price: 3.45 },
-    { symbol: "UCG", name: "UniCredit", price: 38.92 },
-    { symbol: "TIT", name: "Telecom Italia", price: 0.23 },
-    { symbol: "STM", name: "STMicroelectronics", price: 42.15 },
-  ];
+  const [symbolPickerOpen, setSymbolPickerOpen] = useState(false);
+  const selectedCatalog = STOCK_CATALOG.find((s) => s.symbol === newStock.symbol);
 
   const handleAddStock = () => {
     if (!newStock.symbol || !newStock.shares || !newStock.avgPrice) {
@@ -140,7 +137,7 @@ const Portfolio = () => {
       return;
     }
 
-    const stockInfo = availableStocks.find(s => s.symbol === newStock.symbol);
+    const stockInfo = STOCK_CATALOG.find(s => s.symbol === newStock.symbol);
     if (!stockInfo) {
       toast({
         title: "Stock Not Found",
@@ -150,12 +147,13 @@ const Portfolio = () => {
       return;
     }
 
+    const avg = parseFloat(newStock.avgPrice);
     const added: PortfolioStock = {
       symbol: newStock.symbol,
       name: stockInfo.name,
       shares: parseFloat(newStock.shares),
-      avgPrice: parseFloat(newStock.avgPrice),
-      currentPrice: stockInfo.price,
+      avgPrice: avg,
+      currentPrice: avg,
     };
     setPortfolio([...portfolio, added]);
     if (user) {
@@ -300,18 +298,62 @@ const Portfolio = () => {
             <div className="grid md:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">Symbol</label>
-                <select
-                  value={newStock.symbol}
-                  onChange={(e) => setNewStock({ ...newStock, symbol: e.target.value })}
-                  className="w-full px-3 py-2 rounded-md bg-background border border-border text-foreground"
-                >
-                  <option value="">Select...</option>
-                  {availableStocks.map(stock => (
-                    <option key={stock.symbol} value={stock.symbol}>
-                      {stock.symbol} - {stock.name}
-                    </option>
-                  ))}
-                </select>
+                <Popover open={symbolPickerOpen} onOpenChange={setSymbolPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={symbolPickerOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      <span className="truncate">
+                        {selectedCatalog
+                          ? `${selectedCatalog.symbol} — ${selectedCatalog.name}`
+                          : "Search stock or ETF…"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command
+                      filter={(value, search) =>
+                        value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                      }
+                    >
+                      <CommandInput placeholder="Search by symbol, name, or market…" />
+                      <CommandList>
+                        <CommandEmpty>No instrument found.</CommandEmpty>
+                        <CommandGroup>
+                          {STOCK_CATALOG.map((stock) => (
+                            <CommandItem
+                              key={stock.symbol}
+                              value={`${stock.symbol} ${stock.name} ${stock.market}`}
+                              onSelect={() => {
+                                setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
+                                setSymbolPickerOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  newStock.symbol === stock.symbol ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">{stock.symbol}</span>
+                                  <Badge variant="outline" className="text-[10px]">{stock.market}</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">{stock.name}</p>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">Shares</label>
@@ -323,7 +365,9 @@ const Portfolio = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-2 block">Avg Price (€)</label>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Avg Price {selectedCatalog ? `(${currencySign(selectedCatalog.currency).trim() || selectedCatalog.currency})` : ""}
+                </label>
                 <Input
                   type="number"
                   step="0.01"

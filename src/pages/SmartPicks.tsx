@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { NavLink } from "@/components/NavLink";
-import { Activity, Sparkles, TrendingUp, AlertTriangle, RefreshCw, ExternalLink, Star } from "lucide-react";
+import { Activity, Sparkles, TrendingUp, AlertTriangle, RefreshCw, ExternalLink, Star, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG, type Market } from "@/data/stockCatalog";
@@ -18,7 +20,14 @@ interface Pick {
   rationale: string; bullThesis: string[]; risks: string[];
   price?: number; ret1M?: number; ret3M?: number; ret6M?: number; ret1Y?: number;
   rsi?: number; volatility?: number; trendUp?: boolean;
+  sector?: string; dividendYield?: number; maxDrawdown?: number;
 }
+
+const SECTORS = [
+  "All", "Technology", "Financial Services", "Healthcare", "Consumer Cyclical",
+  "Consumer Defensive", "Industrials", "Energy", "Utilities",
+  "Communication Services", "Real Estate", "Basic Materials",
+];
 
 const SmartPicks = () => {
   const navigate = useNavigate();
@@ -28,35 +37,58 @@ const SmartPicks = () => {
   const [market, setMarket] = useState<Market | "All">("All");
   const [risk, setRisk] = useState("balanced");
   const [horizon, setHorizon] = useState("medium");
+  const [sector, setSector] = useState<string>("All");
+  const [minDividendYield, setMinDividendYield] = useState<string>("");
+  const [maxVolatility, setMaxVolatility] = useState<string>("");
+  const [maxDrawdown, setMaxDrawdown] = useState<string>("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [commentary, setCommentary] = useState("");
   const [analyzed, setAnalyzed] = useState(0);
+  const [filtersApplied, setFiltersApplied] = useState<string[]>([]);
 
   const generate = async () => {
     setLoading(true);
     setPicks([]);
     setCommentary("");
+    setFiltersApplied([]);
     // Build candidate list: a representative subset per market (≤25)
     const pool = market === "All"
       ? STOCK_CATALOG.filter(c => ["AAPL","MSFT","NVDA","GOOGL","META","AMZN","TSLA","AVGO","BRK-B","JPM","V","LLY","XOM","ASML.AS","MC.PA","SAP.DE","NESN.SW","NOVO-B.CO","ENEL.MI","RACE.MI","STM.MI","SPY","QQQ","VWCE.DE","EUNL.DE"].includes(c.symbol))
       : STOCK_CATALOG.filter(c => c.market === market);
     const candidates = pool.slice(0, 25).map(c => ({ symbol: c.symbol, name: c.name, market: c.market }));
+    const filters: Record<string, unknown> = {};
+    if (sector && sector !== "All") filters.sector = sector;
+    const mdy = parseFloat(minDividendYield); if (!isNaN(mdy)) filters.minDividendYield = mdy;
+    const mv = parseFloat(maxVolatility); if (!isNaN(mv)) filters.maxVolatility = mv;
+    const mdd = parseFloat(maxDrawdown); if (!isNaN(mdd)) filters.maxDrawdown = mdd;
     try {
       const { data, error } = await supabase.functions.invoke("smart-picks", {
-        body: { candidates, riskProfile: risk, horizon, topN: 6 },
+        body: { candidates, riskProfile: risk, horizon, topN: 6, filters },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setPicks((data as any).picks || []);
       setCommentary((data as any).marketCommentary || "");
       setAnalyzed((data as any).analyzed || 0);
+      setFiltersApplied(((data as any).filtersApplied as string[]) || []);
     } catch (e: any) {
       toast({ title: "Could not generate picks", description: e?.message || "Try again later", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
+
+  const resetFilters = () => {
+    setSector("All"); setMinDividendYield(""); setMaxVolatility(""); setMaxDrawdown("");
+  };
+
+  const activeFilterCount =
+    (sector !== "All" ? 1 : 0) +
+    (minDividendYield ? 1 : 0) +
+    (maxVolatility ? 1 : 0) +
+    (maxDrawdown ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,6 +168,50 @@ const SmartPicks = () => {
                 </Button>
               </div>
             </div>
+
+            <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="mt-6">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Advanced filters
+                    {activeFilterCount > 0 && <Badge variant="secondary">{activeFilterCount}</Badge>}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>Reset</Button>
+                )}
+              </div>
+              <CollapsibleContent className="mt-4">
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Sector</Label>
+                    <Select value={sector} onValueChange={setSector}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SECTORS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Min dividend yield (%)</Label>
+                    <Input type="number" inputMode="decimal" placeholder="e.g. 2" value={minDividendYield} onChange={e => setMinDividendYield(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max volatility (% ann.)</Label>
+                    <Input type="number" inputMode="decimal" placeholder="e.g. 35" value={maxVolatility} onChange={e => setMaxVolatility(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max drawdown (%)</Label>
+                    <Input type="number" inputMode="decimal" placeholder="e.g. 25" value={maxDrawdown} onChange={e => setMaxDrawdown(e.target.value)} />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Filters narrow the candidate pool before ranking. Dividend yield and sector are sourced from fundamentals; volatility and drawdown are computed from the last 12 months of price data.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 
@@ -159,7 +235,10 @@ const SmartPicks = () => {
             <CardHeader><CardTitle className="text-lg">Market Commentary</CardTitle></CardHeader>
             <CardContent>
               <p className="text-foreground">{commentary}</p>
-              <p className="text-xs text-muted-foreground mt-2">Analyzed {analyzed} candidates</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Analyzed {analyzed} candidates
+                {filtersApplied.length > 0 && <> · Filters: {filtersApplied.join(", ")}</>}
+              </p>
             </CardContent>
           </Card>
         )}

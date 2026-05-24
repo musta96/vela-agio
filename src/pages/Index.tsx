@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield, Search, Briefcase } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield, Search, Briefcase, RefreshCw, Radio } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -27,8 +28,8 @@ const Index = () => {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const allStocks = [
+
+  const baseStocks = [
     { symbol: "ENEL", name: "Enel", price: 6.42, change: 2.4, volume: "15.2M" },
     { symbol: "ENI", name: "Eni", price: 14.28, change: -0.8, volume: "8.7M" },
     { symbol: "ISP", name: "Intesa Sanpaolo", price: 3.45, change: 1.2, volume: "42.1M" },
@@ -39,12 +40,30 @@ const Index = () => {
     { symbol: "LDO", name: "Leonardo", price: 23.45, change: 2.1, volume: "4.5M" },
   ];
 
+  const symbols = useMemo(() => baseStocks.map((s) => s.symbol), []);
+  const { quotes, loading, error, lastUpdated, refresh } = useLiveQuotes(symbols, 30000);
+
+  const allStocks = baseStocks.map((s) => {
+    const q = quotes[s.symbol];
+    if (!q) return s;
+    return {
+      ...s,
+      price: q.price,
+      change: Math.round(q.change * 100) / 100,
+    };
+  });
+
   const filteredStocks = searchQuery
     ? allStocks.filter(stock => 
         stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
         stock.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : allStocks.slice(0, 4);
+
+  const isLive = Object.keys(quotes).length > 0;
+  const updatedLabel = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString()
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -152,18 +171,51 @@ const Index = () => {
       <section id="stocks" className="container mx-auto px-6 py-16">
         <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Market Overview</h2>
-            <p className="text-muted-foreground">Real-time data from FTSE MIB components</p>
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-3xl font-bold">Market Overview</h2>
+              {isLive ? (
+                <Badge className="bg-success/10 text-success hover:bg-success/20 gap-1">
+                  <Radio className="h-3 w-3 animate-pulse" />
+                  LIVE
+                </Badge>
+              ) : loading ? (
+                <Badge variant="secondary" className="gap-1">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Loading
+                </Badge>
+              ) : error ? (
+                <Badge variant="destructive">Offline</Badge>
+              ) : null}
+            </div>
+            <p className="text-muted-foreground">
+              {isLive
+                ? `Live FTSE MIB quotes via Yahoo Finance${updatedLabel ? ` · updated ${updatedLabel}` : ""}`
+                : "Real-time data from FTSE MIB components"}
+            </p>
           </div>
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search stocks by symbol or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-96">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search stocks by symbol or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                refresh();
+                toast({ title: "Refreshing prices", description: "Fetching latest quotes…" });
+              }}
+              disabled={loading}
+              title="Refresh prices"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </div>
 

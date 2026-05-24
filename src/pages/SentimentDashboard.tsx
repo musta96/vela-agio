@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,8 +63,8 @@ const SentimentDashboard = () => {
   };
 
   // Auto-run on first load if URL has symbol
-  useMemo(() => {
-    if (initial && !result && !loading) analyze(initial, selected?.name || initial);
+  useEffect(() => {
+    if (initial) analyze(initial, selected?.name || initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

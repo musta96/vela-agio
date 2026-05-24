@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
     const strategy: Strategy = body.strategy || "buy_hold";
     const range: string = body.range || "1Y";
     const initial: number = Number(body.initialCapital) || 100000;
+    const benchmarkSymbol: string | null = typeof body.benchmark === "string" && body.benchmark.trim() ? body.benchmark.trim() : null;
 
     if (!holdings.length) {
       return new Response(JSON.stringify({ error: "At least one holding required" }), {
@@ -176,8 +177,49 @@ Deno.serve(async (req) => {
 
     const result = simulate(basketBars, strategy, initial);
 
+    // External benchmark (index): replace the self-basket benchmark in the equity series.
+    let benchmarkLabel = "Buy & Hold (basket)";
+    if (benchmarkSymbol) {
+      const benchBars = await fetchBars(benchmarkSymbol, range);
+      if (benchBars.length >= 2) {
+        const bMap = new Map(benchBars.map(b => [b.t, b.close] as const));
+        // Find the first benchmark close on/after each basket timestamp; otherwise carry-forward.
+        const sortedBench = benchBars.slice().sort((a, b) => a.t - b.t);
+        let lastClose: number | null = null;
+        let benchIdx = 0;
+        const baseBenchClose = (() => {
+          const exact = bMap.get(result.equity[0].t);
+          if (typeof exact === "number") return exact;
+          for (const b of sortedBench) { if (b.t >= result.equity[0].t) return b.close; }
+          return sortedBench[0]?.close ?? null;
+        })();
+        if (typeof baseBenchClose === "number" && baseBenchClose > 0) {
+          for (let i = 0; i < result.equity.length; i++) {
+            const t = result.equity[i].t;
+            const exact = bMap.get(t);
+            if (typeof exact === "number") {
+              lastClose = exact;
+            } else {
+              while (benchIdx < sortedBench.length && sortedBench[benchIdx].t <= t) {
+                lastClose = sortedBench[benchIdx].close;
+                benchIdx++;
+              }
+            }
+            if (typeof lastClose === "number") {
+              result.equity[i].benchmark = initial * (lastClose / baseBenchClose);
+            }
+          }
+          const lastBench = result.equity[result.equity.length - 1].benchmark;
+          result.metrics.benchReturn = (lastBench - initial) / initial * 100;
+          benchmarkLabel = benchmarkSymbol;
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
-      strategy, range, holdings: valid.map(v => v.h.symbol), ...result,
+      strategy, range, holdings: valid.map(v => v.h.symbol),
+      benchmark: benchmarkSymbol, benchmarkLabel,
+      ...result,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("backtest error", e);

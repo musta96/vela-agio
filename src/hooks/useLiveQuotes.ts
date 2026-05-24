@@ -12,13 +12,12 @@ export interface LiveQuote {
 
 // Yahoo Finance chart endpoint via a public CORS proxy.
 // FTSE MIB tickers use the ".MI" suffix on Yahoo Finance.
-const CORS_PROXY = "https://corsproxy.io/?";
 const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 
 const buildUrl = (symbol: string) => {
   const yfSymbol = symbol.includes(".") ? symbol : `${symbol}.MI`;
   const target = `${YF_BASE}${encodeURIComponent(yfSymbol)}?interval=1m&range=1d`;
-  return `${CORS_PROXY}${encodeURIComponent(target)}`;
+  return `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
 };
 
 async function fetchQuote(symbol: string): Promise<LiveQuote | null> {

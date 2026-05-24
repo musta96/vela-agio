@@ -1,14 +1,17 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase } from "lucide-react";
+import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
 import type { HistoryRange } from "@/hooks/useHistoricalPrices";
+import { AuthButton } from "@/components/AuthButton";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PortfolioStock {
   symbol: string;
@@ -18,17 +21,96 @@ interface PortfolioStock {
   currentPrice: number;
 }
 
+const STORAGE_KEY = "portfolio_holdings";
+
+const readLocal = (): PortfolioStock[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
 const Portfolio = () => {
   const { toast } = useToast();
-  const [portfolio, setPortfolio] = useState<PortfolioStock[]>([
-    { symbol: "ENEL", name: "Enel", shares: 100, avgPrice: 6.20, currentPrice: 6.45 },
-    { symbol: "UCG", name: "UniCredit", shares: 50, avgPrice: 35.50, currentPrice: 38.92 },
-  ]);
+  const { user, loading: authLoading } = useAuth();
+  const migratedRef = useRef(false);
+  const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
+    const local = readLocal();
+    return local.length
+      ? local
+      : [
+          { symbol: "ENEL", name: "Enel", shares: 100, avgPrice: 6.20, currentPrice: 6.45 },
+          { symbol: "UCG", name: "UniCredit", shares: 50, avgPrice: 35.50, currentPrice: 38.92 },
+        ];
+  });
 
-  // Persist portfolio for Backtest "portfolio" mode
+  // Mirror to localStorage so Backtest "portfolio" mode keeps working
   useEffect(() => {
-    localStorage.setItem("portfolio_holdings", JSON.stringify(portfolio));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
   }, [portfolio]);
+
+  // Cloud sync (load + migrate on first login)
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      migratedRef.current = false;
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      if (!migratedRef.current) {
+        migratedRef.current = true;
+        const local = readLocal();
+        if (local.length) {
+          await supabase.from("portfolio_holdings").upsert(
+            local.map((s) => ({
+              user_id: user.id, symbol: s.symbol, name: s.name,
+              shares: s.shares, avg_price: s.avgPrice,
+            })),
+            { onConflict: "user_id,symbol", ignoreDuplicates: true }
+          );
+        }
+      }
+      const { data } = await supabase
+        .from("portfolio_holdings")
+        .select("symbol,name,shares,avg_price")
+        .order("created_at", { ascending: true });
+      if (cancelled || !data) return;
+      const next: PortfolioStock[] = data.map((r) => ({
+        symbol: r.symbol, name: r.name,
+        shares: Number(r.shares), avgPrice: Number(r.avg_price),
+        currentPrice: Number(r.avg_price),
+      }));
+      setPortfolio(next);
+    })();
+    return () => { cancelled = true; };
+  }, [user, authLoading]);
+
+  // Realtime updates from other devices
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase.channel(`pf-${user.id}`).on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "portfolio_holdings", filter: `user_id=eq.${user.id}` },
+      async () => {
+        const { data } = await supabase
+          .from("portfolio_holdings")
+          .select("symbol,name,shares,avg_price")
+          .order("created_at", { ascending: true });
+        if (!data) return;
+        setPortfolio(data.map((r) => ({
+          symbol: r.symbol, name: r.name,
+          shares: Number(r.shares), avgPrice: Number(r.avg_price),
+          currentPrice: Number(r.avg_price),
+        })));
+      }
+    ).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user]);
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [range, setRange] = useState<HistoryRange>("1M");
@@ -68,13 +150,20 @@ const Portfolio = () => {
       return;
     }
 
-    setPortfolio([...portfolio, {
+    const added: PortfolioStock = {
       symbol: newStock.symbol,
       name: stockInfo.name,
       shares: parseFloat(newStock.shares),
       avgPrice: parseFloat(newStock.avgPrice),
       currentPrice: stockInfo.price,
-    }]);
+    };
+    setPortfolio([...portfolio, added]);
+    if (user) {
+      supabase.from("portfolio_holdings").upsert({
+        user_id: user.id, symbol: added.symbol, name: added.name,
+        shares: added.shares, avg_price: added.avgPrice,
+      }, { onConflict: "user_id,symbol" }).then();
+    }
 
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
     setShowAddForm(false);
@@ -87,6 +176,9 @@ const Portfolio = () => {
 
   const handleRemoveStock = (symbol: string) => {
     setPortfolio(portfolio.filter(stock => stock.symbol !== symbol));
+    if (user) {
+      supabase.from("portfolio_holdings").delete().eq("user_id", user.id).eq("symbol", symbol).then();
+    }
     toast({
       title: "Stock Removed",
       description: "Stock removed from your portfolio",
@@ -137,6 +229,10 @@ const Portfolio = () => {
               <NavLink to="/portfolio" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
                 Portfolio
               </NavLink>
+              <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Watchlist
+              </NavLink>
+              <AuthButton />
             </div>
           </div>
         </div>
@@ -150,7 +246,14 @@ const Portfolio = () => {
               <Briefcase className="h-8 w-8 text-primary" />
               My Portfolio
             </h1>
-            <p className="text-muted-foreground">Track your FTSE MIB investments</p>
+            <p className="text-muted-foreground flex items-center gap-2">
+              Track your FTSE MIB investments
+              {user ? (
+                <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 text-muted-foreground">Local only · <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to sync</Badge>
+              )}
+            </p>
           </div>
           <Button onClick={() => setShowAddForm(!showAddForm)} className="gap-2 hover-scale">
             <Plus className="h-4 w-4" />

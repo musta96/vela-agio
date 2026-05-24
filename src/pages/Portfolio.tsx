@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,11 @@ const Portfolio = () => {
     { symbol: "ENEL", name: "Enel", shares: 100, avgPrice: 6.20, currentPrice: 6.45 },
     { symbol: "UCG", name: "UniCredit", shares: 50, avgPrice: 35.50, currentPrice: 38.92 },
   ]);
+
+  // Persist portfolio for Backtest "portfolio" mode
+  useEffect(() => {
+    localStorage.setItem("portfolio_holdings", JSON.stringify(portfolio));
+  }, [portfolio]);
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [range, setRange] = useState<HistoryRange>("1M");
@@ -125,6 +130,9 @@ const Portfolio = () => {
               </NavLink>
               <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Backtest
+              </NavLink>
+              <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                AI Picks
               </NavLink>
               <NavLink to="/portfolio" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
                 Portfolio

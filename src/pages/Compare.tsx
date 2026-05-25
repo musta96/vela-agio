@@ -8,13 +8,14 @@ import { X, GitCompare } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useOHLCHistory } from "@/hooks/useOHLCHistory";
 import { analyze } from "@/lib/technicalIndicators";
+import type { OHLCBar } from "@/lib/technicalIndicators";
 import { riskSummary } from "@/lib/riskMetrics";
 import { findCatalogEntry } from "@/data/stockCatalog";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
-const TickerStats = ({ symbol, bars, color }: { symbol: string; bars: any[]; color: string }) => {
+const TickerStats = ({ symbol, bars, color }: { symbol: string; bars: OHLCBar[]; color: string }) => {
   const tech = useMemo(() => (bars.length >= 60 ? analyze(bars) : null), [bars]);
   const risk = useMemo(() => (bars.length >= 30 ? riskSummary(bars) : null), [bars]);
   const entry = findCatalogEntry(symbol);

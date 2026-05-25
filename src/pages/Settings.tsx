@@ -15,6 +15,27 @@ import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, t
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Cpu } from "lucide-react";
+
+type ProviderId = "lovable" | "openai" | "groq" | "mistral" | "perplexity" | "anthropic" | "gemini";
+
+const PROVIDER_OPTIONS: Array<{ id: ProviderId; label: string; defaultModel: string; needsKey?: string; models: string[]; status?: "beta" | "soon" }> = [
+  { id: "lovable", label: "Lovable AI (default, no key needed)", defaultModel: "google/gemini-2.5-flash",
+    models: ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "google/gemini-2.5-flash-lite", "google/gemini-3-flash-preview", "openai/gpt-5-mini", "openai/gpt-5"] },
+  { id: "openai", label: "OpenAI", defaultModel: "gpt-4o-mini", needsKey: "OPENAI_API_KEY",
+    models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "o3-mini", "o4-mini"] },
+  { id: "groq", label: "Groq (ultra-fast Llama/Mixtral)", defaultModel: "llama-3.3-70b-versatile", needsKey: "GROQ_API_KEY",
+    models: ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"] },
+  { id: "mistral", label: "Mistral", defaultModel: "mistral-large-latest", needsKey: "MISTRAL_API_KEY",
+    models: ["mistral-large-latest", "mistral-small-latest", "codestral-latest"] },
+  { id: "perplexity", label: "Perplexity (online search)", defaultModel: "llama-3.1-sonar-large-128k-online", needsKey: "PERPLEXITY_API_KEY",
+    models: ["llama-3.1-sonar-large-128k-online", "llama-3.1-sonar-small-128k-online"] },
+  { id: "anthropic", label: "Anthropic (Claude) — coming soon", defaultModel: "claude-3-5-sonnet-latest", needsKey: "ANTHROPIC_API_KEY",
+    models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"], status: "soon" },
+  { id: "gemini", label: "Google Gemini (direct) — coming soon", defaultModel: "gemini-2.0-flash", needsKey: "GEMINI_API_KEY",
+    models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"], status: "soon" },
+];
 
 const CATEGORY_META: Record<ApiKeyCategory, { label: string; icon: typeof Brain; description: string }> = {
   ai: { label: "AI Models", icon: Brain, description: "Bring your own LLM providers for chat, analysis and recommendations." },
@@ -124,13 +145,20 @@ const Settings = () => {
   const [focus, setFocus] = useState("");
   const [focusSaving, setFocusSaving] = useState(false);
   const [focusLoaded, setFocusLoaded] = useState(false);
+  const [aiProvider, setAiProvider] = useState<ProviderId>("lovable");
+  const [aiModel, setAiModel] = useState<string>("");
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiLoaded, setAiLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await (supabase as any).from("profiles").select("briefing_focus").eq("user_id", user.id).maybeSingle();
+      const { data } = await (supabase as any).from("profiles").select("briefing_focus, ai_provider, ai_model").eq("user_id", user.id).maybeSingle();
       setFocus(data?.briefing_focus ?? "");
       setFocusLoaded(true);
+      setAiProvider((data?.ai_provider ?? "lovable") as ProviderId);
+      setAiModel(data?.ai_model ?? "");
+      setAiLoaded(true);
     })();
   }, [user]);
 
@@ -205,6 +233,27 @@ const Settings = () => {
 
   const savedCount = Object.keys(hints).length;
 
+  const saveAi = async () => {
+    if (!user) return;
+    setAiSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("profiles")
+        .update({ ai_provider: aiProvider, ai_model: aiModel.trim() || null })
+        .eq("user_id", user.id);
+      if (error) throw error;
+      toast({ title: "AI provider updated", description: `Now using ${aiProvider}${aiModel ? ` · ${aiModel}` : ""}` });
+    } catch (e) {
+      toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const activeProvider = PROVIDER_OPTIONS.find(p => p.id === aiProvider) ?? PROVIDER_OPTIONS[0];
+  const needsKey = activeProvider.needsKey;
+  const keyMissing = !!needsKey && !hints[needsKey];
+
   return (
     <div className="min-h-screen bg-background">
       <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, preferences, notification settings, and connected integrations for Vela.ai." path="/settings" />
@@ -242,6 +291,60 @@ const Settings = () => {
               Sign out everywhere
             </Button>
             <p className="text-xs text-muted-foreground mt-2">Invalidates all active sessions across all devices.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6" id="ai-provider">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> AI Model Provider</CardTitle>
+            <CardDescription>
+              Pick which model powers Copilot, Advisor and Deep Analysis. Default is Lovable AI (no key needed). To use OpenAI / Groq / Mistral / Perplexity, save the matching API key in the AI Models tab below.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Provider</Label>
+                <Select value={aiProvider} onValueChange={(v) => { setAiProvider(v as ProviderId); setAiModel(""); }} disabled={!aiLoaded}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PROVIDER_OPTIONS.map(p => (
+                      <SelectItem key={p.id} value={p.id} disabled={p.status === "soon"}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Model</Label>
+                <Select value={aiModel || activeProvider.defaultModel} onValueChange={setAiModel} disabled={!aiLoaded}>
+                  <SelectTrigger><SelectValue placeholder={activeProvider.defaultModel} /></SelectTrigger>
+                  <SelectContent>
+                    {activeProvider.models.map(m => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {keyMissing && (
+              <Alert className="border-warning/30 bg-warning/5">
+                <KeyRound className="h-4 w-4" />
+                <AlertTitle>Missing key</AlertTitle>
+                <AlertDescription className="text-sm">
+                  <code className="text-xs">{needsKey}</code> is not saved yet. Add it in the <strong>AI Models</strong> tab below, or we'll silently fall back to Lovable AI.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground">
+                Applies immediately to Copilot, Advisor and Deep Analysis. Other AI tools still use Lovable AI for now.
+              </p>
+              <Button size="sm" onClick={saveAi} disabled={!aiLoaded || aiSaving} className="gap-1">
+                {aiSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save provider
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

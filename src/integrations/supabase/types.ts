@@ -368,6 +368,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_model: string | null
+          ai_provider: string
           briefing_focus: string | null
           created_at: string
           display_name: string | null
@@ -376,6 +378,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_model?: string | null
+          ai_provider?: string
           briefing_focus?: string | null
           created_at?: string
           display_name?: string | null
@@ -384,6 +388,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_model?: string | null
+          ai_provider?: string
           briefing_focus?: string | null
           created_at?: string
           display_name?: string | null

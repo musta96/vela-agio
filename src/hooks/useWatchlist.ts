@@ -79,7 +79,7 @@ export function useWatchlist() {
   // Realtime updates so changes on another device flow in
   useEffect(() => {
     if (!user) return;
-    const ch = supabase.channel(`wl-${user.id}`).on(
+    const ch = supabase.channel(`wl-${user.id}-${Math.random().toString(36).slice(2)}`).on(
       "postgres_changes",
       { event: "*", schema: "public", table: "watchlist_items", filter: `user_id=eq.${user.id}` },
       async () => {

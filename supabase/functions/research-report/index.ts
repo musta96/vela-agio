@@ -4,7 +4,7 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-interface Body { symbol: string; name?: string }
+interface Body { symbol: string; name?: string; lang?: string }
 
 async function invokeFn(fn: string, body: any) {
   const r = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {

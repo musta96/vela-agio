@@ -256,7 +256,7 @@ const BacktestingModule = () => {
                     {holdings.map(h => (
                       <div key={h.symbol} className="flex items-center justify-between p-2 rounded bg-accent/10 text-sm">
                         <span><span className="font-semibold">{h.symbol}</span> <span className="text-muted-foreground">{(h.weight * 100).toFixed(0)}%</span></span>
-                        <button onClick={() => removeHolding(h.symbol)} className="text-muted-foreground hover:text-destructive">
+                        <button onClick={() => removeHolding(h.symbol)} aria-label={`Remove ${h.symbol}`} className="text-muted-foreground hover:text-destructive">
                           <X className="h-3 w-3" />
                         </button>
                       </div>

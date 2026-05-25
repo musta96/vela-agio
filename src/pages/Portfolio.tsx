@@ -699,6 +699,48 @@ const Portfolio = () => {
                             <code>.L</code> London, <code>.PA</code> Paris, <code>.AS</code> Amsterdam,
                             <code>.SW</code> Swiss. Example: <code>1PLTR.MI</code>, <code>BCHN.MI</code>.
                           </p>
+                          <div className="mt-3 pt-3 border-t border-border/60">
+                            <button
+                              type="button"
+                              disabled={aiLoading || !symbolSearch.trim()}
+                              onClick={askAiToFind}
+                              className="flex w-full items-center justify-center rounded-sm px-3 py-2 text-xs font-medium border border-primary/40 bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                            >
+                              {aiLoading ? "AI searching…" : "✨ Ask AI to find this instrument"}
+                            </button>
+                            {aiError && <p className="text-[11px] text-destructive mt-2">{aiError}</p>}
+                            {aiCandidates.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">AI suggestions</p>
+                                {aiCandidates.map((c) => (
+                                  <button
+                                    key={`ai-${c.symbol}`}
+                                    type="button"
+                                    className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-accent transition-colors border border-border/60"
+                                    onClick={() => {
+                                      setNewStock({ ...newStock, symbol: c.symbol, name: c.name });
+                                      setNewCurrency(c.currency || "USD");
+                                      setNewDisplayName(c.name);
+                                      setSymbolSearch("");
+                                      setSymbolPickerOpen(false);
+                                      setAiCandidates([]);
+                                    }}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-mono font-semibold">{c.symbol}</span>
+                                        {c.exchange && <Badge variant="outline" className="text-[10px]">{c.exchange}</Badge>}
+                                        {c.currency && <Badge variant="outline" className="text-[10px]">{c.currency}</Badge>}
+                                        {c.verified ? <Badge className="text-[10px]">verified</Badge> : <Badge variant="secondary" className="text-[10px]">unverified</Badge>}
+                                        {typeof c.confidence === 'number' && <span className="text-[10px] text-muted-foreground">{Math.round(c.confidence * 100)}%</span>}
+                                      </div>
+                                      <p className="truncate text-xs text-muted-foreground">{c.name}{c.reason ? ` — ${c.reason}` : ''}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <>

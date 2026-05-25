@@ -10,15 +10,15 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface Step { key: string; title: string; description: string; done: boolean; cta: string; route: string }
 
-export function OnboardingChecklist({ className }: { className?: string }) {
+export function OnboardingChecklist({ className, pinned = false }: { className?: string; pinned?: boolean }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [steps, setSteps] = useState<Step[]>([]);
-  const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem("onboarding_collapsed") === "1");
+  const [collapsed, setCollapsed] = useState<boolean>(() => !pinned && localStorage.getItem("onboarding_collapsed") === "1");
   const [dismissed, setDismissed] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { localStorage.setItem("onboarding_collapsed", collapsed ? "1" : "0"); }, [collapsed]);
+  useEffect(() => { if (!pinned) localStorage.setItem("onboarding_collapsed", collapsed ? "1" : "0"); }, [collapsed, pinned]);
 
   useEffect(() => {
     if (!user) return;
@@ -48,7 +48,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
       ];
 
       setSteps(list);
-      setDismissed(!!p.onboarding_dismissed);
+    setDismissed(!pinned && !!p.onboarding_dismissed);
       setLoading(false);
     })();
   }, [user?.id]);
@@ -63,7 +63,9 @@ export function OnboardingChecklist({ className }: { className?: string }) {
     await supabase.from("profiles").update({ onboarding_dismissed: true }).eq("user_id", user.id);
   };
 
-  if (loading || dismissed || pct === 100) return null;
+  if (loading) return null;
+  if (!pinned && (dismissed || pct === 100)) return null;
+  if (pinned && pct === 100) return null;
 
   return (
     <Card className={cn("border-primary/30 bg-gradient-to-br from-primary/5 to-transparent", className)}>
@@ -76,14 +78,16 @@ export function OnboardingChecklist({ className }: { className?: string }) {
               <div className="text-xs text-muted-foreground">{done} of {total} steps complete</div>
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? "Expand" : "Collapse"}>
-              {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={dismiss} aria-label="Dismiss">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          {!pinned && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? "Expand" : "Collapse"}>
+                {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={dismiss} aria-label="Dismiss">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         <Progress value={pct} className="mt-3 h-1.5" />

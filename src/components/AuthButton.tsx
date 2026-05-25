@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { LogIn, LogOut, User as UserIcon, Shield, Settings as SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export const AuthButton = () => {
   const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   if (loading) return null;
   if (!user) {
     return (
@@ -35,6 +36,16 @@ export const AuthButton = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/profile")} className="gap-2">
+          <UserIcon className="h-4 w-4" /> Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/security")} className="gap-2">
+          <Shield className="h-4 w-4" /> Security
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/settings")} className="gap-2">
+          <SettingsIcon className="h-4 w-4" /> Settings
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive focus:text-destructive">
           <LogOut className="h-4 w-4" /> Sign out

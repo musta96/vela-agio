@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface LiveQuote {
   symbol: string;
@@ -10,38 +11,14 @@ export interface LiveQuote {
   updatedAt: number;
 }
 
-// Yahoo Finance chart endpoint via a public CORS proxy.
-// FTSE MIB tickers use the ".MI" suffix on Yahoo Finance.
-const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
-
-const buildUrl = (symbol: string) => {
-  const target = `${YF_BASE}${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-  return `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
-};
-
-async function fetchQuote(symbol: string): Promise<LiveQuote | null> {
-  try {
-    const res = await fetch(buildUrl(symbol));
-    if (!res.ok) return null;
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return null;
-    const meta = result.meta;
-    const price = meta.regularMarketPrice;
-    const prev = meta.chartPreviousClose ?? meta.previousClose;
-    if (typeof price !== "number" || typeof prev !== "number" || prev === 0) return null;
-    return {
-      symbol,
-      price,
-      previousClose: prev,
-      change: ((price - prev) / prev) * 100,
-      currency: meta.currency,
-      marketState: meta.marketState,
-      updatedAt: Date.now(),
-    };
-  } catch {
-    return null;
-  }
+// Quotes are fetched via our `market-data` edge function which proxies Yahoo
+// Finance server-side (no public CORS proxy) and caches results.
+async function fetchQuotes(symbols: string[]): Promise<Record<string, LiveQuote>> {
+  const { data, error } = await supabase.functions.invoke("market-data", {
+    body: { action: "quote", symbols },
+  });
+  if (error || !data?.quotes) return {};
+  return data.quotes as Record<string, LiveQuote>;
 }
 
 export interface UseLiveQuotesResult {
@@ -65,16 +42,9 @@ export function useLiveQuotes(symbols: string[], intervalMs = 30000): UseLiveQuo
     setLoading(true);
     setError(null);
     try {
-      const results = await Promise.all(symbols.map(fetchQuote));
+      const next = await fetchQuotes(symbols);
       if (!mountedRef.current) return;
-      const next: Record<string, LiveQuote> = {};
-      let okCount = 0;
-      results.forEach((q, i) => {
-        if (q) {
-          next[symbols[i]] = q;
-          okCount++;
-        }
-      });
+      const okCount = Object.keys(next).length;
       setQuotes((prev) => ({ ...prev, ...next }));
       setLastUpdated(Date.now());
       if (okCount === 0) setError("Unable to load live prices");

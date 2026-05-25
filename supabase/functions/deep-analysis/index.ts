@@ -12,6 +12,53 @@ function n(v: any): number | null {
   return null;
 }
 
+let cachedCrumb: { crumb: string; cookie: string; at: number } | null = null;
+
+async function getCrumb(): Promise<{ crumb: string; cookie: string }> {
+  if (cachedCrumb && Date.now() - cachedCrumb.at < 30 * 60 * 1000) {
+    return { crumb: cachedCrumb.crumb, cookie: cachedCrumb.cookie };
+  }
+  // Step 1: hit fc.yahoo.com to get session cookies
+  const r1 = await fetch('https://fc.yahoo.com/', {
+    headers: { 'User-Agent': UA, Accept: 'text/html' },
+    redirect: 'manual',
+  }).catch(() => null);
+  const setCookies: string[] = [];
+  if (r1) {
+    const sc = r1.headers.get('set-cookie');
+    if (sc) setCookies.push(sc);
+  }
+  // Fallback: also hit finance.yahoo.com which reliably sets A1/A3
+  const r2 = await fetch('https://finance.yahoo.com/', {
+    headers: { 'User-Agent': UA, Accept: 'text/html' },
+    redirect: 'manual',
+  });
+  const sc2 = r2.headers.get('set-cookie');
+  if (sc2) setCookies.push(sc2);
+
+  // Build a minimal Cookie header from set-cookie strings
+  const cookiePairs: string[] = [];
+  for (const raw of setCookies) {
+    // raw may contain multiple cookies separated by comma (Deno joins them).
+    // Split on ", " followed by a cookie name= pattern.
+    const parts = raw.split(/,(?=\s*[A-Za-z0-9_-]+=)/);
+    for (const p of parts) {
+      const kv = p.split(';')[0].trim();
+      if (kv && kv.includes('=')) cookiePairs.push(kv);
+    }
+  }
+  const cookie = cookiePairs.join('; ');
+
+  const r3 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
+    headers: { 'User-Agent': UA, Accept: 'text/plain', Cookie: cookie },
+  });
+  if (!r3.ok) throw new Error(`getcrumb ${r3.status}`);
+  const crumb = (await r3.text()).trim();
+  if (!crumb || crumb.length < 4) throw new Error('Empty crumb');
+  cachedCrumb = { crumb, cookie, at: Date.now() };
+  return { crumb, cookie };
+}
+
 async function fetchQuoteSummary(symbol: string) {
   const modules = [
     'summaryDetail',
@@ -25,8 +72,23 @@ async function fetchQuoteSummary(symbol: string) {
     'price',
     'assetProfile',
   ].join(',');
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
-  const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+  const { crumb, cookie } = await getCrumb();
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA, Accept: 'application/json', Cookie: cookie },
+  });
+  if (r.status === 401 || r.status === 403) {
+    // Invalidate crumb and retry once
+    cachedCrumb = null;
+    const fresh = await getCrumb();
+    const r2 = await fetch(
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(fresh.crumb)}`,
+      { headers: { 'User-Agent': UA, Accept: 'application/json', Cookie: fresh.cookie } },
+    );
+    if (!r2.ok) throw new Error(`Yahoo quoteSummary ${r2.status}`);
+    const j2 = await r2.json();
+    return j2?.quoteSummary?.result?.[0] ?? null;
+  }
   if (!r.ok) throw new Error(`Yahoo quoteSummary ${r.status}`);
   const j = await r.json();
   return j?.quoteSummary?.result?.[0] ?? null;

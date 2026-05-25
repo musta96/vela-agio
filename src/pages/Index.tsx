@@ -125,29 +125,8 @@ export default function Index() {
           ))}
         </div>
 
-        {/* AI briefing band */}
-        <div className="rounded-xl bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(212_70%_18%)] p-5 sm:p-6 text-[hsl(var(--sidebar-foreground))]">
-          <div className="flex gap-4">
-            <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-accent">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Vela AI · Market briefing</p>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-[hsl(var(--sidebar-foreground))]/85">
-                ECB rate decision tomorrow is creating mixed signals across European financials.{" "}
-                <strong className="text-[hsl(var(--sidebar-foreground))]">Intesa Sanpaolo (+1.8%)</strong> and{" "}
-                <strong className="text-[hsl(var(--sidebar-foreground))]">UniCredit (+2.1%)</strong> are outperforming on
-                expectations of a hold. Energy sector under pressure —{" "}
-                <strong className="text-[hsl(var(--sidebar-foreground))]">Eni down 1.2%</strong> on oil weakness. Your
-                watchlist has 3 high-conviction setups worth reviewing.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={() => navigate("/picks")} className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90">View setups</button>
-                <button onClick={() => navigate("/advisor")} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15">Full briefing</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* AI briefing band — personalised from portfolio + watchlist + saved focus */}
+        <AIBriefing />
 
         {/* Chart + watchlist */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

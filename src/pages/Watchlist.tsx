@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, BellRing, Trash2 } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
+import { TopNav } from "@/components/TopNav";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,6 @@ import { useMemo } from "react";
 import { AlertSettingsDialog } from "@/components/AlertSettingsDialog";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAlertMonitor } from "@/hooks/useAlertMonitor";
-import { AuthButton } from "@/components/AuthButton";
 
 const Watchlist = () => {
   const { items, remove } = useWatchlist();
@@ -28,25 +27,7 @@ const Watchlist = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
-            </Link>
-            <div className="flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Dashboard</NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Sentiment</NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Backtest</NavLink>
-              <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">AI Picks</NavLink>
-              <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
-              <NavLink to="/watchlist" className="text-sm font-medium text-foreground hover:text-primary transition-colors" activeClassName="text-primary">Watchlist</NavLink>
-              <AuthButton />
-            </div>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       <section className="container mx-auto px-6 py-12">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-8">

@@ -14,8 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { NavLink } from "@/components/NavLink";
-import { AuthButton } from "@/components/AuthButton";
+import { TopNav } from "@/components/TopNav";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
 import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
 import {
@@ -113,26 +112,7 @@ const TechnicalAnalysis = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <Link to="/" className="flex items-center space-x-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Dashboard</NavLink>
-              <NavLink to="/technical" className="text-sm font-medium text-foreground" activeClassName="text-primary">Technicals</NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sentiment</NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Backtest</NavLink>
-              <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">AI Picks</NavLink>
-              <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Portfolio</NavLink>
-              <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Watchlist</NavLink>
-              <AuthButton />
-            </div>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

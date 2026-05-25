@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { NavLink } from "@/components/NavLink";
+import { TopNav } from "@/components/TopNav";
 import { Activity, Sparkles, TrendingUp, AlertTriangle, RefreshCw, ExternalLink, Star, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -92,22 +92,7 @@ const SmartPicks = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <Activity className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
-          </Link>
-          <div className="flex items-center space-x-6">
-            <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Dashboard</NavLink>
-            <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Sentiment</NavLink>
-            <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Backtest</NavLink>
-            <NavLink to="/picks" className="text-sm font-medium text-foreground" activeClassName="text-primary">AI Picks</NavLink>
-            <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
-            <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Watchlist</NavLink>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">

@@ -286,11 +286,11 @@ Deno.serve(async (req) => {
           {
             role: "system",
             content:
-              "You are a financial sentiment analyst. Be objective and concise. Distinguish between mainstream news (Yahoo Finance, Seeking Alpha) and retail/social chatter (Reddit, X/Twitter): weight mainstream sources more heavily for fundamentals but note when retail sentiment diverges sharply.",
+              "You are a buy-side financial sentiment analyst. Be objective and concise. You receive headlines from many reputable publishers (Bloomberg, FT, Reuters, WSJ, Morningstar, Barron's, Value Line, CNBC, MarketWatch, Borsa Italiana, Il Sole 24 Ore, etc.) plus social chatter (Reddit, X). Weight institutional / analyst-driven publishers more heavily for fundamentals, but explicitly call out when retail sentiment diverges, and synthesize the distinct analyst camps (bulls, bears, neutrals) with the arguments they each make.",
           },
           {
             role: "user",
-            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed sources (news + Reddit + Seeking Alpha + X):\n\n${newsText}\n\nProvide an overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish), a label, a 2-sentence summary that explicitly mentions whether news and social sentiment agree or diverge, key drivers, and a per-item sentiment (positive/neutral/negative) with a 0-100 score.`,
+            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed reputable sources:\n\n${newsText}\n\nReturn:\n- An overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish).\n- A label.\n- A 2-sentence summary that explicitly notes whether news and social sentiment agree or diverge.\n- Key drivers.\n- A per-item sentiment (positive/neutral/negative) with a 0-100 score.\n- A synthesis of the distinct analyst opinions / camps (typically 2-4 camps such as "Bull case", "Bear case", "Neutral/Hold"). For each camp give a stance label, a 1-sentence thesis, the main arguments (bullet list), and which source titles support that camp (by their index numbers).`,
           },
         ],
         tools: [{
@@ -327,8 +327,22 @@ Deno.serve(async (req) => {
                     required: ["index", "sentiment", "score"],
                   },
                 },
+                analystOpinions: {
+                  type: "array",
+                  description: "Distinct analyst viewpoints synthesized from the headlines",
+                  items: {
+                    type: "object",
+                    properties: {
+                      stance: { type: "string", description: "e.g. Bull case, Bear case, Hold/Neutral" },
+                      thesis: { type: "string", description: "1-sentence summary of the view" },
+                      arguments: { type: "array", items: { type: "string" } },
+                      sourceIndexes: { type: "array", items: { type: "number" }, description: "Indexes of supporting source items" },
+                    },
+                    required: ["stance", "thesis", "arguments"],
+                  },
+                },
               },
-              required: ["score", "label", "summary", "drivers", "articles"],
+              required: ["score", "label", "summary", "drivers", "articles", "analystOpinions"],
             },
           },
         }],
@@ -386,6 +400,7 @@ Deno.serve(async (req) => {
       drivers: parsed.drivers || [],
       articles: enrichedArticles,
       sources,
+      analystOpinions: parsed.analystOpinions || [],
       generatedAt: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

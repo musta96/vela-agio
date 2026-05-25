@@ -209,8 +209,6 @@ const Portfolio = () => {
     setRemoteLoading(true);
     const t = setTimeout(async () => {
       try {
-        const { data } = await supabase.functions.invoke("symbol-search", { body: null, method: "GET" as any }) as any;
-        // Edge functions don't easily accept query string via invoke; use direct fetch.
         const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/symbol-search?q=${encodeURIComponent(q)}`;
         const r = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
         const j = await r.json();

@@ -9,46 +9,11 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-const LINKS: { to: string; label: string }[] = [
-  { to: "/", label: "Dashboard" },
-  { to: "/copilot", label: "Copilot" },
-  { to: "/picks", label: "AI Picks" },
-  { to: "/portfolio", label: "Portfolio" },
-  { to: "/macro", label: "Macro" },
-];
-
-const GROUPS: { label: string; items: { to: string; label: string }[] }[] = [
-  { label: "Research", items: [
-    { to: "/compare", label: "Compare" },
-    { to: "/sectors", label: "Sectors" },
-    { to: "/sentiment", label: "Sentiment" },
-    { to: "/technical", label: "Technicals" },
-    { to: "/screener", label: "Screener" },
-    { to: "/baskets", label: "Baskets" },
-    { to: "/filings", label: "Filings" },
-    { to: "/earnings", label: "Earnings" },
-    { to: "/insider", label: "Insider" },
-    { to: "/event-study", label: "Event Study" },
-  ]},
-  { label: "Portfolio", items: [
-    { to: "/watchlist", label: "Watchlist" },
-    { to: "/risk", label: "Risk Engine" },
-    { to: "/backtest", label: "Backtest" },
-    { to: "/tax-harvest", label: "Tax Harvesting" },
-    { to: "/goals", label: "Goals Planner" },
-    { to: "/alerts", label: "Alerts" },
-  ]},
-  { label: "More", items: [
-    { to: "/onboarding", label: "Onboarding" },
-    { to: "/learn", label: "Learn" },
-    { to: "/methodology", label: "Methodology" },
-    { to: "/api", label: "API & Webhooks" },
-    { to: "/settings", label: "Settings" },
-  ]},
-];
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 
 export const TopNav = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -65,7 +30,43 @@ export const TopNav = () => {
     return () => { cancelled = true; };
   }, [user]);
 
-  const links = isAdmin ? [...LINKS, { to: "/admin/audit", label: "Audit" }] : LINKS;
+  const LINKS = [
+    { to: "/", label: t("nav.dashboard") },
+    { to: "/copilot", label: t("nav.copilot") },
+    { to: "/picks", label: t("nav.aiPicks") },
+    { to: "/portfolio", label: t("nav.portfolio") },
+    { to: "/macro", label: t("nav.macro") },
+  ];
+  const GROUPS = [
+    { label: t("nav.research"), items: [
+      { to: "/compare", label: t("nav.compare") },
+      { to: "/sectors", label: t("nav.sectors") },
+      { to: "/sentiment", label: t("nav.sentiment") },
+      { to: "/technical", label: t("nav.technicals") },
+      { to: "/screener", label: t("nav.screener") },
+      { to: "/baskets", label: t("nav.baskets") },
+      { to: "/filings", label: t("nav.filings") },
+      { to: "/earnings", label: t("nav.earnings") },
+      { to: "/insider", label: t("nav.insider") },
+      { to: "/event-study", label: t("nav.eventStudy") },
+    ]},
+    { label: t("nav.portfolio"), items: [
+      { to: "/watchlist", label: t("nav.watchlist") },
+      { to: "/risk", label: t("nav.riskEngine") },
+      { to: "/backtest", label: t("nav.backtest") },
+      { to: "/tax-harvest", label: t("nav.taxHarvesting") },
+      { to: "/goals", label: t("nav.goalsPlanner") },
+      { to: "/alerts", label: t("nav.alerts") },
+    ]},
+    { label: t("nav.more"), items: [
+      { to: "/onboarding", label: t("nav.onboarding") },
+      { to: "/learn", label: t("nav.learn") },
+      { to: "/methodology", label: t("nav.methodology") },
+      { to: "/api", label: t("nav.apiWebhooks") },
+      { to: "/settings", label: t("nav.settings") },
+    ]},
+  ];
+  const links = isAdmin ? [...LINKS, { to: "/admin/audit", label: t("nav.audit") }] : LINKS;
 
   return (
     <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -108,6 +109,7 @@ export const TopNav = () => {
             <CommandIcon className="h-3 w-3" /> K
           </button>
           {user && <NotificationBell />}
+          <LanguageSwitcher />
           <AuthButton />
         </div>
       </div>

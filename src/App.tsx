@@ -40,6 +40,7 @@ import Rebalance from "./pages/Rebalance";
 import Peers from "./pages/Peers";
 import QuantAlpha from "./pages/QuantAlpha";
 import Blotter from "./pages/Blotter";
+import OrderHistory from "./pages/OrderHistory";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
@@ -109,6 +110,7 @@ const App = () => (
             <Route path="/peers" element={<Peers />} />
             <Route path="/quant" element={<QuantAlpha />} />
             <Route path="/blotter" element={<Blotter />} />
+            <Route path="/orders" element={<OrderHistory />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />

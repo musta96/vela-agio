@@ -7,7 +7,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon,
-  BookOpen, ScrollText, GraduationCap, Handshake,
+  BookOpen, ScrollText, GraduationCap, Handshake, History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -18,6 +18,7 @@ const OVERVIEW: Item[] = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Portfolio", url: "/portfolio", icon: Briefcase },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
+  { title: "Orders", url: "/orders", icon: History },
   { title: "Macro", url: "/macro", icon: Globe2 },
 ];
 

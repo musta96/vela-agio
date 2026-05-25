@@ -608,6 +608,9 @@ const Portfolio = () => {
             portfolio.map((stock) => {
               const { gain, gainPercent, totalValue, totalCost } = calculateGainLoss(stock);
               const isPositive = gain >= 0;
+              const sym = currencySign(stock.currency);
+              const totalValueEur = toEur(totalValue, stock.currency);
+              const isForeign = stock.currency && stock.currency !== "EUR";
 
               return (
                 <Card key={stock.symbol} className="p-6 card-gradient border-border hover:shadow-lg transition-all duration-300">
@@ -621,6 +624,7 @@ const Portfolio = () => {
                         <Badge variant={isPositive ? "default" : "destructive"} className={isPositive ? "bg-success/10 text-success" : ""}>
                           {isPositive ? "+" : ""}{gainPercent.toFixed(2)}%
                         </Badge>
+                        {isForeign && <Badge variant="outline" className="text-xs">{stock.currency}</Badge>}
                       </div>
 
                       <div className="grid md:grid-cols-5 gap-4 text-sm">
@@ -630,33 +634,46 @@ const Portfolio = () => {
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Avg Price</p>
-                          <p className="font-semibold text-foreground">€{stock.avgPrice.toFixed(2)}</p>
+                          <p className="font-semibold text-foreground">{sym}{stock.avgPrice.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Current Price</p>
-                          <p className="font-semibold text-foreground">€{stock.currentPrice.toFixed(2)}</p>
+                          <p className="font-semibold text-foreground">{sym}{stock.currentPrice.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Total Value</p>
-                          <p className="font-semibold text-foreground">€{totalValue.toFixed(2)}</p>
+                          <p className="font-semibold text-foreground">{sym}{totalValue.toFixed(2)}</p>
+                          {isForeign && <p className="text-xs text-muted-foreground">≈ €{totalValueEur.toFixed(2)}</p>}
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Gain/Loss</p>
                           <p className={`font-semibold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                            €{gain.toFixed(2)}
+                            {sym}{gain.toFixed(2)}
                           </p>
                         </div>
                       </div>
                     </Link>
                     
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveStock(stock.symbol)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(stock)}
+                        className="text-muted-foreground hover:text-primary"
+                        title="Edit / Buy / Sell"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveStock(stock.symbol)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Remove"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );
@@ -664,6 +681,65 @@ const Portfolio = () => {
           )}
         </div>
       </section>
+
+      {/* Edit holding dialog */}
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit {editing?.symbol} — {editing?.name}</DialogTitle>
+            <DialogDescription>
+              Update values directly, or record a buy/sell transaction to auto-recompute your average price.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <Tabs defaultValue="txn" className="w-full">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="txn">Buy / Sell</TabsTrigger>
+                <TabsTrigger value="direct">Edit values</TabsTrigger>
+              </TabsList>
+              <TabsContent value="txn" className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant={txnSide === "buy" ? "default" : "outline"} onClick={() => setTxnSide("buy")}>Buy more</Button>
+                  <Button variant={txnSide === "sell" ? "default" : "outline"} onClick={() => setTxnSide("sell")}>Sell</Button>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Shares</label>
+                  <Input type="number" inputMode="decimal" value={txnShares} onChange={(e) => setTxnShares(e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">
+                    Price per share ({currencySign(editing.currency).trim() || editing.currency})
+                  </label>
+                  <Input type="number" inputMode="decimal" step="0.0001" value={txnPrice} onChange={(e) => setTxnPrice(e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Current: {editing.shares} shares @ avg {currencySign(editing.currency)}{editing.avgPrice.toFixed(4)}
+                </p>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                  <Button onClick={handleApplyTxn}>Apply {txnSide === "buy" ? "buy" : "sell"}</Button>
+                </DialogFooter>
+              </TabsContent>
+              <TabsContent value="direct" className="space-y-4 pt-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Shares</label>
+                  <Input type="number" inputMode="decimal" value={editShares} onChange={(e) => setEditShares(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">
+                    Avg price ({currencySign(editing.currency).trim() || editing.currency})
+                  </label>
+                  <Input type="number" inputMode="decimal" step="0.0001" value={editAvg} onChange={(e) => setEditAvg(e.target.value)} />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                  <Button onClick={handleSaveDirect}>Save</Button>
+                </DialogFooter>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
     </div>
   );

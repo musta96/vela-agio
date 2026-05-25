@@ -22,6 +22,16 @@ interface SentimentResult {
   sources?: { source: string; avgScore: number; count: number }[];
   analystOpinions?: { stance: string; thesis: string; arguments: string[]; sourceIndexes?: number[] }[];
   generatedAt?: string;
+  weightedScore?: number;
+  tierBreakdown?: {
+    tier1: number | null; tier2: number | null; tier3: number | null;
+    tier1Count: number; tier2Count: number; tier3Count: number;
+  };
+  divergence?: number | null;
+  momentum?: {
+    d7: number | null; d30: number | null; trend: string;
+    history: { t: string; score: number }[];
+  };
 }
 
 const sentimentTone = (s: string) => {

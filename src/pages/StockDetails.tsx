@@ -200,7 +200,7 @@ const StockDetails = () => {
   if (!sym) {
     return (
       <div className="min-h-screen bg-background p-8">
-        <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline">
+        <Link to="/dashboard" className="inline-flex items-center gap-2 text-primary hover:underline">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
         <p className="mt-8 text-muted-foreground">No symbol specified.</p>
@@ -290,7 +290,7 @@ const StockDetails = () => {
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-6 py-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline mb-4 text-sm">
+          <Link to="/dashboard" className="inline-flex items-center gap-2 text-primary hover:underline mb-4 text-sm">
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
           </Link>
           <div className="flex items-start justify-between flex-wrap gap-4">

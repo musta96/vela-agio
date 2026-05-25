@@ -7,6 +7,7 @@ import {
   Repeat, Wallet, Target, Bell, Scale, RefreshCw, ClipboardList,
   ShieldCheck, GraduationCap, BookOpen, Code2, Tag, Settings as SettingsIcon,
   ScrollText, Shield,
+  Lightbulb,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
@@ -53,6 +54,7 @@ export const TopNav = () => {
   const PRIMARY: Item[] = [
     { to: "/", label: t("nav.dashboard"), icon: Home },
     { to: "/copilot", label: t("nav.copilot"), icon: Bot },
+    { to: "/advisor", label: "Advisor", icon: Lightbulb, flag: "advisor" },
     { to: "/picks", label: t("nav.aiPicks"), icon: Sparkles },
     { to: "/portfolio", label: t("nav.portfolio"), icon: Briefcase },
     { to: "/macro", label: t("nav.macro"), icon: Globe2 },

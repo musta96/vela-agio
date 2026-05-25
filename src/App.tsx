@@ -46,6 +46,7 @@ import Pricing from "./pages/Pricing";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import AdminSettings from "./pages/AdminSettings";
+import Advisor from "./pages/Advisor";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +99,7 @@ const App = () => (
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/admin/audit" element={<AdminAuditLog />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/advisor" element={<Advisor />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

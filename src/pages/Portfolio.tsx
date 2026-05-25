@@ -25,6 +25,7 @@ import { STOCK_CATALOG, currencySign, findCatalogEntry } from "@/data/stockCatal
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { PortfolioSimulator } from "@/components/PortfolioSimulator";
+import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
 
 interface PortfolioStock {
   symbol: string;
@@ -658,6 +659,17 @@ const Portfolio = () => {
         />
 
         <PortfolioInsights holdings={portfolio} />
+
+        <PortfolioSuggestions
+          portfolioId={activeId}
+          portfolioName={active?.name}
+          holdings={portfolio.map((p) => ({
+            symbol: p.symbol,
+            name: p.name,
+            shares: p.shares,
+            avg_price: p.avgPrice,
+          }))}
+        />
 
         {/* Add Stock Form */}
         {showAddForm && (

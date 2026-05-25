@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
+import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";
@@ -80,7 +81,7 @@ export default function Index() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
 
   // Live holdings for real portfolio value
-  const [holdings, setHoldings] = useState<Array<{ symbol: string; shares: number; avg_price: number; currency: string }>>([]);
+  const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number; avg_price: number; currency: string }>>([]);
   const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);
   const [sentimentAvg, setSentimentAvg] = useState<number | null>(null);
 
@@ -88,8 +89,8 @@ export default function Index() {
     if (!user) { setHoldings([]); return; }
     (async () => {
       const holdingsQuery = primary?.id
-        ? supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("portfolio_id", primary.id)
-        : supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("user_id", user.id);
+        ? supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price, currency").eq("portfolio_id", primary.id)
+        : supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price, currency").eq("user_id", user.id);
       const [h, rules, sent] = await Promise.all([
         holdingsQuery,
         supabase.from("alert_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),
@@ -216,6 +217,21 @@ export default function Index() {
 
         {/* AI briefing band — personalised from portfolio + watchlist + saved focus */}
         <AIBriefing />
+
+        {/* Compact suggestions for the primary portfolio */}
+        {user && holdings.length > 0 && (
+          <PortfolioSuggestions
+            compact
+            portfolioId={primary?.id ?? null}
+            portfolioName={primary?.name ?? "Main portfolio"}
+            holdings={holdings.map((h) => ({
+              symbol: h.symbol,
+              name: h.name || h.symbol,
+              shares: Number(h.shares) || 0,
+              avg_price: Number(h.avg_price) || 0,
+            }))}
+          />
+        )}
 
         {/* Chart + watchlist */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -314,64 +314,61 @@ const Portfolio = () => {
           <Card className="p-6 mb-8 card-gradient border-border animate-fade-in">
             <h3 className="text-lg font-semibold mb-4">Add New Stock</h3>
             <div className="grid md:grid-cols-4 gap-4">
-              <div>
+              <div className="relative">
                 <label className="text-sm text-muted-foreground mb-2 block">Symbol</label>
-                <Popover open={symbolPickerOpen} onOpenChange={setSymbolPickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={symbolPickerOpen}
-                      className="w-full justify-between font-normal"
-                    >
-                      <span className="truncate">
-                        {selectedCatalog
-                          ? `${selectedCatalog.symbol} — ${selectedCatalog.name}`
-                          : "Search stock or ETF…"}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command
-                      filter={(value, search) =>
-                        value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
-                      }
-                    >
-                      <CommandInput placeholder="Search by symbol, name, or market…" />
-                      <CommandList>
-                        <CommandEmpty>No instrument found.</CommandEmpty>
-                        <CommandGroup>
-                          {STOCK_CATALOG.map((stock) => (
-                            <CommandItem
-                              key={stock.symbol}
-                              value={`${stock.symbol} ${stock.name} ${stock.market}`}
-                              onSelect={() => {
-                                setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
-                                setSymbolPickerOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  newStock.symbol === stock.symbol ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold">{stock.symbol}</span>
-                                  <Badge variant="outline" className="text-[10px]">{stock.market}</Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground truncate">{stock.name}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={symbolPickerOpen}
+                  className="w-full justify-between font-normal pointer-events-auto"
+                  onClick={() => setSymbolPickerOpen((open) => !open)}
+                >
+                  <span className="truncate">
+                    {selectedCatalog
+                      ? `${selectedCatalog.symbol} — ${selectedCatalog.name}`
+                      : "Search stock or ETF…"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+                {symbolPickerOpen && (
+                  <div className="absolute left-0 top-full z-[60] mt-2 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg pointer-events-auto">
+                    <Input
+                      autoFocus
+                      value={symbolSearch}
+                      onChange={(e) => setSymbolSearch(e.target.value)}
+                      placeholder="Search by symbol, name, or market…"
+                      className="rounded-b-none border-0 border-b border-border focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                    <div className="max-h-72 overflow-y-auto p-1">
+                      {filteredCatalog.length === 0 ? (
+                        <p className="px-3 py-6 text-center text-sm text-muted-foreground">No instrument found.</p>
+                      ) : (
+                        filteredCatalog.map((stock) => (
+                          <button
+                            key={stock.symbol}
+                            type="button"
+                            className="flex w-full items-center rounded-sm px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground pointer-events-auto"
+                            onClick={() => {
+                              setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
+                              setSymbolSearch("");
+                              setSymbolPickerOpen(false);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${newStock.symbol === stock.symbol ? "opacity-100" : "opacity-0"}`} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{stock.symbol}</span>
+                                <Badge variant="outline" className="text-[10px]">{stock.market}</Badge>
                               </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                              <p className="truncate text-xs text-muted-foreground">{stock.name}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">Shares</label>

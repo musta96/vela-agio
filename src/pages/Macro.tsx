@@ -29,7 +29,7 @@ export default function Macro() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Macro Dashboard | FTSE MIB Analytics" description="Rates, FX, commodities, credit, vol" />
+      <SEO title="Macro Dashboard | FTSE MIB Analytics" description="Rates, FX, commodities, credit, vol" path="/macro" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Globe2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Macro & Cross-Asset</h1></div>
@@ -39,7 +39,7 @@ export default function Macro() {
             <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
               {g.symbols.map(({ s, label }) => {
                 const q = quotes[s];
-                const chg = q?.changePercent ?? 0;
+                const chg = q?.change ?? 0;
                 return (
                   <Card key={s}>
                     <CardHeader className="pb-2"><CardTitle className="text-sm">{label}</CardTitle></CardHeader>

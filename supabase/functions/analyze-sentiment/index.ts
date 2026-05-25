@@ -38,15 +38,129 @@ function parseRss(xml: string, max = 12): Article[] {
   return items;
 }
 
-async function fetchHeadlines(symbol: string): Promise<Article[]> {
+const UA = { "User-Agent": "Mozilla/5.0 (compatible; LovableSentimentBot/1.0)" };
+
+// Yahoo Finance RSS (mainstream financial news)
+async function fetchYahoo(symbol: string): Promise<Article[]> {
   const url = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(symbol)}&region=US&lang=en-US`;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const r = await fetch(url, { headers: UA });
     if (!r.ok) return [];
-    return parseRss(await r.text());
+    return parseRss(await r.text()).map((a) => ({ ...a, source: a.source || "Yahoo Finance" }));
   } catch {
     return [];
   }
+}
+
+// Seeking Alpha public RSS for a given ticker
+async function fetchSeekingAlpha(symbol: string): Promise<Article[]> {
+  // Seeking Alpha symbol feeds use the base ticker (strip exchange suffix like .MI)
+  const base = symbol.split(".")[0];
+  const url = `https://seekingalpha.com/api/sa/combined/${encodeURIComponent(base)}.xml`;
+  try {
+    const r = await fetch(url, { headers: UA });
+    if (!r.ok) return [];
+    return parseRss(await r.text(), 8).map((a) => ({ ...a, source: "Seeking Alpha" }));
+  } catch {
+    return [];
+  }
+}
+
+// Reddit: search retail-investor subs for the ticker. Public JSON, no auth.
+async function fetchReddit(symbol: string, name?: string): Promise<Article[]> {
+  const subs = [
+    "wallstreetbets",
+    "stocks",
+    "investing",
+    "StockMarket",
+    "SecurityAnalysis",
+    "ValueInvesting",
+    "ItaliaInvestimenti",
+    "eupersonalfinance",
+  ];
+  const base = symbol.split(".")[0];
+  const queries = [base, name].filter(Boolean) as string[];
+  const out: Article[] = [];
+  await Promise.all(
+    subs.map(async (sub) => {
+      for (const q of queries) {
+        const url = `https://www.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(q)}&sort=new&restrict_sr=1&limit=6&t=month`;
+        try {
+          const r = await fetch(url, { headers: UA });
+          if (!r.ok) continue;
+          const json = await r.json();
+          const posts = json?.data?.children || [];
+          for (const p of posts) {
+            const d = p?.data;
+            if (!d?.title) continue;
+            out.push({
+              title: d.title,
+              link: `https://www.reddit.com${d.permalink}`,
+              pubDate: new Date((d.created_utc || 0) * 1000).toUTCString(),
+              source: `Reddit r/${sub}`,
+              description: (d.selftext || "").replace(/\s+/g, " ").slice(0, 400),
+            });
+          }
+          break; // one query per sub is enough
+        } catch {
+          /* ignore sub failure */
+        }
+      }
+    })
+  );
+  return out;
+}
+
+// X / Twitter via public Nitter RSS mirrors (best-effort — instances rotate)
+async function fetchTwitter(symbol: string): Promise<Article[]> {
+  const base = symbol.split(".")[0];
+  const query = encodeURIComponent(`$${base} OR ${base} stock`);
+  const instances = [
+    "https://nitter.net",
+    "https://nitter.privacydev.net",
+    "https://nitter.poast.org",
+  ];
+  for (const inst of instances) {
+    try {
+      const r = await fetch(`${inst}/search/rss?f=tweets&q=${query}`, { headers: UA });
+      if (!r.ok) continue;
+      const items = parseRss(await r.text(), 10).map((a) => ({ ...a, source: "X / Twitter" }));
+      if (items.length) return items;
+    } catch {
+      /* try next instance */
+    }
+  }
+  return [];
+}
+
+function dedupe(items: Article[], limit = 40): Article[] {
+  const seen = new Set<string>();
+  const out: Article[] = [];
+  for (const a of items) {
+    const key = a.title.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+async function fetchHeadlines(symbol: string, name?: string): Promise<Article[]> {
+  const [yahoo, sa, reddit, twitter] = await Promise.all([
+    fetchYahoo(symbol),
+    fetchSeekingAlpha(symbol),
+    fetchReddit(symbol, name),
+    fetchTwitter(symbol),
+  ]);
+  // Interleave so AI sees a balanced mix even if we truncate
+  const merged: Article[] = [];
+  const lists = [yahoo, sa, reddit, twitter];
+  const max = Math.max(...lists.map((l) => l.length));
+  for (let i = 0; i < max; i++) {
+    for (const l of lists) if (l[i]) merged.push(l[i]);
+  }
+  return dedupe(merged, 40);
 }
 
 Deno.serve(async (req) => {
@@ -67,17 +181,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const articles = await fetchHeadlines(symbol);
+    const articles = await fetchHeadlines(symbol, name);
     if (articles.length === 0) {
       return new Response(JSON.stringify({
         symbol, score: 50, label: "neutral",
-        summary: "No recent news headlines were found for this ticker.",
-        drivers: [], articles: [],
+        summary: "No recent news, Reddit threads, Seeking Alpha posts, or social chatter were found for this ticker.",
+        drivers: [], articles: [], sources: [],
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const newsText = articles
-      .map((a, i) => `${i + 1}. ${a.title}${a.description ? " — " + a.description : ""}`)
+      .map(
+        (a, i) =>
+          `${i + 1}. [${a.source}] ${a.title}${a.description ? " — " + a.description : ""}`
+      )
       .join("\n");
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -89,8 +206,15 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a financial sentiment analyst. Be objective and concise." },
-          { role: "user", content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent headlines:\n\n${newsText}\n\nProvide an overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish), a label, a 2-sentence summary, key drivers, and a per-article sentiment (positive/neutral/negative) with a 0-100 score.` },
+          {
+            role: "system",
+            content:
+              "You are a financial sentiment analyst. Be objective and concise. Distinguish between mainstream news (Yahoo Finance, Seeking Alpha) and retail/social chatter (Reddit, X/Twitter): weight mainstream sources more heavily for fundamentals but note when retail sentiment diverges sharply.",
+          },
+          {
+            role: "user",
+            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed sources (news + Reddit + Seeking Alpha + X):\n\n${newsText}\n\nProvide an overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish), a label, a 2-sentence summary that explicitly mentions whether news and social sentiment agree or diverge, key drivers, and a per-item sentiment (positive/neutral/negative) with a 0-100 score.`,
+          },
         ],
         tools: [{
           type: "function",
@@ -163,6 +287,20 @@ Deno.serve(async (req) => {
       return { ...a, sentiment: ai?.sentiment || "neutral", score: typeof ai?.score === "number" ? ai.score : 50 };
     });
 
+    // Per-source breakdown (average score) so UI can show which channels are bullish/bearish
+    const bySource = new Map<string, { total: number; count: number }>();
+    enrichedArticles.forEach((a: any) => {
+      const cur = bySource.get(a.source) || { total: 0, count: 0 };
+      cur.total += a.score;
+      cur.count += 1;
+      bySource.set(a.source, cur);
+    });
+    const sources = Array.from(bySource.entries()).map(([source, v]) => ({
+      source,
+      avgScore: Math.round(v.total / v.count),
+      count: v.count,
+    }));
+
     return new Response(JSON.stringify({
       symbol,
       score: typeof parsed.score === "number" ? parsed.score : 50,
@@ -170,6 +308,7 @@ Deno.serve(async (req) => {
       summary: parsed.summary || "",
       drivers: parsed.drivers || [],
       articles: enrichedArticles,
+      sources,
       generatedAt: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

@@ -1,6 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -14,18 +13,28 @@ Be specific, number-driven, and balanced. Cite metrics. Always end with: "This i
 
 PORTFOLIO: ${JSON.stringify(portfolio ?? []).slice(0, 4000)}
 WATCHLIST: ${JSON.stringify(watchlist ?? []).slice(0, 2000)}`;
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const cfg = await resolveAIConfig(req.headers.get('Authorization'));
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: cfg.model,
         stream: true,
         messages: [{ role: 'system', content: sys }, ...(messages ?? [])],
       }),
     });
     if (r.status === 429) return new Response(JSON.stringify({ error: 'Rate limit' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (r.status === 402) return new Response(JSON.stringify({ error: 'Credits exhausted' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    return new Response(r.body, { headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' } });
+    const headers: Record<string, string> = {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'X-AI-Provider': cfg.effectiveProvider,
+      'X-AI-Model': cfg.model,
+      'X-AI-Source': cfg.source,
+      'Access-Control-Expose-Headers': 'X-AI-Provider, X-AI-Model, X-AI-Source, X-AI-Notice',
+    };
+    if (cfg.notice) headers['X-AI-Notice'] = cfg.notice;
+    return new Response(r.body, { headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }

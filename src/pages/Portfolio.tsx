@@ -401,6 +401,46 @@ const Portfolio = () => {
     return sum + toEur(gain, stock.currency);
   }, 0);
 
+  // === Portfolio settings / create dialogs ===
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pfName, setPfName] = useState("");
+  const [pfDesc, setPfDesc] = useState("");
+  const [pfBase, setPfBase] = useState("EUR");
+  const [pfBench, setPfBench] = useState("FTSEMIB.MI");
+  const [pfSim, setPfSim] = useState(false);
+  useEffect(() => {
+    if (active) {
+      setPfName(active.name);
+      setPfDesc(active.description || "");
+      setPfBase(active.base_currency);
+      setPfBench(active.benchmark_symbol);
+      setPfSim(active.is_simulation);
+    }
+  }, [active?.id]);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newPfName, setNewPfName] = useState("");
+  const [newPfBase, setNewPfBase] = useState("EUR");
+  const [newPfBench, setNewPfBench] = useState("FTSEMIB.MI");
+  const [newPfSim, setNewPfSim] = useState(false);
+  const [newPfClone, setNewPfClone] = useState(false);
+
+  const [simOpen, setSimOpen] = useState(false);
+
+  const baseCcy = active?.base_currency || "EUR";
+  const baseSign = baseCcy === "USD" ? "$" : baseCcy === "GBP" ? "£" : baseCcy === "EUR" ? "€" : baseCcy + " ";
+  // Convert helper using selected base currency (we have EUR rates; for non-EUR base, approximate via cross)
+  const toBase = (amount: number, currency: string) => {
+    if (currency === baseCcy) return amount;
+    const inEur = currency === "EUR" ? amount : amount * (fxRates[currency] ?? 1);
+    if (baseCcy === "EUR") return inEur;
+    // EUR -> base via inverse rate if available
+    const rate = fxRates[baseCcy];
+    return rate ? inEur / rate : inEur;
+  };
+  const totalBase = portfolio.reduce((s, p) => s + toBase(p.shares * p.currentPrice, p.currency), 0);
+  const gainBase = portfolio.reduce((s, p) => s + toBase(p.shares * (p.currentPrice - p.avgPrice), p.currency), 0);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}

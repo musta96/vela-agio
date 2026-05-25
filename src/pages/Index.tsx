@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { MarketRegimeBanner } from "@/components/MarketRegimeBanner";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -78,6 +79,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
+      <SEO title="FTSE MIB Analytics — Trading Strategy & Stock Insights" description="Track FTSE MIB, European and US stocks with live quotes, AI-powered fundamentals, and technical insights for smarter trading decisions." path="/" />
       <TopNav />
 
       {/* Hero Section */}

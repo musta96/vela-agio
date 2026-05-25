@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { Activity, MessageSquare, Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Sparkles, Building2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +98,7 @@ const SentimentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="News Sentiment Dashboard — AI Market Sentiment Analysis" description="Real-time AI sentiment analysis on news, analyst opinions, and market drivers for FTSE MIB, EU, and US equities." path="/sentiment" />
       <TopNav />
 
       <div className="container mx-auto px-6 py-8">

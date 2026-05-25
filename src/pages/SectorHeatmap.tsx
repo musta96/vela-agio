@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Grid3x3, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -74,6 +75,7 @@ const SectorHeatmap = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Sector Heatmap — Industry Performance at a Glance" description="Visualize sector and industry performance across FTSE MIB, EU, and US markets with a color-coded heatmap and rotation insights." path="/sectors" />
       <TopNav />
       <div className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center justify-between">

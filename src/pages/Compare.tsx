@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +85,7 @@ const Compare = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Compare Stocks — Side-by-Side Fundamental & Technical Analysis" description="Compare multiple stocks side-by-side: valuation, growth, profitability, technicals, and AI verdicts in one consolidated view." path="/compare" />
       <TopNav />
       <div className="container mx-auto px-6 py-8 space-y-6">
         <div>

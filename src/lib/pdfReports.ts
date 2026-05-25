@@ -32,12 +32,16 @@ function header(doc: jsPDF, title: string, subtitle?: string) {
 
 function footer(doc: jsPDF) {
   const pageCount = doc.getNumberOfPages();
+  const isIt = (typeof window !== "undefined" && (localStorage.getItem("i18nextLng") ?? "").startsWith("it"));
+  const disclaim = isIt ? "Non costituisce consulenza finanziaria" : "Not financial advice";
+  const pageLabel = isIt ? "Pagina" : "Page";
+  const ofLabel = isIt ? "di" : "of";
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(...BRAND.muted);
     doc.text(
-      `FTSE MIB Analytics · Not financial advice · Page ${i} of ${pageCount}`,
+      `FTSE MIB Analytics · ${disclaim} · ${pageLabel} ${i} ${ofLabel} ${pageCount}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: "center" },
@@ -48,8 +52,10 @@ function footer(doc: jsPDF) {
 function disclaimer(doc: jsPDF, y: number) {
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.muted);
-  const txt =
-    "Disclaimer: This report is generated automatically by FTSE MIB Analytics for informational and educational purposes only. It does not constitute investment advice, a recommendation, or an offer to buy or sell any security. Data may be delayed, incomplete, or inaccurate. Always do your own research and consult a licensed financial advisor before making investment decisions.";
+  const isIt = (typeof window !== "undefined" && (localStorage.getItem("i18nextLng") ?? "").startsWith("it"));
+  const txt = isIt
+    ? "Disclaimer: Questo report è generato automaticamente da FTSE MIB Analytics a soli fini informativi ed educativi. Non costituisce consulenza in materia di investimenti, raccomandazione, né offerta di acquisto o vendita di strumenti finanziari. I dati possono essere ritardati, incompleti o inaccurati. Effettua sempre le tue analisi e consulta un consulente finanziario abilitato prima di prendere decisioni di investimento."
+    : "Disclaimer: This report is generated automatically by FTSE MIB Analytics for informational and educational purposes only. It does not constitute investment advice, a recommendation, or an offer to buy or sell any security. Data may be delayed, incomplete, or inaccurate. Always do your own research and consult a licensed financial advisor before making investment decisions.";
   const lines = doc.splitTextToSize(txt, doc.internal.pageSize.getWidth() - 28);
   doc.text(lines, 14, y);
   doc.setTextColor(0, 0, 0);

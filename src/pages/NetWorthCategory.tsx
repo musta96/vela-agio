@@ -19,8 +19,9 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, Plus, Pencil, Trash2, Banknote, Briefcase, PiggyBank, Bitcoin,
-  Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
+  Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard, Search, Calculator, Info,
 } from "lucide-react";
+import { computeAmortization, estimateCapitalGainsTax, normalizeCountry, type CountryCode } from "@/lib/taxAmortization";
 
 type CategoryKey =
   | "cash" | "investments" | "retirement" | "crypto"
@@ -173,6 +174,20 @@ export default function NetWorthCategory() {
   const meta = category ? CATEGORY_META[category] : undefined;
   const [accounts, setAccounts] = useState<NWAccount[]>([]);
   const [editing, setEditing] = useState<Partial<NWAccount> | null>(null);
+  const [taxResidency, setTaxResidency] = useState<CountryCode>("OTHER");
+
+  // Symbol search (investments / crypto / retirement)
+  const [symbolQuery, setSymbolQuery] = useState("");
+  const [symbolResults, setSymbolResults] = useState<{ symbol: string; name: string; exchange: string; type: string; currency: string }[]>([]);
+  const [symbolLoading, setSymbolLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase.from("profiles").select("country_tax_residence").eq("user_id", user.id).maybeSingle();
+      setTaxResidency(normalizeCountry(data?.country_tax_residence));
+    })();
+  }, [user]);
 
   useEffect(() => {
     if (!user || !category) return;
@@ -186,10 +201,40 @@ export default function NetWorthCategory() {
     })();
   }, [user, category]);
 
+  // Debounced symbol search
+  useEffect(() => {
+    const q = symbolQuery.trim();
+    if (q.length < 2) { setSymbolResults([]); return; }
+    setSymbolLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/symbol-search?q=${encodeURIComponent(q)}`;
+        const r = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+        const j = await r.json();
+        setSymbolResults((j?.results ?? []).slice(0, 8));
+      } catch { setSymbolResults([]); }
+      finally { setSymbolLoading(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [symbolQuery]);
+
   if (!meta) return <div className="p-10">Unknown category. <Link to="/net-worth" className="text-primary underline">Back</Link></div>;
 
   const Icon = meta.icon;
   const subtotal = accounts.reduce((s, a) => s + (a.include_in_total ? Number(a.manual_value || 0) : 0), 0);
+  const supportsSymbolSearch = category === "investments" || category === "crypto" || category === "retirement";
+  const supportsAmortization = ["real_estate", "vehicles", "collectibles", "private_equity"].includes(category!);
+
+  const startFromSymbol = (s: { symbol: string; name: string; currency: string }) => {
+    setSymbolQuery("");
+    setSymbolResults([]);
+    setEditing({
+      ...blank(),
+      name: `${s.name} (${s.symbol})`,
+      subcategory: s.symbol,
+      currency: s.currency || "EUR",
+    });
+  };
 
   const blank = (): Partial<NWAccount> => ({
     category, currency: "EUR", include_in_total: true, manual_value: 0,
@@ -263,6 +308,55 @@ export default function NetWorthCategory() {
           </div>
         </div>
 
+        {/* Fiscal residency banner */}
+        {(supportsAmortization || supportsSymbolSearch) && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+            <Info className="h-3.5 w-3.5" />
+            <span>
+              Fiscal residency: <span className="font-semibold text-foreground">{taxResidency}</span>.
+              {supportsAmortization && " Amortization & capital gains follow local rules."}
+              {" "}<Link to="/profile" className="underline">Change</Link>
+            </span>
+          </div>
+        )}
+
+        {/* Symbol search for investment-style categories */}
+        {supportsSymbolSearch && (
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm">Search instruments to add</h3>
+              <span className="text-[11px] text-muted-foreground">stocks, ETFs, bonds, crypto worldwide</span>
+            </div>
+            <Input
+              placeholder={category === "crypto" ? "Search e.g. BTC, ETH, Solana…" : "Search e.g. ENI, Apple, iShares Core MSCI World…"}
+              value={symbolQuery}
+              onChange={(e) => setSymbolQuery(e.target.value)}
+            />
+            {symbolLoading && <p className="text-xs text-muted-foreground mt-2">Searching…</p>}
+            {symbolResults.length > 0 && (
+              <div className="mt-3 divide-y divide-border rounded-md border border-border max-h-72 overflow-y-auto">
+                {symbolResults.map((r) => (
+                  <button
+                    key={r.symbol}
+                    onClick={() => startFromSymbol(r)}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-muted/50"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{r.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{r.symbol} · {r.exchange} · {r.type}</p>
+                    </div>
+                    <Badge variant="outline" className="shrink-0">{r.currency}</Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Or skip search and <button className="underline" onClick={() => setEditing(blank())}>add manually</button>.
+            </p>
+          </Card>
+        )}
+
         {accounts.length === 0 ? (
           <Card className="p-12 text-center">
             <Icon className="h-12 w-12 mx-auto mb-3" style={{ color: meta.color }} />
@@ -322,6 +416,18 @@ export default function NetWorthCategory() {
                   <Button size="sm" variant="ghost" onClick={() => setEditing(a)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
                   <Button size="sm" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                 </div>
+
+                {/* Tax & amortization preview */}
+                {(supportsAmortization || ["investments","crypto"].includes(category!)) && a.purchase_price && a.purchase_date && (
+                  <TaxAmortPanel
+                    category={category!}
+                    country={taxResidency}
+                    purchasePrice={Number(a.purchase_price)}
+                    purchaseDate={a.purchase_date!}
+                    currentValue={Number(a.manual_value)}
+                    currency={a.currency}
+                  />
+                )}
               </Card>
             ))}
           </div>

@@ -107,6 +107,9 @@ const Index = () => {
               <NavLink to="/technical" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
                 Technicals
               </NavLink>
+              <NavLink to="/settings" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
+                Settings
+              </NavLink>
               <AuthButton />
             </div>
           </div>

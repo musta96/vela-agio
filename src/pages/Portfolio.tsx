@@ -370,7 +370,7 @@ const Portfolio = () => {
       newShares = editing.shares - ts;
       newAvg = editing.avgPrice; // average cost unchanged on partial sell
       if (newShares === 0) {
-        if (user) await supabase.from("portfolio_holdings").delete().eq("user_id", user.id).eq("symbol", editing.symbol);
+        if (user && activeId) await supabase.from("portfolio_holdings").delete().eq("portfolio_id", activeId).eq("symbol", editing.symbol);
         setPortfolio((prev) => prev.filter((p) => p.symbol !== editing.symbol));
         toast({ title: "Position closed" });
         setEditing(null);

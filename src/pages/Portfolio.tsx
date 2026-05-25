@@ -198,6 +198,33 @@ const Portfolio = () => {
     );
   }, [symbolSearch]);
 
+  // Live universal symbol search via Yahoo (covers stocks, ETFs, bonds, funds, futures,
+  // indices, crypto worldwide). Kicks in after 350ms debounce when ≥2 chars.
+  type RemoteResult = { symbol: string; name: string; exchange: string; type: string; currency: string };
+  const [remoteResults, setRemoteResults] = useState<RemoteResult[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  useEffect(() => {
+    const q = symbolSearch.trim();
+    if (q.length < 2) { setRemoteResults([]); return; }
+    setRemoteLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/symbol-search?q=${encodeURIComponent(q)}`;
+        const r = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+        const j = await r.json();
+        setRemoteResults((j?.results ?? []) as RemoteResult[]);
+      } catch { setRemoteResults([]); }
+      finally { setRemoteLoading(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [symbolSearch]);
+
+  // Show remote results that aren't already in the local catalog.
+  const extraRemote = useMemo(() => {
+    const local = new Set(STOCK_CATALOG.map(s => s.symbol.toUpperCase()));
+    return remoteResults.filter(r => !local.has(r.symbol.toUpperCase())).slice(0, 15);
+  }, [remoteResults]);
+
   const toggleAddForm = () => {
     const shouldOpen = !showAddForm;
     console.log("[Portfolio] toggleAddForm clicked", { from: showAddForm, to: shouldOpen });
@@ -612,10 +639,10 @@ const Portfolio = () => {
                       className="rounded-b-none border-0 border-b border-border focus-visible:ring-0 focus-visible:ring-offset-0 h-11 text-base"
                     />
                     <div className="max-h-[60vh] sm:max-h-72 overflow-y-auto overscroll-contain p-1">
-                      {filteredCatalog.length === 0 ? (
+                      {filteredCatalog.length === 0 && extraRemote.length === 0 ? (
                         <div className="px-3 py-4 text-sm">
                           <p className="text-muted-foreground mb-3">
-                            Not in our catalog. Use it anyway as a custom symbol:
+                            {remoteLoading ? "Searching global markets…" : "No match found. Use it anyway as a custom symbol:"}
                           </p>
                           {symbolSearch.trim() && (
                             <button
@@ -642,7 +669,8 @@ const Portfolio = () => {
                           </p>
                         </div>
                       ) : (
-                        filteredCatalog.map((stock) => (
+                        <>
+                        {filteredCatalog.map((stock) => (
                           <button
                             key={stock.symbol}
                             type="button"
@@ -666,7 +694,38 @@ const Portfolio = () => {
                               <p className="truncate text-xs text-muted-foreground">{stock.name}</p>
                             </div>
                           </button>
-                        ))
+                        ))}
+                        {extraRemote.length > 0 && (
+                          <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground border-t border-border/60 mt-1">
+                            Global markets {remoteLoading && "(searching…)"}
+                          </div>
+                        )}
+                        {extraRemote.map((r) => (
+                          <button
+                            key={`r-${r.symbol}`}
+                            type="button"
+                            className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent pointer-events-auto"
+                            onClick={() => {
+                              setNewStock({ ...newStock, symbol: r.symbol, name: r.name });
+                              setNewCurrency(r.currency || "USD");
+                              setNewDisplayName(r.name);
+                              setSymbolSearch("");
+                              setSymbolPickerOpen(false);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${newStock.symbol === r.symbol ? "opacity-100" : "opacity-0"}`} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{r.symbol}</span>
+                                {r.exchange && <Badge variant="outline" className="text-[10px]">{r.exchange}</Badge>}
+                                {r.type && <Badge variant="outline" className="text-[10px]">{r.type}</Badge>}
+                                {r.currency && <Badge variant="outline" className="text-[10px]">{r.currency}</Badge>}
+                              </div>
+                              <p className="truncate text-xs text-muted-foreground">{r.name}</p>
+                            </div>
+                          </button>
+                        ))}
+                        </>
                       )}
                     </div>
                   </div>

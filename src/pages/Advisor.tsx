@@ -95,12 +95,12 @@ export default function Advisor() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="AI Advisor — Sell Signals & Portfolio Improvements" description="Personalized sell signals and improvement suggestions for your portfolio." path="/advisor" />
+      <SEO title="Portfolio Coach — Educational Research" description="Educational analysis of your portfolio: concentration, valuation, news, and ideas to research further. Not investment advice." path="/advisor" />
       <TopNav />
       <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-6xl">
         <header>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" /> AI Advisor
+            <Sparkles className="h-6 w-6 text-primary" /> Portfolio Coach
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Personalized sell signals and portfolio improvement ideas. Factors in valuation, news, regulation,

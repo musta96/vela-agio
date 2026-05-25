@@ -223,3 +223,391 @@ export function generateStockReport(input: StockReportInput) {
   footer(doc);
   doc.save(`${input.symbol}-report-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
+
+// ============================================================
+// Comparison report (side-by-side multiple tickers)
+// ============================================================
+
+export interface ComparisonReportInput {
+  tickers: Array<{
+    symbol: string;
+    name?: string;
+    price?: number;
+    change?: number; // % change
+    composite?: number | null; // technical composite score
+    vol?: number | null; // annualized volatility (decimal)
+    sharpe?: number | null;
+    maxDD?: number | null; // decimal
+    perf1Y?: number | null; // total return over period (decimal)
+  }>;
+  period?: string;
+}
+
+export function generateComparisonReport({ tickers, period = "1Y" }: ComparisonReportInput) {
+  const doc = new jsPDF({ orientation: tickers.length > 2 ? "landscape" : "portrait" });
+  header(doc, "Stock Comparison Report", `${tickers.map((t) => t.symbol).join(" vs ")} — ${period}`);
+
+  const fmtPct = (v?: number | null, mult = 100) =>
+    v == null || !isFinite(v as number) ? "—" : `${(v as number) >= 0 ? "+" : ""}${((v as number) * mult).toFixed(2)}%`;
+  const fmtNum = (v?: number | null, d = 2) => (v == null || !isFinite(v as number) ? "—" : (v as number).toFixed(d));
+
+  const head = [["Metric", ...tickers.map((t) => t.symbol)]];
+  const body = [
+    ["Name", ...tickers.map((t) => t.name ?? "—")],
+    ["Last price", ...tickers.map((t) => (t.price != null ? t.price.toFixed(2) : "—"))],
+    ["Day change", ...tickers.map((t) => fmtPct(t.change, 1))],
+    [`Total return (${period})`, ...tickers.map((t) => fmtPct(t.perf1Y))],
+    ["Composite score", ...tickers.map((t) => fmtNum(t.composite, 0))],
+    ["Volatility (ann.)", ...tickers.map((t) => fmtPct(t.vol))],
+    ["Sharpe ratio", ...tickers.map((t) => fmtNum(t.sharpe))],
+    ["Max drawdown", ...tickers.map((t) => fmtPct(t.maxDD))],
+  ];
+
+  autoTable(doc, {
+    startY: 56,
+    head,
+    body,
+    headStyles: { fillColor: BRAND.primary, textColor: 255, fontStyle: "bold" },
+    styles: { fontSize: 10 },
+    columnStyles: { 0: { fontStyle: "bold", textColor: BRAND.muted } },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  // Verdict / ranking heuristic
+  // @ts-expect-error
+  let y = (doc.lastAutoTable?.finalY ?? 120) + 10;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Quick ranking", 14, y);
+  y += 6;
+  const scored = tickers
+    .map((t) => {
+      let s = 0;
+      if (t.composite != null) s += t.composite;
+      if (t.sharpe != null) s += t.sharpe * 10;
+      if (t.perf1Y != null) s += t.perf1Y * 30;
+      if (t.maxDD != null) s += t.maxDD * 20; // maxDD is negative
+      return { ...t, _score: s };
+    })
+    .sort((a, b) => b._score - a._score);
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Rank", "Symbol", "Name", "Composite"]],
+    body: scored.map((t, i) => [String(i + 1), t.symbol, t.name ?? "—", t._score.toFixed(1)]),
+    headStyles: { fillColor: BRAND.accent, textColor: 255 },
+    styles: { fontSize: 10 },
+  });
+
+  // @ts-expect-error
+  y = (doc.lastAutoTable?.finalY ?? y + 30) + 8;
+  if (y > doc.internal.pageSize.getHeight() - 40) {
+    doc.addPage();
+    y = 20;
+  }
+  disclaimer(doc, y);
+  footer(doc);
+  doc.save(`compare-${tickers.map((t) => t.symbol).join("-")}-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ============================================================
+// Full deep-analysis report (rich, magazine-style stock report)
+// ============================================================
+
+export interface DeepAnalysisReportInput {
+  symbol: string;
+  name?: string;
+  generatedAt?: string;
+  fundamentals?: Record<string, any>;
+  liquidity?: { tier?: string; avgVolume?: number; avgDollarVolume?: number } | null;
+  valuation?: {
+    dcf?: { perShare: number; upside?: number | null; assumptions?: Record<string, any> } | null;
+    ddm?: { perShare: number; upside?: number | null; assumptions?: Record<string, any> } | null;
+  };
+  analysis?: {
+    thesis?: string;
+    strengths?: string[];
+    risks?: string[];
+    moat?: string;
+    valuation?: string;
+    recommendation?: string;
+    horizon?: string;
+    scenarios?: {
+      bull?: { price: number; probability?: number; rationale?: string };
+      base?: { price: number; probability?: number; rationale?: string };
+      bear?: { price: number; probability?: number; rationale?: string };
+    };
+  };
+  sentiment?: { label?: string; score?: number; summary?: string } | null;
+  technicals?: Record<string, any> | null;
+}
+
+function section(doc: jsPDF, y: number, title: string) {
+  if (y > doc.internal.pageSize.getHeight() - 30) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...BRAND.primary);
+  doc.text(title, 14, y);
+  doc.setDrawColor(...BRAND.accent);
+  doc.setLineWidth(0.5);
+  doc.line(14, y + 1.5, 60, y + 1.5);
+  doc.setTextColor(0, 0, 0);
+  return y + 7;
+}
+
+function paragraph(doc: jsPDF, y: number, text: string, opts?: { size?: number; bold?: boolean }) {
+  doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
+  doc.setFontSize(opts?.size ?? 10);
+  const lines = doc.splitTextToSize(text, doc.internal.pageSize.getWidth() - 28);
+  if (y + lines.length * 4 > doc.internal.pageSize.getHeight() - 20) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.text(lines, 14, y);
+  return y + lines.length * 4.5 + 2;
+}
+
+function bullets(doc: jsPDF, y: number, items: string[], color: [number, number, number]) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  for (const it of items) {
+    const lines = doc.splitTextToSize(it, doc.internal.pageSize.getWidth() - 32);
+    if (y + lines.length * 4 > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setTextColor(...color);
+    doc.text("•", 16, y);
+    doc.setTextColor(0, 0, 0);
+    doc.text(lines, 21, y);
+    y += lines.length * 4.5 + 1;
+  }
+  return y + 2;
+}
+
+export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
+  const doc = new jsPDF();
+  const subtitle = `${input.symbol}${input.name ? ` — ${input.name}` : ""}`;
+  header(doc, "Deep Stock Analysis", subtitle);
+
+  let y = 50;
+  const f = input.fundamentals ?? {};
+  const currency = f.currency || "EUR";
+  const sym = currency === "USD" ? "$" : currency === "GBP" ? "£" : "€";
+
+  // Header strip
+  doc.setFillColor(248, 250, 252);
+  doc.rect(10, y, doc.internal.pageSize.getWidth() - 20, 22, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.muted);
+  doc.text("PRICE", 14, y + 6);
+  doc.text("MARKET CAP", 60, y + 6);
+  doc.text("SECTOR", 110, y + 6);
+  doc.text("ANALYST TARGET", 160, y + 6);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(12);
+  doc.text(f.price != null ? `${sym}${Number(f.price).toFixed(2)}` : "—", 14, y + 14);
+  doc.text(f.marketCap != null ? `${sym}${(f.marketCap / 1e9).toFixed(2)}B` : "—", 60, y + 14);
+  doc.text(String(f.sector ?? "—").slice(0, 18), 110, y + 14);
+  doc.text(f.targetMeanPrice != null ? `${sym}${Number(f.targetMeanPrice).toFixed(2)}` : "—", 160, y + 14);
+  y += 30;
+
+  // Thesis
+  if (input.analysis?.thesis) {
+    y = section(doc, y, "Investment thesis");
+    y = paragraph(doc, y, input.analysis.thesis);
+  }
+
+  // Recommendation
+  if (input.analysis?.recommendation) {
+    y = section(doc, y, "Recommendation");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(...BRAND.accent);
+    doc.text(
+      `${input.analysis.recommendation}${input.analysis.horizon ? `  ·  Horizon: ${input.analysis.horizon}` : ""}`,
+      14,
+      y,
+    );
+    doc.setTextColor(0, 0, 0);
+    y += 8;
+  }
+
+  // Scenarios
+  if (input.analysis?.scenarios) {
+    y = section(doc, y, "Price scenarios");
+    const sc = input.analysis.scenarios;
+    const rows: any[] = [];
+    (["bull", "base", "bear"] as const).forEach((k) => {
+      const s = sc[k];
+      if (s)
+        rows.push([
+          k.toUpperCase(),
+          `${sym}${Number(s.price).toFixed(2)}`,
+          s.probability != null ? `${(s.probability * 100).toFixed(0)}%` : "—",
+          s.rationale ?? "",
+        ]);
+    });
+    autoTable(doc, {
+      startY: y,
+      head: [["Scenario", "Target", "Prob.", "Rationale"]],
+      body: rows,
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      columnStyles: { 3: { cellWidth: 100 } },
+    });
+    // @ts-expect-error
+    y = (doc.lastAutoTable?.finalY ?? y + 30) + 6;
+  }
+
+  // Strengths & risks
+  if (input.analysis?.strengths?.length) {
+    y = section(doc, y, "Strengths");
+    y = bullets(doc, y, input.analysis.strengths, [16, 185, 129]);
+  }
+  if (input.analysis?.risks?.length) {
+    y = section(doc, y, "Key risks");
+    y = bullets(doc, y, input.analysis.risks, [239, 68, 68]);
+  }
+  if (input.analysis?.moat) {
+    y = section(doc, y, "Competitive moat");
+    y = paragraph(doc, y, input.analysis.moat);
+  }
+  if (input.analysis?.valuation) {
+    y = section(doc, y, "Valuation view");
+    y = paragraph(doc, y, input.analysis.valuation);
+  }
+
+  // Intrinsic value models
+  if (input.valuation && (input.valuation.dcf || input.valuation.ddm)) {
+    y = section(doc, y, "Intrinsic value models");
+    const rows: any[] = [];
+    if (input.valuation.dcf)
+      rows.push([
+        "DCF (10y)",
+        `${sym}${input.valuation.dcf.perShare.toFixed(2)}`,
+        input.valuation.dcf.upside != null
+          ? `${input.valuation.dcf.upside >= 0 ? "+" : ""}${(input.valuation.dcf.upside * 100).toFixed(1)}%`
+          : "—",
+      ]);
+    if (input.valuation.ddm)
+      rows.push([
+        "Dividend discount",
+        `${sym}${input.valuation.ddm.perShare.toFixed(2)}`,
+        input.valuation.ddm.upside != null
+          ? `${input.valuation.ddm.upside >= 0 ? "+" : ""}${(input.valuation.ddm.upside * 100).toFixed(1)}%`
+          : "—",
+      ]);
+    autoTable(doc, {
+      startY: y,
+      head: [["Model", "Fair value", "Upside vs price"]],
+      body: rows,
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 10 },
+    });
+    // @ts-expect-error
+    y = (doc.lastAutoTable?.finalY ?? y + 20) + 6;
+  }
+
+  // Fundamentals snapshot
+  if (input.fundamentals) {
+    const labels: Array<[string, any]> = [
+      ["Market cap", f.marketCap != null ? `${sym}${(f.marketCap / 1e9).toFixed(2)}B` : null],
+      ["P/E (TTM)", f.peTrailing],
+      ["Forward P/E", f.peForward],
+      ["PEG", f.pegRatio],
+      ["P/B", f.priceToBook],
+      ["EV/EBITDA", f.evToEbitda],
+      ["Dividend yield", f.dividendYield != null ? `${(f.dividendYield * 100).toFixed(2)}%` : null],
+      ["Payout ratio", f.payoutRatio != null ? `${(f.payoutRatio * 100).toFixed(1)}%` : null],
+      ["ROE", f.returnOnEquity != null ? `${(f.returnOnEquity * 100).toFixed(1)}%` : null],
+      ["ROA", f.returnOnAssets != null ? `${(f.returnOnAssets * 100).toFixed(1)}%` : null],
+      ["Gross margin", f.grossMargin != null ? `${(f.grossMargin * 100).toFixed(1)}%` : null],
+      ["Operating margin", f.operatingMargin != null ? `${(f.operatingMargin * 100).toFixed(1)}%` : null],
+      ["Profit margin", f.profitMargin != null ? `${(f.profitMargin * 100).toFixed(1)}%` : null],
+      ["Revenue growth", f.revenueGrowth != null ? `${(f.revenueGrowth * 100).toFixed(1)}%` : null],
+      ["Earnings growth", f.earningsGrowth != null ? `${(f.earningsGrowth * 100).toFixed(1)}%` : null],
+      ["Debt / Equity", f.debtToEquity],
+      ["Current ratio", f.currentRatio],
+      ["Beta", f.beta],
+      ["52w high", f.fiftyTwoWeekHigh],
+      ["52w low", f.fiftyTwoWeekLow],
+    ].filter(([, v]) => v != null && v !== "");
+    if (labels.length) {
+      y = section(doc, y, "Fundamentals snapshot");
+      autoTable(doc, {
+        startY: y,
+        body: labels.map(([k, v]) => [k, String(typeof v === "number" ? Number(v).toFixed(2) : v)]),
+        styles: { fontSize: 9 },
+        columnStyles: { 0: { fontStyle: "bold", cellWidth: 60, textColor: BRAND.muted } },
+        theme: "striped",
+      });
+      // @ts-expect-error
+      y = (doc.lastAutoTable?.finalY ?? y + 30) + 6;
+    }
+  }
+
+  // Liquidity
+  if (input.liquidity) {
+    y = section(doc, y, "Liquidity profile");
+    const rows = [
+      ["Tier", input.liquidity.tier ?? "—"],
+      ["Avg daily volume", input.liquidity.avgVolume?.toLocaleString() ?? "—"],
+      [
+        "Avg daily $-volume",
+        input.liquidity.avgDollarVolume != null
+          ? `${sym}${(input.liquidity.avgDollarVolume / 1e6).toFixed(2)}M`
+          : "—",
+      ],
+    ];
+    autoTable(doc, {
+      startY: y,
+      body: rows,
+      styles: { fontSize: 10 },
+      columnStyles: { 0: { fontStyle: "bold", textColor: BRAND.muted, cellWidth: 60 } },
+      theme: "plain",
+    });
+    // @ts-expect-error
+    y = (doc.lastAutoTable?.finalY ?? y + 20) + 6;
+  }
+
+  // Sentiment
+  if (input.sentiment) {
+    y = section(doc, y, "Market sentiment");
+    if (input.sentiment.label) y = paragraph(doc, y, `Label: ${input.sentiment.label}`, { bold: true });
+    if (input.sentiment.summary) y = paragraph(doc, y, input.sentiment.summary);
+  }
+
+  // Technicals
+  if (input.technicals && Object.keys(input.technicals).length) {
+    y = section(doc, y, "Technical indicators");
+    autoTable(doc, {
+      startY: y,
+      body: Object.entries(input.technicals)
+        .filter(([, v]) => v != null && v !== "")
+        .map(([k, v]) => [k, String(v)]),
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 60, textColor: BRAND.muted } },
+      theme: "striped",
+    });
+    // @ts-expect-error
+    y = (doc.lastAutoTable?.finalY ?? y + 30) + 6;
+  }
+
+  // Disclaimer
+  if (y > doc.internal.pageSize.getHeight() - 40) {
+    doc.addPage();
+    y = 20;
+  } else {
+    y += 4;
+  }
+  y = section(doc, y, "Important disclaimer");
+  disclaimer(doc, y);
+
+  footer(doc);
+  doc.save(`${input.symbol}-deep-analysis-${new Date().toISOString().slice(0, 10)}.pdf`);
+}

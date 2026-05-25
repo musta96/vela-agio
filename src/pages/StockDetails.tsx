@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { generateStockReport } from "@/lib/pdfReports";
+import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

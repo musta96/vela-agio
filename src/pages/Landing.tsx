@@ -61,7 +61,7 @@ export default function Landing() {
             <a href="#audiences" className="hover:text-foreground">Who it's for</a>
             <a href="#pricing" className="hover:text-foreground">Pricing</a>
             <a href="#faq" className="hover:text-foreground">FAQ</a>
-            <Link to="/learn" className="hover:text-foreground">Learn</Link>
+            <a href="#faq" className="hover:text-foreground md:hidden">FAQ</a>
           </nav>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm"><Link to="/auth">Sign in</Link></Button>

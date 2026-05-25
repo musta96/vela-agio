@@ -52,12 +52,15 @@ import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
 import Home from "./pages/Home";
 import NetWorth from "./pages/NetWorth";
+import NetWorthCategory from "./pages/NetWorthCategory";
+import OwnerConsole from "./pages/OwnerConsole";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
 import AdminSettings from "./pages/AdminSettings";
 import Advisor from "./pages/Advisor";
 import AppShell from "./components/AppShell";
+import { ProtectedRoute, OwnerRoute } from "./components/ProtectedRoute";
 import Privacy from "./pages/legal/Privacy";
 import Terms from "./pages/legal/Terms";
 import Disclaimer from "./pages/legal/Disclaimer";
@@ -83,12 +86,13 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/disclaimer" element={<Disclaimer />} />
           <Route path="/cookies" element={<Cookies />} />
-          <Route element={<AppShell />}>
+          <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />
             <Route path="/backtest" element={<BacktestingModule />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/net-worth" element={<NetWorth />} />
+            <Route path="/net-worth/:category" element={<NetWorthCategory />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/picks" element={<SmartPicks />} />
             <Route path="/technical" element={<TechnicalAnalysis />} />
@@ -132,6 +136,7 @@ const App = () => (
             <Route path="/admin/audit" element={<AdminAuditLog />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/advisor" element={<Advisor />} />
+            <Route path="/owner" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

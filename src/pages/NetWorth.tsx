@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link as RLink } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -384,6 +385,33 @@ const NetWorth = () => {
 
           {/* ACCOUNTS */}
           <TabsContent value="accounts" className="space-y-6 mt-4">
+            {/* Category navigation grid — always visible so users see all categories and can drill in */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {CATEGORY_ORDER.map((k) => {
+                const Icon = CATEGORIES[k].icon;
+                const list = grouped[k] || [];
+                const subtotal = list.reduce((s, a) => s + (a.include_in_total ? computedAccountValue(a) : 0), 0);
+                return (
+                  <RLink key={k} to={`/net-worth/${k}`}
+                    className="group rounded-lg border border-border bg-card p-4 hover:border-primary/40 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="rounded-md p-2" style={{ backgroundColor: `${CATEGORIES[k].color}20` }}>
+                        <Icon className="h-4 w-4" style={{ color: CATEGORIES[k].color }} />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{list.length} item{list.length === 1 ? "" : "s"}</span>
+                    </div>
+                    <p className="text-sm font-medium truncate">{CATEGORIES[k].label}</p>
+                    <p className="text-sm font-bold tabular-nums mt-1">
+                      {k === "liabilities" && subtotal > 0 ? "−" : ""}{fmt(subtotal)}
+                    </p>
+                    <p className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity mt-2">
+                      Manage →
+                    </p>
+                  </RLink>
+                );
+              })}
+            </div>
+
             {CATEGORY_ORDER.map((k) => {
               const list = grouped[k];
               if (!list || list.length === 0) return null;
@@ -397,7 +425,10 @@ const NetWorth = () => {
                       <h3 className="font-semibold">{CATEGORIES[k].label}</h3>
                       <span className="text-xs text-muted-foreground">· {CATEGORIES[k].hint}</span>
                     </div>
-                    <div className="text-sm font-semibold tabular-nums">{fmt(subtotal)}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm font-semibold tabular-nums">{fmt(subtotal)}</div>
+                      <Button asChild size="sm" variant="outline"><RLink to={`/net-worth/${k}`}>Open detail →</RLink></Button>
+                    </div>
                   </div>
                   <Table>
                     <TableHeader>

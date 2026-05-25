@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { supabase } from "@/integrations/supabase/client";
+import { usePortfolios } from "@/hooks/usePortfolios";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -75,6 +76,7 @@ function Sparkline({ trend, loading }: { trend: "up" | "down" | "flat"; loading?
 export default function Index() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { primary } = usePortfolios();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
 
   // Live holdings for real portfolio value
@@ -85,8 +87,11 @@ export default function Index() {
   useEffect(() => {
     if (!user) { setHoldings([]); return; }
     (async () => {
+      const holdingsQuery = primary?.id
+        ? supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("portfolio_id", primary.id)
+        : supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("user_id", user.id);
       const [h, rules, sent] = await Promise.all([
-        supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("user_id", user.id),
+        holdingsQuery,
         supabase.from("alert_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),
         supabase.from("sentiment_history").select("score").order("created_at", { ascending: false }).limit(50),
       ]);
@@ -95,7 +100,7 @@ export default function Index() {
       const scores = (sent.data ?? []).map((r: any) => Number(r.score)).filter((n) => Number.isFinite(n));
       setSentimentAvg(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null);
     })();
-  }, [user?.id]);
+  }, [user?.id, primary?.id]);
 
   const syms = useMemo(() => {
     const set = new Set<string>([...WATCH.map((w) => w.sym), "FTSEMIB.MI", ...holdings.map((h) => h.symbol)]);

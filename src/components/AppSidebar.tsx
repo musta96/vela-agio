@@ -31,9 +31,9 @@ const ANALYSIS: Item[] = [
 ];
 
 const INTELLIGENCE: Item[] = [
-  { title: "AI Picks", url: "/picks", icon: Sparkles },
-  { title: "Advisor", url: "/advisor", icon: Lightbulb },
-  { title: "Copilot", url: "/copilot", icon: Bot },
+  { title: "Idea Lab", url: "/picks", icon: Sparkles },
+  { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
+  { title: "Research Copilot", url: "/copilot", icon: Bot },
   { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
   { title: "Related Graph", url: "/related", icon: Network, badge: "new" },
   { title: "Sentiment", url: "/sentiment", icon: Newspaper },
@@ -47,6 +47,7 @@ const MORE: Item[] = [
   { title: "Methodology", url: "/methodology", icon: ScrollText },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Security", url: "/security", icon: ShieldCheck },
+  { title: "Privacy & data", url: "/privacy-settings", icon: ShieldCheck },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
 

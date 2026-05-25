@@ -95,22 +95,22 @@ export default function Advisor() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="AI Advisor — Sell Signals & Portfolio Improvements" description="Personalized sell signals and improvement suggestions for your portfolio." path="/advisor" />
+      <SEO title="Portfolio Coach — Educational Research" description="Educational analysis of your portfolio: concentration, valuation, news, and ideas to research further. Not investment advice." path="/advisor" />
       <TopNav />
       <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-6xl">
         <header>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" /> AI Advisor
+            <Sparkles className="h-6 w-6 text-primary" /> Portfolio Coach
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Personalized sell signals and portfolio improvement ideas. Factors in valuation, news, regulation,
-            and optional weather signals. Educational only — not financial advice.
+            Educational research on your portfolio: ideas to consider around concentration, valuation, news,
+            regulation, and optional weather signals. Educational only — not investment advice.
           </p>
         </header>
 
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Your context</CardTitle>
-            <CardDescription>The advisor uses these inputs together with your live holdings ({loadingHoldings ? "…" : holdings.length}).</CardDescription>
+            <CardDescription>The coach uses these inputs together with your live holdings ({loadingHoldings ? "…" : holdings.length}).</CardDescription>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -137,7 +137,7 @@ export default function Advisor() {
             <div className="sm:col-span-2 flex flex-wrap gap-2 items-center">
               <Button onClick={run} disabled={running || loadingHoldings || !holdings.length} className="gap-2">
                 {running ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {running ? "Analyzing…" : "Run advisor"}
+                {running ? "Analyzing…" : "Run analysis"}
               </Button>
               {!loadingHoldings && !holdings.length && (
                 <span className="text-xs text-muted-foreground">No holdings yet — <Link to="/portfolio" className="text-primary underline">add some</Link> to get started.</span>

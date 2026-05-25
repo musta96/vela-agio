@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Activity, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { SEO } from "@/components/SEO";
+import { TOS_VERSION, PRIVACY_VERSION } from "@/lib/legal-versions";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,6 +21,8 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [acceptLegal, setAcceptLegal] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   useEffect(() => {
     if (!loading && user) navigate("/");
@@ -34,13 +38,39 @@ const Auth = () => {
   };
 
   const signUp = async () => {
+    if (!acceptLegal) {
+      return toast({
+        title: "Please accept the Terms and Privacy Policy",
+        description: "You must agree before creating an account.",
+        variant: "destructive",
+      });
+    }
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: {
+          tos_version: TOS_VERSION,
+          privacy_version: PRIVACY_VERSION,
+          marketing_opt_in: marketingOptIn,
+          consented_at: new Date().toISOString(),
+        },
+      },
     });
     setBusy(false);
     if (error) return toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+    // Best-effort consent log. Will succeed once the user is authenticated
+    // (either immediately if email confirmation is off, or on first sign-in).
+    if (data.user) {
+      void supabase.from("user_consents").insert({
+        user_id: data.user.id,
+        tos_version: TOS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+        marketing_opt_in: marketingOptIn,
+        user_agent: navigator.userAgent,
+      });
+    }
     toast({ title: "Check your email", description: "We sent you a confirmation link." });
   };
 
@@ -102,7 +132,23 @@ const Auth = () => {
                 <Input id="up" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
                 <p className="text-xs text-muted-foreground">At least 6 characters.</p>
               </div>
-              <Button onClick={signUp} disabled={busy || !email || password.length < 6} className="w-full">
+              <div className="flex items-start gap-2 pt-1">
+                <Checkbox id="legal" checked={acceptLegal} onCheckedChange={(v) => setAcceptLegal(v === true)} className="mt-0.5" />
+                <Label htmlFor="legal" className="text-xs font-normal leading-relaxed text-muted-foreground">
+                  I agree to the{" "}
+                  <Link to="/terms" target="_blank" className="text-primary hover:underline">Terms of Service</Link>
+                  {" "}and{" "}
+                  <Link to="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</Link>.
+                  I understand Vela.ai is an educational research tool and not investment advice.
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <Checkbox id="mkt" checked={marketingOptIn} onCheckedChange={(v) => setMarketingOptIn(v === true)} className="mt-0.5" />
+                <Label htmlFor="mkt" className="text-xs font-normal leading-relaxed text-muted-foreground">
+                  Send me product updates and educational content by email. (Optional, you can unsubscribe anytime.)
+                </Label>
+              </div>
+              <Button onClick={signUp} disabled={busy || !email || password.length < 6 || !acceptLegal} className="w-full">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
               </Button>
             </TabsContent>

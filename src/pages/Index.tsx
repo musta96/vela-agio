@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
+import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";

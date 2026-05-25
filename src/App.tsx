@@ -33,6 +33,16 @@ import Methodology from "./pages/Methodology";
 import Onboarding from "./pages/Onboarding";
 import Education from "./pages/Education";
 import ApiDocs from "./pages/ApiDocs";
+import Intraday from "./pages/Intraday";
+import CorporateActions from "./pages/CorporateActions";
+import Optimizer from "./pages/Optimizer";
+import Rebalance from "./pages/Rebalance";
+import Peers from "./pages/Peers";
+import QuantAlpha from "./pages/QuantAlpha";
+import Blotter from "./pages/Blotter";
+import Notes from "./pages/Notes";
+import Suitability from "./pages/Suitability";
+import Pricing from "./pages/Pricing";
 import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -73,6 +83,16 @@ const App = () => (
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/learn" element={<Education />} />
           <Route path="/api" element={<ApiDocs />} />
+          <Route path="/intraday" element={<Intraday />} />
+          <Route path="/corporate-actions" element={<CorporateActions />} />
+          <Route path="/optimizer" element={<Optimizer />} />
+          <Route path="/rebalance" element={<Rebalance />} />
+          <Route path="/peers" element={<Peers />} />
+          <Route path="/quant" element={<QuantAlpha />} />
+          <Route path="/blotter" element={<Blotter />} />
+          <Route path="/notes" element={<Notes />} />
+          <Route path="/suitability" element={<Suitability />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/admin/audit" element={<AdminAuditLog />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

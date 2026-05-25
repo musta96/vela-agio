@@ -463,6 +463,101 @@ export type Database = {
         }
         Relationships: []
       }
+      net_worth_accounts: {
+        Row: {
+          category: string
+          created_at: string
+          currency: string
+          icon: string | null
+          id: string
+          include_in_total: boolean
+          is_liability: boolean
+          linked_portfolio_ids: string[] | null
+          manual_value: number | null
+          name: string
+          notes: string | null
+          sort_order: number
+          subcategory: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          currency?: string
+          icon?: string | null
+          id?: string
+          include_in_total?: boolean
+          is_liability?: boolean
+          linked_portfolio_ids?: string[] | null
+          manual_value?: number | null
+          name: string
+          notes?: string | null
+          sort_order?: number
+          subcategory?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          currency?: string
+          icon?: string | null
+          id?: string
+          include_in_total?: boolean
+          is_liability?: boolean
+          linked_portfolio_ids?: string[] | null
+          manual_value?: number | null
+          name?: string
+          notes?: string | null
+          sort_order?: number
+          subcategory?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      net_worth_snapshots: {
+        Row: {
+          account_id: string
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          snapshot_date: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          snapshot_date?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          snapshot_date?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "net_worth_snapshots_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "net_worth_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string

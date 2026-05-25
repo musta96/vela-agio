@@ -51,6 +51,7 @@ import Pricing from "./pages/Pricing";
 import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
 import Home from "./pages/Home";
+import NetWorth from "./pages/NetWorth";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -87,6 +88,7 @@ const App = () => (
             <Route path="/sentiment" element={<SentimentDashboard />} />
             <Route path="/backtest" element={<BacktestingModule />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/picks" element={<SmartPicks />} />
             <Route path="/technical" element={<TechnicalAnalysis />} />

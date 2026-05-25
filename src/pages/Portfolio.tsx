@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown } from "lucide-react";
+import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown, Star } from "lucide-react";
 import { Pencil, Settings as SettingsIcon, FlaskConical, FolderPlus, Trash2, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -51,7 +51,7 @@ const readLocal = (): PortfolioStock[] => {
 const Portfolio = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const { portfolios, active, activeId, setActiveId, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
+  const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
@@ -525,6 +525,9 @@ const Portfolio = () => {
             <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
               <Briefcase className="h-8 w-8 text-primary" />
               {active?.name || "My Portfolio"}
+              {active?.id && active.id === primaryId && (
+                <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10"><Star className="h-3 w-3 fill-current" /> Main</Badge>
+              )}
               {active?.is_simulation && (
                 <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
               )}
@@ -549,11 +552,29 @@ const Portfolio = () => {
                 <SelectContent>
                   {portfolios.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.is_simulation ? "🧪 " : ""}{p.name}
+                      {p.is_primary ? "⭐ " : ""}{p.is_simulation ? "🧪 " : ""}{p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {user && active && active.id !== primaryId && (
+              <Button
+                variant="outline"
+                size="icon"
+                title="Set as main portfolio (shown on dashboard)"
+                onClick={async () => {
+                  await setPrimary(active.id);
+                  toast({ title: "Main portfolio updated", description: `"${active.name}" is now your main portfolio.` });
+                }}
+              >
+                <Star className="h-4 w-4" />
+              </Button>
+            )}
+            {user && active && active.id === primaryId && (
+              <Button variant="outline" size="icon" title="This is your main portfolio" disabled>
+                <Star className="h-4 w-4 fill-current text-warning" />
+              </Button>
             )}
             {user && (
               <Button variant="outline" size="icon" title="New portfolio" onClick={() => { setNewPfName(""); setNewPfBase("EUR"); setNewPfBench("FTSEMIB.MI"); setNewPfSim(false); setNewPfClone(false); setCreateOpen(true); }}>

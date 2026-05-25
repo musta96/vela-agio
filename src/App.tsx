@@ -43,6 +43,8 @@ import Blotter from "./pages/Blotter";
 import OrderHistory from "./pages/OrderHistory";
 import Profile from "./pages/Profile";
 import Security from "./pages/Security";
+import AIScanner from "./pages/AIScanner";
+import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";

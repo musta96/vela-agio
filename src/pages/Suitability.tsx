@@ -1,81 +1,347 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Shield } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Shield, CheckCircle2, RefreshCw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-const Q = [
-  { key: "horizon", q: "Investment horizon", opts: ["< 1y (1)", "1-3y (2)", "3-7y (3)", "7y+ (4)"] },
-  { key: "knowledge", q: "Investment knowledge", opts: ["None (1)", "Basic (2)", "Good (3)", "Expert (4)"] },
-  { key: "experience", q: "Experience with complex products", opts: ["None (1)", "Funds (2)", "Stocks/ETFs (3)", "Derivatives (4)"] },
-  { key: "loss", q: "Tolerance for a 20% drawdown", opts: ["Sell all (1)", "Worry, hold (2)", "Hold calmly (3)", "Buy more (4)"] },
-  { key: "income", q: "Liquid savings vs annual income", opts: ["<3m (1)", "3-6m (2)", "6-12m (3)", "12m+ (4)"] },
-  { key: "goal", q: "Primary objective", opts: ["Capital preservation (1)", "Income (2)", "Balanced growth (3)", "Aggressive growth (4)"] },
+/**
+ * MiFID II / IDD / SFDR-style suitability & appropriateness questionnaire.
+ * Categories follow ESMA Guidelines on suitability assessment (2022/2023).
+ */
+type Q = { key: string; q: string; help?: string; opts: { label: string; score: number }[] };
+
+const SECTIONS: { id: string; title: string; description: string; questions: Q[] }[] = [
+  {
+    id: "knowledge",
+    title: "1. Knowledge & Experience",
+    description: "MiFID II appropriateness — your familiarity with financial instruments.",
+    questions: [
+      { key: "edu", q: "Highest finance/economics education", opts: [
+        { label: "None", score: 0 },
+        { label: "Self-taught / books & courses", score: 1 },
+        { label: "University-level economics or finance", score: 2 },
+        { label: "Postgraduate / professional (CFA, ACCA, etc.)", score: 3 },
+      ]},
+      { key: "knowledge", q: "Overall investment knowledge", opts: [
+        { label: "None", score: 0 },
+        { label: "Basic (savings, term deposits)", score: 1 },
+        { label: "Good (stocks, ETFs, bonds)", score: 2 },
+        { label: "Expert (derivatives, structured products)", score: 3 },
+      ]},
+      { key: "experience", q: "How long have you actively invested?", opts: [
+        { label: "Never", score: 0 },
+        { label: "< 2 years", score: 1 },
+        { label: "2-5 years", score: 2 },
+        { label: "5+ years", score: 3 },
+      ]},
+      { key: "frequency", q: "Average number of trades per year", opts: [
+        { label: "0", score: 0 },
+        { label: "1-10", score: 1 },
+        { label: "11-50", score: 2 },
+        { label: "50+", score: 3 },
+      ]},
+    ],
+  },
+  {
+    id: "financial",
+    title: "2. Financial Situation",
+    description: "Your capacity to bear losses (MiFID II Art. 25).",
+    questions: [
+      { key: "income", q: "Liquid savings vs annual income", opts: [
+        { label: "< 3 months", score: 0 },
+        { label: "3-6 months", score: 1 },
+        { label: "6-12 months", score: 2 },
+        { label: "12+ months", score: 3 },
+      ]},
+      { key: "debt", q: "Debt-to-income ratio", opts: [
+        { label: "> 50%", score: 0 },
+        { label: "30-50%", score: 1 },
+        { label: "10-30%", score: 2 },
+        { label: "< 10% or none", score: 3 },
+      ]},
+      { key: "share", q: "% of net worth you can invest at risk", opts: [
+        { label: "< 10%", score: 0 },
+        { label: "10-25%", score: 1 },
+        { label: "25-50%", score: 2 },
+        { label: "> 50%", score: 3 },
+      ]},
+    ],
+  },
+  {
+    id: "objectives",
+    title: "3. Investment Objectives & Horizon",
+    description: "What you want from your portfolio.",
+    questions: [
+      { key: "horizon", q: "Investment horizon", opts: [
+        { label: "< 1 year", score: 0 },
+        { label: "1-3 years", score: 1 },
+        { label: "3-7 years", score: 2 },
+        { label: "7+ years", score: 3 },
+      ]},
+      { key: "goal", q: "Primary objective", opts: [
+        { label: "Capital preservation", score: 0 },
+        { label: "Regular income", score: 1 },
+        { label: "Balanced growth", score: 2 },
+        { label: "Aggressive growth", score: 3 },
+      ]},
+    ],
+  },
+  {
+    id: "risk",
+    title: "4. Risk Tolerance",
+    description: "Behavioural reaction to losses.",
+    questions: [
+      { key: "loss", q: "If your portfolio dropped 20% in a month you would…", opts: [
+        { label: "Sell everything", score: 0 },
+        { label: "Sell part, worry", score: 1 },
+        { label: "Hold calmly", score: 2 },
+        { label: "Buy more", score: 3 },
+      ]},
+      { key: "volatility", q: "Acceptable annual volatility", opts: [
+        { label: "Very low (< 5%)", score: 0 },
+        { label: "Low (5-10%)", score: 1 },
+        { label: "Medium (10-20%)", score: 2 },
+        { label: "High (> 20%)", score: 3 },
+      ]},
+    ],
+  },
 ];
 
+const OBJECTIVE_TAGS = ["Retirement", "House purchase", "Education", "Wealth growth", "Income", "Speculation", "Tax efficiency"];
+const EXCLUDE_TAGS = ["Tobacco", "Weapons", "Fossil fuels", "Gambling", "Adult content", "Animal testing", "Nuclear"];
+const ESG_OPTIONS = ["No preference", "Light (ESG-aware)", "Strict (SFDR Art. 8)", "Impact-only (SFDR Art. 9)"];
+
 const PROFILES = [
-  { min: 0, max: 10, name: "Conservative", desc: "Capital preservation, low volatility", allocation: "20/70/10 equities/bonds/cash" },
-  { min: 11, max: 14, name: "Moderate", desc: "Balanced growth with controlled risk", allocation: "50/45/5" },
-  { min: 15, max: 19, name: "Growth", desc: "Long-term capital appreciation", allocation: "70/25/5" },
-  { min: 20, max: 24, name: "Aggressive", desc: "Maximum growth, high volatility tolerance", allocation: "90/8/2 with thematic tilts" },
+  { min: 0, max: 8, name: "Conservative", risk: 2, allocation: "20% equities / 70% bonds / 10% cash", desc: "Capital preservation, low volatility." },
+  { min: 9, max: 15, name: "Moderate", risk: 3, allocation: "50% / 45% / 5%", desc: "Balanced growth with controlled risk." },
+  { min: 16, max: 22, name: "Growth", risk: 5, allocation: "70% / 25% / 5%", desc: "Long-term capital appreciation." },
+  { min: 23, max: 30, name: "Aggressive", risk: 7, allocation: "90% / 8% / 2% + thematic tilts", desc: "Maximum growth, high volatility tolerance." },
 ];
 
 export default function Suitability() {
+  const { user } = useAuth();
   const [ans, setAns] = useState<Record<string, number>>({});
-  const [done, setDone] = useState(false);
+  const [objectives, setObjectives] = useState<string[]>([]);
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const [esg, setEsg] = useState<string>("No preference");
+  const [lossTolerancePct, setLossTolerancePct] = useState<number>(20);
+  const [notes, setNotes] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
+  const totalQuestions = SECTIONS.reduce((n, s) => n + s.questions.length, 0);
   const score = Object.values(ans).reduce((a, b) => a + b, 0);
-  const profile = PROFILES.find(p => score >= p.min && score <= p.max);
+  const profile = PROFILES.find(p => score >= p.min && score <= p.max) ?? PROFILES[0];
+  const horizonScore = ans["horizon"] ?? 0;
+  const horizonYears = [1, 3, 7, 10][horizonScore] ?? 3;
+  const completed = Object.keys(ans).length;
+  const complete = completed === totalQuestions;
 
-  if (done && profile) {
-    return (
-      <div className="min-h-screen bg-background">
-        <SEO title="MiFID II Suitability | Vela.ai" description="Suitability assessment & KID-style summary" path="/suitability" />
-        <TopNav />
-        <main className="container mx-auto px-6 py-8 max-w-3xl space-y-6">
-          <div className="flex items-center gap-3"><Shield className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Suitability Result</h1></div>
-          <Card>
-            <CardHeader><CardTitle>Investor Profile: {profile.name}</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div><span className="text-muted-foreground">Score:</span> <span className="font-mono">{score} / 24</span></div>
-              <div><span className="text-muted-foreground">Description:</span> {profile.desc}</div>
-              <div><span className="text-muted-foreground">Suggested allocation:</span> <span className="font-mono">{profile.allocation}</span></div>
-              <div className="border-t pt-3 mt-3 text-xs text-muted-foreground">
-                <strong>KID-style summary:</strong> This assessment is generated under a MiFID II-inspired suitability framework. It is informational only and does not constitute investment advice. Final allocation must be reviewed against your specific goals, tax situation, and regulatory environment. SRI risk indicator (1-7): {Math.min(7, Math.max(1, Math.round(score / 3.5)))}.
-              </div>
-              <Button variant="outline" onClick={() => { setDone(false); setAns({}); }}>Retake</Button>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("investor_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setAns((data.answers as Record<string, number>) ?? {});
+        setObjectives(data.objectives ?? []);
+        setExcluded(data.excluded_sectors ?? []);
+        setEsg(data.esg_preference ?? "No preference");
+        setLossTolerancePct(data.loss_tolerance_pct ?? 20);
+        setNotes(data.notes ?? "");
+        setSavedAt(data.completed_at ?? data.updated_at ?? null);
+      }
+      setLoading(false);
+    })();
+  }, [user]);
+
+  const toggle = (list: string[], setter: (v: string[]) => void, value: string) => {
+    setter(list.includes(value) ? list.filter(x => x !== value) : [...list, value]);
+  };
+
+  const handleSave = async () => {
+    if (!user) { toast.error("Please sign in"); return; }
+    if (!complete) { toast.error("Please answer all questions"); return; }
+    setSaving(true);
+    const row = {
+      user_id: user.id,
+      answers: ans,
+      score,
+      profile_name: profile.name,
+      risk_level: profile.risk,
+      horizon_years: horizonYears,
+      esg_preference: esg,
+      loss_tolerance_pct: lossTolerancePct,
+      objectives,
+      excluded_sectors: excluded,
+      notes,
+      completed_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("investor_profiles").upsert(row, { onConflict: "user_id" });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setSavedAt(row.completed_at);
+    toast.success(`Profile saved: ${profile.name} (SRI ${profile.risk}/7)`);
+  };
+
+  const handleReset = () => {
+    setAns({}); setObjectives([]); setExcluded([]); setEsg("No preference"); setLossTolerancePct(20); setNotes("");
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="MiFID II Suitability | Vela.ai" description="Suitability assessment" path="/suitability" />
+      <SEO title="MiFID II Suitability Questionnaire | Vela.ai" description="MiFID II / IDD / SFDR-style investor suitability assessment. Tailors AI recommendations to your risk, knowledge, goals and ESG preferences." path="/suitability" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 max-w-3xl space-y-6">
-        <div className="flex items-center gap-3"><Shield className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">MiFID II Suitability Assessment</h1></div>
-        {Q.map(qq => (
-          <Card key={qq.key}>
-            <CardHeader className="pb-2"><CardTitle className="text-base">{qq.q}</CardTitle></CardHeader>
-            <CardContent>
-              <RadioGroup value={String(ans[qq.key] ?? "")} onValueChange={(v) => setAns({ ...ans, [qq.key]: Number(v) })}>
-                {qq.opts.map((o, i) => (
-                  <div key={i} className="flex items-center gap-2 py-1">
-                    <RadioGroupItem id={`${qq.key}-${i}`} value={String(i + 1)} />
-                    <Label htmlFor={`${qq.key}-${i}`} className="cursor-pointer">{o}</Label>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Shield className="h-6 w-6 text-primary" />
+            <div>
+              <h1 className="text-3xl font-bold">Investor Suitability Profile</h1>
+              <p className="text-sm text-muted-foreground">MiFID II · IDD · SFDR — used to tailor AI recommendations</p>
+            </div>
+          </div>
+          {savedAt && (
+            <Badge variant="secondary" className="gap-1">
+              <CheckCircle2 className="h-3 w-3" /> Saved {new Date(savedAt).toLocaleDateString()}
+            </Badge>
+          )}
+        </div>
+
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="pt-6 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">Current profile</div>
+              <div className="text-2xl font-bold">{profile.name}</div>
+              <div className="text-sm text-muted-foreground">{profile.desc}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
+              <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
+              <div className="font-mono text-xs mt-1">{profile.allocation}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {loading ? (
+          <Card><CardContent className="pt-6 text-muted-foreground">Loading…</CardContent></Card>
+        ) : (
+          <>
+            {SECTIONS.map(section => (
+              <Card key={section.id}>
+                <CardHeader>
+                  <CardTitle className="text-lg">{section.title}</CardTitle>
+                  <CardDescription>{section.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {section.questions.map(qq => (
+                    <div key={qq.key}>
+                      <Label className="text-sm font-medium">{qq.q}</Label>
+                      {qq.help && <p className="text-xs text-muted-foreground mt-0.5">{qq.help}</p>}
+                      <RadioGroup
+                        className="mt-2"
+                        value={ans[qq.key] !== undefined ? String(ans[qq.key]) : ""}
+                        onValueChange={(v) => setAns({ ...ans, [qq.key]: Number(v) })}
+                      >
+                        {qq.opts.map((o, i) => (
+                          <div key={i} className="flex items-center gap-2 py-0.5">
+                            <RadioGroupItem id={`${qq.key}-${i}`} value={String(o.score)} />
+                            <Label htmlFor={`${qq.key}-${i}`} className="cursor-pointer font-normal">{o.label}</Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">5. Sustainability Preferences (SFDR)</CardTitle>
+                <CardDescription>EU MiFID II amendment 2022/1288 — required since Aug 2022.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">ESG preference</Label>
+                  <RadioGroup className="mt-2" value={esg} onValueChange={setEsg}>
+                    {ESG_OPTIONS.map(o => (
+                      <div key={o} className="flex items-center gap-2 py-0.5">
+                        <RadioGroupItem id={`esg-${o}`} value={o} />
+                        <Label htmlFor={`esg-${o}`} className="cursor-pointer font-normal">{o}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Excluded sectors</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                    {EXCLUDE_TAGS.map(tag => (
+                      <label key={tag} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={excluded.includes(tag)} onCheckedChange={() => toggle(excluded, setExcluded, tag)} />
+                        {tag}
+                      </label>
+                    ))}
                   </div>
-                ))}
-              </RadioGroup>
-            </CardContent>
-          </Card>
-        ))}
-        <Button onClick={() => setDone(true)} disabled={Object.keys(ans).length < Q.length}>Calculate profile</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">6. Personal Goals & Constraints</CardTitle>
+                <CardDescription>Used to ground AI recommendations in your real-life objectives.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">Goals</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                    {OBJECTIVE_TAGS.map(tag => (
+                      <label key={tag} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={objectives.includes(tag)} onCheckedChange={() => toggle(objectives, setObjectives, tag)} />
+                        {tag}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="loss" className="text-sm font-medium">Maximum acceptable drawdown (%)</Label>
+                  <Input id="loss" type="number" min={1} max={100} value={lossTolerancePct} onChange={e => setLossTolerancePct(Number(e.target.value) || 0)} className="mt-2 w-32" />
+                </div>
+                <div>
+                  <Label htmlFor="notes" className="text-sm font-medium">Additional notes for the AI (optional)</Label>
+                  <Textarea id="notes" placeholder="e.g. avoid leverage, prefer European-domiciled UCITS, tax residence Italy…" value={notes} onChange={e => setNotes(e.target.value)} className="mt-2" rows={3} maxLength={1000} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button onClick={handleSave} disabled={!complete || saving}>
+                {saving ? "Saving…" : "Save profile"}
+              </Button>
+              <Button variant="outline" onClick={handleReset}><RefreshCw className="h-4 w-4 mr-2" />Reset</Button>
+              {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              This questionnaire follows ESMA guidelines on the MiFID II suitability assessment and SFDR sustainability preferences. It is informational only and does not constitute investment advice. Your answers are stored privately and used to tailor AI-generated insights inside Vela.ai — they are never shared with brokers or third parties.
+            </p>
+          </>
+        )}
       </main>
     </div>
   );

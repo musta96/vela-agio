@@ -37,12 +37,23 @@ function footer(doc: jsPDF) {
     doc.setFontSize(8);
     doc.setTextColor(...BRAND.muted);
     doc.text(
-      `FTSE MIB Analytics · Page ${i} of ${pageCount}`,
+      `FTSE MIB Analytics · Not financial advice · Page ${i} of ${pageCount}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: "center" },
     );
   }
+}
+
+function disclaimer(doc: jsPDF, y: number) {
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.muted);
+  const txt =
+    "Disclaimer: This report is generated automatically by FTSE MIB Analytics for informational and educational purposes only. It does not constitute investment advice, a recommendation, or an offer to buy or sell any security. Data may be delayed, incomplete, or inaccurate. Always do your own research and consult a licensed financial advisor before making investment decisions.";
+  const lines = doc.splitTextToSize(txt, doc.internal.pageSize.getWidth() - 28);
+  doc.text(lines, 14, y);
+  doc.setTextColor(0, 0, 0);
+  return y + lines.length * 3.5 + 4;
 }
 
 export interface PortfolioReportInput {

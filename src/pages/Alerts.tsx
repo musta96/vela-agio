@@ -135,7 +135,9 @@ const Alerts = () => {
   };
 
   const toggleRule = async (rule: Rule, field: "enabled" | "notify_email_immediate", value: boolean) => {
-    await supabase.from("alert_rules").update({ [field]: value }).eq("id", rule.id);
+    const patch: { enabled?: boolean; notify_email_immediate?: boolean } =
+      field === "enabled" ? { enabled: value } : { notify_email_immediate: value };
+    await supabase.from("alert_rules").update(patch).eq("id", rule.id);
     load();
   };
 

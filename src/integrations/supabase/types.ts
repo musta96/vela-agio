@@ -53,6 +53,42 @@ export type Database = {
         }
         Relationships: []
       }
+      market_data_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          fetched_at: string
+          id: number
+          interval: string | null
+          kind: string
+          payload: Json
+          range: string | null
+          symbol: string
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          fetched_at?: string
+          id?: number
+          interval?: string | null
+          kind: string
+          payload: Json
+          range?: string | null
+          symbol: string
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: number
+          interval?: string | null
+          kind?: string
+          payload?: Json
+          range?: string | null
+          symbol?: string
+        }
+        Relationships: []
+      }
       portfolio_holdings: {
         Row: {
           avg_price: number

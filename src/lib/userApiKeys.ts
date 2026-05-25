@@ -131,6 +131,14 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
     signupUrl: "https://www.interactivebrokers.com/en/trading/ib-api.php",
     serverOnly: true,
   },
+  {
+    id: "ALPACA_API_SECRET",
+    label: "Alpaca Secret Key",
+    description: "Paired with the Alpaca Trading key. Required for paper / live order placement via the Copilot.",
+    category: "market",
+    signupUrl: "https://app.alpaca.markets/paper/dashboard/overview",
+    serverOnly: true,
+  },
 
   // --- Social / news ---
   {

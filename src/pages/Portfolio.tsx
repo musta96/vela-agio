@@ -225,6 +225,38 @@ const Portfolio = () => {
     return remoteResults.filter(r => !local.has(r.symbol.toUpperCase())).slice(0, 15);
   }, [remoteResults]);
 
+  // AI fuzzy resolver: turns "the Invesco blockchain ETF on Milan" into a real Yahoo ticker.
+  type AiCandidate = { symbol: string; name: string; exchange?: string; currency?: string; confidence?: number; reason?: string; verified?: boolean };
+  const [aiCandidates, setAiCandidates] = useState<AiCandidate[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const askAiToFind = async () => {
+    const q = symbolSearch.trim();
+    if (!q) return;
+    setAiLoading(true); setAiError(null); setAiCandidates([]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-symbol-finder`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` }),
+        },
+        body: JSON.stringify({ query: q }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `AI ${r.status}`);
+      setAiCandidates((j?.candidates ?? []) as AiCandidate[]);
+      if (!j?.candidates?.length) setAiError("No candidates found. Try adding the exchange (e.g. 'on Milan').");
+    } catch (e: any) {
+      setAiError(e?.message || 'AI lookup failed');
+    } finally { setAiLoading(false); }
+  };
+  // Clear AI candidates when query changes
+  useEffect(() => { setAiCandidates([]); setAiError(null); }, [symbolSearch]);
+
   const toggleAddForm = () => {
     const shouldOpen = !showAddForm;
     console.log("[Portfolio] toggleAddForm clicked", { from: showAddForm, to: shouldOpen });
@@ -667,6 +699,48 @@ const Portfolio = () => {
                             <code>.L</code> London, <code>.PA</code> Paris, <code>.AS</code> Amsterdam,
                             <code>.SW</code> Swiss. Example: <code>1PLTR.MI</code>, <code>BCHN.MI</code>.
                           </p>
+                          <div className="mt-3 pt-3 border-t border-border/60">
+                            <button
+                              type="button"
+                              disabled={aiLoading || !symbolSearch.trim()}
+                              onClick={askAiToFind}
+                              className="flex w-full items-center justify-center rounded-sm px-3 py-2 text-xs font-medium border border-primary/40 bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                            >
+                              {aiLoading ? "AI searching…" : "✨ Ask AI to find this instrument"}
+                            </button>
+                            {aiError && <p className="text-[11px] text-destructive mt-2">{aiError}</p>}
+                            {aiCandidates.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">AI suggestions</p>
+                                {aiCandidates.map((c) => (
+                                  <button
+                                    key={`ai-${c.symbol}`}
+                                    type="button"
+                                    className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-accent transition-colors border border-border/60"
+                                    onClick={() => {
+                                      setNewStock({ ...newStock, symbol: c.symbol, name: c.name });
+                                      setNewCurrency(c.currency || "USD");
+                                      setNewDisplayName(c.name);
+                                      setSymbolSearch("");
+                                      setSymbolPickerOpen(false);
+                                      setAiCandidates([]);
+                                    }}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-mono font-semibold">{c.symbol}</span>
+                                        {c.exchange && <Badge variant="outline" className="text-[10px]">{c.exchange}</Badge>}
+                                        {c.currency && <Badge variant="outline" className="text-[10px]">{c.currency}</Badge>}
+                                        {c.verified ? <Badge className="text-[10px]">verified</Badge> : <Badge variant="secondary" className="text-[10px]">unverified</Badge>}
+                                        {typeof c.confidence === 'number' && <span className="text-[10px] text-muted-foreground">{Math.round(c.confidence * 100)}%</span>}
+                                      </div>
+                                      <p className="truncate text-xs text-muted-foreground">{c.name}{c.reason ? ` — ${c.reason}` : ''}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <>

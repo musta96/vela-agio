@@ -1,13 +1,17 @@
-import { Activity } from "lucide-react";
+import { Activity, Command as CommandIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { AuthButton } from "@/components/AuthButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Button } from "@/components/ui/button";
 
 const LINKS: { to: string; label: string }[] = [
   { to: "/", label: "Dashboard" },
+  { to: "/compare", label: "Compare" },
+  { to: "/sectors", label: "Sectors" },
   { to: "/sentiment", label: "Sentiment" },
   { to: "/technical", label: "Technicals" },
   { to: "/backtest", label: "Backtest" },
@@ -55,9 +59,17 @@ export const TopNav = () => {
               {l.label}
             </NavLink>
           ))}
+          <button
+            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+            className="hidden md:inline-flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded px-2 py-1 hover:text-primary hover:border-primary/40"
+            title="Search (⌘K)"
+          >
+            <CommandIcon className="h-3 w-3" /> K
+          </button>
           <AuthButton />
         </div>
       </div>
+      <CommandPalette />
     </nav>
   );
 };

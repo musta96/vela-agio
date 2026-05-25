@@ -21,7 +21,7 @@ export async function getUserDataKey(authHeader: string | null, provider: string
     const r = await fetch(`${url}/functions/v1/keys-vault`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: authHeader },
-      body: JSON.stringify({ action: 'get', provider }),
+      body: JSON.stringify({ action: 'reveal', provider }),
     });
     if (!r.ok) { CACHE.set(cacheKey, { value: null, at: Date.now() }); return null; }
     const j = await r.json();

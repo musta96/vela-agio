@@ -71,8 +71,25 @@ async function fetchYahoo(symbol: string, range: string, interval: string) {
       "Accept": "application/json",
     },
   });
+  if (res.status === 404) {
+    const err: any = new Error(`Yahoo 404 for ${symbol}`);
+    err.code = 404;
+    throw err;
+  }
   if (!res.ok) throw new Error(`Yahoo ${res.status} for ${symbol}`);
   return await res.json();
+}
+
+// Italian tickers on Yahoo need a `.MI` suffix. Try once with it.
+async function fetchYahooWithFallback(symbol: string, range: string, interval: string) {
+  try {
+    return await fetchYahoo(symbol, range, interval);
+  } catch (e: any) {
+    if (e?.code === 404 && !symbol.includes(".") && !symbol.includes("=") && !symbol.includes("^")) {
+      return await fetchYahoo(`${symbol}.MI`, range, interval);
+    }
+    throw e;
+  }
 }
 
 function parseQuote(symbol: string, json: any) {
@@ -132,7 +149,7 @@ Deno.serve(async (req) => {
         const cached = await readCache(key);
         if (cached) { out[sym] = cached; return; }
         try {
-          const j = await fetchYahoo(sym, "1d", "1m");
+          const j = await fetchYahooWithFallback(sym, "1d", "1m");
           const q = parseQuote(sym, j);
           if (q) { out[sym] = q; await writeCache(key, "quote", sym, q, TTL.quote); }
         } catch { /* skip */ }
@@ -147,8 +164,19 @@ Deno.serve(async (req) => {
       if (cached) {
         return new Response(JSON.stringify({ bars: cached, cached: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      const j = await fetchYahoo(body.symbol, body.range, body.interval);
-      const bars = parseOHLC(j);
+      let bars: any[] = [];
+      try {
+        const j = await fetchYahooWithFallback(body.symbol, body.range, body.interval);
+        bars = parseOHLC(j);
+      } catch (e: any) {
+        if (e?.code === 404) {
+          return new Response(
+            JSON.stringify({ bars: [], cached: false, fallback: true, error: "TICKER_NOT_FOUND" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        throw e;
+      }
       const ttl = body.interval.endsWith("d") || body.interval.endsWith("wk") || body.interval.endsWith("mo")
         ? TTL.ohlc_daily : TTL.ohlc_intraday;
       await writeCache(key, "ohlc", body.symbol, bars, ttl, body.range, body.interval);

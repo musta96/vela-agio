@@ -21,6 +21,18 @@ import Alerts from "./pages/Alerts";
 import Risk from "./pages/Risk";
 import Screener from "./pages/Screener";
 import Baskets from "./pages/Baskets";
+import Filings from "./pages/Filings";
+import Earnings from "./pages/Earnings";
+import Insider from "./pages/Insider";
+import Macro from "./pages/Macro";
+import Copilot from "./pages/Copilot";
+import Goals from "./pages/Goals";
+import EventStudy from "./pages/EventStudy";
+import TaxHarvest from "./pages/TaxHarvest";
+import Methodology from "./pages/Methodology";
+import Onboarding from "./pages/Onboarding";
+import Education from "./pages/Education";
+import ApiDocs from "./pages/ApiDocs";
 import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -49,6 +61,18 @@ const App = () => (
           <Route path="/risk" element={<Risk />} />
           <Route path="/screener" element={<Screener />} />
           <Route path="/baskets" element={<Baskets />} />
+          <Route path="/filings" element={<Filings />} />
+          <Route path="/earnings" element={<Earnings />} />
+          <Route path="/insider" element={<Insider />} />
+          <Route path="/macro" element={<Macro />} />
+          <Route path="/copilot" element={<Copilot />} />
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/event-study" element={<EventStudy />} />
+          <Route path="/tax-harvest" element={<TaxHarvest />} />
+          <Route path="/methodology" element={<Methodology />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/learn" element={<Education />} />
+          <Route path="/api" element={<ApiDocs />} />
           <Route path="/admin/audit" element={<AdminAuditLog />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

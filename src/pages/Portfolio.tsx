@@ -8,6 +8,7 @@ import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, C
 import { TopNav } from "@/components/TopNav";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
+import { PortfolioInsights } from "@/components/PortfolioInsights";
 import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -326,6 +327,8 @@ const Portfolio = () => {
           range={range}
           onRangeChange={setRange}
         />
+
+        <PortfolioInsights holdings={portfolio} />
 
         {/* Add Stock Form */}
         {showAddForm && (

@@ -11,6 +11,8 @@ import Portfolio from "./pages/Portfolio";
 import Watchlist from "./pages/Watchlist";
 import SmartPicks from "./pages/SmartPicks";
 import TechnicalAnalysis from "./pages/TechnicalAnalysis";
+import Compare from "./pages/Compare";
+import SectorHeatmap from "./pages/SectorHeatmap";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
@@ -35,6 +37,8 @@ const App = () => (
           <Route path="/watchlist" element={<Watchlist />} />
           <Route path="/picks" element={<SmartPicks />} />
           <Route path="/technical" element={<TechnicalAnalysis />} />
+          <Route path="/compare" element={<Compare />} />
+          <Route path="/sectors" element={<SectorHeatmap />} />
           <Route path="/stock/:symbol" element={<StockDetails />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin/audit" element={<AdminAuditLog />} />

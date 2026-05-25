@@ -1,7 +1,6 @@
-// Local-only API key store for the Settings page.
-// Keys live in the browser (localStorage) so the user can plug their own
-// LLM / market-data providers without exposing them in the codebase.
-// Anything truly sensitive should go through Lovable Cloud secrets instead.
+// Catalog of supported third-party API providers.
+// Keys themselves are stored ENCRYPTED in Lovable Cloud via the `keys-vault` edge
+// function — never in localStorage. This file only describes what we support.
 
 export type ApiKeyCategory = "ai" | "market" | "social";
 
@@ -12,7 +11,7 @@ export interface ApiKeySpec {
   category: ApiKeyCategory;
   docsUrl?: string;
   signupUrl?: string;
-  serverOnly?: boolean; // true => recommend storing as Lovable Cloud secret instead of localStorage
+  serverOnly?: boolean; // hint that this key is used in server-side calls
 }
 
 export const API_KEY_SPECS: ApiKeySpec[] = [
@@ -166,30 +165,43 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
   },
 ];
 
-const STORAGE_KEY = "user_api_keys_v1";
+// NOTE: All read/write of actual key values now goes through the `keys-vault` edge
+// function. The browser only ever sees provider name + last-4 hint. Any legacy
+// localStorage values from earlier versions are intentionally NOT migrated, since
+// they were unencrypted at rest in the browser.
+import { supabase } from "@/integrations/supabase/client";
 
-export function loadApiKeys(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed ? parsed : {};
-  } catch {
-    return {};
-  }
+export interface StoredKeyMeta {
+  provider: string;
+  hint: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export function saveApiKey(id: string, value: string) {
-  const all = loadApiKeys();
-  if (value) all[id] = value;
-  else delete all[id];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+export async function vaultList(): Promise<StoredKeyMeta[]> {
+  const { data, error } = await supabase.functions.invoke("keys-vault", {
+    body: { action: "list" },
+  });
+  if (error) throw error;
+  return (data?.keys ?? []) as StoredKeyMeta[];
 }
 
-export function clearApiKey(id: string) {
-  saveApiKey(id, "");
+export async function vaultSet(provider: string, value: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("keys-vault", {
+    body: { action: "set", provider, value },
+  });
+  if (error) throw error;
+  return data?.hint ?? "";
 }
 
-export function getApiKey(id: string): string | undefined {
-  return loadApiKeys()[id];
+export async function vaultDelete(provider: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("keys-vault", {
+    body: { action: "delete", provider },
+  });
+  if (error) throw error;
+}
+
+// One-time cleanup: purge the old plaintext localStorage blob if present.
+if (typeof window !== "undefined") {
+  try { localStorage.removeItem("user_api_keys_v1"); } catch { /* ignore */ }
 }

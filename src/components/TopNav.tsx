@@ -6,7 +6,7 @@ import {
   GitBranch, Users, Sigma, NotebookPen, Eye, ShieldAlert,
   Repeat, Wallet, Target, Bell, Scale, RefreshCw, ClipboardList,
   ShieldCheck, GraduationCap, BookOpen, Code2, Tag, Settings as SettingsIcon,
-  ScrollText,
+  ScrollText, Shield,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";

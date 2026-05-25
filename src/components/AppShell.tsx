@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AuthButton } from "@/components/AuthButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { LegalFooter } from "@/components/LegalFooter";
+import { CopilotFab } from "@/components/CopilotFab";
 
 export default function AppShell() {
   return (
@@ -46,6 +47,7 @@ export default function AppShell() {
         </div>
       </div>
       <CommandPalette />
+      <CopilotFab />
     </SidebarProvider>
   );
 }

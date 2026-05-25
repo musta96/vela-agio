@@ -3,6 +3,7 @@ import { resolveAIConfig } from '../_shared/ai-provider.ts';
 import { getInvestorProfileSummary } from '../_shared/investor-profile.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserDataKey } from '../_shared/data-provider.ts';
+import { PLATFORM_MAP } from '../_shared/platform-map.ts';
 
 // =====================================================================
 // AGENTIC COPILOT — tool-calling loop
@@ -61,6 +62,15 @@ const TOOLS = [
         qty: { type: 'number' }, type: { type: 'string', enum: ['market', 'limit'] },
         limit_price: { type: 'number' }, time_in_force: { type: 'string', enum: ['day', 'gtc'], description: 'defaults to day' },
       }, required: ['symbol', 'side', 'qty', 'type'] } } },
+  { type: 'function', function: { name: 'capture_feature_request', description: 'Use ONLY when the user asks for a capability that is NOT in the PLATFORM MAP above. Captures a feature request for the product team with your structured analysis. After calling, tell the user it has been forwarded.',
+      parameters: { type: 'object', properties: {
+        title: { type: 'string', description: 'Short, action-oriented title (max 80 chars).' },
+        user_quote: { type: 'string', description: 'Verbatim or near-verbatim quote of what the user asked for.' },
+        why_it_matters: { type: 'string', description: 'Why this is valuable to investors / how it fits the platform.' },
+        proposed_implementation: { type: 'string', description: 'High-level plan: which pages, data sources, edge functions, models, schema changes.' },
+        effort: { type: 'string', enum: ['S', 'M', 'L', 'XL'] },
+        priority: { type: 'string', enum: ['nice-to-have', 'should-have', 'must-have'] },
+      }, required: ['title', 'user_quote', 'why_it_matters', 'proposed_implementation', 'effort', 'priority'] } } },
 ];
 
 // ---------- Tool executors ----------
@@ -165,6 +175,20 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         return { ok: true, mode: 'PAPER', order_id: j.id, status: j.status, filled_qty: j.filled_qty, submitted_at: j.submitted_at };
       } catch (e: any) { return { error: e?.message ?? 'alpaca call failed' }; }
     }
+    case 'capture_feature_request': {
+      const { data, error } = await sb.from('feature_requests').insert({
+        user_id: user.id,
+        title: String(args.title).slice(0, 200),
+        user_quote: args.user_quote ?? null,
+        ai_analysis: {
+          why_it_matters: args.why_it_matters,
+          proposed_implementation: args.proposed_implementation,
+          effort: args.effort,
+          priority: args.priority,
+        },
+      }).select('id').single();
+      return error ? { error: error.message } : { ok: true, id: data?.id };
+    }
     default: return { error: `unknown tool ${name}` };
   }
 }
@@ -204,27 +228,48 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization');
     if (!auth) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    const { messages, portfolio, watchlist, lang } = await req.json();
+    const { messages, portfolio, watchlist, lang, attachments, pageContext } = await req.json();
     const langName = lang === 'it' ? 'Italian' : 'English';
     const investorProfile = await getInvestorProfileSummary(auth);
     const sys = `You are the user's personal investment research copilot for the Vela.ai platform.
 ALWAYS respond in ${langName}.
-You can call tools to read live data and to mutate the user's portfolio, watchlist, alerts, and to place PAPER (sandbox) orders on Alpaca.
+You can call tools to read live data, mutate the user's portfolio/watchlist/alerts, place PAPER (sandbox) orders on Alpaca, and capture feature requests for the product team.
+You ALSO act as a support agent: you have a complete map of every page on the platform and can guide the user to the exact route.
 
 RULES:
 - Before ANY mutation (add/remove/update holdings or watchlist, create alerts, place orders) confirm intent with the user explicitly UNLESS they already gave a clear directive in their latest message.
 - For place_paper_order: always state it is PAPER (sandbox), summarize the order, and only call the tool after the user has confirmed.
 - Be number-driven. Cite metrics from tool outputs. Mark uncertainty.
 - Tailor tone, risk language, instrument complexity and ESG filters to the user's MiFID II suitability profile when available.
+ - If the user asks for a feature/page/capability that is NOT in the PLATFORM MAP, do NOT pretend it exists. Instead: (1) acknowledge it doesn't yet exist, (2) call capture_feature_request with a real analysis (why it matters, proposed implementation, effort, priority), (3) tell the user it has been forwarded to the product team.
+ - When the user attaches a screenshot or refers to "this page", use the PAGE CONTEXT and any image attachments to ground your answer. You can describe what you see in their screenshot and walk them through the UI step by step.
+ - For pure support questions ("how do I X", "where do I find Y", "why doesn't Z work") answer concisely and link the relevant /route from the PLATFORM MAP.
 - Always end final answers with: "This is not financial advice."
 
 CONTEXT:
+CURRENT PAGE: ${pageContext ?? 'unknown'}
 PORTFOLIO: ${JSON.stringify(portfolio ?? []).slice(0, 4000)}
 WATCHLIST: ${JSON.stringify(watchlist ?? []).slice(0, 2000)}
-SUITABILITY (MiFID II): ${investorProfile ?? 'not completed — invite the user to fill /suitability'}`;
+SUITABILITY (MiFID II): ${investorProfile ?? 'not completed — invite the user to fill /suitability'}
+
+${PLATFORM_MAP}`;
 
     const cfg = await resolveAIConfig(auth);
-    const convo: any[] = [{ role: 'system', content: sys }, ...(messages ?? [])];
+    // Inject attachments into the last user message as multimodal content parts (Gemini/OpenAI compatible).
+    const incoming = [...(messages ?? [])];
+    const atts: Array<{ name: string; mime: string; dataUrl: string }> = Array.isArray(attachments) ? attachments : [];
+    if (atts.length > 0 && incoming.length > 0) {
+      const last = incoming[incoming.length - 1];
+      if (last.role === 'user') {
+        const parts: any[] = [{ type: 'text', text: typeof last.content === 'string' ? last.content : '' }];
+        for (const a of atts) {
+          if (a.mime?.startsWith('image/')) parts.push({ type: 'image_url', image_url: { url: a.dataUrl } });
+          else parts.push({ type: 'text', text: `[Attached file: ${a.name} (${a.mime})]` });
+        }
+        incoming[incoming.length - 1] = { ...last, content: parts };
+      }
+    }
+    const convo: any[] = [{ role: 'system', content: sys }, ...incoming];
 
     const stream = new ReadableStream({
       async start(controller) {

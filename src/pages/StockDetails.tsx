@@ -685,6 +685,34 @@ const StockDetails = () => {
                         </div>
                       </div>
                     )}
+                    {sentiment.analystOpinions && sentiment.analystOpinions.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold mb-2">Analyst camps</p>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {sentiment.analystOpinions.map((o, i) => {
+                            const tone = o.stance === "bull"
+                              ? "border-success/30 bg-success/5"
+                              : o.stance === "bear"
+                              ? "border-destructive/30 bg-destructive/5"
+                              : "border-border bg-muted/30";
+                            const labelTone = o.stance === "bull" ? "text-success" : o.stance === "bear" ? "text-destructive" : "text-muted-foreground";
+                            return (
+                              <div key={i} className={`p-3 rounded-lg border ${tone}`}>
+                                <span className={`text-xs uppercase font-semibold ${labelTone}`}>{o.stance}</span>
+                                <p className="text-sm font-medium mt-1">{o.thesis}</p>
+                                {o.arguments?.length > 0 && (
+                                  <ul className="mt-2 space-y-1">
+                                    {o.arguments.map((a, j) => (
+                                      <li key={j} className="text-xs text-muted-foreground flex gap-1.5"><span>•</span>{a}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

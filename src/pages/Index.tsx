@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Card } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { supabase } from "@/integrations/supabase/client";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -76,8 +77,54 @@ export default function Index() {
   const { user } = useAuth();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
 
-  const syms = useMemo(() => WATCH.map((w) => w.sym).concat(["FTSEMIB.MI"]), []);
+  // Live holdings for real portfolio value
+  const [holdings, setHoldings] = useState<Array<{ symbol: string; shares: number; avg_price: number; currency: string }>>([]);
+  const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);
+  const [sentimentAvg, setSentimentAvg] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) { setHoldings([]); return; }
+    (async () => {
+      const [h, rules, sent] = await Promise.all([
+        supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("user_id", user.id),
+        supabase.from("alert_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),
+        supabase.from("sentiment_history").select("score").order("created_at", { ascending: false }).limit(50),
+      ]);
+      setHoldings((h.data ?? []) as any);
+      setActiveSignalCount(rules.count ?? 0);
+      const scores = (sent.data ?? []).map((r: any) => Number(r.score)).filter((n) => Number.isFinite(n));
+      setSentimentAvg(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null);
+    })();
+  }, [user?.id]);
+
+  const syms = useMemo(() => {
+    const set = new Set<string>([...WATCH.map((w) => w.sym), "FTSEMIB.MI", ...holdings.map((h) => h.symbol)]);
+    return Array.from(set);
+  }, [holdings]);
   const { quotes } = useLiveQuotes(syms, 30000);
+
+  // Real portfolio metrics
+  const portfolio = useMemo(() => {
+    let value = 0, prevValue = 0, cost = 0, hasPrice = false;
+    for (const h of holdings) {
+      const q = quotes[h.symbol];
+      const px = q?.price;
+      const prev = q?.previousClose;
+      cost += h.shares * Number(h.avg_price ?? 0);
+      if (px != null) {
+        hasPrice = true;
+        value += h.shares * px;
+        prevValue += h.shares * (prev ?? px);
+      } else {
+        // fall back to cost basis so partial pricing doesn't blow up totals
+        value += h.shares * Number(h.avg_price ?? 0);
+        prevValue += h.shares * Number(h.avg_price ?? 0);
+      }
+    }
+    const dayPnl = value - prevValue;
+    const dayPct = prevValue > 0 ? (dayPnl / prevValue) * 100 : 0;
+    return { value, dayPnl, dayPct, cost, hasPrice, count: holdings.length };
+  }, [holdings, quotes]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -114,12 +161,41 @@ export default function Index() {
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {[
-            { label: "Portfolio value",  value: "€84,320",  chg:  2.34, tone: "pos" as const, sub: "vs last close" },
-            { label: "Today's P&L",      value: "+€1,924",  chg:  1.10, tone: "pos" as const, sub: "vs yesterday" },
-            { label: "Active signals",   value: "12",        chg:  0,    tone: "info" as const, sub: "3 new today" },
-            { label: "Sentiment score",  value: "67/100",    chg:  0,    tone: "pos" as const, sub: "Bullish" },
-          ].map((m) => (
+          {(() => {
+            const empty = portfolio.count === 0;
+            const pnlSign = portfolio.dayPnl >= 0 ? "+" : "−";
+            const cards = [
+              {
+                label: "Portfolio value",
+                value: empty ? "—" : fmtMoney(portfolio.value),
+                chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
+                tone: "pos" as const,
+                sub: empty ? "Add a holding to track" : portfolio.hasPrice ? "vs last close" : "cost basis (no live price)",
+              },
+              {
+                label: "Today's P&L",
+                value: empty ? "—" : `${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`,
+                chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
+                tone: "pos" as const,
+                sub: empty ? "—" : "vs yesterday",
+              },
+              {
+                label: "Active signals",
+                value: activeSignalCount == null ? "—" : String(activeSignalCount),
+                chg: 0,
+                tone: "info" as const,
+                sub: activeSignalCount ? "alert rules" : "set up alerts",
+              },
+              {
+                label: "Sentiment score",
+                value: sentimentAvg == null ? "—" : `${Math.round(sentimentAvg)}/100`,
+                chg: 0,
+                tone: "pos" as const,
+                sub: sentimentAvg == null ? "no data yet" : sentimentAvg >= 60 ? "Bullish" : sentimentAvg <= 40 ? "Bearish" : "Neutral",
+              },
+            ];
+            return cards;
+          })().map((m) => (
             <Card key={m.label} className="p-5 bg-card border-border animate-fade-in">
               <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{m.label}</div>
               <div className="mt-2 font-mono text-2xl font-medium tracking-tight">{m.value}</div>

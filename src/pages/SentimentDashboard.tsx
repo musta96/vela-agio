@@ -20,6 +20,7 @@ interface SentimentResult {
   drivers: { title: string; impact: "positive" | "negative" | "neutral" }[];
   articles: Article[];
   sources?: { source: string; avgScore: number; count: number }[];
+  analystOpinions?: { stance: string; thesis: string; arguments: string[]; sourceIndexes?: number[] }[];
   generatedAt?: string;
 }
 
@@ -148,7 +149,7 @@ const SentimentDashboard = () => {
           <Card className="p-12 text-center card-gradient border-border">
             <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold mb-2">Pick a stock to analyze</h3>
-            <p className="text-muted-foreground">Sentiment analysis runs on live news headlines from Yahoo Finance.</p>
+            <p className="text-muted-foreground">Sentiment runs on live headlines from Bloomberg, FT, Reuters, WSJ, CNBC, Morningstar, Barron's, Borsa Italiana, Il Sole 24 Ore, Seeking Alpha, Yahoo Finance, Reddit and X.</p>
           </Card>
         )}
 
@@ -227,7 +228,7 @@ const SentimentDashboard = () => {
               <CardHeader>
                 <CardTitle>Mentions & headlines ({result.articles.length})</CardTitle>
                 <CardDescription>
-                  Sources: Yahoo Finance, Seeking Alpha, Reddit, X · Generated{" "}
+                  Sources: Bloomberg, FT, Reuters, WSJ, CNBC, Morningstar, Barron's, Borsa Italiana, Sole 24 Ore, Seeking Alpha, Yahoo Finance, Reddit, X · Generated{" "}
                   {result.generatedAt ? new Date(result.generatedAt).toLocaleString() : "now"}
                 </CardDescription>
               </CardHeader>

@@ -144,11 +144,15 @@ const Portfolio = () => {
     setSymbolPickerOpen(false);
   };
 
-  const handleAddStock = () => {
-    if (!newStock.symbol || !newStock.shares || !newStock.avgPrice) {
+  const handleAddStock = async () => {
+    const missing: string[] = [];
+    if (!newStock.symbol) missing.push("symbol");
+    if (!newStock.shares) missing.push("shares");
+    if (!newStock.avgPrice) missing.push("average price");
+    if (missing.length > 0) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all fields",
+        title: "Missing required fields",
+        description: `Please fill in: ${missing.join(", ")}.`,
         variant: "destructive",
       });
       return;
@@ -157,33 +161,60 @@ const Portfolio = () => {
     const stockInfo = STOCK_CATALOG.find(s => s.symbol === newStock.symbol);
     if (!stockInfo) {
       toast({
-        title: "Stock Not Found",
-        description: "Please select a valid stock symbol",
+        title: "Invalid symbol",
+        description: `"${newStock.symbol}" was not found in the catalog. Pick one from the list.`,
         variant: "destructive",
       });
       return;
     }
 
+    const sharesNum = parseFloat(newStock.shares);
     const avg = parseFloat(newStock.avgPrice);
+    if (!Number.isFinite(sharesNum) || sharesNum <= 0) {
+      toast({
+        title: "Invalid shares",
+        description: "Shares must be a number greater than 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!Number.isFinite(avg) || avg <= 0) {
+      toast({
+        title: "Invalid average price",
+        description: "Average price must be a number greater than 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const added: PortfolioStock = {
       symbol: newStock.symbol,
       name: stockInfo.name,
-      shares: parseFloat(newStock.shares),
+      shares: sharesNum,
       avgPrice: avg,
       currentPrice: avg,
     };
-    setPortfolio([...portfolio, added]);
+
     if (user) {
-      supabase.from("portfolio_holdings").upsert({
+      const { error } = await supabase.from("portfolio_holdings").upsert({
         user_id: user.id, symbol: added.symbol, name: added.name,
         shares: added.shares, avg_price: added.avgPrice,
-      }, { onConflict: "user_id,symbol" }).then();
+      }, { onConflict: "user_id,symbol" });
+      if (error) {
+        toast({
+          title: "Couldn't save stock",
+          description: error.message || "Failed to sync to your account. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
+    setPortfolio([...portfolio, added]);
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
     setSymbolSearch("");
     closeAddForm();
-    
+
     toast({
       title: "Stock Added",
       description: `${stockInfo.name} added to your portfolio`,

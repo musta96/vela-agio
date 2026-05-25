@@ -249,9 +249,10 @@ const StockDetails = () => {
 
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
             <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" />Overview</TabsTrigger>
             <TabsTrigger value="technicals" className="gap-1.5"><Activity className="h-4 w-4" />Technicals</TabsTrigger>
+            <TabsTrigger value="deep" className="gap-1.5" onClick={() => { if (!deep && !deepLoading) fetchDeep(); }}><Calculator className="h-4 w-4" />Deep Analysis</TabsTrigger>
             <TabsTrigger value="sentiment" className="gap-1.5"><MessageSquare className="h-4 w-4" />Sentiment</TabsTrigger>
             <TabsTrigger value="sources" className="gap-1.5"><Globe className="h-4 w-4" />Sources</TabsTrigger>
           </TabsList>

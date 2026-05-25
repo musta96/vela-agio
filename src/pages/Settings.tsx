@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, Eye, EyeOff, Save, Trash2, ExternalLink, ShieldCheck, KeyRound, Brain, LineChart, MessageSquare, CheckCircle2, Loader2, LogOut } from "lucide-react";
+import { Activity, Eye, EyeOff, Save, Trash2, ExternalLink, ShieldCheck, KeyRound, Brain, LineChart, MessageSquare, CheckCircle2, Loader2, LogOut, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, type ApiKeySpec, type StoredKeyMeta } from "@/lib/userApiKeys";
 import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 
 const CATEGORY_META: Record<ApiKeyCategory, { label: string; icon: typeof Brain; description: string }> = {
   ai: { label: "AI Models", icon: Brain, description: "Bring your own LLM providers for chat, analysis and recommendations." },

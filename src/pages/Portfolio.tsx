@@ -225,6 +225,38 @@ const Portfolio = () => {
     return remoteResults.filter(r => !local.has(r.symbol.toUpperCase())).slice(0, 15);
   }, [remoteResults]);
 
+  // AI fuzzy resolver: turns "the Invesco blockchain ETF on Milan" into a real Yahoo ticker.
+  type AiCandidate = { symbol: string; name: string; exchange?: string; currency?: string; confidence?: number; reason?: string; verified?: boolean };
+  const [aiCandidates, setAiCandidates] = useState<AiCandidate[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const askAiToFind = async () => {
+    const q = symbolSearch.trim();
+    if (!q) return;
+    setAiLoading(true); setAiError(null); setAiCandidates([]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-symbol-finder`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` }),
+        },
+        body: JSON.stringify({ query: q }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `AI ${r.status}`);
+      setAiCandidates((j?.candidates ?? []) as AiCandidate[]);
+      if (!j?.candidates?.length) setAiError("No candidates found. Try adding the exchange (e.g. 'on Milan').");
+    } catch (e: any) {
+      setAiError(e?.message || 'AI lookup failed');
+    } finally { setAiLoading(false); }
+  };
+  // Clear AI candidates when query changes
+  useEffect(() => { setAiCandidates([]); setAiError(null); }, [symbolSearch]);
+
   const toggleAddForm = () => {
     const shouldOpen = !showAddForm;
     console.log("[Portfolio] toggleAddForm clicked", { from: showAddForm, to: shouldOpen });

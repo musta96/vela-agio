@@ -1,5 +1,5 @@
 import {
-  Activity, Command as CommandIcon, ChevronDown, Menu,
+  Command as CommandIcon, ChevronDown, Menu,
   Home, Bot, Sparkles, Briefcase, Globe2, Search,
   GitCompare, Grid3x3, Heart, LineChart, Filter, Layers,
   FileText, CalendarDays, UserSearch, FlaskConical, Clock,
@@ -28,6 +28,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { VelaLogo } from "@/components/VelaLogo";
 
 type Item = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; flag?: string };
 type Group = { label: string; icon: React.ComponentType<{ className?: string }>; items: Item[] };
@@ -134,8 +135,7 @@ export const TopNav = () => {
             <SheetContent side="left" className="w-[88vw] sm:w-[360px] p-0">
               <SheetHeader className="px-4 py-3 border-b">
                 <SheetTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  <span className="text-gradient">FTSE MIB Analytics</span>
+                  <VelaLogo size={24} />
                 </SheetTitle>
               </SheetHeader>
               <ScrollArea className="h-[calc(100vh-3.25rem)]">
@@ -162,11 +162,8 @@ export const TopNav = () => {
             </SheetContent>
           </Sheet>
 
-          <Link to="/" className="flex items-center gap-2 min-w-0">
-            <Activity className="h-6 w-6 text-primary shrink-0" />
-            <span className="text-base sm:text-lg font-bold text-gradient hidden sm:inline truncate">
-              FTSE MIB Analytics
-            </span>
+          <Link to="/" className="flex items-center min-w-0" aria-label="Vela.ai home">
+            <VelaLogo size={26} />
           </Link>
         </div>
 

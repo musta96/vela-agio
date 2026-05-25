@@ -7,8 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { Receipt } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function TaxHarvest() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [holdings, setHoldings] = useState<any[]>([]);
 
@@ -37,13 +39,13 @@ export default function TaxHarvest() {
       <SEO title="Tax-Loss Harvesting | FTSE MIB Analytics" description="Realise losses to offset capital gains" path="/tax-harvest" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Receipt className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Tax-Loss Harvesting</h1></div>
+        <div className="flex items-center gap-3"><Receipt className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.taxHarvest.title")}</h1></div>
         <Card><CardContent className="p-6 grid md:grid-cols-3 gap-4">
-          <div><div className="text-sm text-muted-foreground">Unrealised losses</div><div className="text-2xl font-mono text-bear">€{totalLoss.toFixed(0)}</div></div>
-          <div><div className="text-sm text-muted-foreground">Estimated tax benefit (26% IT)</div><div className="text-2xl font-mono text-bull">€{taxBenefit.toFixed(0)}</div></div>
-          <div><div className="text-sm text-muted-foreground">Eligible positions</div><div className="text-2xl font-mono">{losers.length}</div></div>
+          <div><div className="text-sm text-muted-foreground">{t("pages.taxHarvest.unrealised")}</div><div className="text-2xl font-mono text-bear">€{totalLoss.toFixed(0)}</div></div>
+          <div><div className="text-sm text-muted-foreground">{t("pages.taxHarvest.benefit")}</div><div className="text-2xl font-mono text-bull">€{taxBenefit.toFixed(0)}</div></div>
+          <div><div className="text-sm text-muted-foreground">{t("pages.taxHarvest.eligible")}</div><div className="text-2xl font-mono">{losers.length}</div></div>
         </CardContent></Card>
-        <Card><CardHeader><CardTitle>Harvest candidates</CardTitle></CardHeader><CardContent className="space-y-2">
+        <Card><CardHeader><CardTitle>{t("pages.taxHarvest.candidates")}</CardTitle></CardHeader><CardContent className="space-y-2">
           {losers.map((x: any) => (
             <div key={x.symbol} className="flex items-center justify-between border-b pb-2">
               <div><div className="font-semibold">{x.symbol}</div><div className="text-xs text-muted-foreground">{x.name}</div></div>
@@ -54,9 +56,9 @@ export default function TaxHarvest() {
               </div>
             </div>
           ))}
-          {!losers.length && <p className="text-muted-foreground">No losing positions detected.</p>}
+          {!losers.length && <p className="text-muted-foreground">{t("pages.taxHarvest.none")}</p>}
         </CardContent></Card>
-        <p className="text-xs text-muted-foreground">Heuristic only. Watch the 30-day wash-sale equivalent and Italian "minusvalenze" 4-year window. This is not financial advice.</p>
+        <p className="text-xs text-muted-foreground">{t("pages.taxHarvest.footer")} {t("common.notFinancialAdvice")}</p>
       </main>
     </div>
   );

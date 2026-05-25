@@ -8,14 +8,14 @@ import { Bot, Send, User as UserIcon, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
+import { useTranslation } from "react-i18next";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 export default function Copilot() {
+  const { t } = useTranslation();
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "I'm your investment research copilot. I have read access to your portfolio and watchlist. Ask me about concentration risk, factor tilts, sector exposure, or specific names." },
-  ]);
+  const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: t("pages.copilot.intro") }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [ctx, setCtx] = useState<{ portfolio: any[]; watchlist: any[] }>({ portfolio: [], watchlist: [] });
@@ -70,7 +70,7 @@ export default function Copilot() {
       <SEO title="AI Copilot | FTSE MIB Analytics" description="Chat with your portfolio-aware investment copilot" path="/copilot" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 flex-1 flex flex-col max-w-4xl w-full">
-        <div className="flex items-center gap-3 mb-4"><Bot className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Research Copilot</h1></div>
+        <div className="flex items-center gap-3 mb-4"><Bot className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.copilot.title")}</h1></div>
         <Card className="flex-1 flex flex-col min-h-[60vh]">
           <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((m, i) => (
@@ -85,7 +85,7 @@ export default function Copilot() {
             <div ref={endRef} />
           </CardContent>
           <div className="border-t p-4 flex gap-2">
-            <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about your portfolio…" disabled={busy} />
+            <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder={t("pages.copilot.placeholder")} disabled={busy} />
             <Button onClick={send} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
           </div>
         </Card>

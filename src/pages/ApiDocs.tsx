@@ -2,6 +2,7 @@ import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Code2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const ENDPOINTS = [
   { name: "GET /v1/quote/:symbol", body: "Live quote (price, change, vol). Cached 30s." },
@@ -14,14 +15,15 @@ const ENDPOINTS = [
 ];
 
 export default function ApiDocs() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background">
       <SEO title="API & Webhooks | FTSE MIB Analytics" description="REST API + webhooks for institutional integration" path="/api" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6 max-w-4xl">
-        <div className="flex items-center gap-3"><Code2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">API & Webhooks</h1></div>
-        <p className="text-muted-foreground">Pull scores, screens and PDF reports into your own stack. Excel/Sheets add-in via the same endpoints.</p>
-        <Card><CardHeader><CardTitle>Authentication</CardTitle></CardHeader><CardContent>
+        <div className="flex items-center gap-3"><Code2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.api.title")}</h1></div>
+        <p className="text-muted-foreground">{t("pages.api.subtitle")}</p>
+        <Card><CardHeader><CardTitle>{t("pages.api.auth")}</CardTitle></CardHeader><CardContent>
           <pre className="bg-muted p-3 rounded text-xs overflow-x-auto">Authorization: Bearer YOUR_API_KEY</pre>
           <p className="text-sm mt-2 text-muted-foreground">Generate keys in Settings → API access (Pro/Advisor/Enterprise tiers).</p>
         </CardContent></Card>

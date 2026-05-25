@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CalendarDays, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Earnings() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,7 @@ export default function Earnings() {
       <SEO title="Earnings Calendar | FTSE MIB Analytics" description="Upcoming earnings, consensus, surprise history" path="/earnings" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><CalendarDays className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Earnings Calendar</h1></div>
+        <div className="flex items-center gap-3"><CalendarDays className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.earnings.title")}</h1></div>
         {loading && <Loader2 className="h-6 w-6 animate-spin" />}
         <div className="grid md:grid-cols-2 gap-4">
           {events.map(e => (
@@ -44,11 +46,11 @@ export default function Earnings() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                {e.epsEstimate != null && <div>EPS estimate: <span className="font-mono">{e.epsEstimate?.toFixed(2)}</span></div>}
-                {e.growth != null && <div>YoY growth est: <span className="font-mono">{(e.growth * 100).toFixed(1)}%</span></div>}
+                {e.epsEstimate != null && <div>{t("pages.earnings.epsEstimate")}: <span className="font-mono">{e.epsEstimate?.toFixed(2)}</span></div>}
+                {e.growth != null && <div>{t("pages.earnings.yoyGrowth")}: <span className="font-mono">{(e.growth * 100).toFixed(1)}%</span></div>}
                 {e.history?.length > 0 && (
                   <div className="pt-2 border-t mt-2">
-                    <div className="text-xs text-muted-foreground mb-1">Recent surprises</div>
+                    <div className="text-xs text-muted-foreground mb-1">{t("pages.earnings.recentSurprises")}</div>
                     {e.history.slice(0, 4).map((h: any, i: number) => (
                       <div key={i} className="flex justify-between font-mono text-xs">
                         <span>{h.period}</span>

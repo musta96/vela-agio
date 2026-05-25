@@ -4,6 +4,7 @@ import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { Globe2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const GROUPS: { title: string; symbols: { s: string; label: string }[] }[] = [
   { title: "Rates", symbols: [
@@ -24,6 +25,7 @@ const GROUPS: { title: string; symbols: { s: string; label: string }[] }[] = [
 ];
 
 export default function Macro() {
+  const { t } = useTranslation();
   const allSyms = GROUPS.flatMap(g => g.symbols.map(x => x.s));
   const { quotes } = useLiveQuotes(allSyms, 30_000);
 
@@ -32,10 +34,10 @@ export default function Macro() {
       <SEO title="Macro Dashboard | FTSE MIB Analytics" description="Rates, FX, commodities, credit, vol" path="/macro" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Globe2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Macro & Cross-Asset</h1></div>
+        <div className="flex items-center gap-3"><Globe2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.macro.title")}</h1></div>
         {GROUPS.map(g => (
           <div key={g.title}>
-            <h2 className="text-lg font-semibold mb-2">{g.title}</h2>
+            <h2 className="text-lg font-semibold mb-2">{t(`pages.macro.groups.${g.title}`, g.title)}</h2>
             <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
               {g.symbols.map(({ s, label }) => {
                 const q = quotes[s];

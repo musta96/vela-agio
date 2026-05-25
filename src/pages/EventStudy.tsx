@@ -9,8 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrendingUp, Loader2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import type { OHLCBar } from "@/lib/technicalIndicators";
+import { useTranslation } from "react-i18next";
 
 export default function EventStudy() {
+  const { t } = useTranslation();
   const [symbol, setSymbol] = useState("AAPL");
   const [dates, setDates] = useState("2024-10-31,2024-08-01,2024-05-02");
   const [window, setWindow] = useState(10);
@@ -47,15 +49,15 @@ export default function EventStudy() {
       <SEO title="Event Study | FTSE MIB Analytics" description="Average abnormal return around events" path="/event-study" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><TrendingUp className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Event Study</h1></div>
+        <div className="flex items-center gap-3"><TrendingUp className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.eventStudy.title")}</h1></div>
         <Card><CardContent className="p-4 grid md:grid-cols-4 gap-3">
           <div><Label>Ticker</Label><Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} /></div>
-          <div className="md:col-span-2"><Label>Event dates (comma-separated)</Label><Input value={dates} onChange={e => setDates(e.target.value)} /></div>
-          <div><Label>Window (days)</Label><Input type="number" value={window} onChange={e => setWindow(+e.target.value)} /></div>
+          <div className="md:col-span-2"><Label>{t("pages.eventStudy.dates")}</Label><Input value={dates} onChange={e => setDates(e.target.value)} /></div>
+          <div><Label>{t("pages.eventStudy.window")}</Label><Input type="number" value={window} onChange={e => setWindow(+e.target.value)} /></div>
         </CardContent></Card>
-        <Button onClick={run} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Run Study"}</Button>
+        <Button onClick={run} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("pages.eventStudy.run")}</Button>
         {series.length > 0 && (
-          <Card><CardHeader><CardTitle>Average cumulative return around event (%)</CardTitle></CardHeader><CardContent>
+          <Card><CardHeader><CardTitle>{t("pages.eventStudy.chartTitle")}</CardTitle></CardHeader><CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={series}><CartesianGrid strokeDasharray="3 3" opacity={0.2} /><XAxis dataKey="t" /><YAxis tickFormatter={v => `${v.toFixed(1)}%`} /><Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
                 <ReferenceLine x={0} stroke="hsl(var(--primary))" strokeDasharray="3 3" />

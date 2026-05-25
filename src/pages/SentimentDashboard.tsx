@@ -176,6 +176,11 @@ const SentimentDashboard = () => {
                 <CardContent>
                   <div className={`text-5xl font-bold ${scoreColor(result.score)}`}>{Math.round(result.score)}</div>
                   <p className="text-sm text-muted-foreground mt-1 capitalize">{result.label}</p>
+                  {typeof result.weightedScore === "number" && result.weightedScore !== Math.round(result.score) && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Source-weighted: <span className={`font-semibold ${scoreColor(result.weightedScore)}`}>{result.weightedScore}</span>
+                    </p>
+                  )}
                 </CardContent>
               </Card>
               <Card className="card-gradient border-border md:col-span-2">
@@ -183,6 +188,154 @@ const SentimentDashboard = () => {
                 <CardContent><p className="text-foreground">{result.summary || "No summary."}</p></CardContent>
               </Card>
             </div>
+
+            {/* Wave 4: Momentum + Tier breakdown + Divergence */}
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <Card className="card-gradient border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Activity className="h-4 w-4" /> Sentiment Momentum
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {result.momentum && result.momentum.history.length >= 2 ? (
+                    <>
+                      <div className="flex items-baseline gap-3 mb-2">
+                        <div className={`text-2xl font-bold ${
+                          result.momentum.trend === "improving" ? "text-success"
+                          : result.momentum.trend === "deteriorating" ? "text-destructive"
+                          : "text-foreground"
+                        }`}>
+                          {result.momentum.d7 !== null ? (result.momentum.d7 > 0 ? "+" : "") + result.momentum.d7.toFixed(0) : "—"}
+                        </div>
+                        <span className="text-xs text-muted-foreground">7d</span>
+                        <div className="text-lg font-semibold text-muted-foreground">
+                          {result.momentum.d30 !== null ? (result.momentum.d30 > 0 ? "+" : "") + result.momentum.d30.toFixed(0) : "—"}
+                        </div>
+                        <span className="text-xs text-muted-foreground">30d</span>
+                      </div>
+                      <div className="h-16 -mx-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={result.momentum.history}>
+                            <YAxis domain={[0, 100]} hide />
+                            <Tooltip
+                              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
+                              labelFormatter={(v) => new Date(v).toLocaleString()}
+                              formatter={(v: any) => [Math.round(v), "Score"]}
+                            />
+                            <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 capitalize">{result.momentum.trend.replace(/_/g, " ")}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Building history… momentum will appear after a few snapshots.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="card-gradient border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">Source Tier Breakdown</CardTitle>
+                  <CardDescription className="text-xs">Institutional vs mainstream vs retail/social</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {(["tier1", "tier2", "tier3"] as const).map((k, idx) => {
+                    const labels = ["Institutional (Bloomberg, FT, Reuters, Morningstar…)", "Mainstream press", "Retail / social (Reddit, X)"];
+                    const v = result.tierBreakdown?.[k];
+                    const c = result.tierBreakdown?.[`${k}Count` as "tier1Count" | "tier2Count" | "tier3Count"] ?? 0;
+                    return (
+                      <div key={k} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground truncate pr-2">{labels[idx]}</span>
+                        <span className="flex items-center gap-2">
+                          <span className={`font-bold ${v !== null && v !== undefined ? scoreColor(v) : "text-muted-foreground"}`}>
+                            {v ?? "—"}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">{c}</Badge>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card className="card-gradient border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">Retail vs Institutional</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {result.divergence !== null && result.divergence !== undefined ? (
+                    <>
+                      <div className={`text-3xl font-bold ${
+                        Math.abs(result.divergence) >= 15
+                          ? result.divergence > 0 ? "text-warning" : "text-destructive"
+                          : "text-foreground"
+                      }`}>
+                        {result.divergence > 0 ? "+" : ""}{result.divergence.toFixed(0)}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {Math.abs(result.divergence) < 10
+                          ? "Aligned — retail and institutional read the story similarly."
+                          : result.divergence > 0
+                          ? "Retail is more bullish than institutional. Watch for crowded longs."
+                          : "Retail is more bearish than institutional. Possible capitulation / contrarian setup."}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Not enough coverage from both retail and institutional sources.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Wave 4: Institutional ownership (SEC EDGAR) */}
+            <Card className="mb-8 card-gradient border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" /> Institutional Ownership Filings
+                </CardTitle>
+                <CardDescription>SEC EDGAR (US tickers): Schedule 13D / 13G disclosures (&gt;5% holders)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {holdingsLoading && <p className="text-sm text-muted-foreground">Loading SEC filings…</p>}
+                {!holdingsLoading && holdings && !holdings.supported && (
+                  <p className="text-sm text-muted-foreground">{holdings.reason}</p>
+                )}
+                {!holdingsLoading && holdings?.supported && (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{holdings.issuer?.name}</span>
+                      <Badge variant="outline" className="text-[10px]">CIK {holdings.issuer?.cik}</Badge>
+                    </div>
+                    {holdings.recentOwnershipFilings?.length ? (
+                      <div className="space-y-2 max-h-72 overflow-auto">
+                        {holdings.recentOwnershipFilings.map((f: any, i: number) => (
+                          <a
+                            key={i}
+                            href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${holdings.issuer.cik}&type=${encodeURIComponent(f.form)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center justify-between p-2 rounded-md border border-border hover:border-primary/40 hover:bg-accent/10 text-sm"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px]">{f.form}</Badge>
+                              <span className="truncate">{f.name}</span>
+                            </span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-2">
+                              {f.filedAt} <ExternalLink className="h-3 w-3" />
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No recent &gt;5% ownership filings.</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-3 italic">{holdings.note}</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
             {result.drivers?.length > 0 && (
               <Card className="mb-8 card-gradient border-border">

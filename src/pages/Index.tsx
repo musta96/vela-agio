@@ -217,6 +217,21 @@ export default function Index() {
         {/* AI briefing band — personalised from portfolio + watchlist + saved focus */}
         <AIBriefing />
 
+        {/* Compact suggestions for the primary portfolio */}
+        {user && holdings.length > 0 && (
+          <PortfolioSuggestions
+            compact
+            portfolioId={primary?.id ?? null}
+            portfolioName={primary?.name ?? "Main portfolio"}
+            holdings={holdings.map((h) => ({
+              symbol: h.symbol,
+              name: h.name || h.symbol,
+              shares: Number(h.shares) || 0,
+              avg_price: Number(h.avg_price) || 0,
+            }))}
+          />
+        )}
+
         {/* Chart + watchlist */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="lg:col-span-2 p-5 bg-card border-border">

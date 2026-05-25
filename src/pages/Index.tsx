@@ -2,9 +2,10 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Card } from "@/components/ui/card";
-import { Sparkles, TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
+import { AIBriefing } from "@/components/AIBriefing";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },

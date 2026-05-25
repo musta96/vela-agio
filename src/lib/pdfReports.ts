@@ -536,7 +536,7 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
       ["Beta", f.beta],
       ["52w high", f.fiftyTwoWeekHigh],
       ["52w low", f.fiftyTwoWeekLow],
-    ].filter(([, v]) => v != null && v !== "");
+    ].filter(([, v]) => v != null && v !== "") as Array<[string, any]>;
     if (labels.length) {
       y = section(doc, y, "Fundamentals snapshot");
       autoTable(doc, {

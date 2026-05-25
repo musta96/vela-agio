@@ -44,7 +44,7 @@ export default function Copilot() {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/copilot`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "" },
-        body: JSON.stringify({ messages: next, portfolio: ctx.portfolio, watchlist: ctx.watchlist }),
+        body: JSON.stringify({ messages: next, portfolio: ctx.portfolio, watchlist: ctx.watchlist, lang: i18n.resolvedLanguage }),
       });
       if (!r.ok || !r.body) throw new Error("Stream failed");
       const reader = r.body.getReader(); const dec = new TextDecoder();

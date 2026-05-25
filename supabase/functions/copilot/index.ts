@@ -5,8 +5,10 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const { messages, portfolio, watchlist } = await req.json();
+    const { messages, portfolio, watchlist, lang } = await req.json();
+    const langName = lang === "it" ? "Italian" : "English";
     const sys = `You are the user's personal investment research copilot for the FTSE MIB Analytics platform.
+ALWAYS respond in ${langName}.
 You have full read access to the user's portfolio and watchlist provided in context.
 Be specific, number-driven, and balanced. Cite metrics. Always end with: "This is not financial advice."
 

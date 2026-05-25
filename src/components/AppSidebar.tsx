@@ -4,9 +4,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper, Wallet as WalletIcon,
-  Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon,
+  Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,8 @@ function NavGroup({ label, items }: { label: string; items: Item[] }) {
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { user } = useAuth();
+  const isOwner = (user?.email || "").toLowerCase() === "mustarelli.edoardo@gmail.com";
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border">
@@ -118,6 +121,9 @@ export function AppSidebar() {
         <NavGroup label="Analysis" items={ANALYSIS} />
         <NavGroup label="Intelligence" items={INTELLIGENCE} />
         <NavGroup label="More" items={MORE} />
+        {isOwner && (
+          <NavGroup label="Founder" items={[{ title: "Owner Console", url: "/owner", icon: Crown, badge: "you" }]} />
+        )}
       </SidebarContent>
       {!collapsed && (
         <SidebarFooter className="border-t border-sidebar-border p-3">

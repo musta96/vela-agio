@@ -152,6 +152,85 @@ export function atr(bars: OHLCBar[], period = 14): (number | null)[] {
   return out;
 }
 
+// ---------- Volume indicators ----------
+
+// On-Balance Volume
+export function obv(bars: OHLCBar[]): (number | null)[] {
+  const out: (number | null)[] = new Array(bars.length).fill(null);
+  let v = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const vol = bars[i].volume ?? 0;
+    if (i === 0) { out[i] = 0; continue; }
+    if (bars[i].close > bars[i - 1].close) v += vol;
+    else if (bars[i].close < bars[i - 1].close) v -= vol;
+    out[i] = v;
+  }
+  return out;
+}
+
+// Accumulation/Distribution line
+export function ad(bars: OHLCBar[]): (number | null)[] {
+  const out: (number | null)[] = new Array(bars.length).fill(null);
+  let acc = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const { high, low, close, volume = 0 } = bars[i];
+    const range = high - low;
+    const clv = range === 0 ? 0 : ((close - low) - (high - close)) / range;
+    acc += clv * volume;
+    out[i] = acc;
+  }
+  return out;
+}
+
+// VWAP (session-less rolling, useful for intraday). For daily bars it's a running anchored VWAP.
+export function vwap(bars: OHLCBar[]): (number | null)[] {
+  const out: (number | null)[] = new Array(bars.length).fill(null);
+  let cumPV = 0, cumV = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const v = bars[i].volume ?? 0;
+    const typical = (bars[i].high + bars[i].low + bars[i].close) / 3;
+    cumPV += typical * v;
+    cumV += v;
+    out[i] = cumV > 0 ? cumPV / cumV : null;
+  }
+  return out;
+}
+
+export interface VolumeStats {
+  lastVolume: number;
+  avg20: number;
+  ratio: number;            // last / avg20
+  spike: boolean;           // ratio > 2
+  weak: boolean;            // ratio < 0.5
+  obvSlopePct: number;      // % change in OBV over last 20 bars
+  dollarVolume20: number;   // avg 20d $ volume
+}
+
+export function volumeStats(bars: OHLCBar[]): VolumeStats | null {
+  const vols = bars.map((b) => b.volume ?? 0);
+  if (vols.length < 21 || vols.every((v) => v === 0)) return null;
+  const n = vols.length;
+  const last = vols[n - 1];
+  const recent = vols.slice(Math.max(0, n - 21), n - 1);
+  const avg20 = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const ratio = avg20 > 0 ? last / avg20 : 0;
+  const obvArr = obv(bars);
+  const obvNow = obvArr[n - 1] ?? 0;
+  const obvPast = obvArr[Math.max(0, n - 21)] ?? 0;
+  const obvSlopePct = obvPast !== 0 ? ((obvNow - obvPast) / Math.abs(obvPast)) * 100 : 0;
+  const dollarVolume20 =
+    bars.slice(-20).reduce((acc, b) => acc + (b.volume ?? 0) * b.close, 0) / Math.min(20, bars.length);
+  return {
+    lastVolume: last,
+    avg20,
+    ratio,
+    spike: ratio > 2,
+    weak: ratio < 0.5,
+    obvSlopePct,
+    dollarVolume20,
+  };
+}
+
 // ---------- Support / Resistance via swing pivots ----------
 export interface PivotLevel {
   price: number;

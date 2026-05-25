@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TopNav } from "@/components/TopNav";
-import { Activity, MessageSquare, Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
+import { Activity, MessageSquare, Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Sparkles, Building2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
 import { useSearchParams } from "react-router-dom";
+import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 
 interface Article {
   title: string; link: string; source: string; pubDate: string;

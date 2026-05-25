@@ -308,8 +308,8 @@ export default function Landing() {
             <ul className="space-y-2 text-muted-foreground">
               <li><a href="#features" className="hover:text-foreground">Features</a></li>
               <li><a href="#pricing" className="hover:text-foreground">Pricing</a></li>
-              <li><Link to="/learn" className="hover:text-foreground">Learn</Link></li>
-              <li><Link to="/methodology" className="hover:text-foreground">Methodology</Link></li>
+              <li><a href="#audiences" className="hover:text-foreground">Who it's for</a></li>
+              <li><a href="#faq" className="hover:text-foreground">FAQ</a></li>
             </ul>
           </div>
           <div>

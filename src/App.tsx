@@ -49,6 +49,11 @@ import { PortfoliosProvider } from "./hooks/usePortfolios";
 import AdminSettings from "./pages/AdminSettings";
 import Advisor from "./pages/Advisor";
 import AppShell from "./components/AppShell";
+import Privacy from "./pages/legal/Privacy";
+import Terms from "./pages/legal/Terms";
+import Disclaimer from "./pages/legal/Disclaimer";
+import Cookies from "./pages/legal/Cookies";
+import { ConsentBanner } from "./components/ConsentBanner";
 
 const queryClient = new QueryClient();
 
@@ -61,8 +66,13 @@ const App = () => (
         <AuthProvider>
         <FeatureFlagsProvider>
         <PortfoliosProvider>
+        <ConsentBanner />
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/disclaimer" element={<Disclaimer />} />
+          <Route path="/cookies" element={<Cookies />} />
           <Route element={<AppShell />}>
             <Route path="/" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

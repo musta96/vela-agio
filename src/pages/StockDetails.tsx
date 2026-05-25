@@ -637,6 +637,30 @@ const StockDetails = () => {
                       </div>
                     </div>
 
+                    {/* Liquidity */}
+                    {deep.liquidity && (
+                      <div className="p-3 rounded-lg border border-border/50 flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="text-sm font-semibold">Liquidity</p>
+                          <p className="text-xs text-muted-foreground">
+                            Avg daily volume {(deep.liquidity.avgVolume / 1e6).toFixed(2)}M shares · ${(deep.liquidity.avgDollarVolume / 1e6).toFixed(1)}M traded/day
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            deep.liquidity.tier === "very-liquid" || deep.liquidity.tier === "liquid"
+                              ? "text-success border-success/30 bg-success/10"
+                              : deep.liquidity.tier === "moderate"
+                              ? "text-foreground border-border"
+                              : "text-destructive border-destructive/30 bg-destructive/10"
+                          }
+                        >
+                          {deep.liquidity.tier.toUpperCase()}
+                        </Badge>
+                      </div>
+                    )}
+
                     {/* Analyst targets */}
                     {(deep.fundamentals.targetMeanPrice || deep.fundamentals.numberOfAnalystOpinions) && (
                       <div className="p-3 rounded-lg border border-border/50">

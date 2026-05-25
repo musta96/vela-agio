@@ -6,6 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AuthButton } from "@/components/AuthButton";
 import { CommandPalette } from "@/components/CommandPalette";
+import { LegalFooter } from "@/components/LegalFooter";
 
 export default function AppShell() {
   return (
@@ -40,6 +41,7 @@ export default function AppShell() {
 
           <main className="flex-1 min-w-0">
             <Outlet />
+            <LegalFooter />
           </main>
         </div>
       </div>

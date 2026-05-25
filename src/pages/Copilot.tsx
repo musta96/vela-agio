@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 type Msg = { role: "user" | "assistant"; content: string };
 
 export default function Copilot() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: t("pages.copilot.intro") }]);
   const [input, setInput] = useState("");

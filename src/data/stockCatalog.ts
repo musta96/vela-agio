@@ -259,6 +259,53 @@ export const STOCK_CATALOG: CatalogEntry[] = [
   { symbol: "EIMI.L", name: "iShares Core MSCI EM IMI UCITS", market: "ETF", currency: "USD" },
   { symbol: "EXSA.DE", name: "iShares STOXX Europe 600 UCITS", market: "ETF", currency: "EUR" },
   { symbol: "FTSEMIB.MI", name: "FTSE MIB Index", market: "ETF", currency: "EUR" },
+
+  // --- Borsa Italiana dual-listed US single stocks (XMIL "1xxxx.MI") ---
+  // Issued by various banks (Société Générale, UniCredit, Vontobel) — same underlying
+  // economic exposure as the US share but priced and settled in EUR on the Milan exchange.
+  { symbol: "1PLTR.MI", name: "Palantir Technologies (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1NVDA.MI", name: "NVIDIA (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1AAPL.MI", name: "Apple (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1MSFT.MI", name: "Microsoft (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1AMZN.MI", name: "Amazon (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1GOOGL.MI", name: "Alphabet Class A (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1META.MI", name: "Meta Platforms (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1TSLA.MI", name: "Tesla (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1NFLX.MI", name: "Netflix (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1AMD.MI", name: "Advanced Micro Devices (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1COIN.MI", name: "Coinbase (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1MSTR.MI", name: "MicroStrategy (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1BABA.MI", name: "Alibaba (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1NIO.MI", name: "NIO (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1AVGO.MI", name: "Broadcom (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1SHOP.MI", name: "Shopify (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1UBER.MI", name: "Uber (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+  { symbol: "1DIS.MI", name: "Walt Disney (Milan listing)", market: "FTSE MIB", currency: "EUR" },
+
+  // --- Thematic / crypto-blockchain UCITS ETFs (commonly requested) ---
+  { symbol: "BCHN.MI", name: "Invesco CoinShares Global Blockchain UCITS ETF (EUR, Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "BCHS.MI", name: "Invesco CoinShares Global Blockchain UCITS ETF Acc (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "BCHN.L", name: "Invesco CoinShares Global Blockchain UCITS ETF (USD, LSE)", market: "ETF", currency: "USD" },
+  { symbol: "BLOC.MI", name: "iShares Blockchain Technology UCITS ETF (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "BLKC.L", name: "iShares Blockchain Technology UCITS ETF (LSE)", market: "ETF", currency: "USD" },
+  { symbol: "WGLD.MI", name: "WisdomTree Physical Gold (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "BTCE.DE", name: "ETC Group Physical Bitcoin (Xetra)", market: "ETF", currency: "EUR" },
+  { symbol: "ZETH.MI", name: "21Shares Ethereum ETP (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "ABTC.MI", name: "21Shares Bitcoin ETP (Milan)", market: "ETF", currency: "EUR" },
+
+  // --- More EU-listed broad/thematic UCITS ETFs ---
+  { symbol: "IWDA.AS", name: "iShares Core MSCI World UCITS (USD, Amsterdam)", market: "ETF", currency: "USD" },
+  { symbol: "SWDA.MI", name: "iShares Core MSCI World UCITS (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "VWCE.MI", name: "Vanguard FTSE All-World UCITS (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "CSPX.MI", name: "iShares Core S&P 500 UCITS (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "EUNL.MI", name: "iShares Core MSCI World UCITS Acc (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "AGGH.MI", name: "iShares Core Global Aggregate Bond UCITS (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "IBGL.MI", name: "iShares EUR Govt Bond 15-30y UCITS (Milan)", market: "ETF", currency: "EUR" },
+  { symbol: "XAIX.DE", name: "Xtrackers AI & Big Data UCITS (Xetra)", market: "ETF", currency: "EUR" },
+  { symbol: "WCLD.L", name: "WisdomTree Cloud Computing UCITS (LSE)", market: "ETF", currency: "USD" },
+  { symbol: "ROBO.L", name: "iShares Automation & Robotics UCITS (LSE)", market: "ETF", currency: "USD" },
+  { symbol: "INRG.L", name: "iShares Global Clean Energy UCITS (LSE)", market: "ETF", currency: "USD" },
+  { symbol: "WAT.L", name: "iShares Global Water UCITS (LSE)", market: "ETF", currency: "USD" },
 ];
 
 export const findCatalogEntry = (symbol: string): CatalogEntry | undefined =>

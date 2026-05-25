@@ -213,12 +213,13 @@ function ddmValuation(f: ReturnType<typeof extractFundamentals>) {
   };
 }
 
-async function aiNarrative(symbol: string, name: string, f: any, dcf: any, ddm: any) {
+async function aiNarrative(symbol: string, name: string, f: any, dcf: any, ddm: any, liquidity: any) {
   const system = `You are a senior equity research analyst. Be concise, balanced, and number-driven. Return STRICT JSON only.`;
   const user = `Stock: ${name} (${symbol})
 Fundamentals (compact JSON): ${JSON.stringify(f)}
 DCF result: ${JSON.stringify(dcf)}
 DDM result: ${JSON.stringify(ddm)}
+Liquidity profile: ${JSON.stringify(liquidity)} — if tier is "thin" or "illiquid", call out tradability/liquidity risk explicitly in risks.
 
 Return JSON with shape:
 {

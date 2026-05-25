@@ -465,6 +465,17 @@ const StockDetails = () => {
             )}
           </TabsContent>
 
+          {/* RISK */}
+          <TabsContent value="risk" className="space-y-6">
+            <RiskPanel
+              bars={bars}
+              weeklyBars={weeklyBars}
+              benchBars={benchBars}
+              benchLabel={bench.label}
+              currencySign={sign}
+            />
+          </TabsContent>
+
           {/* DEEP ANALYSIS */}
           <TabsContent value="deep" className="space-y-6">
             <Card>

@@ -24,8 +24,8 @@ export default function EventStudy() {
     const events = dates.split(",").map(s => s.trim()).filter(Boolean);
     const aligned: number[][] = [];
     for (const ev of events) {
-      const evTs = new Date(ev).getTime() / 1000;
-      let idx = bars.findIndex(b => b.time >= evTs);
+      const evTs = new Date(ev).getTime();
+      let idx = bars.findIndex(b => b.t >= evTs);
       if (idx < 0) continue;
       const slice = bars.slice(Math.max(0, idx - window), idx + window + 1);
       if (slice.length < window * 2 + 1) continue;

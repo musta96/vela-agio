@@ -127,6 +127,17 @@ const Portfolio = () => {
   const [symbolPickerOpen, setSymbolPickerOpen] = useState(false);
   const selectedCatalog = STOCK_CATALOG.find((s) => s.symbol === newStock.symbol);
 
+  const toggleAddForm = () => {
+    const shouldOpen = !showAddForm;
+    setShowAddForm(shouldOpen);
+    setSymbolPickerOpen(shouldOpen);
+  };
+
+  const closeAddForm = () => {
+    setShowAddForm(false);
+    setSymbolPickerOpen(false);
+  };
+
   const handleAddStock = () => {
     if (!newStock.symbol || !newStock.shares || !newStock.avgPrice) {
       toast({
@@ -164,7 +175,7 @@ const Portfolio = () => {
     }
 
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
-    setShowAddForm(false);
+    closeAddForm();
     
     toast({
       title: "Stock Added",
@@ -253,7 +264,7 @@ const Portfolio = () => {
               )}
             </p>
           </div>
-          <Button onClick={() => setShowAddForm(!showAddForm)} className="gap-2 hover-scale">
+          <Button onClick={toggleAddForm} className="gap-2 hover-scale">
             <Plus className="h-4 w-4" />
             Add Stock
           </Button>
@@ -378,7 +389,7 @@ const Portfolio = () => {
               </div>
               <div className="flex items-end gap-2">
                 <Button onClick={handleAddStock} className="flex-1">Add</Button>
-                <Button variant="outline" onClick={() => setShowAddForm(false)}>Cancel</Button>
+                <Button variant="outline" onClick={closeAddForm}>Cancel</Button>
               </div>
             </div>
           </Card>
@@ -391,7 +402,7 @@ const Portfolio = () => {
               <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No stocks in portfolio</h3>
               <p className="text-muted-foreground mb-4">Start building your portfolio by adding stocks</p>
-              <Button onClick={() => setShowAddForm(true)} className="gap-2">
+              <Button onClick={() => { setShowAddForm(true); setSymbolPickerOpen(true); }} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Your First Stock
               </Button>

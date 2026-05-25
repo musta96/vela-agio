@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ import {
 } from "recharts";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
+import { useBenchmarkBars, benchmarkFor } from "@/hooks/useBenchmark";
+import { RiskPanel } from "@/components/RiskPanel";
 import { analyze, sma, type AnalysisSummary, type Signal } from "@/lib/technicalIndicators";
 import { findCatalogEntry, currencySign } from "@/data/stockCatalog";
 import { useWatchlist } from "@/hooks/useWatchlist";
@@ -108,6 +110,10 @@ const StockDetails = () => {
   const [range, setRange] = useState<OHLCRange>("1Y");
   const { quotes, refresh, lastUpdated } = useLiveQuotes(sym ? [sym] : [], 30000);
   const { bars, loading: chartLoading, error: chartError } = useOHLCHistory(sym || null, range);
+  // For risk tab: 2Y daily + 2Y weekly + benchmark
+  const { bars: weeklyBars } = useOHLCHistory(sym || null, "5Y");
+  const bench = benchmarkFor(market);
+  const { bars: benchBars } = useBenchmarkBars(sym ? bench.symbol : null, "2y", "1d");
   const live = quotes[sym];
 
   // Technical analysis
@@ -239,9 +245,10 @@ const StockDetails = () => {
 
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
             <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" />Overview</TabsTrigger>
             <TabsTrigger value="technicals" className="gap-1.5"><Activity className="h-4 w-4" />Technicals</TabsTrigger>
+            <TabsTrigger value="risk" className="gap-1.5"><ShieldAlert className="h-4 w-4" />Risk</TabsTrigger>
             <TabsTrigger value="deep" className="gap-1.5" onClick={() => { if (!deep && !deepLoading) fetchDeep(); }}><Calculator className="h-4 w-4" />Deep Analysis</TabsTrigger>
             <TabsTrigger value="sentiment" className="gap-1.5"><MessageSquare className="h-4 w-4" />Sentiment</TabsTrigger>
             <TabsTrigger value="sources" className="gap-1.5"><Globe className="h-4 w-4" />Sources</TabsTrigger>

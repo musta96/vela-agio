@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown } from "lucide-react";
+import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown } from "lucide-react";
+import { generatePortfolioReport } from "@/lib/pdfReports";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
@@ -296,6 +297,26 @@ const Portfolio = () => {
           >
             <Plus className="h-4 w-4" />
             Add Stock
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="gap-2 w-full sm:w-auto"
+            disabled={portfolio.length === 0}
+            onClick={() => {
+              generatePortfolioReport({
+                holdings: portfolio.map((p) => ({
+                  symbol: p.symbol,
+                  name: p.name,
+                  shares: p.shares,
+                  avgPrice: p.avgPrice,
+                  currentPrice: p.currentPrice,
+                })),
+              });
+              toast({ title: "PDF report generated" });
+            }}
+          >
+            <FileDown className="h-4 w-4" /> Export PDF
           </Button>
         </div>
 

@@ -9,19 +9,35 @@ import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper, Wallet as WalletIcon,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
+  ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState, useEffect } from "react";
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 
 const OVERVIEW: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Portfolio", url: "/portfolio", icon: Briefcase },
-  { title: "Net Worth", url: "/net-worth", icon: WalletIcon, badge: "new" },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
   { title: "Orders", url: "/orders", icon: History },
   { title: "Macro", url: "/macro", icon: Globe2 },
+];
+
+const NET_WORTH_SUB: Item[] = [
+  { title: "Overview", url: "/net-worth", icon: WalletIcon },
+  { title: "Cash & Equivalents", url: "/net-worth/cash", icon: Banknote },
+  { title: "Investments", url: "/net-worth/investments", icon: Briefcase },
+  { title: "Retirement", url: "/net-worth/retirement", icon: PiggyBank },
+  { title: "Crypto", url: "/net-worth/crypto", icon: Bitcoin },
+  { title: "Real Estate", url: "/net-worth/real_estate", icon: HomeIcon },
+  { title: "Vehicles", url: "/net-worth/vehicles", icon: Car },
+  { title: "Watches & Collectibles", url: "/net-worth/collectibles", icon: Watch },
+  { title: "Private Equity", url: "/net-worth/private_equity", icon: Building2 },
+  { title: "Other Assets", url: "/net-worth/other_assets", icon: Boxes },
+  { title: "Liabilities", url: "/net-worth/liabilities", icon: CreditCard },
 ];
 
 const ANALYSIS: Item[] = [
@@ -101,6 +117,84 @@ function NavGroup({ label, items }: { label: string; items: Item[] }) {
   );
 }
 
+function NetWorthCollapsible() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const { pathname } = useLocation();
+  const isActive = (url: string) => pathname === url || (url !== "/net-worth" && pathname.startsWith(url));
+  const onAnyNW = pathname.startsWith("/net-worth");
+  const [open, setOpen] = useState(onAnyNW);
+  useEffect(() => { if (onAnyNW) setOpen(true); }, [onAnyNW]);
+
+  if (collapsed) {
+    // In icon-collapsed mode, render parent as single icon entry that goes to overview.
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild tooltip="Net Worth">
+            <NavLink to="/net-worth" className={cn(
+              "flex items-center gap-2.5 rounded-none border-l-2 border-transparent px-4 py-2.5 text-[13px]",
+              onAnyNW
+                ? "border-l-[hsl(var(--sidebar-ring))] bg-[hsl(var(--sidebar-accent))] text-sidebar-foreground"
+                : "text-sidebar-foreground/55 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+            )}>
+              <WalletIcon className="h-4 w-4 shrink-0" />
+            </NavLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <CollapsibleTrigger asChild>
+            <button
+              className={cn(
+                "w-full flex items-center gap-2.5 rounded-none border-l-2 px-4 py-2.5 text-[13px] transition-colors",
+                onAnyNW
+                  ? "border-l-[hsl(var(--sidebar-ring))] bg-[hsl(var(--sidebar-accent))] text-sidebar-foreground"
+                  : "border-transparent text-sidebar-foreground/55 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              )}
+            >
+              <WalletIcon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 truncate text-left">Net Worth</span>
+              <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">new</span>
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            </button>
+          </CollapsibleTrigger>
+        </SidebarMenuItem>
+        <CollapsibleContent>
+          {NET_WORTH_SUB.map((it) => {
+            const active = isActive(it.url);
+            return (
+              <SidebarMenuItem key={it.url}>
+                <SidebarMenuButton asChild tooltip={it.title}>
+                  <NavLink
+                    to={it.url}
+                    end={it.url === "/net-worth"}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-none border-l-2 border-transparent pl-10 pr-4 py-2 text-[12px] transition-colors",
+                      active
+                        ? "border-l-[hsl(var(--sidebar-ring))] bg-[hsl(var(--sidebar-accent))] text-sidebar-foreground"
+                        : "text-sidebar-foreground/50 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                    )}
+                  >
+                    <it.icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex-1 truncate">{it.title}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </CollapsibleContent>
+      </SidebarMenu>
+    </Collapsible>
+  );
+}
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -118,6 +212,11 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="py-3">
         <NavGroup label="Overview" items={OVERVIEW} />
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <NetWorthCollapsible />
+          </SidebarGroupContent>
+        </SidebarGroup>
         <NavGroup label="Analysis" items={ANALYSIS} />
         <NavGroup label="Intelligence" items={INTELLIGENCE} />
         <NavGroup label="More" items={MORE} />

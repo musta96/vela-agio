@@ -90,7 +90,7 @@ export default function OrderHistory() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Order & Trade History — Vela" description="Review your live broker orders and trade history with symbol and date filters." />
+      <SEO title="Order & Trade History — Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
       <TopNav />
       <main className="container mx-auto px-4 py-6 space-y-4">
         <div className="flex items-center justify-between">

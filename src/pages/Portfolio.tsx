@@ -519,6 +519,7 @@ const Portfolio = () => {
 
       {/* Portfolio Header */}
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="mb-6"><BrokerSyncCard /></div>
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
           <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">

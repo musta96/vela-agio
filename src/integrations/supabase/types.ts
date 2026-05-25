@@ -468,6 +468,7 @@ export type Database = {
           category: string
           created_at: string
           currency: string
+          details: Json
           icon: string | null
           id: string
           include_in_total: boolean
@@ -476,6 +477,9 @@ export type Database = {
           manual_value: number | null
           name: string
           notes: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          quantity: number | null
           sort_order: number
           subcategory: string | null
           updated_at: string
@@ -485,6 +489,7 @@ export type Database = {
           category: string
           created_at?: string
           currency?: string
+          details?: Json
           icon?: string | null
           id?: string
           include_in_total?: boolean
@@ -493,6 +498,9 @@ export type Database = {
           manual_value?: number | null
           name: string
           notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          quantity?: number | null
           sort_order?: number
           subcategory?: string | null
           updated_at?: string
@@ -502,6 +510,7 @@ export type Database = {
           category?: string
           created_at?: string
           currency?: string
+          details?: Json
           icon?: string | null
           id?: string
           include_in_total?: boolean
@@ -510,6 +519,9 @@ export type Database = {
           manual_value?: number | null
           name?: string
           notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          quantity?: number | null
           sort_order?: number
           subcategory?: string | null
           updated_at?: string

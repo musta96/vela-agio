@@ -143,7 +143,7 @@ export const TopNav = () => {
                       <MobileLink key={it.to} item={it} active={isActive(it.to)} />
                     ))}
                   </div>
-                  {GROUPS.map(g => (
+                  {visibleGroups.map(g => (
                     <div key={g.label}>
                       <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <g.icon className="h-3 w-3" /> {g.label}
@@ -182,7 +182,7 @@ export const TopNav = () => {
               {l.label}
             </NavLink>
           ))}
-          {GROUPS.map(g => {
+          {visibleGroups.map(g => {
             const active = groupActive(g);
             return (
               <DropdownMenu key={g.label}>

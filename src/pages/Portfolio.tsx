@@ -135,21 +135,25 @@ const Portfolio = () => {
 
   const toggleAddForm = () => {
     const shouldOpen = !showAddForm;
+    console.log("[Portfolio] toggleAddForm clicked", { from: showAddForm, to: shouldOpen });
     setShowAddForm(shouldOpen);
     setSymbolPickerOpen(shouldOpen);
   };
 
   const closeAddForm = () => {
+    console.log("[Portfolio] closeAddForm");
     setShowAddForm(false);
     setSymbolPickerOpen(false);
   };
 
   const handleAddStock = async () => {
+    console.log("[Portfolio] handleAddStock invoked", { newStock, hasUser: !!user });
     const missing: string[] = [];
     if (!newStock.symbol) missing.push("symbol");
     if (!newStock.shares) missing.push("shares");
     if (!newStock.avgPrice) missing.push("average price");
     if (missing.length > 0) {
+      console.warn("[Portfolio] handleAddStock missing fields", missing);
       toast({
         title: "Missing required fields",
         description: `Please fill in: ${missing.join(", ")}.`,
@@ -160,6 +164,7 @@ const Portfolio = () => {
 
     const stockInfo = STOCK_CATALOG.find(s => s.symbol === newStock.symbol);
     if (!stockInfo) {
+      console.warn("[Portfolio] handleAddStock invalid symbol", newStock.symbol);
       toast({
         title: "Invalid symbol",
         description: `"${newStock.symbol}" was not found in the catalog. Pick one from the list.`,
@@ -171,6 +176,7 @@ const Portfolio = () => {
     const sharesNum = parseFloat(newStock.shares);
     const avg = parseFloat(newStock.avgPrice);
     if (!Number.isFinite(sharesNum) || sharesNum <= 0) {
+      console.warn("[Portfolio] handleAddStock invalid shares", newStock.shares);
       toast({
         title: "Invalid shares",
         description: "Shares must be a number greater than 0.",
@@ -179,6 +185,7 @@ const Portfolio = () => {
       return;
     }
     if (!Number.isFinite(avg) || avg <= 0) {
+      console.warn("[Portfolio] handleAddStock invalid avgPrice", newStock.avgPrice);
       toast({
         title: "Invalid average price",
         description: "Average price must be a number greater than 0.",
@@ -196,11 +203,13 @@ const Portfolio = () => {
     };
 
     if (user) {
+      console.log("[Portfolio] handleAddStock syncing to backend", added);
       const { error } = await supabase.from("portfolio_holdings").upsert({
         user_id: user.id, symbol: added.symbol, name: added.name,
         shares: added.shares, avg_price: added.avgPrice,
       }, { onConflict: "user_id,symbol" });
       if (error) {
+        console.error("[Portfolio] handleAddStock backend upsert failed", error);
         toast({
           title: "Couldn't save stock",
           description: error.message || "Failed to sync to your account. Please try again.",
@@ -208,8 +217,10 @@ const Portfolio = () => {
         });
         return;
       }
+      console.log("[Portfolio] handleAddStock backend upsert ok");
     }
 
+    console.log("[Portfolio] handleAddStock success — appending to portfolio", added);
     setPortfolio([...portfolio, added]);
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
     setSymbolSearch("");
@@ -302,7 +313,14 @@ const Portfolio = () => {
               )}
             </p>
           </div>
-          <Button onClick={toggleAddForm} size="lg" className="gap-2 hover-scale w-full sm:w-auto">
+          <Button
+            onClick={(e) => {
+              console.log("[Portfolio] Add Stock button click event", { target: e.target });
+              toggleAddForm();
+            }}
+            size="lg"
+            className="gap-2 hover-scale w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4" />
             Add Stock
           </Button>
@@ -353,7 +371,10 @@ const Portfolio = () => {
                   role="combobox"
                   aria-expanded={symbolPickerOpen}
                   className="w-full justify-between font-normal pointer-events-auto h-11"
-                  onClick={() => setSymbolPickerOpen((open) => !open)}
+                  onClick={() => {
+                    console.log("[Portfolio] symbol picker toggle", { wasOpen: symbolPickerOpen });
+                    setSymbolPickerOpen((open) => !open);
+                  }}
                 >
                   <span className="truncate">
                     {selectedCatalog
@@ -381,6 +402,7 @@ const Portfolio = () => {
                             type="button"
                             className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent pointer-events-auto"
                             onClick={() => {
+                              console.log("[Portfolio] symbol option clicked", stock.symbol);
                               setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
                               setSymbolSearch("");
                               setSymbolPickerOpen(false);
@@ -428,7 +450,16 @@ const Portfolio = () => {
               </div>
               <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-end gap-2">
                 <Button variant="outline" size="lg" onClick={closeAddForm} className="sm:w-auto">Cancel</Button>
-                <Button onClick={handleAddStock} size="lg" className="flex-1">Add</Button>
+                <Button
+                  onClick={() => {
+                    console.log("[Portfolio] Add (submit) button clicked");
+                    handleAddStock();
+                  }}
+                  size="lg"
+                  className="flex-1"
+                >
+                  Add
+                </Button>
               </div>
             </div>
           </Card>

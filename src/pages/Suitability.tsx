@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle2, RefreshCw } from "lucide-react";
+import { Shield, CheckCircle2, RefreshCw, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -121,12 +121,44 @@ const OBJECTIVE_TAGS = ["Retirement", "House purchase", "Education", "Wealth gro
 const EXCLUDE_TAGS = ["Tobacco", "Weapons", "Fossil fuels", "Gambling", "Adult content", "Animal testing", "Nuclear"];
 const ESG_OPTIONS = ["No preference", "Light (ESG-aware)", "Strict (SFDR Art. 8)", "Impact-only (SFDR Art. 9)"];
 
+// MiFID II product-knowledge matrix (appropriateness per instrument class)
+const INSTRUMENT_CLASSES = [
+  { key: "cash",        label: "Cash / money market",           complex: false },
+  { key: "gov_bonds",   label: "Government bonds (UCITS/ETF)",  complex: false },
+  { key: "corp_bonds",  label: "Corporate bonds",               complex: false },
+  { key: "equities",    label: "Listed equities & equity ETFs", complex: false },
+  { key: "funds",       label: "UCITS funds",                   complex: false },
+  { key: "etc",         label: "ETCs / commodities ETFs",       complex: false },
+  { key: "options",     label: "Options & warrants",            complex: true  },
+  { key: "futures",     label: "Futures / CFDs (leverage)",     complex: true  },
+  { key: "structured",  label: "Structured / certificates",     complex: true  },
+  { key: "crypto",      label: "Crypto assets (MiCA)",          complex: true  },
+  { key: "private",     label: "Private markets / illiquid",    complex: true  },
+] as const;
+const KNOWLEDGE_LEVELS = [
+  { label: "None",       score: 0 },
+  { label: "Aware",      score: 1 },
+  { label: "Some trades",score: 2 },
+  { label: "Experienced",score: 3 },
+];
+
+const SOURCE_OF_FUNDS = ["Salary / employment", "Business income", "Inheritance", "Sale of property", "Sale of business", "Investment proceeds", "Gift", "Other"];
+const SOURCE_OF_WEALTH = ["Employment", "Business ownership", "Inheritance", "Real estate", "Investments", "Other"];
+const CLIENT_CATEGORIES = [
+  { value: "retail",        label: "Retail (default — highest protection)" },
+  { value: "professional",  label: "Professional on request (MiFID II Annex II)" },
+  { value: "eligible",      label: "Eligible counterparty (institutional)" },
+];
+
 const PROFILES = [
   { min: 0, max: 8, name: "Conservative", risk: 2, allocation: "20% equities / 70% bonds / 10% cash", desc: "Capital preservation, low volatility." },
   { min: 9, max: 15, name: "Moderate", risk: 3, allocation: "50% / 45% / 5%", desc: "Balanced growth with controlled risk." },
   { min: 16, max: 22, name: "Growth", risk: 5, allocation: "70% / 25% / 5%", desc: "Long-term capital appreciation." },
   { min: 23, max: 30, name: "Aggressive", risk: 7, allocation: "90% / 8% / 2% + thematic tilts", desc: "Maximum growth, high volatility tolerance." },
 ];
+
+// Re-assessment cadence — ESMA expects at least annual review for advised clients
+const REASSESS_MONTHS = 12;
 
 export default function Suitability() {
   const { user } = useAuth();
@@ -140,6 +172,24 @@ export default function Suitability() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
+  // Extended MiFID / IDD / SFDR fields stored inside answers JSON
+  const [clientCategory, setClientCategory] = useState<string>("retail");
+  const [productKnowledge, setProductKnowledge] = useState<Record<string, number>>({});
+  const [sourceOfFunds, setSourceOfFunds] = useState<string[]>([]);
+  const [sourceOfWealth, setSourceOfWealth] = useState<string[]>([]);
+  const [isPep, setIsPep] = useState<boolean>(false);
+  const [pepDetails, setPepDetails] = useState<string>("");
+  const [usPerson, setUsPerson] = useState<boolean>(false);
+  const [crsResidencies, setCrsResidencies] = useState<string>("");
+  const [dependents, setDependents] = useState<number>(0);
+  const [liquidityNeedMonths, setLiquidityNeedMonths] = useState<number>(6);
+  const [maxSinglePositionPct, setMaxSinglePositionPct] = useState<number>(10);
+  const [leverageAllowed, setLeverageAllowed] = useState<boolean>(false);
+  const [sfdrSustainableMinPct, setSfdrSustainableMinPct] = useState<number>(0);
+  const [sfdrTaxonomyMinPct, setSfdrTaxonomyMinPct] = useState<number>(0);
+  const [sfdrPaiConsidered, setSfdrPaiConsidered] = useState<boolean>(false);
+  const [attestation, setAttestation] = useState<boolean>(false);
+
   const totalQuestions = SECTIONS.reduce((n, s) => n + s.questions.length, 0);
   const score = Object.values(ans).reduce((a, b) => a + b, 0);
   const profile = PROFILES.find(p => score >= p.min && score <= p.max) ?? PROFILES[0];
@@ -147,6 +197,22 @@ export default function Suitability() {
   const horizonYears = [1, 3, 7, 10][horizonScore] ?? 3;
   const completed = Object.keys(ans).length;
   const complete = completed === totalQuestions;
+
+  // Consistency / coherence warnings (ESMA suitability guideline 5)
+  const warnings: string[] = [];
+  if ((ans["horizon"] ?? 0) <= 1 && (ans["goal"] ?? 0) >= 3) warnings.push("Aggressive growth goal with a < 3-year horizon is inconsistent — extend horizon or lower the goal.");
+  if ((ans["loss"] ?? 0) === 0 && (ans["volatility"] ?? 0) >= 2) warnings.push("You say you'd sell on a 20% drop yet accept medium/high volatility — these conflict.");
+  if (leverageAllowed && (ans["knowledge"] ?? 0) < 2) warnings.push("Leverage allowed but knowledge is basic — MiFID appropriateness would flag this.");
+  if ((productKnowledge["options"] ?? 0) >= 2 && (ans["experience"] ?? 0) === 0) warnings.push("Options experience declared without any trading history — please reconcile.");
+  if (esg.startsWith("Impact") && sfdrSustainableMinPct < 50) warnings.push("Article 9 / impact preference usually implies ≥ 50% sustainable investments.");
+  if (maxSinglePositionPct > 25) warnings.push("Concentration > 25% in a single position breaches UCITS-style diversification.");
+
+  // Re-assessment due
+  const reassessmentDue = (() => {
+    if (!savedAt) return false;
+    const d = new Date(savedAt).getTime();
+    return Date.now() - d > REASSESS_MONTHS * 30 * 24 * 3600 * 1000;
+  })();
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -157,13 +223,35 @@ export default function Suitability() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
-        setAns((data.answers as Record<string, number>) ?? {});
+        const a = (data.answers as Record<string, any>) ?? {};
+        // Core scored answers are numeric; extended fields live alongside
+        const core: Record<string, number> = {};
+        for (const k of Object.keys(a)) {
+          if (typeof a[k] === "number") core[k] = a[k];
+        }
+        setAns(core);
+        setClientCategory(a.__clientCategory ?? "retail");
+        setProductKnowledge(a.__productKnowledge ?? {});
+        setSourceOfFunds(a.__sourceOfFunds ?? []);
+        setSourceOfWealth(a.__sourceOfWealth ?? []);
+        setIsPep(!!a.__isPep);
+        setPepDetails(a.__pepDetails ?? "");
+        setUsPerson(!!a.__usPerson);
+        setCrsResidencies(a.__crsResidencies ?? "");
+        setDependents(a.__dependents ?? 0);
+        setLiquidityNeedMonths(a.__liquidityNeedMonths ?? 6);
+        setMaxSinglePositionPct(a.__maxSinglePositionPct ?? 10);
+        setLeverageAllowed(!!a.__leverageAllowed);
+        setSfdrSustainableMinPct(a.__sfdrSustainableMinPct ?? 0);
+        setSfdrTaxonomyMinPct(a.__sfdrTaxonomyMinPct ?? 0);
+        setSfdrPaiConsidered(!!a.__sfdrPaiConsidered);
         setObjectives(data.objectives ?? []);
         setExcluded(data.excluded_sectors ?? []);
         setEsg(data.esg_preference ?? "No preference");
         setLossTolerancePct(data.loss_tolerance_pct ?? 20);
         setNotes(data.notes ?? "");
         setSavedAt(data.completed_at ?? data.updated_at ?? null);
+        setAttestation(!!data.completed_at);
       }
       setLoading(false);
     })();
@@ -176,10 +264,31 @@ export default function Suitability() {
   const handleSave = async () => {
     if (!user) { toast.error("Please sign in"); return; }
     if (!complete) { toast.error("Please answer all questions"); return; }
+    if (!attestation) { toast.error("Please confirm the accuracy attestation"); return; }
     setSaving(true);
+    const extendedAnswers = {
+      ...ans,
+      __clientCategory: clientCategory,
+      __productKnowledge: productKnowledge,
+      __sourceOfFunds: sourceOfFunds,
+      __sourceOfWealth: sourceOfWealth,
+      __isPep: isPep,
+      __pepDetails: pepDetails,
+      __usPerson: usPerson,
+      __crsResidencies: crsResidencies,
+      __dependents: dependents,
+      __liquidityNeedMonths: liquidityNeedMonths,
+      __maxSinglePositionPct: maxSinglePositionPct,
+      __leverageAllowed: leverageAllowed,
+      __sfdrSustainableMinPct: sfdrSustainableMinPct,
+      __sfdrTaxonomyMinPct: sfdrTaxonomyMinPct,
+      __sfdrPaiConsidered: sfdrPaiConsidered,
+      __version: 2,
+      __warnings: warnings,
+    };
     const row = {
       user_id: user.id,
-      answers: ans,
+      answers: extendedAnswers,
       score,
       profile_name: profile.name,
       risk_level: profile.risk,
@@ -200,6 +309,10 @@ export default function Suitability() {
 
   const handleReset = () => {
     setAns({}); setObjectives([]); setExcluded([]); setEsg("No preference"); setLossTolerancePct(20); setNotes("");
+    setProductKnowledge({}); setSourceOfFunds([]); setSourceOfWealth([]); setIsPep(false); setPepDetails("");
+    setUsPerson(false); setCrsResidencies(""); setDependents(0); setLiquidityNeedMonths(6);
+    setMaxSinglePositionPct(10); setLeverageAllowed(false); setSfdrSustainableMinPct(0);
+    setSfdrTaxonomyMinPct(0); setSfdrPaiConsidered(false); setAttestation(false); setClientCategory("retail");
   };
 
   return (

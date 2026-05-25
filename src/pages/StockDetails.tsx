@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { Helmet } from "react-helmet-async";
 import {
   ComposedChart,
   Line,
@@ -216,7 +217,7 @@ const StockDetails = () => {
           tickerSymbol: sym,
           description: `Live price, fundamentals, technical analysis, sentiment, and AI-driven insights for ${entry?.name ?? sym} (${sym}).`,
           url: `https://intel-market-pulse.lovable.app/stock/${sym}`,
-          category: entry?.sector ?? "Equity",
+          category: "Equity",
         })}</script>
       </Helmet>
       <TopNav />

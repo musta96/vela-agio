@@ -1,300 +1,275 @@
-import { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield, Search, Briefcase, RefreshCw, Radio } from "lucide-react";
-import { StockCard } from "@/components/StockCard";
-import { MetricCard } from "@/components/MetricCard";
-import { TopNav } from "@/components/TopNav";
-import { SEO } from "@/components/SEO";
-import { MarketRegimeBanner } from "@/components/MarketRegimeBanner";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { SEO } from "@/components/SEO";
+import { Card } from "@/components/ui/card";
+import { Sparkles, TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
-import { STOCK_CATALOG, searchCatalog, type Market } from "@/data/stockCatalog";
+import { useAuth } from "@/hooks/useAuth";
 
-const Index = () => {
+const WATCH = [
+  { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
+  { sym: "UCG.MI",  name: "UniCredit" },
+  { sym: "ENI.MI",  name: "Eni S.p.A." },
+  { sym: "ENEL.MI", name: "Enel S.p.A." },
+  { sym: "SPY",     name: "S&P 500 ETF" },
+];
+
+const SECTORS = [
+  { name: "Financials",  pct:  1.9 },
+  { name: "Technology",  pct:  1.4 },
+  { name: "Industrials", pct:  0.8 },
+  { name: "Utilities",   pct:  0.2 },
+  { name: "Energy",      pct: -1.1 },
+  { name: "Real Estate", pct: -1.8 },
+];
+
+const SIGNALS = [
+  { tone: "pos", title: "ISP.MI — Breakout above 200-day MA on rising volume. RSI 58, room to run.", meta: "Momentum · High confidence · 4 min ago" },
+  { tone: "info", title: "ECB decision — Tomorrow 14:15 CET. Rate hold expected. Volatility spike likely in EUR/USD.", meta: "Macro event · Medium impact · 18 min ago" },
+  { tone: "warn", title: "LVMH — Earnings beat +12% EPS. Luxury sector rotation opportunity into FR0000121014.", meta: "Fundamental · Medium confidence · 1 hr ago" },
+];
+
+function fmtMoney(v: number, ccy = "EUR") {
+  const sym = ccy === "USD" ? "$" : "€";
+  return `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+}
+
+function ChangePill({ pct, className = "" }: { pct: number; className?: string }) {
+  const positive = pct > 0.05;
+  const negative = pct < -0.05;
+  const cls = positive
+    ? "bg-success/15 text-success"
+    : negative
+    ? "bg-destructive/15 text-destructive"
+    : "bg-warning/15 text-warning";
+  const sign = positive ? "+" : "";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[11px] font-medium ${cls} ${className}`}>
+      {sign}{pct.toFixed(pct === 0 ? 1 : 2)}%
+    </span>
+  );
+}
+
+function Sparkline({ trend }: { trend: "up" | "down" | "flat" }) {
+  const stroke = trend === "up" ? "hsl(var(--success))" : trend === "down" ? "hsl(var(--destructive))" : "hsl(var(--warning))";
+  const d = trend === "up"
+    ? "M0,18 L10,15 L20,17 L30,12 L40,13 L50,8 L60,6"
+    : trend === "down"
+    ? "M0,8 L10,10 L20,9 L30,14 L40,13 L50,17 L60,19"
+    : "M0,12 L10,11 L20,13 L30,12 L40,12 L50,13 L60,12";
+  return (
+    <svg width="64" height="22" viewBox="0 0 60 22" fill="none">
+      <path d={d} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export default function Index() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user } = useAuth();
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
 
-  const scrollToStocks = () => {
-    const stocksSection = document.getElementById('stocks');
-    stocksSection?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const syms = useMemo(() => WATCH.map((w) => w.sym).concat(["FTSEMIB.MI"]), []);
+  const { quotes } = useLiveQuotes(syms, 30000);
 
-  const handleSignIn = () => {
-    toast({
-      title: "Sign In Coming Soon",
-      description: "Authentication feature will be available soon!",
-    });
-  };
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeMarket, setActiveMarket] = useState<Market | "All">("All");
-
-  const MARKETS: (Market | "All")[] = ["All", "FTSE MIB", "Europe", "NASDAQ", "S&P 500", "ETF"];
-
-  // Featured tickers per market (kept small so we don't request 200+ live quotes at once)
-  const featuredPerMarket: Record<Market | "All", string[]> = {
-    All: ["ENEL.MI", "RACE.MI", "ASML.AS", "MC.PA", "AAPL", "MSFT", "NVDA", "SPY"],
-    "FTSE MIB": ["ENEL.MI", "ENI.MI", "ISP.MI", "UCG.MI", "RACE.MI", "STLAM.MI", "STM.MI", "G.MI"],
-    Europe: ["ASML.AS", "MC.PA", "SAP.DE", "NESN.SW", "NOVO-B.CO", "AZN.L", "SHEL.L", "SAN.MC"],
-    NASDAQ: ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AVGO"],
-    "S&P 500": ["BRK-B", "JPM", "V", "JNJ", "XOM", "WMT", "LLY", "HD"],
-    ETF: ["SPY", "QQQ", "VOO", "VTI", "VWCE.DE", "EUNL.DE", "GLD", "TLT"],
-  };
-
-  // Determine which catalog entries to show: search overrides everything;
-  // otherwise show featured tickers for the active market.
-  const displayedEntries = useMemo(() => {
-    if (searchQuery.trim()) return searchCatalog(searchQuery, 24);
-    const symbols = featuredPerMarket[activeMarket];
-    return symbols
-      .map((s) => STOCK_CATALOG.find((c) => c.symbol === s))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, activeMarket]);
-
-  const quotedSymbols = useMemo(() => displayedEntries.map((e) => e.symbol), [displayedEntries]);
-  const { quotes, loading, error, lastUpdated, refresh } = useLiveQuotes(quotedSymbols, 30000);
-
-  const filteredStocks = displayedEntries.map((entry) => {
-    const q = quotes[entry.symbol];
-    return {
-      symbol: entry.symbol,
-      name: entry.name,
-      market: entry.market,
-      currency: q?.currency || entry.currency,
-      price: q?.price ?? 0,
-      change: q ? Math.round(q.change * 100) / 100 : 0,
-    };
-  });
-
-  const isLive = Object.keys(quotes).length > 0;
-  const updatedLabel = lastUpdated
-    ? new Date(lastUpdated).toLocaleTimeString()
-    : null;
+  const ftse = quotes["FTSEMIB.MI"];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <SEO title="Vela.ai — Trading Strategy & Stock Insights" description="Track FTSE MIB, European and US stocks with live quotes, AI-powered fundamentals, and technical insights for smarter trading decisions." path="/" />
-      <TopNav />
-      <main>
-
-      {/* Hero Section */}
-      <section className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center animate-fade-in">
-          <Badge className="mb-4 bg-primary/10 text-primary hover:bg-primary/20">
-            Advanced Trading Analytics
-          </Badge>
-          <h1 className="text-5xl font-bold mb-6 leading-tight">
-            Global Stock Analysis
-            <span className="block text-gradient mt-2">Powered by AI & Fundamentals</span>
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Real-time quotes and fundamental analysis across FTSE MIB, European blue chips, NASDAQ, S&P 500 and major ETFs
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Button size="lg" className="gap-2 hover-scale" onClick={() => navigate('/backtest')}>
-              <Target className="h-5 w-5" />
-              Start Analysis
-            </Button>
-            <Button size="lg" variant="outline" className="gap-2 hover-scale" onClick={scrollToStocks}>
-              <BarChart3 className="h-5 w-5" />
-              View Dashboard
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Key Features */}
-      <section className="container mx-auto px-6 py-16">
-        <div className="grid md:grid-cols-3 gap-6 animate-slide-up">
-          <Card 
-            className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
-            onClick={() => navigate('/stock/' + encodeURIComponent('AAPL'))}
-          >
-            <div className="rounded-lg bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
-              <Brain className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="text-lg font-semibold mb-2">Fundamental Analysis</h2>
-            <p className="text-muted-foreground text-sm">
-              Deep dive into 40+ financial metrics including P/E, ROE, FCF, and DCF valuations
-            </p>
-          </Card>
-
-          <Card 
-            className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
-            onClick={() => navigate('/sentiment')}
-          >
-            <div className="rounded-lg bg-secondary/10 w-12 h-12 flex items-center justify-center mb-4">
-              <LineChart className="h-6 w-6 text-secondary" />
-            </div>
-            <h2 className="text-lg font-semibold mb-2">Sentiment Tracking</h2>
-            <p className="text-muted-foreground text-sm">
-              Real-time sentiment analysis from financial news, social media, and market reports
-            </p>
-          </Card>
-
-          <Card 
-            className="p-6 card-gradient border-border hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer"
-            onClick={() => navigate('/backtest')}
-          >
-            <div className="rounded-lg bg-accent/10 w-12 h-12 flex items-center justify-center mb-4">
-              <Shield className="h-6 w-6 text-accent" />
-            </div>
-            <h2 className="text-lg font-semibold mb-2">Risk Management</h2>
-            <p className="text-muted-foreground text-sm">
-              Advanced backtesting with comprehensive risk metrics and portfolio optimization
-            </p>
-          </Card>
-        </div>
-      </section>
-
-      {/* Market Overview */}
-      <section id="stocks" className="container mx-auto px-6 py-16">
-        <MarketRegimeBanner />
-        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+    <>
+      <SEO title="Dashboard · Vela.ai" description="Real-time market intelligence, AI signals, portfolio snapshot and macro briefing." path="/" />
+      <div className="p-4 sm:p-6 space-y-5">
+        {/* Greeting row */}
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-3xl font-bold">Market Overview</h2>
-              {isLive ? (
-                <Badge className="bg-success/10 text-success hover:bg-success/20 gap-1">
-                  <Radio className="h-3 w-3 animate-pulse" />
-                  LIVE
-                </Badge>
-              ) : loading ? (
-                <Badge variant="secondary" className="gap-1">
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                  Loading
-                </Badge>
-              ) : error ? (
-                <Badge variant="destructive">Offline</Badge>
-              ) : null}
-            </div>
-            <p className="text-muted-foreground">
-              {isLive
-                ? `Live quotes via Yahoo Finance${updatedLabel ? ` · updated ${updatedLabel}` : ""}`
-                : "Real-time quotes across global markets"}
+            <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight">
+              {greeting}, {firstName}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {dateLabel} · European markets open
             </p>
           </div>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="relative flex-1 md:w-96">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search stocks by symbol or name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                refresh();
-                toast({ title: "Refreshing prices", description: "Fetching latest quotes…" });
-              }}
-              disabled={loading}
-              title="Refresh prices"
-              aria-label="Refresh prices"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Market filter */}
-        {!searchQuery.trim() && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {MARKETS.map((m) => (
-              <Button
-                key={m}
-                size="sm"
-                variant={activeMarket === m ? "default" : "outline"}
-                onClick={() => setActiveMarket(m)}
-                className="hover-scale"
-              >
-                {m}
-              </Button>
+          <div className="inline-flex items-center rounded-lg bg-card p-1 border border-border">
+            {(["1D","1W","1M","1Y"] as const).map((r, i) => (
+              <button key={r} className={`px-3 py-1 text-xs font-medium rounded-md ${i===0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{r}</button>
             ))}
           </div>
-        )}
-
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <MetricCard
-            title="Market Cap"
-            value="€582.4B"
-            change={1.8}
-            icon={<TrendingUp className="h-5 w-5" />}
-          />
-          <MetricCard
-            title="Trading Volume"
-            value="€2.1B"
-            change={-3.2}
-            icon={<Activity className="h-5 w-5" />}
-          />
-          <MetricCard
-            title="Avg P/E Ratio"
-            value="12.4"
-            change={0.5}
-            icon={<BarChart3 className="h-5 w-5" />}
-          />
-          <MetricCard
-            title="Index Level"
-            value="33,428"
-            change={2.1}
-            icon={<LineChart className="h-5 w-5" />}
-          />
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {filteredStocks.length > 0 ? (
-            filteredStocks.map((stock) => (
-              <StockCard key={stock.symbol} stock={stock} />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-muted-foreground">No stocks found matching "{searchQuery}"</p>
-            </div>
-          )}
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { label: "Portfolio value",  value: "€84,320",  chg:  2.34, tone: "pos" as const, sub: "vs last close" },
+            { label: "Today's P&L",      value: "+€1,924",  chg:  1.10, tone: "pos" as const, sub: "vs yesterday" },
+            { label: "Active signals",   value: "12",        chg:  0,    tone: "info" as const, sub: "3 new today" },
+            { label: "Sentiment score",  value: "67/100",    chg:  0,    tone: "pos" as const, sub: "Bullish" },
+          ].map((m) => (
+            <Card key={m.label} className="p-5 bg-card border-border animate-fade-in">
+              <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{m.label}</div>
+              <div className="mt-2 font-mono text-2xl font-medium tracking-tight">{m.value}</div>
+              <div className="mt-2 flex items-center gap-2">
+                {m.chg !== 0
+                  ? <ChangePill pct={m.chg} />
+                  : <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${m.tone==="pos"?"bg-success/15 text-success":"bg-secondary/15 text-secondary"}`}>{m.sub}</span>}
+                {m.chg !== 0 && <span className="text-[11px] text-muted-foreground">{m.sub}</span>}
+              </div>
+            </Card>
+          ))}
         </div>
-      </section>
 
-      {/* CTA Section */}
-      <section className="container mx-auto px-6 py-20">
-        <Card className="p-12 text-center card-gradient border-border">
-          <h2 className="text-3xl font-bold mb-4">Ready to Start Trading Smarter?</h2>
-          <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Get instant access to comprehensive analysis tools, real-time data, and AI-powered insights
-          </p>
-          <Button size="lg" className="gap-2 hover-scale" onClick={() => navigate('/backtest')}>
-            Get Started Free
-            <TrendingUp className="h-5 w-5" />
-          </Button>
-        </Card>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border bg-card/50">
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Vela.ai</span>
+        {/* AI briefing band */}
+        <div className="rounded-xl bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(212_70%_18%)] p-5 sm:p-6 text-[hsl(var(--sidebar-foreground))]">
+          <div className="flex gap-4">
+            <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-accent">
+              <Sparkles className="h-5 w-5" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2025 Trading Analytics Platform. All rights reserved.
-            </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Vela AI · Market briefing</p>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-[hsl(var(--sidebar-foreground))]/85">
+                ECB rate decision tomorrow is creating mixed signals across European financials.{" "}
+                <strong className="text-[hsl(var(--sidebar-foreground))]">Intesa Sanpaolo (+1.8%)</strong> and{" "}
+                <strong className="text-[hsl(var(--sidebar-foreground))]">UniCredit (+2.1%)</strong> are outperforming on
+                expectations of a hold. Energy sector under pressure —{" "}
+                <strong className="text-[hsl(var(--sidebar-foreground))]">Eni down 1.2%</strong> on oil weakness. Your
+                watchlist has 3 high-conviction setups worth reviewing.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => navigate("/picks")} className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90">View setups</button>
+                <button onClick={() => navigate("/advisor")} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15">Full briefing</button>
+              </div>
+            </div>
           </div>
         </div>
-      </footer>
-    </main>
-    </div>
-  );
-};
 
-export default Index;
+        {/* Chart + watchlist */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2 p-5 bg-card border-border">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">FTSE MIB · IT0003465736</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">Milan Stock Exchange · Delayed 15min</div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-xl font-medium">{ftse?.price?.toLocaleString(undefined, { maximumFractionDigits: 0 }) ?? "35,482"}</div>
+                <ChangePill pct={ftse?.change ?? 1.24} className="mt-1" />
+              </div>
+            </div>
+
+            {/* Stylised area chart */}
+            <div className="mt-4 h-48 w-full">
+              <svg viewBox="0 0 600 200" preserveAspectRatio="none" className="h-full w-full">
+                <defs>
+                  <linearGradient id="velaArea" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%"  stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d="M0,160 C60,150 90,140 140,135 C200,128 240,130 290,110 C340,92 380,95 430,75 C480,58 520,55 600,40 L600,200 L0,200 Z" fill="url(#velaArea)" />
+                <path d="M0,160 C60,150 90,140 140,135 C200,128 240,130 290,110 C340,92 380,95 430,75 C480,58 520,55 600,40" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
+                <circle cx="600" cy="40" r="4" fill="hsl(var(--primary))" />
+              </svg>
+              <div className="flex justify-between text-[10px] font-mono text-muted-foreground mt-1 px-1">
+                <span>09:00</span><span>11:00</span><span>13:00</span><span>15:00</span><span>17:00</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-card border-border">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Watchlist</div>
+              <button onClick={() => navigate("/watchlist")} className="text-xs text-primary hover:underline inline-flex items-center gap-0.5">Edit <ChevronRight className="h-3 w-3" /></button>
+            </div>
+            <div className="mt-2 divide-y divide-border">
+              {WATCH.map((w) => {
+                const q = quotes[w.sym];
+                const chg = q?.change ?? 0;
+                const trend = chg > 0.1 ? "up" : chg < -0.1 ? "down" : "flat";
+                const price = q?.price;
+                const ccy = q?.currency || (w.sym.endsWith(".MI") ? "EUR" : "USD");
+                return (
+                  <button key={w.sym} onClick={() => navigate(`/stock/${encodeURIComponent(w.sym)}`)} className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-muted/40 rounded-md -mx-2 px-2">
+                    <span className={`h-2 w-2 rounded-full ${trend==="up"?"bg-success":trend==="down"?"bg-destructive":"bg-warning"}`} />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold leading-tight">{w.sym}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
+                    </div>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Sparkline trend={trend} />
+                      <div className="text-right">
+                        <div className="font-mono text-[12px]">{price != null ? fmtMoney(price, ccy) : "—"}</div>
+                        <ChangePill pct={chg} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        {/* Sectors + Signals */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="p-5 bg-card border-border">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Sector performance</div>
+              <div className="text-[11px] text-muted-foreground">vs index today</div>
+            </div>
+            <div className="mt-3 space-y-2">
+              {SECTORS.map((s) => {
+                const positive = s.pct > 0;
+                const widthPct = Math.min(100, Math.abs(s.pct) * 30);
+                return (
+                  <div key={s.name} className="flex items-center gap-3 py-1">
+                    <div className="w-24 text-[12px]">{s.name}</div>
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${positive ? "bg-success" : "bg-destructive"}`}
+                        style={{ width: `${widthPct}%`, marginLeft: positive ? 0 : `${100 - widthPct}%` }}
+                      />
+                    </div>
+                    <div className={`w-12 text-right font-mono text-[11px] font-medium ${positive ? "text-success" : "text-destructive"}`}>
+                      {positive ? "+" : ""}{s.pct.toFixed(1)}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-card border-border">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">AI signals</div>
+              <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">3 new</span>
+            </div>
+            <div className="mt-2 divide-y divide-border">
+              {SIGNALS.map((s, i) => {
+                const Icon = s.tone === "pos" ? TrendingUp : s.tone === "warn" ? TrendingDown : Clock;
+                const bg = s.tone === "pos" ? "bg-success/15 text-success"
+                  : s.tone === "warn" ? "bg-warning/15 text-warning"
+                  : "bg-secondary/15 text-secondary";
+                return (
+                  <div key={i} className="flex items-start gap-3 py-3">
+                    <div className={`h-8 w-8 shrink-0 rounded-lg flex items-center justify-center ${bg}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[12.5px] leading-snug">{s.title}</div>
+                      <div className="text-[11px] text-muted-foreground mt-1">{s.meta}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}

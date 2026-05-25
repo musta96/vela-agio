@@ -434,6 +434,205 @@ const StockDetails = () => {
             )}
           </TabsContent>
 
+          {/* DEEP ANALYSIS */}
+          <TabsContent value="deep" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5 text-primary" /> Fundamental & intrinsic value</CardTitle>
+                  <CardDescription>Yahoo Finance fundamentals, DCF and DDM models, plus AI scenarios.</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={fetchDeep} disabled={deepLoading} className="gap-1">
+                  <RefreshCw className={`h-3.5 w-3.5 ${deepLoading ? "animate-spin" : ""}`} /> Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {deepLoading && !deep ? (
+                  <div className="py-12 text-center"><RefreshCw className="h-6 w-6 animate-spin text-primary mx-auto" /></div>
+                ) : !deep ? (
+                  <div className="py-8 text-center">
+                    <Button onClick={fetchDeep}>Run deep analysis</Button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Recommendation banner */}
+                    {deep.analysis?.recommendation && (
+                      <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">AI recommendation</p>
+                          <p className="text-2xl font-bold">{deep.analysis.recommendation}</p>
+                          {deep.analysis.horizon && <p className="text-xs text-muted-foreground">Horizon: {deep.analysis.horizon}</p>}
+                        </div>
+                        {deep.analysis.valuation && <p className="text-sm max-w-md text-right">{deep.analysis.valuation}</p>}
+                      </div>
+                    )}
+
+                    {/* Thesis */}
+                    {deep.analysis?.thesis && (
+                      <div>
+                        <p className="text-sm font-semibold mb-1">Investment thesis</p>
+                        <p className="text-sm text-muted-foreground">{deep.analysis.thesis}</p>
+                      </div>
+                    )}
+
+                    {/* Intrinsic value cards */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {deep.valuation.dcf && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base flex items-center gap-2"><Target className="h-4 w-4" /> DCF fair value</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-3xl font-bold">{sign}{deep.valuation.dcf.perShare.toFixed(2)}</p>
+                            {deep.valuation.dcf.upside != null && (
+                              <p className={`text-sm font-semibold ${deep.valuation.dcf.upside >= 0 ? "text-success" : "text-destructive"}`}>
+                                {deep.valuation.dcf.upside >= 0 ? "+" : ""}{(deep.valuation.dcf.upside * 100).toFixed(1)}% vs spot
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2 font-mono">
+                              g={Math.round((deep.valuation.dcf.assumptions.growth ?? 0) * 100)}% · r={Math.round((deep.valuation.dcf.assumptions.discount ?? 0) * 100)}% · {deep.valuation.dcf.assumptions.years}y
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {deep.valuation.ddm && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base flex items-center gap-2"><Target className="h-4 w-4" /> DDM fair value</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-3xl font-bold">{sign}{deep.valuation.ddm.perShare.toFixed(2)}</p>
+                            {deep.valuation.ddm.upside != null && (
+                              <p className={`text-sm font-semibold ${deep.valuation.ddm.upside >= 0 ? "text-success" : "text-destructive"}`}>
+                                {deep.valuation.ddm.upside >= 0 ? "+" : ""}{(deep.valuation.ddm.upside * 100).toFixed(1)}% vs spot
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2 font-mono">
+                              div={sign}{deep.valuation.ddm.assumptions.dividend?.toFixed(2)} · g={Math.round((deep.valuation.ddm.assumptions.growth ?? 0) * 100)}% · r={Math.round((deep.valuation.ddm.assumptions.discount ?? 0) * 100)}%
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+
+                    {/* Scenarios */}
+                    {deep.analysis?.scenarios && (
+                      <div>
+                        <p className="text-sm font-semibold mb-2">Price scenarios</p>
+                        <div className="grid md:grid-cols-3 gap-3">
+                          {(["bull", "base", "bear"] as const).map((k) => {
+                            const s = deep.analysis.scenarios?.[k];
+                            if (!s) return null;
+                            const tone = k === "bull" ? "border-success/30 bg-success/5" : k === "bear" ? "border-destructive/30 bg-destructive/5" : "border-border bg-muted/30";
+                            const labelTone = k === "bull" ? "text-success" : k === "bear" ? "text-destructive" : "text-muted-foreground";
+                            return (
+                              <div key={k} className={`p-3 rounded-lg border ${tone}`}>
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-xs uppercase font-semibold ${labelTone}`}>{k}</span>
+                                  <span className="text-xs text-muted-foreground">{Math.round((s.probability ?? 0) * 100)}%</span>
+                                </div>
+                                <p className="text-2xl font-bold mt-1">{sign}{s.price?.toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{s.rationale}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Strengths / Risks */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {deep.analysis?.strengths && deep.analysis.strengths.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2"><CardTitle className="text-base text-success">Strengths</CardTitle></CardHeader>
+                          <CardContent>
+                            <ul className="space-y-1.5 text-sm">
+                              {deep.analysis.strengths.map((s, i) => <li key={i} className="flex gap-2"><span className="text-success">+</span>{s}</li>)}
+                            </ul>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {deep.analysis?.risks && deep.analysis.risks.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2"><CardTitle className="text-base text-destructive">Risks</CardTitle></CardHeader>
+                          <CardContent>
+                            <ul className="space-y-1.5 text-sm">
+                              {deep.analysis.risks.map((s, i) => <li key={i} className="flex gap-2"><span className="text-destructive">−</span>{s}</li>)}
+                            </ul>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+
+                    {deep.analysis?.moat && (
+                      <div>
+                        <p className="text-sm font-semibold mb-1">Competitive moat</p>
+                        <p className="text-sm text-muted-foreground">{deep.analysis.moat}</p>
+                      </div>
+                    )}
+
+                    {/* Fundamentals grid */}
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Key fundamentals</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        {([
+                          ["Market cap", deep.fundamentals.marketCap, "currency-short"],
+                          ["P/E (TTM)", deep.fundamentals.peTrailing, "x"],
+                          ["Fwd P/E", deep.fundamentals.peForward, "x"],
+                          ["PEG", deep.fundamentals.pegRatio, "x"],
+                          ["P/B", deep.fundamentals.priceToBook, "x"],
+                          ["P/S", deep.fundamentals.priceToSales, "x"],
+                          ["EV/EBITDA", deep.fundamentals.evToEbitda, "x"],
+                          ["Div yield", deep.fundamentals.dividendYield, "pct"],
+                          ["Payout", deep.fundamentals.payoutRatio, "pct"],
+                          ["Profit margin", deep.fundamentals.profitMargin, "pct"],
+                          ["ROE", deep.fundamentals.returnOnEquity, "pct"],
+                          ["ROA", deep.fundamentals.returnOnAssets, "pct"],
+                          ["Rev growth", deep.fundamentals.revenueGrowth, "pct"],
+                          ["EPS growth", deep.fundamentals.earningsGrowth, "pct"],
+                          ["Debt/Equity", deep.fundamentals.debtToEquity, "num"],
+                          ["Beta", deep.fundamentals.beta, "num"],
+                        ] as const).map(([label, v, fmt], i) => {
+                          if (v == null) return null;
+                          let txt = "";
+                          if (fmt === "pct") txt = `${(v * 100).toFixed(2)}%`;
+                          else if (fmt === "x") txt = `${v.toFixed(2)}×`;
+                          else if (fmt === "currency-short") {
+                            if (v >= 1e12) txt = `${sign}${(v / 1e12).toFixed(2)}T`;
+                            else if (v >= 1e9) txt = `${sign}${(v / 1e9).toFixed(2)}B`;
+                            else if (v >= 1e6) txt = `${sign}${(v / 1e6).toFixed(2)}M`;
+                            else txt = `${sign}${v.toFixed(0)}`;
+                          } else txt = v.toFixed(2);
+                          return (
+                            <div key={i} className="p-2 rounded border border-border/50">
+                              <p className="text-xs text-muted-foreground">{label}</p>
+                              <p className="font-mono font-semibold">{txt}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Analyst targets */}
+                    {(deep.fundamentals.targetMeanPrice || deep.fundamentals.numberOfAnalystOpinions) && (
+                      <div className="p-3 rounded-lg border border-border/50">
+                        <p className="text-sm font-semibold mb-2">Wall Street consensus</p>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div><p className="text-xs text-muted-foreground">Low</p><p className="font-mono">{sign}{deep.fundamentals.targetLowPrice?.toFixed(2) ?? "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Mean</p><p className="font-mono font-bold">{sign}{deep.fundamentals.targetMeanPrice?.toFixed(2) ?? "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">High</p><p className="font-mono">{sign}{deep.fundamentals.targetHighPrice?.toFixed(2) ?? "—"}</p></div>
+                        </div>
+                        {deep.fundamentals.recommendationKey && (
+                          <p className="text-xs text-muted-foreground mt-2">Rating: <span className="font-semibold capitalize">{deep.fundamentals.recommendationKey.replace(/_/g, " ")}</span> · {deep.fundamentals.numberOfAnalystOpinions ?? 0} analysts</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* SENTIMENT */}
           <TabsContent value="sentiment" className="space-y-6">
             <Card>

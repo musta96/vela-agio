@@ -1,0 +1,42 @@
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+const PROXY = 'https://api.allorigins.win/raw?url=';
+
+async function newsFor(symbol: string) {
+  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=10`;
+  const r = await fetch(PROXY + encodeURIComponent(url));
+  if (!r.ok) return [];
+  const j = await r.json();
+  return (j?.news ?? []).map((n: any) => ({ title: n.title, publisher: n.publisher, link: n.link, ts: n.providerPublishTime }));
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  try {
+    const { symbols } = await req.json();
+    const all: any[] = [];
+    for (const s of (symbols ?? []).slice(0, 15)) {
+      const items = await newsFor(s);
+      items.forEach((n: any) => all.push({ symbol: s, ...n }));
+    }
+    if (!all.length) return new Response(JSON.stringify({ items: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'You are a sell-side news triage. Classify materiality. Return STRICT JSON: {items:[{symbol,title,link,materiality:"high"|"medium"|"low",impact:"bullish"|"bearish"|"neutral",reason}]}.' },
+          { role: 'user', content: `Triage these and keep only HIGH or MEDIUM materiality items: ${JSON.stringify(all).slice(0, 12000)}` },
+        ],
+        response_format: { type: 'json_object' },
+      }),
+    });
+    const j = await r.json();
+    let out: any = { items: [] }; try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{"items":[]}'); } catch {}
+    return new Response(JSON.stringify(out), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+});

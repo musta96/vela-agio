@@ -335,6 +335,18 @@ export default function Suitability() {
           )}
         </div>
 
+      {reassessmentDue && (
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="pt-6 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <div className="font-semibold">Annual review due</div>
+              <div className="text-muted-foreground">ESMA suitability guidelines recommend reviewing your profile at least every 12 months. Please confirm or update your answers.</div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="pt-6 flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -382,6 +394,144 @@ export default function Suitability() {
                 </CardContent>
               </Card>
             ))}
+
+            {/* Product knowledge matrix — MiFID II appropriateness per instrument class */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">5. Product Knowledge & Experience</CardTitle>
+                <CardDescription>MiFID II appropriateness test, per instrument class. Complex instruments require demonstrated knowledge.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-muted-foreground border-b">
+                        <th className="py-2 pr-2 font-medium">Instrument</th>
+                        {KNOWLEDGE_LEVELS.map(l => <th key={l.label} className="py-2 px-2 font-medium text-center">{l.label}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {INSTRUMENT_CLASSES.map(inst => (
+                        <tr key={inst.key} className="border-b last:border-0">
+                          <td className="py-2 pr-2">
+                            {inst.label}
+                            {inst.complex && <Badge variant="outline" className="ml-2 text-[10px]">Complex</Badge>}
+                          </td>
+                          {KNOWLEDGE_LEVELS.map(l => (
+                            <td key={l.label} className="py-2 px-2 text-center">
+                              <input
+                                type="radio"
+                                name={`pk-${inst.key}`}
+                                checked={(productKnowledge[inst.key] ?? -1) === l.score}
+                                onChange={() => setProductKnowledge({ ...productKnowledge, [inst.key]: l.score })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AML / KYC — source of funds & wealth, PEP, FATCA/CRS */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">6. AML / KYC — Source of Funds & Tax Status</CardTitle>
+                <CardDescription>EU AMLD5/6 · FATCA · CRS · 4MLD PEP screening.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">Source of funds to invest</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                    {SOURCE_OF_FUNDS.map(t => (
+                      <label key={t} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={sourceOfFunds.includes(t)} onCheckedChange={() => toggle(sourceOfFunds, setSourceOfFunds, t)} />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Source of overall wealth</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                    {SOURCE_OF_WEALTH.map(t => (
+                      <label key={t} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={sourceOfWealth.includes(t)} onCheckedChange={() => toggle(sourceOfWealth, setSourceOfWealth, t)} />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={isPep} onCheckedChange={(v) => setIsPep(!!v)} />
+                    I am a Politically Exposed Person (or close family / associate)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={usPerson} onCheckedChange={(v) => setUsPerson(!!v)} />
+                    US person for FATCA purposes
+                  </label>
+                </div>
+                {isPep && (
+                  <div>
+                    <Label htmlFor="pep-details" className="text-sm font-medium">PEP details (role, jurisdiction)</Label>
+                    <Input id="pep-details" maxLength={200} value={pepDetails} onChange={e => setPepDetails(e.target.value)} className="mt-2" />
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="crs" className="text-sm font-medium">CRS — other tax residencies (comma-separated)</Label>
+                  <Input id="crs" maxLength={200} value={crsResidencies} onChange={e => setCrsResidencies(e.target.value)} className="mt-2" placeholder="e.g. CH, US" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Capacity to bear losses — quantitative */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">7. Capacity, Liquidity & Concentration</CardTitle>
+                <CardDescription>Quantitative limits used by the portfolio engine.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Dependents (people relying on you)</Label>
+                  <Input type="number" min={0} max={20} value={dependents} onChange={e => setDependents(Number(e.target.value) || 0)} className="mt-2" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Liquidity needed within (months)</Label>
+                  <Input type="number" min={0} max={120} value={liquidityNeedMonths} onChange={e => setLiquidityNeedMonths(Number(e.target.value) || 0)} className="mt-2" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Max single position (% of portfolio)</Label>
+                  <Input type="number" min={1} max={100} value={maxSinglePositionPct} onChange={e => setMaxSinglePositionPct(Number(e.target.value) || 0)} className="mt-2" />
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={leverageAllowed} onCheckedChange={(v) => setLeverageAllowed(!!v)} />
+                    Allow leverage / margin / short selling
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Client classification */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">8. MiFID Client Classification</CardTitle>
+                <CardDescription>Defaults to Retail. Professional / Eligible requires meeting the Annex II quantitative & qualitative tests.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup value={clientCategory} onValueChange={setClientCategory}>
+                  {CLIENT_CATEGORIES.map(c => (
+                    <div key={c.value} className="flex items-center gap-2 py-0.5">
+                      <RadioGroupItem id={`cc-${c.value}`} value={c.value} />
+                      <Label htmlFor={`cc-${c.value}`} className="cursor-pointer font-normal">{c.label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>

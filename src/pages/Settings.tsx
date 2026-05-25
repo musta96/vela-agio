@@ -294,6 +294,60 @@ const Settings = () => {
           </CardContent>
         </Card>
 
+        <Card className="mb-6" id="ai-provider">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> AI Model Provider</CardTitle>
+            <CardDescription>
+              Pick which model powers Copilot, Advisor and Deep Analysis. Default is Lovable AI (no key needed). To use OpenAI / Groq / Mistral / Perplexity, save the matching API key in the AI Models tab below.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Provider</Label>
+                <Select value={aiProvider} onValueChange={(v) => { setAiProvider(v as ProviderId); setAiModel(""); }} disabled={!aiLoaded}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PROVIDER_OPTIONS.map(p => (
+                      <SelectItem key={p.id} value={p.id} disabled={p.status === "soon"}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Model</Label>
+                <Select value={aiModel || activeProvider.defaultModel} onValueChange={setAiModel} disabled={!aiLoaded}>
+                  <SelectTrigger><SelectValue placeholder={activeProvider.defaultModel} /></SelectTrigger>
+                  <SelectContent>
+                    {activeProvider.models.map(m => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {keyMissing && (
+              <Alert className="border-warning/30 bg-warning/5">
+                <KeyRound className="h-4 w-4" />
+                <AlertTitle>Missing key</AlertTitle>
+                <AlertDescription className="text-sm">
+                  <code className="text-xs">{needsKey}</code> is not saved yet. Add it in the <strong>AI Models</strong> tab below, or we'll silently fall back to Lovable AI.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground">
+                Applies immediately to Copilot, Advisor and Deep Analysis. Other AI tools still use Lovable AI for now.
+              </p>
+              <Button size="sm" onClick={saveAi} disabled={!aiLoaded || aiSaving} className="gap-1">
+                {aiSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save provider
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="mb-6" id="briefing">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /> AI Market Briefing</CardTitle>

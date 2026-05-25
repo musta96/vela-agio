@@ -51,17 +51,27 @@ const SentimentDashboard = () => {
   );
   const [result, setResult] = useState<SentimentResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [holdings, setHoldings] = useState<any>(null);
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
 
   const suggestions = useMemo(() => (query && !selected ? searchCatalog(query, 8) : []), [query, selected]);
 
   const analyze = async (sym: string, name: string) => {
     setLoading(true);
     setResult(null);
+    setHoldings(null);
     try {
       const { data, error } = await supabase.functions.invoke("analyze-sentiment", { body: { symbol: sym, name } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setResult(data as SentimentResult);
+      // Fire-and-forget institutional holdings (US tickers only on backend side)
+      setHoldingsLoading(true);
+      supabase.functions
+        .invoke("institutional-holdings", { body: { symbol: sym } })
+        .then(({ data }) => setHoldings(data))
+        .catch(() => setHoldings(null))
+        .finally(() => setHoldingsLoading(false));
     } catch (e: any) {
       toast({ title: "Sentiment analysis failed", description: e?.message || "Try again later", variant: "destructive" });
     } finally {

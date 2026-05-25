@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target, Shield, Search, Briefcase, RefreshCw, Radio } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
-import { NavLink } from "@/components/NavLink";
-import { AuthButton } from "@/components/AuthButton";
+import { TopNav } from "@/components/TopNav";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -78,43 +77,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
-            </div>
-            <div className="flex items-center space-x-6">
-              <NavLink to="/" className="text-sm font-medium text-foreground transition-colors hover:text-primary" activeClassName="text-primary">
-                Dashboard
-              </NavLink>
-              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                Sentiment
-              </NavLink>
-              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                Backtest
-              </NavLink>
-              <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                Portfolio
-              </NavLink>
-              <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                Watchlist
-              </NavLink>
-              <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                AI Picks
-              </NavLink>
-              <NavLink to="/technical" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                Technicals
-              </NavLink>
-              <NavLink to="/settings" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:text-primary">
-                Settings
-              </NavLink>
-              <AuthButton />
-            </div>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       {/* Hero Section */}
       <section className="container mx-auto px-6 py-20">

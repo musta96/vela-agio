@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NavLink } from "@/components/NavLink";
+import { TopNav } from "@/components/TopNav";
 import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,22 +199,7 @@ const BacktestingModule = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <Activity className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
-          </Link>
-          <div className="flex items-center space-x-6">
-            <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Dashboard</NavLink>
-            <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Sentiment</NavLink>
-            <NavLink to="/backtest" className="text-sm font-medium text-foreground" activeClassName="text-primary">Backtest</NavLink>
-            <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">AI Picks</NavLink>
-            <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
-            <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Watchlist</NavLink>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">

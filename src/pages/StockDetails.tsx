@@ -1,796 +1,493 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Target, AlertCircle, CheckCircle, DollarSign, Calculator, Zap, Shield as ShieldIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { NavLink } from "@/components/NavLink";
+import {
+  ComposedChart,
+  Line,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  ReferenceLine,
+} from "recharts";
+import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
+import { analyze, sma, type AnalysisSummary, type Signal } from "@/lib/technicalIndicators";
+import { findCatalogEntry, currencySign } from "@/data/stockCatalog";
+import { useWatchlist } from "@/hooks/useWatchlist";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data - will be replaced with real data later
-const stockDetails = {
-  ENEL: {
-    symbol: "ENEL",
-    name: "Enel S.p.A",
-    price: 6.45,
-    change: 2.3,
-    metrics: {
-      valuation: {
-        pe: 12.5,
-        pb: 1.8,
-        priceToFCF: 8.2,
-        priceToEPS: 11.8,
-        evToEbitda: 6.5,
-        dividendYield: 4.2,
-      },
-      profitability: {
-        roe: 14.5,
-        roa: 3.2,
-        roi: 8.7,
-        operatingMargin: 18.5,
-        ebitda: 15200,
-        nopat: 4500,
-      },
-      financialHealth: {
-        debtToEquity: 1.45,
-        currentRatio: 1.2,
-        quickRatio: 0.95,
-        interestCoverage: 5.8,
-        debtToEbitda: 3.2,
-        netDebt: 45000,
-      },
-      growth: {
-        eps: 0.52,
-        epsGrowth: 8.5,
-        revenueGrowth: 5.2,
-        fcfGrowth: 12.3,
-      },
-      cashFlow: {
-        fcf: 3500,
-        fcff: 3200,
-        fcfe: 2800,
-        capex: 5600,
-        changeInNowc: -450,
-      },
-      valuationModels: {
-        ddm: 7.20,
-        dcf: 7.80,
-        capm: 8.5,
-        wacc: 6.2,
-        intrinsicValue: 7.50,
-      },
-    },
-  },
-  ENI: {
-    symbol: "ENI",
-    name: "Eni S.p.A",
-    price: 14.28,
-    change: -0.8,
-    metrics: {
-      valuation: { pe: 8.3, pb: 0.9, priceToFCF: 5.1, priceToEPS: 7.8, evToEbitda: 3.2, dividendYield: 5.8 },
-      profitability: { roe: 11.2, roa: 4.5, roi: 7.3, operatingMargin: 12.4, ebitda: 18500, nopat: 5200 },
-      financialHealth: { debtToEquity: 0.85, currentRatio: 1.4, quickRatio: 1.1, interestCoverage: 8.2, debtToEbitda: 1.8, netDebt: 28000 },
-      growth: { eps: 1.72, epsGrowth: -2.1, revenueGrowth: 3.8, fcfGrowth: 6.5 },
-      cashFlow: { fcf: 4200, fcff: 3900, fcfe: 3500, capex: 6200, changeInNowc: -320 },
-      valuationModels: { ddm: 15.10, dcf: 15.80, capm: 7.2, wacc: 5.8, intrinsicValue: 15.45 },
-    },
-  },
-  ISP: {
-    symbol: "ISP",
-    name: "Intesa Sanpaolo",
-    price: 3.45,
-    change: 1.2,
-    metrics: {
-      valuation: { pe: 6.8, pb: 0.7, priceToFCF: 4.2, priceToEPS: 6.5, evToEbitda: 2.8, dividendYield: 6.2 },
-      profitability: { roe: 9.8, roa: 0.8, roi: 5.2, operatingMargin: 38.5, ebitda: 12800, nopat: 3200 },
-      financialHealth: { debtToEquity: 0.32, currentRatio: 0.95, quickRatio: 0.92, interestCoverage: 12.5, debtToEbitda: 0.8, netDebt: 8500 },
-      growth: { eps: 0.51, epsGrowth: 15.2, revenueGrowth: 8.1, fcfGrowth: 18.3 },
-      cashFlow: { fcf: 2800, fcff: 2600, fcfe: 2400, capex: 1200, changeInNowc: -180 },
-      valuationModels: { ddm: 3.80, dcf: 4.20, capm: 6.8, wacc: 4.5, intrinsicValue: 4.00 },
-    },
-  },
-  UCG: {
-    symbol: "UCG",
-    name: "UniCredit",
-    price: 38.92,
-    change: 3.1,
-    metrics: {
-      valuation: { pe: 5.2, pb: 0.6, priceToFCF: 3.8, priceToEPS: 5.1, evToEbitda: 2.1, dividendYield: 7.5 },
-      profitability: { roe: 12.5, roa: 0.9, roi: 6.8, operatingMargin: 42.1, ebitda: 16200, nopat: 4100 },
-      financialHealth: { debtToEquity: 0.28, currentRatio: 0.98, quickRatio: 0.94, interestCoverage: 15.2, debtToEbitda: 0.6, netDebt: 9200 },
-      growth: { eps: 7.49, epsGrowth: 22.8, revenueGrowth: 12.3, fcfGrowth: 25.6 },
-      cashFlow: { fcf: 5200, fcff: 4900, fcfe: 4600, capex: 1800, changeInNowc: -250 },
-      valuationModels: { ddm: 42.50, dcf: 45.80, capm: 5.5, wacc: 4.2, intrinsicValue: 44.10 },
-    },
-  },
-};
-
-interface MetricItemProps {
+interface SentimentArticle {
+  title: string;
+  link: string;
+  source: string;
+  pubDate: string;
+  description?: string;
+  sentiment: "positive" | "neutral" | "negative";
+  score: number;
+}
+interface SentimentResult {
+  symbol: string;
+  score: number;
   label: string;
-  value: string | number;
-  suffix?: string;
+  summary: string;
+  drivers: { title: string; impact: "positive" | "negative" | "neutral" }[];
+  articles: SentimentArticle[];
+  sources?: { source: string; avgScore: number; count: number }[];
 }
 
-const MetricItem = ({ label, value, suffix = "" }: MetricItemProps) => (
-  <div className="flex justify-between items-center py-3 border-b border-border/50 last:border-0">
-    <span className="text-sm text-muted-foreground">{label}</span>
-    <span className="text-sm font-semibold text-foreground">
-      {typeof value === "number" ? value.toLocaleString() : value}
-      {suffix}
-    </span>
-  </div>
-);
+const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
+
+const signalColor = (s: Signal) =>
+  s === "bullish"
+    ? "text-success border-success/30 bg-success/10"
+    : s === "bearish"
+    ? "text-destructive border-destructive/30 bg-destructive/10"
+    : "text-muted-foreground border-border bg-muted/30";
+
+const sentimentTone = (s: string) =>
+  s === "positive"
+    ? "bg-success/10 text-success border-success/20"
+    : s === "negative"
+    ? "bg-destructive/10 text-destructive border-destructive/20"
+    : "bg-muted text-muted-foreground border-border";
 
 const StockDetails = () => {
   const { symbol } = useParams<{ symbol: string }>();
-  const stock = stockDetails[symbol as keyof typeof stockDetails];
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { toggle, isWatched } = useWatchlist();
 
-  // Price Target Calculator State
-  const [growthRate, setGrowthRate] = useState<number>(8.5);
-  const [targetPE, setTargetPE] = useState<number>(12.5);
-  const [timeHorizon, setTimeHorizon] = useState<number>(12);
+  const sym = decodeURIComponent(symbol || "").toUpperCase();
+  const entry = findCatalogEntry(sym);
+  const name = entry?.name || sym;
+  const market = entry?.market;
+  const currency = entry?.currency || "USD";
+  const sign = currencySign(currency);
 
-  if (!stock) {
+  const [range, setRange] = useState<OHLCRange>("1Y");
+  const { quotes, refresh, lastUpdated } = useLiveQuotes(sym ? [sym] : [], 30000);
+  const { bars, loading: chartLoading, error: chartError } = useOHLCHistory(sym || null, range);
+  const live = quotes[sym];
+
+  // Technical analysis
+  const tech: AnalysisSummary | null = useMemo(() => (bars.length >= 60 ? analyze(bars) : null), [bars]);
+
+  // Chart data with SMA overlays
+  const chartData = useMemo(() => {
+    if (bars.length === 0) return [];
+    const closes = bars.map((b) => b.close);
+    const s50 = sma(closes, 50);
+    const s200 = sma(closes, 200);
+    return bars.map((b, i) => ({
+      date: new Date(b.t).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" }),
+      close: b.close,
+      sma50: s50[i] ?? null,
+      sma200: s200[i] ?? null,
+    }));
+  }, [bars]);
+
+  const priceMin = useMemo(() => (bars.length ? Math.min(...bars.map((b) => b.low)) * 0.98 : 0), [bars]);
+  const priceMax = useMemo(() => (bars.length ? Math.max(...bars.map((b) => b.high)) * 1.02 : 100), [bars]);
+
+  // Sentiment + sources
+  const [sentiment, setSentiment] = useState<SentimentResult | null>(null);
+  const [sentLoading, setSentLoading] = useState(false);
+
+  const fetchSentiment = async () => {
+    if (!sym) return;
+    setSentLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-sentiment", {
+        body: { symbol: sym, name },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setSentiment(data as SentimentResult);
+    } catch (e: any) {
+      toast({ title: "Sentiment unavailable", description: e?.message || "Try again later", variant: "destructive" });
+    } finally {
+      setSentLoading(false);
+    }
+  };
+
+  // Auto-load sentiment once
+  useEffect(() => {
+    if (sym) fetchSentiment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sym]);
+
+  if (!sym) {
     return (
       <div className="min-h-screen bg-background p-8">
-        <div className="max-w-7xl mx-auto">
-          <Link to="/" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 mb-8">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-          <div className="text-center py-12">
-            <h1 className="text-2xl font-bold text-foreground">Stock not found</h1>
-          </div>
-        </div>
+        <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Link>
+        <p className="mt-8 text-muted-foreground">No symbol specified.</p>
       </div>
     );
   }
 
-  const isPositive = stock.change > 0;
-  
-  // Intrinsic value calculations
-  const intrinsicValue = stock.metrics.valuationModels.intrinsicValue;
-  const ddmValue = stock.metrics.valuationModels.ddm;
-  const dcfValue = stock.metrics.valuationModels.dcf;
-  const currentPrice = stock.price;
-  
-  const valuationDifference = ((intrinsicValue - currentPrice) / currentPrice) * 100;
-  const isUndervalued = currentPrice < intrinsicValue;
-  const marginOfSafety = isUndervalued ? valuationDifference : 0;
-  
-  // Calculate valuation gauge (0-100 scale where 50 is fair value)
-  const gaugeValue = Math.min(100, Math.max(0, 50 + (valuationDifference / 2)));
-  
-  const getValuationStatus = () => {
-    if (Math.abs(valuationDifference) < 5) return { status: "Fair Value", color: "text-chart-3", bgColor: "bg-chart-3/10", icon: CheckCircle };
-    if (isUndervalued) return { status: "Undervalued", color: "text-chart-1", bgColor: "bg-chart-1/10", icon: TrendingDown };
-    return { status: "Overvalued", color: "text-chart-2", bgColor: "bg-chart-2/10", icon: TrendingUp };
-  };
-  
-  const valuationStatus = getValuationStatus();
+  const price = live?.price ?? bars[bars.length - 1]?.close ?? 0;
+  const change = live?.change ?? 0;
+  const isPositive = change >= 0;
 
   return (
     <div className="min-h-screen bg-background">
+      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-2">
+            <Activity className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
+          </Link>
+          <div className="flex items-center space-x-6">
+            <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Dashboard</NavLink>
+            <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Sentiment</NavLink>
+            <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">AI Picks</NavLink>
+            <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Portfolio</NavLink>
+            <NavLink to="/settings" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Settings</NavLink>
+          </div>
+        </div>
+      </nav>
+
       {/* Header */}
       <div className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-8 py-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 mb-6">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+        <div className="container mx-auto px-6 py-6">
+          <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline mb-4 text-sm">
+            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
           </Link>
-          
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">{stock.symbol}</h1>
-              <p className="text-lg text-muted-foreground">{stock.name}</p>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h1 className="text-3xl font-bold">{sym}</h1>
+                {market && <Badge variant="outline">{market}</Badge>}
+                {!entry && <Badge variant="secondary">Unverified ticker</Badge>}
+                <Button size="icon" variant="ghost" onClick={() => toggle(sym, name)}>
+                  <Star className={`h-5 w-5 ${isWatched(sym) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                </Button>
+              </div>
+              <p className="text-muted-foreground">{name}</p>
             </div>
             <div className="text-right">
-              <div className="text-4xl font-bold text-foreground mb-2">€{stock.price.toFixed(2)}</div>
-              <div className={`flex items-center gap-2 justify-end ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                {isPositive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                <span className="text-lg font-semibold">
-                  {isPositive ? "+" : ""}{stock.change}%
-                </span>
-              </div>
+              <div className="text-4xl font-bold">{sign}{price ? price.toFixed(2) : "—"}</div>
+              {live && (
+                <div className={`flex items-center gap-1 justify-end mt-1 ${isPositive ? "text-success" : "text-destructive"}`}>
+                  {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                  <span className="font-semibold">{isPositive ? "+" : ""}{change.toFixed(2)}%</span>
+                </div>
+              )}
+              {lastUpdated && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Updated {new Date(lastUpdated).toLocaleTimeString()}
+                  <Button size="sm" variant="ghost" className="h-6 px-2 ml-1" onClick={() => refresh()}>
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Intrinsic Value Analysis */}
-      <div className="max-w-7xl mx-auto px-8 py-8">
-        <Card className="card-gradient border-border mb-8 overflow-hidden">
-          <div className="bg-gradient-to-r from-primary/5 to-secondary/5 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Target className="h-8 w-8 text-primary" />
-              <div>
-                <h2 className="text-2xl font-bold">Intrinsic Value Analysis</h2>
-                <p className="text-muted-foreground">Comprehensive valuation assessment</p>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Current Price Card */}
-              <Card className="border-border">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-2">Current Market Price</div>
-                    <div className="text-4xl font-bold text-foreground mb-2">€{currentPrice.toFixed(2)}</div>
-                    <DollarSign className="h-6 w-6 text-muted-foreground mx-auto" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Intrinsic Value Card */}
-              <Card className="border-primary/50 bg-primary/5">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-2">Calculated Intrinsic Value</div>
-                    <div className="text-4xl font-bold text-primary mb-2">€{intrinsicValue.toFixed(2)}</div>
-                    <div className="flex items-center justify-center gap-1">
-                      <valuationStatus.icon className={`h-5 w-5 ${valuationStatus.color}`} />
-                      <span className={`text-sm font-semibold ${valuationStatus.color}`}>
-                        {valuationStatus.status}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Valuation Status Card */}
-              <Card className={`border-border ${valuationStatus.bgColor}`}>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-2">Valuation Difference</div>
-                    <div className={`text-4xl font-bold mb-2 ${valuationStatus.color}`}>
-                      {valuationDifference > 0 ? "+" : ""}{valuationDifference.toFixed(1)}%
-                    </div>
-                    {isUndervalued && marginOfSafety > 0 && (
-                      <Badge className="bg-chart-1/20 text-chart-1 hover:bg-chart-1/30">
-                        Margin of Safety: {marginOfSafety.toFixed(1)}%
-                      </Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Valuation Gauge */}
-            <div className="mt-8">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-chart-2">Overvalued</span>
-                <span className="text-sm font-medium text-chart-3">Fair Value</span>
-                <span className="text-sm font-medium text-chart-1">Undervalued</span>
-              </div>
-              <Progress value={gaugeValue} className="h-3" />
-              <div className="flex justify-center mt-2">
-                <Badge variant="outline" className="text-xs">
-                  Current Position: {gaugeValue.toFixed(0)}/100
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          {/* Multiple Valuation Methods */}
-          <CardContent className="pt-6">
-            <h3 className="text-lg font-semibold mb-4">Valuation Methods Breakdown</h3>
-            <div className="grid md:grid-cols-3 gap-4">
-              {/* DCF Valuation */}
-              <div className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">DCF Model</span>
-                  {currentPrice < dcfValue ? (
-                    <Badge className="bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 text-xs">
-                      Undervalued
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-chart-2/10 text-chart-2 hover:bg-chart-2/20 text-xs">
-                      Overvalued
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">€{dcfValue.toFixed(2)}</span>
-                  <span className={`text-sm ${currentPrice < dcfValue ? 'text-chart-1' : 'text-chart-2'}`}>
-                    {((dcfValue - currentPrice) / currentPrice * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Based on future cash flow projections
-                </p>
-              </div>
-
-              {/* DDM Valuation */}
-              <div className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">DDM Model</span>
-                  {currentPrice < ddmValue ? (
-                    <Badge className="bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 text-xs">
-                      Undervalued
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-chart-2/10 text-chart-2 hover:bg-chart-2/20 text-xs">
-                      Overvalued
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">€{ddmValue.toFixed(2)}</span>
-                  <span className={`text-sm ${currentPrice < ddmValue ? 'text-chart-1' : 'text-chart-2'}`}>
-                    {((ddmValue - currentPrice) / currentPrice * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Based on dividend discount model
-                </p>
-              </div>
-
-              {/* P/E Based Valuation */}
-              <div className="p-4 rounded-lg border border-border hover:bg-accent/5 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">P/E Based</span>
-                  {stock.metrics.valuation.pe < 15 ? (
-                    <Badge className="bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 text-xs">
-                      Attractive
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-chart-3/10 text-chart-3 hover:bg-chart-3/20 text-xs">
-                      Average
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{stock.metrics.valuation.pe.toFixed(1)}x</span>
-                  <span className="text-sm text-muted-foreground">P/E Ratio</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Relative to earnings multiple
-                </p>
-              </div>
-            </div>
-
-            {/* Investment Recommendation */}
-            <div className="mt-6 p-4 rounded-lg bg-accent/5 border border-border">
-              <div className="flex items-start gap-3">
-                <AlertCircle className={`h-5 w-5 mt-0.5 ${valuationStatus.color}`} />
-                <div className="flex-1">
-                  <h4 className="font-semibold mb-1">Investment Assessment</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {isUndervalued && marginOfSafety > 10 && (
-                      <>Strong buy opportunity. The stock is trading significantly below its intrinsic value with a margin of safety of {marginOfSafety.toFixed(1)}%. Multiple valuation models suggest upside potential.</>
-                    )}
-                    {isUndervalued && marginOfSafety <= 10 && marginOfSafety > 5 && (
-                      <>Moderate buy opportunity. The stock appears slightly undervalued with a {marginOfSafety.toFixed(1)}% margin of safety. Consider accumulating on further weakness.</>
-                    )}
-                    {Math.abs(valuationDifference) < 5 && (
-                      <>Fairly valued. The stock is trading close to its intrinsic value. Current price reflects fundamental value reasonably well.</>
-                    )}
-                    {!isUndervalued && Math.abs(valuationDifference) > 5 && (
-                      <>The stock appears overvalued by {Math.abs(valuationDifference).toFixed(1)}%. Consider waiting for a better entry point or taking profits if holding.</>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Price Target Calculator */}
-        <Card className="card-gradient border-border mb-8 overflow-hidden animate-fade-in">
-          <div className="bg-gradient-to-r from-secondary/5 to-accent/5 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Calculator className="h-8 w-8 text-secondary" />
-              <div>
-                <h2 className="text-2xl font-bold">Price Target Calculator</h2>
-                <p className="text-muted-foreground">Scenario-based valuation projections</p>
-              </div>
-            </div>
-
-            {/* Calculator Inputs */}
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <Card className="border-border">
-                <CardContent className="pt-6">
-                  <Label className="text-sm font-medium mb-3 block">EPS Growth Rate (%)</Label>
-                  <Slider
-                    value={[growthRate]}
-                    onValueChange={(value) => setGrowthRate(value[0])}
-                    min={-10}
-                    max={30}
-                    step={0.5}
-                    className="mb-3"
-                  />
-                  <Input
-                    type="number"
-                    value={growthRate}
-                    onChange={(e) => setGrowthRate(parseFloat(e.target.value) || 0)}
-                    className="text-center font-semibold"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card className="border-border">
-                <CardContent className="pt-6">
-                  <Label className="text-sm font-medium mb-3 block">Target P/E Ratio</Label>
-                  <Slider
-                    value={[targetPE]}
-                    onValueChange={(value) => setTargetPE(value[0])}
-                    min={5}
-                    max={25}
-                    step={0.5}
-                    className="mb-3"
-                  />
-                  <Input
-                    type="number"
-                    value={targetPE}
-                    onChange={(e) => setTargetPE(parseFloat(e.target.value) || 0)}
-                    className="text-center font-semibold"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card className="border-border">
-                <CardContent className="pt-6">
-                  <Label className="text-sm font-medium mb-3 block">Time Horizon (months)</Label>
-                  <Slider
-                    value={[timeHorizon]}
-                    onValueChange={(value) => setTimeHorizon(value[0])}
-                    min={3}
-                    max={36}
-                    step={3}
-                    className="mb-3"
-                  />
-                  <Input
-                    type="number"
-                    value={timeHorizon}
-                    onChange={(e) => setTimeHorizon(parseInt(e.target.value) || 12)}
-                    className="text-center font-semibold"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Scenario Results */}
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Bear Case */}
-              {(() => {
-                const bearGrowth = growthRate * 0.5;
-                const bearPE = targetPE * 0.8;
-                const bearEPS = stock.metrics.growth.eps * Math.pow(1 + bearGrowth / 100, timeHorizon / 12);
-                const bearTarget = bearEPS * bearPE;
-                const bearUpside = ((bearTarget - currentPrice) / currentPrice) * 100;
-                
-                return (
-                  <Card className="border-chart-2/30 bg-chart-2/5 hover:shadow-lg transition-all duration-300 animate-scale-in">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <ShieldIcon className="h-5 w-5 text-chart-2" />
-                          Bear Case
-                        </CardTitle>
-                        <Badge className="bg-chart-2/20 text-chart-2 hover:bg-chart-2/30">
-                          Conservative
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Assumptions</div>
-                          <div className="text-xs space-y-1">
-                            <div className="flex justify-between">
-                              <span>Growth Rate:</span>
-                              <span className="font-semibold">{bearGrowth.toFixed(1)}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Target P/E:</span>
-                              <span className="font-semibold">{bearPE.toFixed(1)}x</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Future EPS:</span>
-                              <span className="font-semibold">€{bearEPS.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="pt-4 border-t border-border">
-                          <div className="text-sm text-muted-foreground mb-2">Price Target</div>
-                          <div className="text-3xl font-bold text-chart-2 mb-2">
-                            €{bearTarget.toFixed(2)}
-                          </div>
-                          <div className={`text-sm font-semibold ${bearUpside >= 0 ? 'text-chart-1' : 'text-chart-2'}`}>
-                            {bearUpside >= 0 ? '+' : ''}{bearUpside.toFixed(1)}% upside
-                          </div>
-                          <Progress value={Math.min(100, Math.max(0, 50 + bearUpside / 2))} className="mt-3 h-2" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-
-              {/* Base Case */}
-              {(() => {
-                const baseEPS = stock.metrics.growth.eps * Math.pow(1 + growthRate / 100, timeHorizon / 12);
-                const baseTarget = baseEPS * targetPE;
-                const baseUpside = ((baseTarget - currentPrice) / currentPrice) * 100;
-                
-                return (
-                  <Card className="border-chart-3/30 bg-chart-3/5 hover:shadow-lg transition-all duration-300 animate-scale-in" style={{ animationDelay: '0.1s' }}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Target className="h-5 w-5 text-chart-3" />
-                          Base Case
-                        </CardTitle>
-                        <Badge className="bg-chart-3/20 text-chart-3 hover:bg-chart-3/30">
-                          Expected
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Assumptions</div>
-                          <div className="text-xs space-y-1">
-                            <div className="flex justify-between">
-                              <span>Growth Rate:</span>
-                              <span className="font-semibold">{growthRate.toFixed(1)}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Target P/E:</span>
-                              <span className="font-semibold">{targetPE.toFixed(1)}x</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Future EPS:</span>
-                              <span className="font-semibold">€{baseEPS.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="pt-4 border-t border-border">
-                          <div className="text-sm text-muted-foreground mb-2">Price Target</div>
-                          <div className="text-3xl font-bold text-chart-3 mb-2">
-                            €{baseTarget.toFixed(2)}
-                          </div>
-                          <div className={`text-sm font-semibold ${baseUpside >= 0 ? 'text-chart-1' : 'text-chart-2'}`}>
-                            {baseUpside >= 0 ? '+' : ''}{baseUpside.toFixed(1)}% upside
-                          </div>
-                          <Progress value={Math.min(100, Math.max(0, 50 + baseUpside / 2))} className="mt-3 h-2" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-
-              {/* Bull Case */}
-              {(() => {
-                const bullGrowth = growthRate * 1.5;
-                const bullPE = targetPE * 1.2;
-                const bullEPS = stock.metrics.growth.eps * Math.pow(1 + bullGrowth / 100, timeHorizon / 12);
-                const bullTarget = bullEPS * bullPE;
-                const bullUpside = ((bullTarget - currentPrice) / currentPrice) * 100;
-                
-                return (
-                  <Card className="border-chart-1/30 bg-chart-1/5 hover:shadow-lg transition-all duration-300 animate-scale-in" style={{ animationDelay: '0.2s' }}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Zap className="h-5 w-5 text-chart-1" />
-                          Bull Case
-                        </CardTitle>
-                        <Badge className="bg-chart-1/20 text-chart-1 hover:bg-chart-1/30">
-                          Optimistic
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Assumptions</div>
-                          <div className="text-xs space-y-1">
-                            <div className="flex justify-between">
-                              <span>Growth Rate:</span>
-                              <span className="font-semibold">{bullGrowth.toFixed(1)}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Target P/E:</span>
-                              <span className="font-semibold">{bullPE.toFixed(1)}x</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Future EPS:</span>
-                              <span className="font-semibold">€{bullEPS.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="pt-4 border-t border-border">
-                          <div className="text-sm text-muted-foreground mb-2">Price Target</div>
-                          <div className="text-3xl font-bold text-chart-1 mb-2">
-                            €{bullTarget.toFixed(2)}
-                          </div>
-                          <div className={`text-sm font-semibold ${bullUpside >= 0 ? 'text-chart-1' : 'text-chart-2'}`}>
-                            {bullUpside >= 0 ? '+' : ''}{bullUpside.toFixed(1)}% upside
-                          </div>
-                          <Progress value={Math.min(100, Math.max(0, 50 + bullUpside / 2))} className="mt-3 h-2" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-            </div>
-
-            {/* Summary */}
-            <div className="mt-6 p-4 rounded-lg bg-accent/5 border border-border">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 mt-0.5 text-primary" />
-                <div className="flex-1">
-                  <h4 className="font-semibold mb-1">Scenario Analysis Summary</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Based on the current inputs, the {timeHorizon}-month price targets range from{' '}
-                    <span className="font-semibold text-chart-2">
-                      €{(stock.metrics.growth.eps * Math.pow(1 + (growthRate * 0.5) / 100, timeHorizon / 12) * targetPE * 0.8).toFixed(2)}
-                    </span>
-                    {' '}(bear) to{' '}
-                    <span className="font-semibold text-chart-1">
-                      €{(stock.metrics.growth.eps * Math.pow(1 + (growthRate * 1.5) / 100, timeHorizon / 12) * targetPE * 1.2).toFixed(2)}
-                    </span>
-                    {' '}(bull). Adjust the parameters above to explore different scenarios.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Tabs defaultValue="valuation" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8">
-            <TabsTrigger value="valuation">Valuation</TabsTrigger>
-            <TabsTrigger value="profitability">Profitability</TabsTrigger>
-            <TabsTrigger value="financial">Financial Health</TabsTrigger>
-            <TabsTrigger value="growth">Growth</TabsTrigger>
-            <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
-            <TabsTrigger value="models">Valuation Models</TabsTrigger>
+      <div className="container mx-auto px-6 py-8">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+            <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" />Overview</TabsTrigger>
+            <TabsTrigger value="technicals" className="gap-1.5"><Activity className="h-4 w-4" />Technicals</TabsTrigger>
+            <TabsTrigger value="sentiment" className="gap-1.5"><MessageSquare className="h-4 w-4" />Sentiment</TabsTrigger>
+            <TabsTrigger value="sources" className="gap-1.5"><Globe className="h-4 w-4" />Sources</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="valuation">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Valuation Ratios</CardTitle>
-                  <CardDescription>Key valuation metrics for price analysis</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MetricItem label="P/E Ratio" value={stock.metrics.valuation.pe} />
-                  <MetricItem label="P/B Ratio" value={stock.metrics.valuation.pb} />
-                  <MetricItem label="Price-to-FCF" value={stock.metrics.valuation.priceToFCF} />
-                  <MetricItem label="Price-to-EPS" value={stock.metrics.valuation.priceToEPS} />
-                  <MetricItem label="EV/EBITDA" value={stock.metrics.valuation.evToEbitda} />
-                  <MetricItem label="Dividend Yield" value={stock.metrics.valuation.dividendYield} suffix="%" />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="profitability">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Profitability Metrics</CardTitle>
-                  <CardDescription>Return and margin analysis</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MetricItem label="ROE (Return on Equity)" value={stock.metrics.profitability.roe} suffix="%" />
-                  <MetricItem label="ROA (Return on Assets)" value={stock.metrics.profitability.roa} suffix="%" />
-                  <MetricItem label="ROI (Return on Investment)" value={stock.metrics.profitability.roi} suffix="%" />
-                  <MetricItem label="Operating Margin" value={stock.metrics.profitability.operatingMargin} suffix="%" />
-                  <MetricItem label="EBITDA (M€)" value={stock.metrics.profitability.ebitda} />
-                  <MetricItem label="NOPAT (M€)" value={stock.metrics.profitability.nopat} />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="financial">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Financial Health</CardTitle>
-                  <CardDescription>Debt and liquidity metrics</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MetricItem label="Debt-to-Equity" value={stock.metrics.financialHealth.debtToEquity} />
-                  <MetricItem label="Current Ratio" value={stock.metrics.financialHealth.currentRatio} />
-                  <MetricItem label="Quick Ratio" value={stock.metrics.financialHealth.quickRatio} />
-                  <MetricItem label="Interest Coverage" value={stock.metrics.financialHealth.interestCoverage} />
-                  <MetricItem label="Debt-to-EBITDA" value={stock.metrics.financialHealth.debtToEbitda} />
-                  <MetricItem label="Net Debt (M€)" value={stock.metrics.financialHealth.netDebt} />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="growth">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Growth Metrics</CardTitle>
-                  <CardDescription>Year-over-year growth rates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MetricItem label="EPS" value={stock.metrics.growth.eps} suffix="€" />
-                  <MetricItem label="EPS Growth" value={stock.metrics.growth.epsGrowth} suffix="%" />
-                  <MetricItem label="Revenue Growth" value={stock.metrics.growth.revenueGrowth} suffix="%" />
-                  <MetricItem label="FCF Growth" value={stock.metrics.growth.fcfGrowth} suffix="%" />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="cashflow">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Cash Flow Analysis</CardTitle>
-                  <CardDescription>Free cash flow and capital metrics</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MetricItem label="Free Cash Flow (M€)" value={stock.metrics.cashFlow.fcf} />
-                  <MetricItem label="FCFF (M€)" value={stock.metrics.cashFlow.fcff} />
-                  <MetricItem label="FCFE (M€)" value={stock.metrics.cashFlow.fcfe} />
-                  <MetricItem label="CAPEX (M€)" value={stock.metrics.cashFlow.capex} />
-                  <MetricItem label="Change in NOWC (M€)" value={stock.metrics.cashFlow.changeInNowc} />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="models">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Valuation Models</CardTitle>
-                  <CardDescription>Intrinsic value estimates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MetricItem label="DDM (Dividend Discount Model)" value={stock.metrics.valuationModels.ddm} suffix="€" />
-                  <MetricItem label="DCF (Discounted Cash Flow)" value={stock.metrics.valuationModels.dcf} suffix="€" />
-                  <MetricItem label="CAPM Expected Return" value={stock.metrics.valuationModels.capm} suffix="%" />
-                  <MetricItem label="WACC" value={stock.metrics.valuationModels.wacc} suffix="%" />
-                  <MetricItem label="Intrinsic Value" value={stock.metrics.valuationModels.intrinsicValue} suffix="€" />
-                </CardContent>
-              </Card>
-
-              <Card className="card-gradient border-border">
-                <CardHeader>
-                  <CardTitle>Valuation Summary</CardTitle>
-                  <CardDescription>Current vs. Intrinsic Value</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Current Price</span>
-                      <span className="text-2xl font-bold text-foreground">€{stock.price.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Intrinsic Value</span>
-                      <span className="text-2xl font-bold text-primary">€{stock.metrics.valuationModels.intrinsicValue.toFixed(2)}</span>
-                    </div>
-                    <div className="pt-4 border-t border-border">
-                      {stock.price < stock.metrics.valuationModels.intrinsicValue ? (
-                        <Badge className="bg-success/10 text-success hover:bg-success/20 text-base px-4 py-2">
-                          Undervalued by {(((stock.metrics.valuationModels.intrinsicValue - stock.price) / stock.price) * 100).toFixed(1)}%
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="text-base px-4 py-2">
-                          Overvalued by {(((stock.price - stock.metrics.valuationModels.intrinsicValue) / stock.metrics.valuationModels.intrinsicValue) * 100).toFixed(1)}%
-                        </Badge>
-                      )}
-                    </div>
+          {/* OVERVIEW */}
+          <TabsContent value="overview" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle>Price Chart</CardTitle>
+                  <CardDescription>Daily close with SMA 50 / 200 overlays.</CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {RANGES.map((r) => (
+                    <Button key={r} size="sm" variant={range === r ? "default" : "outline"} onClick={() => setRange(r)}>
+                      {r}
+                    </Button>
+                  ))}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {chartLoading ? (
+                  <div className="h-[360px] flex items-center justify-center">
+                    <RefreshCw className="h-6 w-6 animate-spin text-primary" />
                   </div>
+                ) : chartError || chartData.length === 0 ? (
+                  <div className="h-[360px] flex items-center justify-center text-muted-foreground">
+                    {chartError || "No price data available."}
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={360}>
+                    <ComposedChart data={chartData}>
+                      <defs>
+                        <linearGradient id="closeFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
+                      <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} minTickGap={40} />
+                      <YAxis domain={[priceMin, priceMax]} stroke="hsl(var(--muted-foreground))" fontSize={11} width={60} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                        labelStyle={{ color: "hsl(var(--foreground))" }}
+                      />
+                      <Area type="monotone" dataKey="close" stroke="hsl(var(--primary))" fill="url(#closeFill)" strokeWidth={2} dot={false} name="Close" />
+                      <Line type="monotone" dataKey="sma50" stroke="hsl(var(--chart-2))" strokeWidth={1.5} dot={false} name="SMA 50" />
+                      <Line type="monotone" dataKey="sma200" stroke="hsl(var(--chart-3))" strokeWidth={1.5} dot={false} name="SMA 200" />
+                      {tech?.levels.slice(0, 4).map((lv, i) => (
+                        <ReferenceLine
+                          key={i}
+                          y={lv.price}
+                          stroke={lv.type === "support" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                          strokeDasharray="4 4"
+                          strokeOpacity={0.5}
+                        />
+                      ))}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Composite Signal</CardTitle></CardHeader>
+                <CardContent>
+                  {tech ? (
+                    <>
+                      <Badge className={signalColor(tech.overall)} variant="outline">{tech.overall.toUpperCase()}</Badge>
+                      <p className="text-3xl font-bold mt-2">{tech.score > 0 ? "+" : ""}{tech.score}</p>
+                      <p className="text-xs text-muted-foreground">Score range -100 → +100</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Need more history for analysis.</p>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">News Sentiment</CardTitle></CardHeader>
+                <CardContent>
+                  {sentLoading ? (
+                    <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+                  ) : sentiment ? (
+                    <>
+                      <Badge variant="outline" className={sentimentTone(sentiment.label)}>{sentiment.label.toUpperCase()}</Badge>
+                      <p className="text-3xl font-bold mt-2">{Math.round(sentiment.score)}/100</p>
+                      <p className="text-xs text-muted-foreground">{sentiment.articles.length} sources analyzed</p>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={fetchSentiment}>Load sentiment</Button>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Quick Actions</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => navigate(`/technical?symbol=${encodeURIComponent(sym)}`)}>
+                    Full technical analysis →
+                  </Button>
+                  <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => navigate(`/backtest?symbol=${encodeURIComponent(sym)}`)}>
+                    Backtest strategies →
+                  </Button>
+                  <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => navigate(`/sentiment?symbol=${encodeURIComponent(sym)}`)}>
+                    Full sentiment dashboard →
+                  </Button>
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* TECHNICALS */}
+          <TabsContent value="technicals" className="space-y-6">
+            {!tech ? (
+              <Card className="p-12 text-center">
+                <Activity className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  Not enough price history yet for full technical analysis. Try a longer range above.
+                </p>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" /> Composite read: <Badge className={signalColor(tech.overall)} variant="outline">{tech.overall}</Badge>
+                    </CardTitle>
+                    <CardDescription>Score {tech.score} based on trend, momentum, volatility, and patterns.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Progress value={Math.max(0, Math.min(100, 50 + tech.score / 2))} className="h-2" />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle>Indicator breakdown</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    {tech.signals.map((s, i) => (
+                      <div key={i} className="p-3 rounded-lg border border-border/50 flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm">{s.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{s.reason}</p>
+                          <p className="text-xs font-mono text-muted-foreground mt-1">{s.value}</p>
+                        </div>
+                        <Badge variant="outline" className={signalColor(s.signal)}>{s.signal}</Badge>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {(tech.patterns.length > 0 || tech.levels.length > 0) && (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {tech.patterns.length > 0 && (
+                      <Card>
+                        <CardHeader><CardTitle className="text-base">Recent candlestick patterns</CardTitle></CardHeader>
+                        <CardContent className="flex flex-wrap gap-2">
+                          {tech.patterns.map((p, i) => <Badge key={i} variant="secondary">{p}</Badge>)}
+                        </CardContent>
+                      </Card>
+                    )}
+                    {tech.levels.length > 0 && (
+                      <Card>
+                        <CardHeader><CardTitle className="text-base">Key levels</CardTitle></CardHeader>
+                        <CardContent className="space-y-1.5 text-sm">
+                          {tech.levels.slice(0, 6).map((lv, i) => (
+                            <div key={i} className="flex justify-between">
+                              <span className={lv.type === "support" ? "text-success" : "text-destructive"}>
+                                {lv.type === "support" ? "Support" : "Resistance"}
+                              </span>
+                              <span className="font-mono">{sign}{lv.price.toFixed(2)} <span className="text-muted-foreground text-xs">×{lv.touches}</span></span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* SENTIMENT */}
+          <TabsContent value="sentiment" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <div>
+                  <CardTitle>AI Sentiment Summary</CardTitle>
+                  <CardDescription>Aggregated across Yahoo, Seeking Alpha, Reddit, X and more.</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={fetchSentiment} disabled={sentLoading} className="gap-1">
+                  <RefreshCw className={`h-3.5 w-3.5 ${sentLoading ? "animate-spin" : ""}`} /> Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {sentLoading && !sentiment ? (
+                  <div className="py-8 text-center"><RefreshCw className="h-6 w-6 animate-spin text-primary mx-auto" /></div>
+                ) : !sentiment ? (
+                  <p className="text-muted-foreground text-sm">Click refresh to fetch sentiment.</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Badge variant="outline" className={sentimentTone(sentiment.label)}>{sentiment.label.toUpperCase()}</Badge>
+                      <span className="text-2xl font-bold">{Math.round(sentiment.score)}/100</span>
+                    </div>
+                    <p className="text-sm">{sentiment.summary}</p>
+                    {sentiment.drivers?.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold mb-2">Key drivers</p>
+                        <ul className="space-y-1">
+                          {sentiment.drivers.map((d, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm">
+                              <Badge variant="outline" className={sentimentTone(d.impact)}>{d.impact}</Badge>
+                              <span>{d.title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {sentiment.sources && sentiment.sources.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold mb-2">Sentiment by source</p>
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {sentiment.sources.map((s, i) => (
+                            <div key={i} className="p-2 rounded border border-border/50 flex items-center justify-between text-sm">
+                              <span className="font-medium">{s.source}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {s.count} item{s.count === 1 ? "" : "s"} · avg {s.avgScore.toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* SOURCES */}
+          <TabsContent value="sources" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Sources</CardTitle>
+                <CardDescription>
+                  Every article, post and feed item the AI ingested for this ticker. Click any title to verify.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {sentLoading && !sentiment ? (
+                  <div className="py-8 text-center"><RefreshCw className="h-6 w-6 animate-spin text-primary mx-auto" /></div>
+                ) : !sentiment || sentiment.articles.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No sources yet — load sentiment first.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {sentiment.articles.map((a, i) => (
+                      <a
+                        key={i}
+                        href={a.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block p-3 rounded-lg border border-border/50 hover:border-primary/40 hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium leading-snug">{a.title}</p>
+                            {a.description && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 flex-wrap mt-2 text-xs text-muted-foreground">
+                              <Badge variant="outline">{a.source}</Badge>
+                              {a.pubDate && <span>{new Date(a.pubDate).toLocaleString()}</span>}
+                              <Badge variant="outline" className={sentimentTone(a.sentiment)}>
+                                {a.sentiment} · {a.score.toFixed(2)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

@@ -55,6 +55,7 @@ interface SentimentResult {
 interface DeepAnalysis {
   symbol: string;
   fundamentals: Record<string, any>;
+  liquidity?: { avgVolume: number; avgDollarVolume: number; tier: string } | null;
   valuation: {
     dcf: { perShare: number; assumptions: any; upside: number | null } | null;
     ddm: { perShare: number; assumptions: any; upside: number | null } | null;

@@ -14,6 +14,7 @@ import TechnicalAnalysis from "./pages/TechnicalAnalysis";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import AdminAuditLog from "./pages/AdminAuditLog";
 import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/technical" element={<TechnicalAnalysis />} />
           <Route path="/stock/:symbol" element={<StockDetails />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/admin/audit" element={<AdminAuditLog />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

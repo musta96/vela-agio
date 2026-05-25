@@ -34,23 +34,15 @@ type Item = { to: string; label: string; icon: React.ComponentType<{ className?:
 type Group = { label: string; icon: React.ComponentType<{ className?: string }>; items: Item[] };
 
 export const TopNav = () => {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const { pathname } = useLocation();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { isEnabled } = useFeatureFlags();
+  // Global navigation has moved to <AppShell /> (sidebar + header).
+  // TopNav is kept as a no-op so existing pages that import it don't break.
+  return null;
+};
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!user) { setIsAdmin(false); return; }
-    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin")
-      .maybeSingle().then(({ data }) => { if (!cancelled) setIsAdmin(!!data); });
-    return () => { cancelled = true; };
-  }, [user]);
+export default TopNav;
 
-  // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _legacyImpl = () => {
 
   const PRIMARY: Item[] = [
     { to: "/", label: t("nav.dashboard"), icon: Home },

@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { generateStockReport, generateDeepAnalysisReport } from "@/lib/pdfReports";
 import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert, Lightbulb } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert, Lightbulb, Briefcase } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,6 +106,11 @@ const StockDetails = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { toggle, isWatched } = useWatchlist();
+  const { user } = useAuth();
+  const [addOpen, setAddOpen] = useState(false);
+  const [addShares, setAddShares] = useState("");
+  const [addAvg, setAddAvg] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
 
   const sym = decodeURIComponent(symbol || "").toUpperCase();
   const entry = findCatalogEntry(sym);
@@ -204,6 +212,60 @@ const StockDetails = () => {
   const change = live?.change ?? 0;
   const isPositive = change >= 0;
 
+  const openAddToPortfolio = () => {
+    setAddShares("");
+    setAddAvg(price ? String(price.toFixed(4)) : "");
+    setAddOpen(true);
+  };
+
+  const saveToPortfolio = async () => {
+    const sh = parseFloat(addShares);
+    const av = parseFloat(addAvg);
+    if (!Number.isFinite(sh) || sh <= 0 || !Number.isFinite(av) || av <= 0) {
+      toast({ title: "Invalid values", description: "Enter positive numbers for shares and avg price.", variant: "destructive" });
+      return;
+    }
+    setAddSaving(true);
+    try {
+      if (user) {
+        // Merge with any existing position (weighted-avg buy)
+        const { data: existing } = await supabase
+          .from("portfolio_holdings")
+          .select("shares,avg_price")
+          .eq("user_id", user.id).eq("symbol", sym).maybeSingle();
+        let newShares = sh, newAvg = av;
+        if (existing) {
+          const exS = Number(existing.shares), exA = Number(existing.avg_price);
+          newShares = exS + sh;
+          newAvg = (exS * exA + sh * av) / newShares;
+        }
+        const { error } = await supabase.from("portfolio_holdings").upsert({
+          user_id: user.id, symbol: sym, name, shares: newShares, avg_price: newAvg,
+        }, { onConflict: "user_id,symbol" });
+        if (error) throw error;
+      } else {
+        // Local fallback
+        const raw = localStorage.getItem("portfolio_holdings");
+        const arr = raw ? JSON.parse(raw) : [];
+        const idx = arr.findIndex((p: any) => p.symbol === sym);
+        if (idx >= 0) {
+          const exS = Number(arr[idx].shares), exA = Number(arr[idx].avgPrice);
+          const newShares = exS + sh;
+          arr[idx] = { ...arr[idx], shares: newShares, avgPrice: (exS * exA + sh * av) / newShares };
+        } else {
+          arr.push({ symbol: sym, name, shares: sh, avgPrice: av, currentPrice: price || av, currency });
+        }
+        localStorage.setItem("portfolio_holdings", JSON.stringify(arr));
+      }
+      toast({ title: "Added to portfolio", description: `${sh} ${sym} @ ${sign}${av.toFixed(4)}` });
+      setAddOpen(false);
+    } catch (e: any) {
+      toast({ title: "Couldn't save", description: e?.message || "Try again", variant: "destructive" });
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SEO
@@ -239,6 +301,9 @@ const StockDetails = () => {
                 {!entry && <Badge variant="secondary">Unverified ticker</Badge>}
                 <Button size="icon" variant="ghost" aria-label={isWatched(sym) ? "Remove from watchlist" : "Add to watchlist"} onClick={() => toggle(sym, name)}>
                   <Star className={`h-5 w-5 ${isWatched(sym) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                </Button>
+                <Button size="sm" variant="default" className="gap-1.5" onClick={openAddToPortfolio}>
+                  <Briefcase className="h-4 w-4" /> Add to portfolio
                 </Button>
                 <Button
                   size="sm"

@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_signal_log: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          disclaimer: string | null
+          id: string
+          input: Json
+          output: Json
+          retracted_at: string | null
+          retracted_by: string | null
+          retracted_reason: string | null
+          signal_type: string
+          status: string
+          symbol: string | null
+          user_id: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          disclaimer?: string | null
+          id?: string
+          input?: Json
+          output?: Json
+          retracted_at?: string | null
+          retracted_by?: string | null
+          retracted_reason?: string | null
+          signal_type: string
+          status?: string
+          symbol?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          disclaimer?: string | null
+          id?: string
+          input?: Json
+          output?: Json
+          retracted_at?: string | null
+          retracted_by?: string | null
+          retracted_reason?: string | null
+          signal_type?: string
+          status?: string
+          symbol?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       alert_preferences: {
         Row: {
           daily_digest_enabled: boolean
@@ -316,6 +364,39 @@ export type Database = {
           user_id?: string
           user_quote?: string | null
           votes?: number
+        }
+        Relationships: []
+      }
+      incident_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          category: string
+          id: number
+          payload: Json
+          reason: string | null
+          ts: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          category: string
+          id?: number
+          payload?: Json
+          reason?: string | null
+          ts?: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          category?: string
+          id?: number
+          payload?: Json
+          reason?: string | null
+          ts?: string
         }
         Relationships: []
       }
@@ -625,6 +706,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_banners: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          message: string
+          severity: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message: string
+          severity?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message?: string
+          severity?: string
+        }
+        Relationships: []
+      }
+      platform_controls: {
+        Row: {
+          enabled: boolean
+          key: string
+          reason: string | null
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          reason?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          reason?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
       }
       portfolio_holdings: {
         Row: {
@@ -948,6 +1086,27 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_suspensions: {
+        Row: {
+          reason: string | null
+          suspended_at: string
+          suspended_by: string | null
+          user_id: string
+        }
+        Insert: {
+          reason?: string | null
+          suspended_at?: string
+          suspended_by?: string | null
+          user_id: string
+        }
+        Update: {
+          reason?: string | null
+          suspended_at?: string
+          suspended_by?: string | null
           user_id?: string
         }
         Relationships: []

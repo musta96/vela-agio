@@ -9,14 +9,18 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { LegalFooter } from "@/components/LegalFooter";
 import { CopilotFab } from "@/components/CopilotFab";
 import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
+import { PlatformBannerBar } from "@/components/PlatformBannerBar";
+import { MaintenanceGate } from "@/components/MaintenanceGate";
 
 export default function AppShell() {
   return (
+    <MaintenanceGate>
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
 
         <div className="flex-1 flex flex-col min-w-0">
+          <PlatformBannerBar />
           <header className="h-14 sticky top-0 z-30 flex items-center gap-3 px-4 bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))] text-sidebar-foreground">
             <SidebarTrigger className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5" />
 
@@ -51,5 +55,6 @@ export default function AppShell() {
       <CopilotFab />
       <LiveOrderConfirmModal />
     </SidebarProvider>
+    </MaintenanceGate>
   );
 }

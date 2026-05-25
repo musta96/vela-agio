@@ -18,7 +18,9 @@ interface Article {
 interface SentimentResult {
   symbol: string; score: number; label: string; summary: string;
   drivers: { title: string; impact: "positive" | "negative" | "neutral" }[];
-  articles: Article[]; generatedAt?: string;
+  articles: Article[];
+  sources?: { source: string; avgScore: number; count: number }[];
+  generatedAt?: string;
 }
 
 const sentimentTone = (s: string) => {
@@ -191,10 +193,43 @@ const SentimentDashboard = () => {
               </Card>
             )}
 
+            {result.sources && result.sources.length > 0 && (
+              <Card className="card-gradient border-border">
+                <CardHeader>
+                  <CardTitle>Sentiment by source</CardTitle>
+                  <CardDescription>
+                    Aggregated from financial news, Reddit, Seeking Alpha and X.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {result.sources.map((s) => {
+                      const tone =
+                        s.avgScore >= 60
+                          ? "border-success/30 bg-success/10 text-success"
+                          : s.avgScore <= 40
+                          ? "border-destructive/30 bg-destructive/10 text-destructive"
+                          : "border-border bg-muted/30 text-muted-foreground";
+                      return (
+                        <div key={s.source} className={`p-3 rounded-md border ${tone}`}>
+                          <p className="text-xs uppercase opacity-80">{s.source}</p>
+                          <p className="text-2xl font-bold">{s.avgScore}</p>
+                          <p className="text-[10px] opacity-70">{s.count} item{s.count > 1 ? "s" : ""}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="card-gradient border-border">
               <CardHeader>
-                <CardTitle>News Headlines ({result.articles.length})</CardTitle>
-                <CardDescription>Source: Yahoo Finance · Generated {result.generatedAt ? new Date(result.generatedAt).toLocaleString() : "now"}</CardDescription>
+                <CardTitle>Mentions & headlines ({result.articles.length})</CardTitle>
+                <CardDescription>
+                  Sources: Yahoo Finance, Seeking Alpha, Reddit, X · Generated{" "}
+                  {result.generatedAt ? new Date(result.generatedAt).toLocaleString() : "now"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">

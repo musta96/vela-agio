@@ -7,7 +7,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon,
-  BookOpen, ScrollText, GraduationCap,
+  BookOpen, ScrollText, GraduationCap, Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -34,6 +34,7 @@ const INTELLIGENCE: Item[] = [
   { title: "Advisor", url: "/advisor", icon: Lightbulb },
   { title: "Copilot", url: "/copilot", icon: Bot },
   { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+  { title: "Deal flow", url: "/dealflow", icon: Handshake, badge: "new" },
   { title: "Alerts", url: "/alerts", icon: Bell },
 ];
 

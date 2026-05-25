@@ -43,6 +43,7 @@ import Blotter from "./pages/Blotter";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
+import DealFlow from "./pages/DealFlow";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -111,6 +112,7 @@ const App = () => (
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/dealflow" element={<DealFlow />} />
             <Route path="/admin/audit" element={<AdminAuditLog />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/advisor" element={<Advisor />} />

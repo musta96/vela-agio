@@ -8,6 +8,7 @@ import { AuthButton } from "@/components/AuthButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { LegalFooter } from "@/components/LegalFooter";
 import { CopilotFab } from "@/components/CopilotFab";
+import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
 
 export default function AppShell() {
   return (
@@ -48,6 +49,7 @@ export default function AppShell() {
       </div>
       <CommandPalette />
       <CopilotFab />
+      <LiveOrderConfirmModal />
     </SidebarProvider>
   );
 }

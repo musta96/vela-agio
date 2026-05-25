@@ -4,13 +4,14 @@ import { SEO } from "@/components/SEO";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, User as UserIcon, Loader2 } from "lucide-react";
+import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type ToolEvent = { id: string; name: string; args?: any; result?: any; done: boolean };
+type Msg = { role: "user" | "assistant"; content: string; tools?: ToolEvent[] };
 
 export default function Copilot() {
   const { t, i18n } = useTranslation();
@@ -53,16 +54,40 @@ export default function Copilot() {
       });
       if (!r.ok || !r.body) throw new Error("Stream failed");
       const reader = r.body.getReader(); const dec = new TextDecoder();
-      let acc = ""; let buf = "";
-      setMessages(m => [...m, { role: "assistant", content: "" }]);
+      let acc = ""; let buf = ""; const tools: ToolEvent[] = [];
+      setMessages(m => [...m, { role: "assistant", content: "", tools: [] }]);
+      const pushUpdate = () => setMessages(m => { const c = [...m]; c[c.length - 1] = { role: "assistant", content: acc, tools: [...tools] }; return c; });
       while (true) {
         const { done, value } = await reader.read(); if (done) break;
         buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n"); buf = lines.pop() ?? "";
-        for (const ln of lines) {
-          if (!ln.startsWith("data:")) continue;
-          const data = ln.slice(5).trim(); if (data === "[DONE]") continue;
-          try { const j = JSON.parse(data); const delta = j?.choices?.[0]?.delta?.content; if (delta) { acc += delta; setMessages(m => { const c = [...m]; c[c.length - 1] = { role: "assistant", content: acc }; return c; }); } } catch {}
+        // SSE events are separated by blank line — parse event blocks
+        const blocks = buf.split("\n\n"); buf = blocks.pop() ?? "";
+        for (const block of blocks) {
+          const lines = block.split("\n");
+          let evt = "message"; const dataLines: string[] = [];
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) evt = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataLines.push(ln.slice(5).trim());
+          }
+          const data = dataLines.join("\n");
+          if (!data) continue;
+          if (evt === "tool") {
+            try {
+              const j = JSON.parse(data);
+              const existing = tools.find(t => t.id === j.id);
+              if (j.phase === "start") {
+                if (!existing) tools.push({ id: j.id, name: j.name, args: j.args, done: false });
+              } else if (j.phase === "end") {
+                if (existing) { existing.result = j.result; existing.done = true; }
+                else tools.push({ id: j.id, name: j.name, result: j.result, done: true });
+              }
+              pushUpdate();
+            } catch {}
+          } else {
+            // default 'message' event — OpenAI-style delta
+            if (data === "[DONE]") continue;
+            try { const j = JSON.parse(data); const delta = j?.choices?.[0]?.delta?.content; if (delta) { acc += delta; pushUpdate(); } } catch {}
+          }
         }
       }
     } catch (e: any) {
@@ -81,8 +106,30 @@ export default function Copilot() {
             {messages.map((m, i) => (
               <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>
                 {m.role === "assistant" && <Bot className="h-6 w-6 text-primary shrink-0" />}
-                <div className={`max-w-[80%] rounded-lg px-4 py-2 prose prose-sm prose-invert ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                  <ReactMarkdown>{m.content || "..."}</ReactMarkdown>
+                <div className={`max-w-[80%] space-y-2 ${m.role === "user" ? "items-end" : ""}`}>
+                  {m.tools && m.tools.length > 0 && (
+                    <div className="space-y-1">
+                      {m.tools.map(t => (
+                        <details key={t.id} className="rounded-md border border-border bg-card/50 text-xs">
+                          <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">
+                            <Wrench className={`h-3 w-3 ${t.done ? "text-primary" : "text-muted-foreground animate-pulse"}`} />
+                            <span className="font-mono">{t.name}</span>
+                            {!t.done && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                            {t.done && t.result?.error && <span className="text-destructive">· error</span>}
+                            {t.done && t.result?.ok && <span className="text-primary">· ok</span>}
+                            <ChevronRight className="h-3 w-3 ml-auto text-muted-foreground" />
+                          </summary>
+                          <div className="px-2 pb-2 space-y-1">
+                            {t.args && <pre className="text-[10px] opacity-70 overflow-x-auto">{JSON.stringify(t.args, null, 2)}</pre>}
+                            {t.done && <pre className="text-[10px] opacity-80 overflow-x-auto">{JSON.stringify(t.result, null, 2).slice(0, 1500)}</pre>}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  )}
+                  <div className={`rounded-lg px-4 py-2 prose prose-sm prose-invert ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                    <ReactMarkdown>{m.content || (m.tools && m.tools.length > 0 ? "_working..._" : "...")}</ReactMarkdown>
+                  </div>
                 </div>
                 {m.role === "user" && <UserIcon className="h-6 w-6 text-muted-foreground shrink-0" />}
               </div>

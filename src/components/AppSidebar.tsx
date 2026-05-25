@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/sidebar";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper,
+  Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper, Wallet as WalletIcon,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
 } from "lucide-react";
@@ -17,6 +17,7 @@ type Item = { title: string; url: string; icon: React.ComponentType<{ className?
 const OVERVIEW: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Portfolio", url: "/portfolio", icon: Briefcase },
+  { title: "Net Worth", url: "/net-worth", icon: WalletIcon, badge: "new" },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
   { title: "Orders", url: "/orders", icon: History },
   { title: "Macro", url: "/macro", icon: Globe2 },

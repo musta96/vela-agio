@@ -80,7 +80,7 @@ export default function Index() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
 
   // Live holdings for real portfolio value
-  const [holdings, setHoldings] = useState<Array<{ symbol: string; shares: number; avg_price: number; currency: string }>>([]);
+  const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number; avg_price: number; currency: string }>>([]);
   const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);
   const [sentimentAvg, setSentimentAvg] = useState<number | null>(null);
 
@@ -88,8 +88,8 @@ export default function Index() {
     if (!user) { setHoldings([]); return; }
     (async () => {
       const holdingsQuery = primary?.id
-        ? supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("portfolio_id", primary.id)
-        : supabase.from("portfolio_holdings").select("symbol, shares, avg_price, currency").eq("user_id", user.id);
+        ? supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price, currency").eq("portfolio_id", primary.id)
+        : supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price, currency").eq("user_id", user.id);
       const [h, rules, sent] = await Promise.all([
         holdingsQuery,
         supabase.from("alert_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),

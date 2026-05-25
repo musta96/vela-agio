@@ -11,6 +11,7 @@ import {
   ComposedChart,
   Line,
   Area,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -122,6 +123,8 @@ const StockDetails = () => {
       close: b.close,
       sma50: s50[i] ?? null,
       sma200: s200[i] ?? null,
+      volume: b.volume ?? 0,
+      up: b.close >= b.open,
     }));
   }, [bars]);
 

@@ -1,6 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 type Holding = { symbol: string; name?: string; shares: number; avg_price: number; current_price?: number };
 
@@ -104,11 +103,12 @@ WEATHER CONTEXT (optional, for weather-sensitive holdings): ${JSON.stringify(wx)
 POSITIONS (${positions.length}, total value ${totalValue.toFixed(0)}):
 ${JSON.stringify(positions).slice(0, 12000)}`;
 
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const cfg = await resolveAIConfig(req.headers.get('Authorization'));
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: cfg.model,
         messages: [
           { role: 'system', content: sys },
           { role: 'user', content: user },
@@ -121,7 +121,7 @@ ${JSON.stringify(positions).slice(0, 12000)}`;
     const j = await r.json();
     let out: any = {};
     try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    out._meta = { weather: wx?.city ?? null, positions: positions.length, totalValue };
+    out._meta = { weather: wx?.city ?? null, positions: positions.length, totalValue, ai_provider: cfg.effectiveProvider, ai_model: cfg.model, ai_source: cfg.source, ai_notice: cfg.notice ?? null };
     return new Response(JSON.stringify(out), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

@@ -1,6 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface Body { symbol: string; name?: string; currency?: string }
@@ -213,7 +212,7 @@ function ddmValuation(f: ReturnType<typeof extractFundamentals>) {
   };
 }
 
-async function aiNarrative(symbol: string, name: string, f: any, dcf: any, ddm: any, liquidity: any) {
+async function aiNarrative(cfg: AIConfig, symbol: string, name: string, f: any, dcf: any, ddm: any, liquidity: any) {
   const system = `You are a senior equity research analyst. Be concise, balanced, and number-driven. Return STRICT JSON only.`;
   const user = `Stock: ${name} (${symbol})
 Fundamentals (compact JSON): ${JSON.stringify(f)}
@@ -238,11 +237,11 @@ Return JSON with shape:
 }
 Prices must be plausible absolute prices in the stock's currency, anchored to current price ${f.price} and intrinsic values.`;
 
-  const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const r = await fetch(`${cfg.baseURL}/chat/completions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: cfg.headers,
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: cfg.model,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -272,7 +271,8 @@ Deno.serve(async (req) => {
     const dcf = dcfValuation(fundamentals);
     const ddm = ddmValuation(fundamentals);
     const liquidity = liquidityProfile(fundamentals);
-    const ai = await aiNarrative(sym, body.name || fundamentals.longName || sym, fundamentals, dcf, ddm, liquidity);
+    const cfg = await resolveAIConfig(req.headers.get('Authorization'));
+    const ai = await aiNarrative(cfg, sym, body.name || fundamentals.longName || sym, fundamentals, dcf, ddm, liquidity);
 
     return new Response(JSON.stringify({
       symbol: sym,
@@ -280,6 +280,7 @@ Deno.serve(async (req) => {
       liquidity,
       valuation: { dcf, ddm },
       analysis: ai,
+      ai_meta: { provider: cfg.effectiveProvider, model: cfg.model, source: cfg.source, notice: cfg.notice ?? null },
       generatedAt: new Date().toISOString(),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: any) {

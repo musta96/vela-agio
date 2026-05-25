@@ -198,6 +198,35 @@ const Portfolio = () => {
     );
   }, [symbolSearch]);
 
+  // Live universal symbol search via Yahoo (covers stocks, ETFs, bonds, funds, futures,
+  // indices, crypto worldwide). Kicks in after 350ms debounce when ≥2 chars.
+  type RemoteResult = { symbol: string; name: string; exchange: string; type: string; currency: string };
+  const [remoteResults, setRemoteResults] = useState<RemoteResult[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  useEffect(() => {
+    const q = symbolSearch.trim();
+    if (q.length < 2) { setRemoteResults([]); return; }
+    setRemoteLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.functions.invoke("symbol-search", { body: null, method: "GET" as any }) as any;
+        // Edge functions don't easily accept query string via invoke; use direct fetch.
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/symbol-search?q=${encodeURIComponent(q)}`;
+        const r = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+        const j = await r.json();
+        setRemoteResults((j?.results ?? []) as RemoteResult[]);
+      } catch { setRemoteResults([]); }
+      finally { setRemoteLoading(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [symbolSearch]);
+
+  // Show remote results that aren't already in the local catalog.
+  const extraRemote = useMemo(() => {
+    const local = new Set(STOCK_CATALOG.map(s => s.symbol.toUpperCase()));
+    return remoteResults.filter(r => !local.has(r.symbol.toUpperCase())).slice(0, 15);
+  }, [remoteResults]);
+
   const toggleAddForm = () => {
     const shouldOpen = !showAddForm;
     console.log("[Portfolio] toggleAddForm clicked", { from: showAddForm, to: shouldOpen });

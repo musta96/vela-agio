@@ -14,8 +14,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
-const TickerStats = ({ symbol, color }: { symbol: string; color: string }) => {
-  const { bars } = useOHLCHistory(symbol, "1Y");
+const TickerStats = ({ symbol, bars, color }: { symbol: string; bars: any[]; color: string }) => {
   const tech = useMemo(() => (bars.length >= 60 ? analyze(bars) : null), [bars]);
   const risk = useMemo(() => (bars.length >= 30 ? riskSummary(bars) : null), [bars]);
   const entry = findCatalogEntry(symbol);
@@ -45,13 +44,19 @@ const Stat = ({ label, value, tone }: { label: string; value: string; tone?: "go
   </div>
 );
 
+const MAX_SLOTS = 4;
+
 const Compare = () => {
   const [tickers, setTickers] = useState<string[]>(["ENEL.MI", "ENI.MI"]);
   const [input, setInput] = useState("");
   const { quotes } = useLiveQuotes(tickers, 60000);
 
-  // Normalized chart (each ticker rebased to 100 at first bar)
-  const histories = tickers.map((s) => useOHLCHistory(s, "1Y").bars);
+  // Use 4 fixed hook slots; pass null for empty slots.
+  const slot0 = useOHLCHistory(tickers[0] ?? null, "1Y").bars;
+  const slot1 = useOHLCHistory(tickers[1] ?? null, "1Y").bars;
+  const slot2 = useOHLCHistory(tickers[2] ?? null, "1Y").bars;
+  const slot3 = useOHLCHistory(tickers[3] ?? null, "1Y").bars;
+  const histories = [slot0, slot1, slot2, slot3].slice(0, tickers.length);
 
   const chartData = useMemo(() => {
     if (histories.length === 0 || histories.some((h) => h.length === 0)) return [];
@@ -141,7 +146,7 @@ const Compare = () => {
         </Card>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {tickers.map((t, i) => <TickerStats key={t} symbol={t} color={COLORS[i]} />)}
+          {tickers.map((t, i) => <TickerStats key={t} symbol={t} bars={histories[i] ?? []} color={COLORS[i]} />)}
         </div>
       </div>
     </div>

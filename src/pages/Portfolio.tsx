@@ -613,7 +613,34 @@ const Portfolio = () => {
                     />
                     <div className="max-h-[60vh] sm:max-h-72 overflow-y-auto overscroll-contain p-1">
                       {filteredCatalog.length === 0 ? (
-                        <p className="px-3 py-6 text-center text-sm text-muted-foreground">No instrument found.</p>
+                        <div className="px-3 py-4 text-sm">
+                          <p className="text-muted-foreground mb-3">
+                            Not in our catalog. Use it anyway as a custom symbol:
+                          </p>
+                          {symbolSearch.trim() && (
+                            <button
+                              type="button"
+                              className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
+                              onClick={() => {
+                                const sym = symbolSearch.trim().toUpperCase();
+                                setNewStock({ ...newStock, symbol: sym, name: sym });
+                                setNewDisplayName("");
+                                setNewCurrency(sym.endsWith(".MI") || sym.endsWith(".DE") || sym.endsWith(".PA") || sym.endsWith(".AS") || sym.endsWith(".BR") || sym.endsWith(".MC") ? "EUR" : sym.endsWith(".L") ? "GBP" : sym.endsWith(".SW") ? "CHF" : "USD");
+                                setSymbolSearch("");
+                                setSymbolPickerOpen(false);
+                              }}
+                            >
+                              <span className="font-semibold mr-2">+ Use</span>
+                              <span className="font-mono">{symbolSearch.trim().toUpperCase()}</span>
+                              <span className="ml-auto text-[10px] text-muted-foreground">Custom symbol</span>
+                            </button>
+                          )}
+                          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
+                            Use Yahoo Finance suffixes: <code>.MI</code> Milan, <code>.DE</code> Xetra,
+                            <code>.L</code> London, <code>.PA</code> Paris, <code>.AS</code> Amsterdam,
+                            <code>.SW</code> Swiss. Example: <code>1PLTR.MI</code>, <code>BCHN.MI</code>.
+                          </p>
+                        </div>
                       ) : (
                         filteredCatalog.map((stock) => (
                           <button
@@ -623,6 +650,8 @@ const Portfolio = () => {
                             onClick={() => {
                               console.log("[Portfolio] symbol option clicked", stock.symbol);
                               setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
+                              setNewCurrency(stock.currency);
+                              setNewDisplayName("");
                               setSymbolSearch("");
                               setSymbolPickerOpen(false);
                             }}
@@ -632,6 +661,7 @@ const Portfolio = () => {
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold">{stock.symbol}</span>
                                 <Badge variant="outline" className="text-[10px]">{stock.market}</Badge>
+                                <Badge variant="outline" className="text-[10px]">{stock.currency}</Badge>
                               </div>
                               <p className="truncate text-xs text-muted-foreground">{stock.name}</p>
                             </div>
@@ -642,6 +672,20 @@ const Portfolio = () => {
                   </div>
                 )}
               </div>
+              {isCustomSymbol && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Custom symbol <span className="font-mono text-foreground">{newStock.symbol}</span> —
+                    please enter a display name. Quote-fetch uses Yahoo Finance.
+                  </p>
+                  <Input
+                    placeholder="e.g. Invesco CoinShares Global Blockchain UCITS"
+                    value={newDisplayName}
+                    onChange={(e) => setNewDisplayName(e.target.value)}
+                    className="h-10 text-sm"
+                  />
+                </div>
+              )}
               <div>
                 <label htmlFor="portfolio-shares" className="text-sm text-muted-foreground mb-2 block">Shares</label>
                 <Input
@@ -655,8 +699,35 @@ const Portfolio = () => {
                 />
               </div>
               <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Purchase currency
+                </label>
+                <Select value={newCurrency} onValueChange={setNewCurrency}>
+                  <SelectTrigger className="h-11 text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR — Euro</SelectItem>
+                    <SelectItem value="USD">USD — US Dollar</SelectItem>
+                    <SelectItem value="GBP">GBP — British Pound</SelectItem>
+                    <SelectItem value="GBp">GBp — Pence sterling</SelectItem>
+                    <SelectItem value="CHF">CHF — Swiss Franc</SelectItem>
+                    <SelectItem value="SEK">SEK — Swedish Krona</SelectItem>
+                    <SelectItem value="NOK">NOK — Norwegian Krone</SelectItem>
+                    <SelectItem value="DKK">DKK — Danish Krone</SelectItem>
+                    <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
+                    <SelectItem value="CAD">CAD — Canadian Dollar</SelectItem>
+                    <SelectItem value="AUD">AUD — Australian Dollar</SelectItem>
+                    <SelectItem value="HKD">HKD — Hong Kong Dollar</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Auto-filled from the catalog; override if you bought on a different exchange.
+                </p>
+              </div>
+              <div>
                 <label htmlFor="portfolio-avg-price" className="text-sm text-muted-foreground mb-2 block">
-                  Avg Price {selectedCatalog ? `(${currencySign(selectedCatalog.currency).trim() || selectedCatalog.currency})` : ""}
+                  Avg Price ({currencySign(newCurrency).trim() || newCurrency})
                 </label>
                 <Input
                   id="portfolio-avg-price"

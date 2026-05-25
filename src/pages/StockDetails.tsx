@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { generateStockReport } from "@/lib/pdfReports";
+import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -237,6 +239,38 @@ const StockDetails = () => {
                 {!entry && <Badge variant="secondary">Unverified ticker</Badge>}
                 <Button size="icon" variant="ghost" aria-label={isWatched(sym) ? "Remove from watchlist" : "Add to watchlist"} onClick={() => toggle(sym, name)}>
                   <Star className={`h-5 w-5 ${isWatched(sym) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() =>
+                    generateStockReport({
+                      symbol: sym,
+                      name: name ?? entry?.name ?? "",
+                      price: price || undefined,
+                      change: live?.change,
+                      fundamentals: deep?.fundamentals
+                        ? {
+                            "Market cap": deep.fundamentals.marketCap,
+                            "P/E (TTM)": deep.fundamentals.peTrailing,
+                            "Fwd P/E": deep.fundamentals.peForward,
+                            "PEG": deep.fundamentals.pegRatio,
+                            "P/B": deep.fundamentals.priceToBook,
+                            "EV/EBITDA": deep.fundamentals.evToEbitda,
+                            "Div yield": deep.fundamentals.dividendYield,
+                            "ROE": deep.fundamentals.returnOnEquity,
+                            "Beta": deep.fundamentals.beta,
+                            "Analyst target (mean)": deep.fundamentals.targetMeanPrice,
+                          }
+                        : undefined,
+                      aiVerdict: sentiment
+                        ? { verdict: sentiment.label ?? "—", confidence: sentiment.score, rationale: (sentiment as any).summary }
+                        : undefined,
+                    })
+                  }
+                >
+                  <FileDown className="h-4 w-4" /> PDF
                 </Button>
               </div>
               <p className="text-muted-foreground">{name}</p>

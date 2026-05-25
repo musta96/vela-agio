@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const LINKS: { to: string; label: string }[] = [
   { to: "/", label: "Dashboard" },
@@ -18,6 +19,7 @@ const LINKS: { to: string; label: string }[] = [
   { to: "/picks", label: "AI Picks" },
   { to: "/portfolio", label: "Portfolio" },
   { to: "/watchlist", label: "Watchlist" },
+  { to: "/alerts", label: "Alerts" },
   { to: "/settings", label: "Settings" },
 ];
 
@@ -66,6 +68,7 @@ export const TopNav = () => {
           >
             <CommandIcon className="h-3 w-3" /> K
           </button>
+          {user && <NotificationBell />}
           <AuthButton />
         </div>
       </div>

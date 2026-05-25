@@ -15,6 +15,27 @@ import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, t
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Cpu } from "lucide-react";
+
+type ProviderId = "lovable" | "openai" | "groq" | "mistral" | "perplexity" | "anthropic" | "gemini";
+
+const PROVIDER_OPTIONS: Array<{ id: ProviderId; label: string; defaultModel: string; needsKey?: string; models: string[]; status?: "beta" | "soon" }> = [
+  { id: "lovable", label: "Lovable AI (default, no key needed)", defaultModel: "google/gemini-2.5-flash",
+    models: ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "google/gemini-2.5-flash-lite", "google/gemini-3-flash-preview", "openai/gpt-5-mini", "openai/gpt-5"] },
+  { id: "openai", label: "OpenAI", defaultModel: "gpt-4o-mini", needsKey: "OPENAI_API_KEY",
+    models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "o3-mini", "o4-mini"] },
+  { id: "groq", label: "Groq (ultra-fast Llama/Mixtral)", defaultModel: "llama-3.3-70b-versatile", needsKey: "GROQ_API_KEY",
+    models: ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"] },
+  { id: "mistral", label: "Mistral", defaultModel: "mistral-large-latest", needsKey: "MISTRAL_API_KEY",
+    models: ["mistral-large-latest", "mistral-small-latest", "codestral-latest"] },
+  { id: "perplexity", label: "Perplexity (online search)", defaultModel: "llama-3.1-sonar-large-128k-online", needsKey: "PERPLEXITY_API_KEY",
+    models: ["llama-3.1-sonar-large-128k-online", "llama-3.1-sonar-small-128k-online"] },
+  { id: "anthropic", label: "Anthropic (Claude) — coming soon", defaultModel: "claude-3-5-sonnet-latest", needsKey: "ANTHROPIC_API_KEY",
+    models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"], status: "soon" },
+  { id: "gemini", label: "Google Gemini (direct) — coming soon", defaultModel: "gemini-2.0-flash", needsKey: "GEMINI_API_KEY",
+    models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"], status: "soon" },
+];
 
 const CATEGORY_META: Record<ApiKeyCategory, { label: string; icon: typeof Brain; description: string }> = {
   ai: { label: "AI Models", icon: Brain, description: "Bring your own LLM providers for chat, analysis and recommendations." },
@@ -124,13 +145,20 @@ const Settings = () => {
   const [focus, setFocus] = useState("");
   const [focusSaving, setFocusSaving] = useState(false);
   const [focusLoaded, setFocusLoaded] = useState(false);
+  const [aiProvider, setAiProvider] = useState<ProviderId>("lovable");
+  const [aiModel, setAiModel] = useState<string>("");
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiLoaded, setAiLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await (supabase as any).from("profiles").select("briefing_focus").eq("user_id", user.id).maybeSingle();
+      const { data } = await (supabase as any).from("profiles").select("briefing_focus, ai_provider, ai_model").eq("user_id", user.id).maybeSingle();
       setFocus(data?.briefing_focus ?? "");
       setFocusLoaded(true);
+      setAiProvider((data?.ai_provider ?? "lovable") as ProviderId);
+      setAiModel(data?.ai_model ?? "");
+      setAiLoaded(true);
     })();
   }, [user]);
 
@@ -204,6 +232,27 @@ const Settings = () => {
   };
 
   const savedCount = Object.keys(hints).length;
+
+  const saveAi = async () => {
+    if (!user) return;
+    setAiSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("profiles")
+        .update({ ai_provider: aiProvider, ai_model: aiModel.trim() || null })
+        .eq("user_id", user.id);
+      if (error) throw error;
+      toast({ title: "AI provider updated", description: `Now using ${aiProvider}${aiModel ? ` · ${aiModel}` : ""}` });
+    } catch (e) {
+      toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const activeProvider = PROVIDER_OPTIONS.find(p => p.id === aiProvider) ?? PROVIDER_OPTIONS[0];
+  const needsKey = activeProvider.needsKey;
+  const keyMissing = !!needsKey && !hints[needsKey];
 
   return (
     <div className="min-h-screen bg-background">

@@ -38,7 +38,81 @@ function parseRss(xml: string, max = 12): Article[] {
   return items;
 }
 
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; LovableSentimentBot/1.0)" };
+const UA = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+};
+
+// Reputable financial publishers we want represented when available. Most of
+// these don't expose direct per-ticker RSS, so we query them through Google
+// News (which mirrors their headlines for free, no API key required).
+const REPUTABLE_SITES: { source: string; site: string; region?: string }[] = [
+  { source: "Bloomberg", site: "bloomberg.com" },
+  { source: "Financial Times", site: "ft.com" },
+  { source: "Reuters", site: "reuters.com" },
+  { source: "Wall Street Journal", site: "wsj.com" },
+  { source: "CNBC", site: "cnbc.com" },
+  { source: "MarketWatch", site: "marketwatch.com" },
+  { source: "Morningstar", site: "morningstar.com" },
+  { source: "Barron's", site: "barrons.com" },
+  { source: "The Motley Fool", site: "fool.com" },
+  { source: "Investor's Business Daily", site: "investors.com" },
+  { source: "Value Line", site: "valueline.com" },
+  { source: "Zacks", site: "zacks.com" },
+  { source: "Sharesight", site: "sharesight.com" },
+  { source: "Google Finance", site: "google.com/finance" },
+  // Italian / European outlets — useful for FTSE MIB names.
+  { source: "Borsa Italiana", site: "borsaitaliana.it", region: "IT" },
+  { source: "Il Sole 24 Ore", site: "ilsole24ore.com", region: "IT" },
+  { source: "Milano Finanza", site: "milanofinanza.it", region: "IT" },
+  { source: "Reuters Italia", site: "it.reuters.com", region: "IT" },
+];
+
+// Generic Google News RSS for the ticker — gives us a broad, well-deduped mix
+// of mainstream financial coverage when site-scoped queries return nothing.
+async function fetchGoogleNewsGeneric(symbol: string, name?: string): Promise<Article[]> {
+  const base = symbol.split(".")[0];
+  const q = encodeURIComponent(`${base} ${name ?? ""} stock`.trim());
+  const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
+  try {
+    const r = await fetch(url, { headers: UA });
+    if (!r.ok) return [];
+    return parseRss(await r.text(), 15).map((a) => ({
+      ...a,
+      // Google News mangles the source into the title as " - Source"; extract.
+      source: extractGoogleNewsSource(a.title) || "Google News",
+      title: stripGoogleNewsSuffix(a.title),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function extractGoogleNewsSource(title: string): string | null {
+  const m = title.match(/\s-\s([^-]+)$/);
+  return m ? m[1].trim() : null;
+}
+function stripGoogleNewsSuffix(title: string): string {
+  return title.replace(/\s-\s[^-]+$/, "").trim();
+}
+
+// Site-scoped Google News query — surfaces headlines from a specific publisher.
+async function fetchPublisher(symbol: string, name: string | undefined, site: string, sourceLabel: string): Promise<Article[]> {
+  const base = symbol.split(".")[0];
+  const q = encodeURIComponent(`${base} ${name ?? ""} site:${site}`.trim());
+  const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
+  try {
+    const r = await fetch(url, { headers: UA });
+    if (!r.ok) return [];
+    return parseRss(await r.text(), 4).map((a) => ({
+      ...a,
+      source: sourceLabel,
+      title: stripGoogleNewsSuffix(a.title),
+    }));
+  } catch {
+    return [];
+  }
+}
 
 // Yahoo Finance RSS (mainstream financial news)
 async function fetchYahoo(symbol: string): Promise<Article[]> {
@@ -147,20 +221,23 @@ function dedupe(items: Article[], limit = 40): Article[] {
 }
 
 async function fetchHeadlines(symbol: string, name?: string): Promise<Article[]> {
-  const [yahoo, sa, reddit, twitter] = await Promise.all([
+  const publishers = REPUTABLE_SITES.map((p) => fetchPublisher(symbol, name, p.site, p.source));
+  const [yahoo, sa, reddit, twitter, gnews, ...pubLists] = await Promise.all([
     fetchYahoo(symbol),
     fetchSeekingAlpha(symbol),
     fetchReddit(symbol, name),
     fetchTwitter(symbol),
+    fetchGoogleNewsGeneric(symbol, name),
+    ...publishers,
   ]);
   // Interleave so AI sees a balanced mix even if we truncate
   const merged: Article[] = [];
-  const lists = [yahoo, sa, reddit, twitter];
+  const lists = [yahoo, sa, ...pubLists, gnews, reddit, twitter];
   const max = Math.max(...lists.map((l) => l.length));
   for (let i = 0; i < max; i++) {
     for (const l of lists) if (l[i]) merged.push(l[i]);
   }
-  return dedupe(merged, 40);
+  return dedupe(merged, 60);
 }
 
 Deno.serve(async (req) => {

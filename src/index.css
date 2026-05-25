@@ -8,47 +8,56 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 25% 15%;
+    /* Vela.ai brand — light theme
+       Sand #F1EFE8 bg · Navy #042C53 text · Ocean #185FA5 primary
+       Sky #378ADD interactive · Teal #1D9E75 accent (positive)        */
+    --background: 45 23% 93%;            /* Sand */
+    --foreground: 211 91% 17%;           /* Navy */
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 211 91% 17%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 211 91% 17%;
 
-    --primary: 210 100% 45%;
+    --primary: 210 75% 37%;              /* Ocean */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 190 80% 45%;
+    --secondary: 210 70% 54%;            /* Sky */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 15% 92%;
-    --muted-foreground: 215 15% 45%;
+    --muted: 210 76% 95%;                /* Foam */
+    --muted-foreground: 50 4% 51%;       /* Slate */
 
-    --accent: 195 85% 55%;
+    --accent: 159 69% 37%;               /* Teal */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 1 73% 59%;            /* Negative */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
+    --success: 159 69% 37%;              /* Teal */
     --success-foreground: 0 0% 100%;
 
-    --border: 215 20% 88%;
-    --input: 215 20% 88%;
-    --ring: 210 100% 45%;
+    --warning: 33 86% 54%;               /* Neutral */
+    --warning-foreground: 0 0% 100%;
+
+    --bull: 159 69% 37%;
+    --bear: 1 73% 59%;
+
+    --border: 211 76% 88%;               /* Mist-ish */
+    --input: 211 76% 88%;
+    --ring: 210 75% 37%;
 
     --radius: 0.75rem;
 
-    --chart-1: 210 100% 45%;
-    --chart-2: 190 80% 45%;
-    --chart-3: 195 85% 55%;
-    --chart-4: 220 70% 50%;
-    --chart-5: 170 75% 40%;
+    --chart-1: 210 75% 37%;
+    --chart-2: 159 69% 37%;
+    --chart-3: 210 70% 54%;
+    --chart-4: 211 91% 17%;
+    --chart-5: 156 49% 58%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(210 100% 45%), hsl(190 80% 45%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 97%));
+    --gradient-primary: linear-gradient(135deg, hsl(210 75% 37%), hsl(159 69% 37%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 76% 97%));
     
     --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.1);
@@ -59,45 +68,52 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 215 30% 8%;
-    --foreground: 210 20% 95%;
+    /* Vela.ai brand — dark theme (Navy base) */
+    --background: 211 91% 9%;
+    --foreground: 210 76% 95%;           /* Foam */
 
-    --card: 215 25% 12%;
-    --card-foreground: 210 20% 95%;
+    --card: 211 70% 13%;
+    --card-foreground: 210 76% 95%;
 
-    --popover: 215 25% 12%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 211 70% 13%;
+    --popover-foreground: 210 76% 95%;
 
-    --primary: 210 100% 55%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 210 70% 54%;              /* Sky for contrast */
+    --primary-foreground: 211 91% 9%;
 
-    --secondary: 190 80% 50%;
+    --secondary: 210 75% 37%;            /* Ocean */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 20% 18%;
-    --muted-foreground: 215 15% 65%;
+    --muted: 211 50% 18%;
+    --muted-foreground: 211 30% 70%;
 
-    --accent: 195 85% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 156 49% 58%;               /* Seafoam */
+    --accent-foreground: 211 91% 9%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 1 73% 59%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
+    --success: 156 49% 58%;
+    --success-foreground: 211 91% 9%;
 
-    --border: 215 20% 20%;
-    --input: 215 20% 20%;
-    --ring: 210 100% 55%;
+    --warning: 33 86% 54%;
+    --warning-foreground: 211 91% 9%;
 
-    --chart-1: 210 100% 55%;
-    --chart-2: 190 80% 50%;
-    --chart-3: 195 85% 60%;
-    --chart-4: 220 70% 55%;
-    --chart-5: 170 75% 45%;
+    --bull: 156 49% 58%;
+    --bear: 1 73% 59%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(210 100% 55%), hsl(190 80% 50%));
-    --gradient-card: linear-gradient(145deg, hsl(215 25% 12%), hsl(215 25% 15%));
+    --border: 211 50% 22%;
+    --input: 211 50% 22%;
+    --ring: 210 70% 54%;
+
+    --chart-1: 210 70% 54%;
+    --chart-2: 156 49% 58%;
+    --chart-3: 211 76% 83%;
+    --chart-4: 159 69% 37%;
+    --chart-5: 210 75% 37%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(210 70% 54%), hsl(156 49% 58%));
+    --gradient-card: linear-gradient(145deg, hsl(211 70% 13%), hsl(211 70% 16%));
     
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4);

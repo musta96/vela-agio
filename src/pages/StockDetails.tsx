@@ -208,6 +208,17 @@ const StockDetails = () => {
         description={`Live price, fundamentals, technical signals, sentiment, and AI verdict for ${entry?.name ?? sym} (${symbol}). Risk and valuation insights in one view.`}
         path={`/stock/${symbol}`}
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FinancialProduct",
+          name: entry?.name ?? sym,
+          tickerSymbol: sym,
+          description: `Live price, fundamentals, technical analysis, sentiment, and AI-driven insights for ${entry?.name ?? sym} (${sym}).`,
+          url: `https://intel-market-pulse.lovable.app/stock/${sym}`,
+          category: entry?.sector ?? "Equity",
+        })}</script>
+      </Helmet>
       <TopNav />
 
       {/* Header */}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, BellRing, Trash2 } from "lucide-react";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,7 @@ const Watchlist = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Watchlist — Live Quotes & Price Alerts for Your Stocks" description="Monitor your favorite FTSE MIB, EU, and US stocks with live quotes, custom alerts, and one-click access to deep analysis." path="/watchlist" />
       <TopNav />
 
       <section className="container mx-auto px-6 py-12">

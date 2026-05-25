@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import {
   ComposedChart,
   Line,
@@ -202,6 +203,11 @@ const StockDetails = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title={`${symbol} — ${entry?.name ?? "Stock"} Analysis & Live Price`}
+        description={`Live price, fundamentals, technical signals, sentiment, and AI verdict for ${entry?.name ?? sym} (${symbol}). Risk and valuation insights in one view.`}
+        path={`/stock/${symbol}`}
+      />
       <TopNav />
 
       {/* Header */}

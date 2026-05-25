@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
 import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
 import {
@@ -112,6 +113,7 @@ const TechnicalAnalysis = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
+      <SEO title="Technical Analysis — RSI, MACD & Trend Signals" description="Analyze stocks with RSI, MACD, moving averages, and trend signals. Spot breakouts and reversals across FTSE MIB, EU, and US markets." path="/technical" />
       <TopNav />
 
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">

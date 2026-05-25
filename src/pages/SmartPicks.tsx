@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { Activity, Sparkles, TrendingUp, AlertTriangle, RefreshCw, ExternalLink, Star, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +93,7 @@ const SmartPicks = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="AI Smart Picks — Algorithmic Stock Recommendations" description="Discover AI-curated stock picks across markets with conviction scores, risk flags, and supporting fundamental and technical signals." path="/picks" />
       <TopNav />
 
       <div className="container mx-auto px-6 py-8">

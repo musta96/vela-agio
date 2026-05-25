@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,6 +200,7 @@ const BacktestingModule = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Strategy Backtesting — Test Trading Strategies on Historical Data" description="Backtest custom trading strategies on FTSE MIB, EU, and US stocks. Measure returns, drawdown, Sharpe ratio, and benchmark performance." path="/backtest" />
       <TopNav />
 
       <div className="container mx-auto px-6 py-8">

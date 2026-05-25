@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, type ApiKeySpec, type StoredKeyMeta } from "@/lib/userApiKeys";
 import { supabase } from "@/integrations/supabase/client";
@@ -174,6 +175,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, preferences, notification settings, and connected integrations for FTSE MIB Analytics." path="/settings" />
       <TopNav />
 
       <div className="container mx-auto px-6 py-8 max-w-5xl">

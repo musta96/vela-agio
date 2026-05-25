@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown } from "lucide-react";
 import { TopNav } from "@/components/TopNav";
+import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
 import { PortfolioInsights } from "@/components/PortfolioInsights";
@@ -264,6 +265,7 @@ const Portfolio = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
+      <SEO title="Portfolio Tracker — Live P/L, Allocation & Risk Insights" description="Track your stock portfolio with live prices, P/L, allocation breakdown, sector exposure, and AI-driven risk insights." path="/portfolio" />
       <TopNav />
 
       {/* Portfolio Header */}

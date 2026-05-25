@@ -9,6 +9,7 @@ export interface Portfolio {
   base_currency: string;
   benchmark_symbol: string;
   is_simulation: boolean;
+  is_primary?: boolean;
   created_at: string;
 }
 
@@ -16,6 +17,9 @@ interface Ctx {
   portfolios: Portfolio[];
   activeId: string | null;
   active: Portfolio | null;
+  primaryId: string | null;
+  primary: Portfolio | null;
+  setPrimary: (id: string) => Promise<void>;
   setActiveId: (id: string) => void;
   loading: boolean;
   refresh: () => Promise<void>;
@@ -138,10 +142,20 @@ export const PortfoliosProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const active = portfolios.find((p) => p.id === activeId) || null;
+  const primary = portfolios.find((p) => p.is_primary) || null;
+  const primaryId = primary?.id || null;
+
+  const setPrimary: Ctx["setPrimary"] = async (id) => {
+    if (!user) return;
+    // Clear any current primary, then set the new one (partial unique index allows only one).
+    await (supabase as any).from("portfolios").update({ is_primary: false }).eq("user_id", user.id).eq("is_primary", true);
+    await (supabase as any).from("portfolios").update({ is_primary: true }).eq("id", id);
+    await refresh();
+  };
 
   return (
     <PortfoliosContext.Provider
-      value={{ portfolios, activeId, active, setActiveId, loading, refresh, create, update, remove }}
+      value={{ portfolios, activeId, active, primaryId, primary, setPrimary, setActiveId, loading, refresh, create, update, remove }}
     >
       {children}
     </PortfoliosContext.Provider>
@@ -156,6 +170,9 @@ export const usePortfolios = () => {
       portfolios: [],
       activeId: null,
       active: null,
+      primaryId: null,
+      primary: null,
+      setPrimary: async () => {},
       setActiveId: () => {},
       loading: false,
       refresh: async () => {},

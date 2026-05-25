@@ -32,6 +32,7 @@ INTELLIGENCE
 - /advisor        AI Advisor — long-form personalized portfolio report (uses MiFID profile).
 - /copilot        Conversational Copilot (this assistant, full page).
 - /sentiment      Sentiment dashboard — news + social analyzed by AI.
+- /dealflow       Deal flow — live M&A, IPO and LBO activity with AI summary.
 - /alerts         Alert rules — price/percent/RSI thresholds, push + email.
 
 DATA
@@ -58,4 +59,5 @@ IMPORTANT FEATURE NOTES:
 - Paper trading uses Alpaca (sandbox keys in /settings).
 - Broker read-only sync uses SnapTrade (Phase 3) on /portfolio.
 - Fuzzy ticker resolution: AI symbol finder on /portfolio when adding instruments.
+- LIVE order placement: the Copilot proposes orders via propose_live_order; a confirm modal pops on any page and the user MUST click Confirm before anything hits Alpaca/IBKR. Default is paper.
 `;

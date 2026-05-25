@@ -43,6 +43,8 @@ import Blotter from "./pages/Blotter";
 import OrderHistory from "./pages/OrderHistory";
 import Profile from "./pages/Profile";
 import Security from "./pages/Security";
+import AIScanner from "./pages/AIScanner";
+import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
@@ -115,6 +117,8 @@ const App = () => (
             <Route path="/orders" element={<OrderHistory />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/security" element={<Security />} />
+            <Route path="/ai-scanner" element={<AIScanner />} />
+            <Route path="/related" element={<RelatedInstruments />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />

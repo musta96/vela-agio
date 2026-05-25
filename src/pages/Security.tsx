@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShieldCheck, KeyRound, Smartphone, Loader2, MailCheck, LogOut, Trash2 } from "lucide-react";
+import { ShieldCheck, KeyRound, Smartphone, Loader2, MailCheck, LogOut, Trash2, Plug, Copy } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -189,6 +189,25 @@ export default function Security() {
           </CardHeader>
           <CardContent>
             <Button variant="outline" onClick={signOutEverywhere}>Sign out everywhere</Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Plug className="h-4 w-4" /> MCP server (Claude / Cursor / IDEs)</CardTitle>
+            <CardDescription>Connect any MCP-compatible client to Vela's read-only tools (quotes, watchlist, portfolio, sentiment, scanner, related graph).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-md border border-border bg-card/40 p-3 text-xs font-mono break-all">
+              {import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp
+            </div>
+            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp`); toast.success("URL copied"); }}>
+              <Copy className="mr-2 h-4 w-4" /> Copy URL
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Use the Streamable-HTTP MCP transport. Authenticate by sending your Vela access token as <code className="text-foreground">Authorization: Bearer &lt;jwt&gt;</code>.
+              Get a fresh token from your browser's storage under <code className="text-foreground">sb-…-auth-token</code>.
+            </p>
           </CardContent>
         </Card>
       </main>

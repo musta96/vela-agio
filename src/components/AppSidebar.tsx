@@ -7,7 +7,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon,
-  BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck,
+  BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -34,6 +34,8 @@ const INTELLIGENCE: Item[] = [
   { title: "AI Picks", url: "/picks", icon: Sparkles },
   { title: "Advisor", url: "/advisor", icon: Lightbulb },
   { title: "Copilot", url: "/copilot", icon: Bot },
+  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
+  { title: "Related Graph", url: "/related", icon: Network, badge: "new" },
   { title: "Sentiment", url: "/sentiment", icon: Newspaper },
   { title: "Deal flow", url: "/dealflow", icon: Handshake, badge: "new" },
   { title: "Alerts", url: "/alerts", icon: Bell },

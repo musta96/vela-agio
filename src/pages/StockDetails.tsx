@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,35 @@ interface SentimentResult {
   drivers: { title: string; impact: "positive" | "negative" | "neutral" }[];
   articles: SentimentArticle[];
   sources?: { source: string; avgScore: number; count: number }[];
+  analystOpinions?: {
+    stance: "bull" | "bear" | "neutral";
+    thesis: string;
+    arguments: string[];
+    sourceIndexes?: number[];
+  }[];
+}
+
+interface DeepAnalysis {
+  symbol: string;
+  fundamentals: Record<string, any>;
+  valuation: {
+    dcf: { perShare: number; assumptions: any; upside: number | null } | null;
+    ddm: { perShare: number; assumptions: any; upside: number | null } | null;
+  };
+  analysis: {
+    thesis?: string;
+    strengths?: string[];
+    risks?: string[];
+    moat?: string;
+    valuation?: string;
+    scenarios?: {
+      bull?: { price: number; probability: number; rationale: string };
+      base?: { price: number; probability: number; rationale: string };
+      bear?: { price: number; probability: number; rationale: string };
+    };
+    recommendation?: string;
+    horizon?: string;
+  };
 }
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
@@ -103,6 +132,9 @@ const StockDetails = () => {
   const [sentiment, setSentiment] = useState<SentimentResult | null>(null);
   const [sentLoading, setSentLoading] = useState(false);
 
+  const [deep, setDeep] = useState<DeepAnalysis | null>(null);
+  const [deepLoading, setDeepLoading] = useState(false);
+
   const fetchSentiment = async () => {
     if (!sym) return;
     setSentLoading(true);
@@ -117,6 +149,23 @@ const StockDetails = () => {
       toast({ title: "Sentiment unavailable", description: e?.message || "Try again later", variant: "destructive" });
     } finally {
       setSentLoading(false);
+    }
+  };
+
+  const fetchDeep = async () => {
+    if (!sym) return;
+    setDeepLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("deep-analysis", {
+        body: { symbol: sym, name },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setDeep(data as DeepAnalysis);
+    } catch (e: any) {
+      toast({ title: "Deep analysis unavailable", description: e?.message || "Try again later", variant: "destructive" });
+    } finally {
+      setDeepLoading(false);
     }
   };
 

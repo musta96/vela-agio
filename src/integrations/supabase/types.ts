@@ -223,6 +223,33 @@ export type Database = {
           },
         ]
       }
+      deal_flow_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          fetched_at: string
+          id: number
+          kind: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          fetched_at?: string
+          id?: number
+          kind: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: number
+          kind?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           category: string
@@ -341,6 +368,60 @@ export type Database = {
           profile_name?: string | null
           risk_level?: number | null
           score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      live_order_intents: {
+        Row: {
+          broker: string
+          created_at: string
+          expires_at: string
+          id: string
+          limit_price: number | null
+          qty: number
+          rationale: string | null
+          result: Json
+          side: string
+          status: string
+          symbol: string
+          time_in_force: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          limit_price?: number | null
+          qty: number
+          rationale?: string | null
+          result?: Json
+          side: string
+          status?: string
+          symbol: string
+          time_in_force?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          limit_price?: number | null
+          qty?: number
+          rationale?: string | null
+          result?: Json
+          side?: string
+          status?: string
+          symbol?: string
+          time_in_force?: string
+          type?: string
           updated_at?: string
           user_id?: string
         }

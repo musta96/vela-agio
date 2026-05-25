@@ -164,6 +164,39 @@ interface NWAccount {
 const fmt = (n: number, ccy = "EUR") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(n || 0);
 
+function TaxAmortPanel({
+  category, country, purchasePrice, purchaseDate, currentValue, currency,
+}: { category: string; country: CountryCode; purchasePrice: number; purchaseDate: string; currentValue: number; currency: string }) {
+  const amort = computeAmortization({ category, country, purchasePrice, purchaseDate });
+  const holdingYears = Math.max(0, (Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+  const cgt = estimateCapitalGainsTax({ category, country, purchasePrice, currentValue, holdingYears });
+
+  if (!amort && !cgt) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border space-y-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <Calculator className="h-3 w-3" /> Tax & amortization · {country}
+      </div>
+      {amort && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+          <div className="flex justify-between"><span className="text-muted-foreground">Annual depreciation</span><span className="font-medium">{fmt(amort.schedule.annualDepreciation, currency)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Accumulated</span><span className="font-medium">{fmt(amort.schedule.accumulatedDepreciation, currency)}</span></div>
+          <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Book value (fiscal)</span><span className="font-semibold">{fmt(amort.schedule.bookValue, currency)} <span className="text-muted-foreground">({holdingYears.toFixed(1)}y)</span></span></div>
+        </div>
+      )}
+      {cgt && cgt.gain !== 0 && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+          <div className="flex justify-between"><span className="text-muted-foreground">If sold today, gain</span><span className={cgt.gain >= 0 ? "text-success font-medium" : "text-destructive font-medium"}>{fmt(cgt.gain, currency)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Tax ({(cgt.rateApplied * 100).toFixed(1)}%)</span><span className="font-medium">{fmt(cgt.taxOwed, currency)}</span></div>
+          <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Net proceeds</span><span className="font-semibold">{fmt(cgt.netProceeds, currency)}</span></div>
+        </div>
+      )}
+      <p className="text-[10px] text-muted-foreground italic leading-snug">{amort?.rule.note || cgt?.rationale}</p>
+    </div>
+  );
+}
+
 export default function NetWorthCategory() {
   const { category } = useParams<{ category: CategoryKey }>();
   const navigate = useNavigate();

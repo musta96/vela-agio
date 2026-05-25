@@ -48,6 +48,7 @@ export const PortfolioInsights = ({ holdings }: Props) => {
 
   // Portfolio returns (weighted) for vol / VaR / beta
   const stats = useMemo(() => {
+    if (holdings.length === 0) return null;
     const symBars = holdings.map((h) => bars[h.symbol] || []);
     if (symBars.some((b) => b.length < 30)) return null;
     const minLen = Math.min(...symBars.map((b) => b.length));

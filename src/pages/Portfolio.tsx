@@ -286,14 +286,14 @@ const Portfolio = () => {
       </nav>
 
       {/* Portfolio Header */}
-      <section className="container mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-8">
+      <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
               <Briefcase className="h-8 w-8 text-primary" />
               My Portfolio
             </h1>
-            <p className="text-muted-foreground flex items-center gap-2">
+            <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm sm:text-base">
               Track your FTSE MIB investments
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
@@ -302,7 +302,7 @@ const Portfolio = () => {
               )}
             </p>
           </div>
-          <Button onClick={toggleAddForm} className="gap-2 hover-scale">
+          <Button onClick={toggleAddForm} size="lg" className="gap-2 hover-scale w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             Add Stock
           </Button>
@@ -342,9 +342,9 @@ const Portfolio = () => {
 
         {/* Add Stock Form */}
         {showAddForm && (
-          <Card className="p-6 mb-8 card-gradient border-border animate-fade-in">
+          <Card className="p-4 sm:p-6 mb-8 card-gradient border-border animate-fade-in">
             <h3 className="text-lg font-semibold mb-4">Add New Stock</h3>
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative">
                 <label className="text-sm text-muted-foreground mb-2 block">Symbol</label>
                 <Button
@@ -352,7 +352,7 @@ const Portfolio = () => {
                   variant="outline"
                   role="combobox"
                   aria-expanded={symbolPickerOpen}
-                  className="w-full justify-between font-normal pointer-events-auto"
+                  className="w-full justify-between font-normal pointer-events-auto h-11"
                   onClick={() => setSymbolPickerOpen((open) => !open)}
                 >
                   <span className="truncate">
@@ -369,9 +369,9 @@ const Portfolio = () => {
                       value={symbolSearch}
                       onChange={(e) => setSymbolSearch(e.target.value)}
                       placeholder="Search by symbol, name, or market…"
-                      className="rounded-b-none border-0 border-b border-border focus-visible:ring-0 focus-visible:ring-offset-0"
+                      className="rounded-b-none border-0 border-b border-border focus-visible:ring-0 focus-visible:ring-offset-0 h-11 text-base"
                     />
-                    <div className="max-h-72 overflow-y-auto p-1">
+                    <div className="max-h-[60vh] sm:max-h-72 overflow-y-auto overscroll-contain p-1">
                       {filteredCatalog.length === 0 ? (
                         <p className="px-3 py-6 text-center text-sm text-muted-foreground">No instrument found.</p>
                       ) : (
@@ -379,7 +379,7 @@ const Portfolio = () => {
                           <button
                             key={stock.symbol}
                             type="button"
-                            className="flex w-full items-center rounded-sm px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground pointer-events-auto"
+                            className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent pointer-events-auto"
                             onClick={() => {
                               setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
                               setSymbolSearch("");
@@ -405,6 +405,8 @@ const Portfolio = () => {
                 <label className="text-sm text-muted-foreground mb-2 block">Shares</label>
                 <Input
                   type="number"
+                  inputMode="decimal"
+                  className="h-11 text-base"
                   placeholder="100"
                   value={newStock.shares}
                   onChange={(e) => setNewStock({ ...newStock, shares: e.target.value })}
@@ -416,15 +418,17 @@ const Portfolio = () => {
                 </label>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   step="0.01"
+                  className="h-11 text-base"
                   placeholder="6.20"
                   value={newStock.avgPrice}
                   onChange={(e) => setNewStock({ ...newStock, avgPrice: e.target.value })}
                 />
               </div>
-              <div className="flex items-end gap-2">
-                <Button onClick={handleAddStock} className="flex-1">Add</Button>
-                <Button variant="outline" onClick={closeAddForm}>Cancel</Button>
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-end gap-2">
+                <Button variant="outline" size="lg" onClick={closeAddForm} className="sm:w-auto">Cancel</Button>
+                <Button onClick={handleAddStock} size="lg" className="flex-1">Add</Button>
               </div>
             </div>
           </Card>

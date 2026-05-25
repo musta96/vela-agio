@@ -128,6 +128,101 @@ export type Database = {
         }
         Relationships: []
       }
+      broker_accounts: {
+        Row: {
+          cash: number | null
+          currency: string | null
+          external_id: string
+          id: string
+          institution: string | null
+          name: string | null
+          raw: Json | null
+          source: string
+          synced_at: string
+          total_value: number | null
+          user_id: string
+        }
+        Insert: {
+          cash?: number | null
+          currency?: string | null
+          external_id: string
+          id?: string
+          institution?: string | null
+          name?: string | null
+          raw?: Json | null
+          source: string
+          synced_at?: string
+          total_value?: number | null
+          user_id: string
+        }
+        Update: {
+          cash?: number | null
+          currency?: string | null
+          external_id?: string
+          id?: string
+          institution?: string | null
+          name?: string | null
+          raw?: Json | null
+          source?: string
+          synced_at?: string
+          total_value?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broker_positions: {
+        Row: {
+          account_id: string
+          avg_price: number | null
+          currency: string | null
+          id: string
+          market_price: number | null
+          market_value: number | null
+          name: string | null
+          quantity: number | null
+          raw: Json | null
+          symbol: string
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          avg_price?: number | null
+          currency?: string | null
+          id?: string
+          market_price?: number | null
+          market_value?: number | null
+          name?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          symbol: string
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          avg_price?: number | null
+          currency?: string | null
+          id?: string
+          market_price?: number | null
+          market_value?: number | null
+          name?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          symbol?: string
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broker_positions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "broker_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flags: {
         Row: {
           category: string
@@ -155,6 +250,45 @@ export type Database = {
           label?: string
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      feature_requests: {
+        Row: {
+          ai_analysis: Json
+          created_at: string
+          id: string
+          page_context: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          user_quote: string | null
+          votes: number
+        }
+        Insert: {
+          ai_analysis?: Json
+          created_at?: string
+          id?: string
+          page_context?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          user_quote?: string | null
+          votes?: number
+        }
+        Update: {
+          ai_analysis?: Json
+          created_at?: string
+          id?: string
+          page_context?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          user_quote?: string | null
+          votes?: number
         }
         Relationships: []
       }
@@ -495,6 +629,33 @@ export type Database = {
           tier1_score?: number | null
           tier2_score?: number | null
           weighted_score?: number | null
+        }
+        Relationships: []
+      }
+      snaptrade_connections: {
+        Row: {
+          created_at: string
+          last_sync_at: string | null
+          snaptrade_user_id: string
+          snaptrade_user_secret: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_sync_at?: string | null
+          snaptrade_user_id: string
+          snaptrade_user_secret: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_sync_at?: string | null
+          snaptrade_user_id?: string
+          snaptrade_user_secret?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

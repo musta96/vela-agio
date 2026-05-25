@@ -77,6 +77,7 @@ const SectorHeatmap = () => {
     <div className="min-h-screen bg-background">
       <SEO title="Sector Heatmap — Industry Performance at a Glance" description="Visualize sector and industry performance across FTSE MIB, EU, and US markets with a color-coded heatmap and rotation insights." path="/sectors" />
       <TopNav />
+      <main>
       <div className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -127,6 +128,7 @@ const SectorHeatmap = () => {
           </CardContent>
         </Card>
       </div>
+    </main>
     </div>
   );
 };

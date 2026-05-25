@@ -30,6 +30,7 @@ const Watchlist = () => {
     <div className="min-h-screen bg-background">
       <SEO title="Watchlist — Live Quotes & Price Alerts for Your Stocks" description="Monitor your favorite FTSE MIB, EU, and US stocks with live quotes, custom alerts, and one-click access to deep analysis." path="/watchlist" />
       <TopNav />
+      <main>
 
       <section className="container mx-auto px-6 py-12">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
@@ -168,6 +169,7 @@ const Watchlist = () => {
           </div>
         )}
       </section>
+    </main>
     </div>
   );
 };

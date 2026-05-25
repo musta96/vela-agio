@@ -81,6 +81,7 @@ const Index = () => {
       {/* Navigation */}
       <SEO title="FTSE MIB Analytics — Trading Strategy & Stock Insights" description="Track FTSE MIB, European and US stocks with live quotes, AI-powered fundamentals, and technical insights for smarter trading decisions." path="/" />
       <TopNav />
+      <main>
 
       {/* Hero Section */}
       <section className="container mx-auto px-6 py-20">
@@ -290,6 +291,7 @@ const Index = () => {
           </div>
         </div>
       </footer>
+    </main>
     </div>
   );
 };

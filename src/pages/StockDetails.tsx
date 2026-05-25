@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { generateStockReport, generateDeepAnalysisReport } from "@/lib/pdfReports";
 import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -345,6 +345,100 @@ const StockDetails = () => {
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-6">
+            {(() => {
+              const techScore = tech?.score ?? 0;
+              const sentScore = sentiment ? sentiment.score - 50 : 0; // -50..+50
+              const combined = (techScore * 0.7) + (sentScore * 0.6); // ~ -100..+100
+              let verdict: "BUY" | "ACCUMULATE" | "HOLD" | "TRIM" | "AVOID";
+              let tone = "";
+              if (combined >= 45) { verdict = "BUY"; tone = "text-success border-success/30 bg-success/10"; }
+              else if (combined >= 15) { verdict = "ACCUMULATE"; tone = "text-success border-success/30 bg-success/10"; }
+              else if (combined > -15) { verdict = "HOLD"; tone = "text-muted-foreground border-border bg-muted/30"; }
+              else if (combined > -45) { verdict = "TRIM"; tone = "text-destructive border-destructive/30 bg-destructive/10"; }
+              else { verdict = "AVOID"; tone = "text-destructive border-destructive/30 bg-destructive/10"; }
+
+              const pros: string[] = [];
+              const cons: string[] = [];
+              tech?.signals.forEach((s) => {
+                if (s.signal === "bullish") pros.push(`${s.name}: ${s.reason}`);
+                else if (s.signal === "bearish") cons.push(`${s.name}: ${s.reason}`);
+              });
+              if (sentiment) {
+                if (sentiment.score >= 60) pros.push(`News sentiment positive (${Math.round(sentiment.score)}/100) — ${sentiment.summary}`);
+                else if (sentiment.score <= 40) cons.push(`News sentiment negative (${Math.round(sentiment.score)}/100) — ${sentiment.summary}`);
+              }
+              if (tech?.volume?.spike) pros.push("Volume spike confirms current move.");
+              if (tech?.volume?.weak) cons.push("Thin volume — move lacks conviction.");
+
+              const nearestSupport = tech?.levels.filter((l) => l.type === "support" && l.price < tech.lastClose).sort((a, b) => b.price - a.price)[0];
+              const nearestResistance = tech?.levels.filter((l) => l.type === "resistance" && l.price > tech.lastClose).sort((a, b) => a.price - b.price)[0];
+
+              const action =
+                verdict === "BUY" ? "Strong setup. Consider opening or adding to a position, sized to your risk." :
+                verdict === "ACCUMULATE" ? "Constructive backdrop. Build the position gradually on pullbacks." :
+                verdict === "HOLD" ? "Mixed signals. Keep existing exposure but wait for a clearer trigger." :
+                verdict === "TRIM" ? "Risk skewed to the downside. Reduce exposure or tighten stops." :
+                "Multiple negatives align. Avoid new buys; exit or hedge if already long.";
+
+              return (
+                <Card className="border-primary/30">
+                  <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className="h-5 w-5 text-primary" />
+                      <div>
+                        <CardTitle>What to do</CardTitle>
+                        <CardDescription>AI-blended verdict from technicals, volume and news sentiment.</CardDescription>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`${tone} text-base px-3 py-1`}>{verdict}</Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm">{action}</p>
+                    {(nearestSupport || nearestResistance) && (
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {nearestSupport && (
+                          <Badge variant="outline" className="text-success border-success/30 bg-success/5">
+                            Support {currencySign(entry?.currency)}{nearestSupport.price.toFixed(2)}
+                          </Badge>
+                        )}
+                        {nearestResistance && (
+                          <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/5">
+                            Resistance {currencySign(entry?.currency)}{nearestResistance.price.toFixed(2)}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-medium text-success mb-2 uppercase tracking-wide">Why it could work</p>
+                        {pros.length ? (
+                          <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-4">
+                            {pros.slice(0, 4).map((p, i) => <li key={i}>{p}</li>)}
+                          </ul>
+                        ) : <p className="text-sm text-muted-foreground">No strong positive drivers right now.</p>}
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-destructive mb-2 uppercase tracking-wide">What to watch out for</p>
+                        {cons.length ? (
+                          <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-4">
+                            {cons.slice(0, 4).map((c, i) => <li key={i}>{c}</li>)}
+                          </ul>
+                        ) : <p className="text-sm text-muted-foreground">No major red flags detected.</p>}
+                      </div>
+                    </div>
+                    {!sentiment && !sentLoading && (
+                      <p className="text-xs text-muted-foreground">
+                        Tip: <button className="underline" onClick={fetchSentiment}>load news sentiment</button> for a more complete verdict.
+                      </p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground italic">
+                      Educational signal — not investment advice. Always confirm with your own research and risk rules.
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div>

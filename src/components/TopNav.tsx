@@ -1,4 +1,4 @@
-import { Activity, Command as CommandIcon } from "lucide-react";
+import { Activity, Command as CommandIcon, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { AuthButton } from "@/components/AuthButton";
@@ -8,22 +8,44 @@ import { supabase } from "@/integrations/supabase/client";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const LINKS: { to: string; label: string }[] = [
   { to: "/", label: "Dashboard" },
-  { to: "/compare", label: "Compare" },
-  { to: "/sectors", label: "Sectors" },
-  { to: "/sentiment", label: "Sentiment" },
-  { to: "/technical", label: "Technicals" },
-  { to: "/backtest", label: "Backtest" },
+  { to: "/copilot", label: "Copilot" },
   { to: "/picks", label: "AI Picks" },
-  { to: "/screener", label: "Screener" },
-  { to: "/baskets", label: "Baskets" },
   { to: "/portfolio", label: "Portfolio" },
-  { to: "/risk", label: "Risk" },
-  { to: "/watchlist", label: "Watchlist" },
-  { to: "/alerts", label: "Alerts" },
-  { to: "/settings", label: "Settings" },
+  { to: "/macro", label: "Macro" },
+];
+
+const GROUPS: { label: string; items: { to: string; label: string }[] }[] = [
+  { label: "Research", items: [
+    { to: "/compare", label: "Compare" },
+    { to: "/sectors", label: "Sectors" },
+    { to: "/sentiment", label: "Sentiment" },
+    { to: "/technical", label: "Technicals" },
+    { to: "/screener", label: "Screener" },
+    { to: "/baskets", label: "Baskets" },
+    { to: "/filings", label: "Filings" },
+    { to: "/earnings", label: "Earnings" },
+    { to: "/insider", label: "Insider" },
+    { to: "/event-study", label: "Event Study" },
+  ]},
+  { label: "Portfolio", items: [
+    { to: "/watchlist", label: "Watchlist" },
+    { to: "/risk", label: "Risk Engine" },
+    { to: "/backtest", label: "Backtest" },
+    { to: "/tax-harvest", label: "Tax Harvesting" },
+    { to: "/goals", label: "Goals Planner" },
+    { to: "/alerts", label: "Alerts" },
+  ]},
+  { label: "More", items: [
+    { to: "/onboarding", label: "Onboarding" },
+    { to: "/learn", label: "Learn" },
+    { to: "/methodology", label: "Methodology" },
+    { to: "/api", label: "API & Webhooks" },
+    { to: "/settings", label: "Settings" },
+  ]},
 ];
 
 export const TopNav = () => {
@@ -52,7 +74,7 @@ export const TopNav = () => {
           <Activity className="h-6 w-6 text-primary" />
           <span className="text-xl font-bold text-gradient hidden sm:inline">FTSE MIB Analytics</span>
         </Link>
-        <div className="flex items-center gap-4 lg:gap-6 overflow-x-auto">
+        <div className="flex items-center gap-3 lg:gap-5 overflow-x-auto">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -63,6 +85,20 @@ export const TopNav = () => {
             >
               {l.label}
             </NavLink>
+          ))}
+          {GROUPS.map(g => (
+            <DropdownMenu key={g.label}>
+              <DropdownMenuTrigger className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors whitespace-nowrap inline-flex items-center gap-1">
+                {g.label} <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {g.items.map(it => (
+                  <DropdownMenuItem key={it.to} asChild>
+                    <Link to={it.to}>{it.label}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           ))}
           <button
             onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}

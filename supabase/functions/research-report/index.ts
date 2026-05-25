@@ -20,14 +20,15 @@ async function invokeFn(fn: string, body: any) {
   return r.json();
 }
 
-async function aiSection(prompt: string, schema: string) {
+async function aiSection(prompt: string, schema: string, lang = "en") {
+  const langName = lang === "it" ? "Italian" : "English";
   const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
       messages: [
-        { role: 'system', content: `You are a senior sell-side equity analyst at a top-tier investment bank. Write rigorous, balanced, number-driven research. Be specific, not vague. Return STRICT JSON only matching: ${schema}` },
+        { role: 'system', content: `You are a senior sell-side equity analyst at a top-tier investment bank. Write ALL prose fields in ${langName}. Write rigorous, balanced, number-driven research. Be specific, not vague. Return STRICT JSON only matching: ${schema}` },
         { role: 'user', content: prompt },
       ],
       response_format: { type: 'json_object' },

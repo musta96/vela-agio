@@ -368,6 +368,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          briefing_focus: string | null
           created_at: string
           display_name: string | null
           id: string
@@ -375,6 +376,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          briefing_focus?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
@@ -382,6 +384,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          briefing_focus?: string | null
           created_at?: string
           display_name?: string | null
           id?: string

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, Eye, EyeOff, Save, Trash2, ExternalLink, ShieldCheck, KeyRound, Brain, LineChart, MessageSquare, CheckCircle2, Loader2, LogOut } from "lucide-react";
+import { Activity, Eye, EyeOff, Save, Trash2, ExternalLink, ShieldCheck, KeyRound, Brain, LineChart, MessageSquare, CheckCircle2, Loader2, LogOut, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, type ApiKeySpec, type StoredKeyMeta } from "@/lib/userApiKeys";
 import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 
 const CATEGORY_META: Record<ApiKeyCategory, { label: string; icon: typeof Brain; description: string }> = {
   ai: { label: "AI Models", icon: Brain, description: "Bring your own LLM providers for chat, analysis and recommendations." },
@@ -115,9 +117,39 @@ const KeyRow = ({
 
 const Settings = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [hints, setHints] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [focus, setFocus] = useState("");
+  const [focusSaving, setFocusSaving] = useState(false);
+  const [focusLoaded, setFocusLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await (supabase as any).from("profiles").select("briefing_focus").eq("user_id", user.id).maybeSingle();
+      setFocus(data?.briefing_focus ?? "");
+      setFocusLoaded(true);
+    })();
+  }, [user]);
+
+  const saveFocus = async () => {
+    if (!user) return;
+    setFocusSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("profiles")
+        .update({ briefing_focus: focus.trim() || null })
+        .eq("user_id", user.id);
+      if (error) throw error;
+      toast({ title: "Briefing focus saved", description: "Your next dashboard briefing will reflect this." });
+    } catch (e) {
+      toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setFocusSaving(false);
+    }
+  };
 
   const refresh = async () => {
     try {
@@ -210,6 +242,35 @@ const Settings = () => {
               Sign out everywhere
             </Button>
             <p className="text-xs text-muted-foreground mt-2">Invalidates all active sessions across all devices.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6" id="briefing">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /> AI Market Briefing</CardTitle>
+            <CardDescription>
+              Customise what your dashboard briefing focuses on. Vela.ai will always consider your portfolio and watchlist; add topics, sectors, regions, themes or tickers here to bias the narrative.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Label htmlFor="briefing-focus" className="text-sm">Focus (free text)</Label>
+            <Textarea
+              id="briefing-focus"
+              placeholder="e.g. EU bank earnings, AI semiconductors, ECB & Fed policy, luxury sector rotation, FTSE MIB dividend names"
+              value={focus}
+              onChange={(e) => setFocus(e.target.value)}
+              rows={3}
+              disabled={!focusLoaded}
+              className="resize-none"
+            />
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground">
+                Leave empty for a general briefing built from your holdings and watchlist.
+              </p>
+              <Button size="sm" onClick={saveFocus} disabled={!focusLoaded || focusSaving} className="gap-1">
+                {focusSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save focus
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

@@ -25,7 +25,7 @@ const Auth = () => {
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate("/");
+    if (!loading && user) navigate("/dashboard");
   }, [user, loading, navigate]);
 
   const signIn = async () => {
@@ -34,7 +34,7 @@ const Auth = () => {
     setBusy(false);
     if (error) return toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     toast({ title: "Welcome back" });
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const signUp = async () => {
@@ -49,7 +49,7 @@ const Auth = () => {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/dashboard`,
         data: {
           tos_version: TOS_VERSION,
           privacy_version: PRIVACY_VERSION,
@@ -85,7 +85,7 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    navigate("/");
+    navigate("/dashboard");
   };
 
   return (

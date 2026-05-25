@@ -399,8 +399,9 @@ const Portfolio = () => {
                 )}
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-2 block">Shares</label>
+                <label htmlFor="portfolio-shares" className="text-sm text-muted-foreground mb-2 block">Shares</label>
                 <Input
+                  id="portfolio-shares"
                   type="number"
                   inputMode="decimal"
                   className="h-11 text-base"
@@ -410,10 +411,11 @@ const Portfolio = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-2 block">
+                <label htmlFor="portfolio-avg-price" className="text-sm text-muted-foreground mb-2 block">
                   Avg Price {selectedCatalog ? `(${currencySign(selectedCatalog.currency).trim() || selectedCatalog.currency})` : ""}
                 </label>
                 <Input
+                  id="portfolio-avg-price"
                   type="number"
                   inputMode="decimal"
                   step="0.01"

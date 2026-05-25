@@ -70,6 +70,7 @@ const Auth = () => {
           <Activity className="h-6 w-6 text-primary" />
           <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
         </Link>
+        <h1 className="text-2xl font-bold text-center mb-4">Sign in to FTSE MIB Analytics</h1>
         <Card className="p-6 card-gradient border-border">
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2 mb-4">

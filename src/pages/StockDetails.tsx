@@ -232,10 +232,10 @@ const StockDetails = () => {
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-3xl font-bold">{sym}</h1>
+                <h1 className="text-3xl font-bold">{sym}{name ? ` — ${name}` : ""}</h1>
                 {market && <Badge variant="outline">{market}</Badge>}
                 {!entry && <Badge variant="secondary">Unverified ticker</Badge>}
-                <Button size="icon" variant="ghost" onClick={() => toggle(sym, name)}>
+                <Button size="icon" variant="ghost" aria-label={isWatched(sym) ? "Remove from watchlist" : "Add to watchlist"} onClick={() => toggle(sym, name)}>
                   <Star className={`h-5 w-5 ${isWatched(sym) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                 </Button>
               </div>
@@ -252,7 +252,7 @@ const StockDetails = () => {
               {lastUpdated && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Updated {new Date(lastUpdated).toLocaleTimeString()}
-                  <Button size="sm" variant="ghost" className="h-6 px-2 ml-1" onClick={() => refresh()}>
+                  <Button size="sm" variant="ghost" aria-label="Refresh price" className="h-6 px-2 ml-1" onClick={() => refresh()}>
                     <RefreshCw className="h-3 w-3" />
                   </Button>
                 </p>

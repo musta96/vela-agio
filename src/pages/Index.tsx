@@ -119,7 +119,7 @@ const Index = () => {
             <div className="rounded-lg bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
               <Brain className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Fundamental Analysis</h3>
+            <h2 className="text-lg font-semibold mb-2">Fundamental Analysis</h2>
             <p className="text-muted-foreground text-sm">
               Deep dive into 40+ financial metrics including P/E, ROE, FCF, and DCF valuations
             </p>
@@ -132,7 +132,7 @@ const Index = () => {
             <div className="rounded-lg bg-secondary/10 w-12 h-12 flex items-center justify-center mb-4">
               <LineChart className="h-6 w-6 text-secondary" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Sentiment Tracking</h3>
+            <h2 className="text-lg font-semibold mb-2">Sentiment Tracking</h2>
             <p className="text-muted-foreground text-sm">
               Real-time sentiment analysis from financial news, social media, and market reports
             </p>
@@ -145,7 +145,7 @@ const Index = () => {
             <div className="rounded-lg bg-accent/10 w-12 h-12 flex items-center justify-center mb-4">
               <Shield className="h-6 w-6 text-accent" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Risk Management</h3>
+            <h2 className="text-lg font-semibold mb-2">Risk Management</h2>
             <p className="text-muted-foreground text-sm">
               Advanced backtesting with comprehensive risk metrics and portfolio optimization
             </p>
@@ -200,6 +200,7 @@ const Index = () => {
               }}
               disabled={loading}
               title="Refresh prices"
+              aria-label="Refresh prices"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>

@@ -183,16 +183,16 @@ const SmartPicks = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Min dividend yield (%)</Label>
-                    <Input type="number" inputMode="decimal" placeholder="e.g. 2" value={minDividendYield} onChange={e => setMinDividendYield(e.target.value)} />
+                    <Label htmlFor="sp-min-yield">Min dividend yield (%)</Label>
+                    <Input id="sp-min-yield" type="number" inputMode="decimal" placeholder="e.g. 2" value={minDividendYield} onChange={e => setMinDividendYield(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Max volatility (% ann.)</Label>
-                    <Input type="number" inputMode="decimal" placeholder="e.g. 35" value={maxVolatility} onChange={e => setMaxVolatility(e.target.value)} />
+                    <Label htmlFor="sp-max-vol">Max volatility (% ann.)</Label>
+                    <Input id="sp-max-vol" type="number" inputMode="decimal" placeholder="e.g. 35" value={maxVolatility} onChange={e => setMaxVolatility(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Max drawdown (%)</Label>
-                    <Input type="number" inputMode="decimal" placeholder="e.g. 25" value={maxDrawdown} onChange={e => setMaxDrawdown(e.target.value)} />
+                    <Label htmlFor="sp-max-dd">Max drawdown (%)</Label>
+                    <Input id="sp-max-dd" type="number" inputMode="decimal" placeholder="e.g. 25" value={maxDrawdown} onChange={e => setMaxDrawdown(e.target.value)} />
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">

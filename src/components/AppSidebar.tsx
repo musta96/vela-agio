@@ -101,7 +101,7 @@ export function AppSidebar() {
         {collapsed ? <VelaLogo size={22} withWordmark={false} /> : (
           <span className="inline-flex items-center gap-2 text-base font-semibold tracking-tight text-sidebar-foreground">
             <VelaLogo size={22} withWordmark={false} />
-            Vela<span className="text-[hsl(var(--sidebar-ring))]">.ai</span>
+            <span>Vela<span className="text-[hsl(var(--sidebar-ring))]">.ai</span></span>
           </span>
         )}
       </SidebarHeader>

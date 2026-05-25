@@ -9,6 +9,7 @@ export interface Portfolio {
   base_currency: string;
   benchmark_symbol: string;
   is_simulation: boolean;
+  is_primary?: boolean;
   created_at: string;
 }
 
@@ -16,6 +17,9 @@ interface Ctx {
   portfolios: Portfolio[];
   activeId: string | null;
   active: Portfolio | null;
+  primaryId: string | null;
+  primary: Portfolio | null;
+  setPrimary: (id: string) => Promise<void>;
   setActiveId: (id: string) => void;
   loading: boolean;
   refresh: () => Promise<void>;

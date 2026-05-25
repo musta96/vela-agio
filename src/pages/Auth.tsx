@@ -65,7 +65,7 @@ const Auth = () => {
         description="Sign in or create your FTSE MIB Analytics account to save watchlists, portfolios, and access AI-powered trading insights."
         path="/auth"
       />
-      <div className="w-full max-w-md">
+      <main className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <Activity className="h-6 w-6 text-primary" />
           <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
@@ -121,7 +121,7 @@ const Auth = () => {
             Continue with Google
           </Button>
         </Card>
-      </div>
+      </main>
     </div>
   );
 };

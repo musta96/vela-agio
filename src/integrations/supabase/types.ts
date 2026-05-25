@@ -254,8 +254,10 @@ export type Database = {
         Row: {
           avg_price: number
           created_at: string
+          currency: string
           id: string
           name: string
+          portfolio_id: string | null
           shares: number
           symbol: string
           updated_at: string
@@ -264,8 +266,10 @@ export type Database = {
         Insert: {
           avg_price?: number
           created_at?: string
+          currency?: string
           id?: string
           name: string
+          portfolio_id?: string | null
           shares?: number
           symbol: string
           updated_at?: string
@@ -274,10 +278,89 @@ export type Database = {
         Update: {
           avg_price?: number
           created_at?: string
+          currency?: string
           id?: string
           name?: string
+          portfolio_id?: string | null
           shares?: number
           symbol?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      portfolio_simulations: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          params: Json
+          portfolio_id: string
+          results: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name: string
+          params?: Json
+          portfolio_id: string
+          results?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          params?: Json
+          portfolio_id?: string
+          results?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_simulations_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolios: {
+        Row: {
+          base_currency: string
+          benchmark_symbol: string
+          created_at: string
+          description: string | null
+          id: string
+          is_simulation: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_currency?: string
+          benchmark_symbol?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_simulation?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_currency?: string
+          benchmark_symbol?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_simulation?: boolean
+          name?: string
           updated_at?: string
           user_id?: string
         }

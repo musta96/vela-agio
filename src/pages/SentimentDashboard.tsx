@@ -20,6 +20,7 @@ interface SentimentResult {
   drivers: { title: string; impact: "positive" | "negative" | "neutral" }[];
   articles: Article[];
   sources?: { source: string; avgScore: number; count: number }[];
+  analystOpinions?: { stance: string; thesis: string; arguments: string[]; sourceIndexes?: number[] }[];
   generatedAt?: string;
 }
 

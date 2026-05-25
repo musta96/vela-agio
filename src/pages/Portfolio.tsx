@@ -313,7 +313,14 @@ const Portfolio = () => {
               )}
             </p>
           </div>
-          <Button onClick={toggleAddForm} size="lg" className="gap-2 hover-scale w-full sm:w-auto">
+          <Button
+            onClick={(e) => {
+              console.log("[Portfolio] Add Stock button click event", { target: e.target });
+              toggleAddForm();
+            }}
+            size="lg"
+            className="gap-2 hover-scale w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4" />
             Add Stock
           </Button>
@@ -364,7 +371,10 @@ const Portfolio = () => {
                   role="combobox"
                   aria-expanded={symbolPickerOpen}
                   className="w-full justify-between font-normal pointer-events-auto h-11"
-                  onClick={() => setSymbolPickerOpen((open) => !open)}
+                  onClick={() => {
+                    console.log("[Portfolio] symbol picker toggle", { wasOpen: symbolPickerOpen });
+                    setSymbolPickerOpen((open) => !open);
+                  }}
                 >
                   <span className="truncate">
                     {selectedCatalog
@@ -392,6 +402,7 @@ const Portfolio = () => {
                             type="button"
                             className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent pointer-events-auto"
                             onClick={() => {
+                              console.log("[Portfolio] symbol option clicked", stock.symbol);
                               setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
                               setSymbolSearch("");
                               setSymbolPickerOpen(false);
@@ -439,7 +450,16 @@ const Portfolio = () => {
               </div>
               <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-end gap-2">
                 <Button variant="outline" size="lg" onClick={closeAddForm} className="sm:w-auto">Cancel</Button>
-                <Button onClick={handleAddStock} size="lg" className="flex-1">Add</Button>
+                <Button
+                  onClick={() => {
+                    console.log("[Portfolio] Add (submit) button clicked");
+                    handleAddStock();
+                  }}
+                  size="lg"
+                  className="flex-1"
+                >
+                  Add
+                </Button>
               </div>
             </div>
           </Card>

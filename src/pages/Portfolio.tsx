@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
@@ -14,7 +17,8 @@ import { PortfolioInsights } from "@/components/PortfolioInsights";
 import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { STOCK_CATALOG, currencySign } from "@/data/stockCatalog";
+import { STOCK_CATALOG, currencySign, findCatalogEntry } from "@/data/stockCatalog";
+import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 
 interface PortfolioStock {
   symbol: string;
@@ -22,6 +26,7 @@ interface PortfolioStock {
   shares: number;
   avgPrice: number;
   currentPrice: number;
+  currency: string;
 }
 
 const STORAGE_KEY = "portfolio_holdings";
@@ -44,10 +49,10 @@ const Portfolio = () => {
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
     return local.length
-      ? local
+      ? local.map((s) => ({ ...s, currency: s.currency || findCatalogEntry(s.symbol)?.currency || "EUR" }))
       : [
-          { symbol: "ENEL", name: "Enel", shares: 100, avgPrice: 6.20, currentPrice: 6.45 },
-          { symbol: "UCG", name: "UniCredit", shares: 50, avgPrice: 35.50, currentPrice: 38.92 },
+          { symbol: "ENEL", name: "Enel", shares: 100, avgPrice: 6.20, currentPrice: 6.45, currency: "EUR" },
+          { symbol: "UCG", name: "UniCredit", shares: 50, avgPrice: 35.50, currentPrice: 38.92, currency: "EUR" },
         ];
   });
 
@@ -87,6 +92,7 @@ const Portfolio = () => {
         symbol: r.symbol, name: r.name,
         shares: Number(r.shares), avgPrice: Number(r.avg_price),
         currentPrice: Number(r.avg_price),
+        currency: findCatalogEntry(r.symbol)?.currency || "EUR",
       }));
       setPortfolio(next);
     })();
@@ -109,11 +115,54 @@ const Portfolio = () => {
           symbol: r.symbol, name: r.name,
           shares: Number(r.shares), avgPrice: Number(r.avg_price),
           currentPrice: Number(r.avg_price),
+          currency: findCatalogEntry(r.symbol)?.currency || "EUR",
         })));
       }
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user]);
+
+  // === Live quotes: merge real market prices into currentPrice ===
+  const symbols = useMemo(() => portfolio.map((p) => p.symbol), [portfolio]);
+  const { quotes } = useLiveQuotes(symbols);
+  const liveSig = symbols.map((s) => quotes[s]?.price).join(",");
+  useEffect(() => {
+    if (!Object.keys(quotes).length) return;
+    setPortfolio((prev) => prev.map((p) => {
+      const q = quotes[p.symbol];
+      return q?.price ? { ...p, currentPrice: q.price, currency: q.currency || p.currency } : p;
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSig]);
+
+  // === FX rates so totals can be expressed in EUR ===
+  const currencies = useMemo(
+    () => Array.from(new Set(portfolio.map((p) => p.currency).filter((c) => c && c !== "EUR"))).sort(),
+    [portfolio]
+  );
+  const fxKey = currencies.join(",");
+  const [fxRates, setFxRates] = useState<Record<string, number>>({ EUR: 1 });
+  useEffect(() => {
+    if (!currencies.length) { setFxRates({ EUR: 1 }); return; }
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = { EUR: 1 };
+      await Promise.all(currencies.map(async (cur) => {
+        try {
+          const { data } = await supabase.functions.invoke("market-data", {
+            body: { action: "fx", pair: `${cur}EUR` },
+          });
+          const rate = data?.rate?.rate;
+          if (rate) next[cur] = rate;
+        } catch { /* ignore */ }
+      }));
+      if (!cancelled) setFxRates(next);
+    })();
+    return () => { cancelled = true; };
+  }, [fxKey]);
+
+  const toEur = (amount: number, currency: string) =>
+    amount * (fxRates[currency] ?? (currency === "EUR" ? 1 : 1));
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [range, setRange] = useState<HistoryRange>("1M");
@@ -245,6 +294,85 @@ const Portfolio = () => {
     });
   };
 
+  // === Edit holding ===
+  const [editing, setEditing] = useState<PortfolioStock | null>(null);
+  const [editShares, setEditShares] = useState("");
+  const [editAvg, setEditAvg] = useState("");
+  const [txnSide, setTxnSide] = useState<"buy" | "sell">("buy");
+  const [txnShares, setTxnShares] = useState("");
+  const [txnPrice, setTxnPrice] = useState("");
+
+  const openEdit = (stock: PortfolioStock) => {
+    setEditing(stock);
+    setEditShares(String(stock.shares));
+    setEditAvg(String(stock.avgPrice));
+    setTxnSide("buy");
+    setTxnShares("");
+    setTxnPrice(String(stock.currentPrice || stock.avgPrice));
+  };
+
+  const persistEdit = async (symbol: string, shares: number, avgPrice: number) => {
+    if (user) {
+      const { error } = await supabase.from("portfolio_holdings").upsert({
+        user_id: user.id, symbol, name: editing?.name || symbol,
+        shares, avg_price: avgPrice,
+      }, { onConflict: "user_id,symbol" });
+      if (error) {
+        toast({ title: "Couldn't update", description: error.message, variant: "destructive" });
+        return false;
+      }
+    }
+    setPortfolio((prev) => prev.map((p) => p.symbol === symbol ? { ...p, shares, avgPrice } : p));
+    return true;
+  };
+
+  const handleSaveDirect = async () => {
+    if (!editing) return;
+    const sh = parseFloat(editShares);
+    const av = parseFloat(editAvg);
+    if (!Number.isFinite(sh) || sh <= 0 || !Number.isFinite(av) || av <= 0) {
+      toast({ title: "Invalid values", variant: "destructive" });
+      return;
+    }
+    if (await persistEdit(editing.symbol, sh, av)) {
+      toast({ title: "Holding updated" });
+      setEditing(null);
+    }
+  };
+
+  const handleApplyTxn = async () => {
+    if (!editing) return;
+    const ts = parseFloat(txnShares);
+    const tp = parseFloat(txnPrice);
+    if (!Number.isFinite(ts) || ts <= 0 || !Number.isFinite(tp) || tp <= 0) {
+      toast({ title: "Invalid transaction", variant: "destructive" });
+      return;
+    }
+    let newShares: number, newAvg: number;
+    if (txnSide === "buy") {
+      newShares = editing.shares + ts;
+      newAvg = (editing.shares * editing.avgPrice + ts * tp) / newShares;
+    } else {
+      if (ts > editing.shares) {
+        toast({ title: "Cannot sell more than you hold", variant: "destructive" });
+        return;
+      }
+      newShares = editing.shares - ts;
+      newAvg = editing.avgPrice; // average cost unchanged on partial sell
+      if (newShares === 0) {
+        if (user) await supabase.from("portfolio_holdings").delete().eq("user_id", user.id).eq("symbol", editing.symbol);
+        setPortfolio((prev) => prev.filter((p) => p.symbol !== editing.symbol));
+        toast({ title: "Position closed" });
+        setEditing(null);
+        return;
+      }
+    }
+    if (await persistEdit(editing.symbol, newShares, newAvg)) {
+      toast({ title: txnSide === "buy" ? "Bought more" : "Sold", description: `New avg: ${editing.currency} ${newAvg.toFixed(4)}` });
+      setEditing(null);
+    }
+  };
+
   const calculateGainLoss = (stock: PortfolioStock) => {
     const totalValue = stock.shares * stock.currentPrice;
     const totalCost = stock.shares * stock.avgPrice;
@@ -255,12 +383,12 @@ const Portfolio = () => {
 
   const portfolioTotal = portfolio.reduce((sum, stock) => {
     const { totalValue } = calculateGainLoss(stock);
-    return sum + totalValue;
+    return sum + toEur(totalValue, stock.currency);
   }, 0);
 
   const portfolioGain = portfolio.reduce((sum, stock) => {
     const { gain } = calculateGainLoss(stock);
-    return sum + gain;
+    return sum + toEur(gain, stock.currency);
   }, 0);
 
   return (

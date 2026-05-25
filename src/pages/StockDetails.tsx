@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { Helmet } from "react-helmet-async";
 import {
   ComposedChart,
   Line,
@@ -208,6 +209,17 @@ const StockDetails = () => {
         description={`Live price, fundamentals, technical signals, sentiment, and AI verdict for ${entry?.name ?? sym} (${symbol}). Risk and valuation insights in one view.`}
         path={`/stock/${symbol}`}
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FinancialProduct",
+          name: entry?.name ?? sym,
+          tickerSymbol: sym,
+          description: `Live price, fundamentals, technical analysis, sentiment, and AI-driven insights for ${entry?.name ?? sym} (${sym}).`,
+          url: `https://intel-market-pulse.lovable.app/stock/${sym}`,
+          category: "Equity",
+        })}</script>
+      </Helmet>
       <TopNav />
 
       {/* Header */}

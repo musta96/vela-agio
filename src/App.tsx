@@ -48,6 +48,7 @@ import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
 import AdminSettings from "./pages/AdminSettings";
 import Advisor from "./pages/Advisor";
+import AppShell from "./components/AppShell";
 
 const queryClient = new QueryClient();
 
@@ -61,49 +62,51 @@ const App = () => (
         <FeatureFlagsProvider>
         <PortfoliosProvider>
         <Routes>
-          <Route path="/" element={<Index />} />
+        <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/sentiment" element={<SentimentDashboard />} />
-          <Route path="/backtest" element={<BacktestingModule />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/watchlist" element={<Watchlist />} />
-          <Route path="/picks" element={<SmartPicks />} />
-          <Route path="/technical" element={<TechnicalAnalysis />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="/sectors" element={<SectorHeatmap />} />
-          <Route path="/stock/:symbol" element={<StockDetails />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/risk" element={<Risk />} />
-          <Route path="/screener" element={<Screener />} />
-          <Route path="/baskets" element={<Baskets />} />
-          <Route path="/filings" element={<Filings />} />
-          <Route path="/earnings" element={<Earnings />} />
-          <Route path="/insider" element={<Insider />} />
-          <Route path="/macro" element={<Macro />} />
-          <Route path="/copilot" element={<Copilot />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/event-study" element={<EventStudy />} />
-          <Route path="/tax-harvest" element={<TaxHarvest />} />
-          <Route path="/methodology" element={<Methodology />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/learn" element={<Education />} />
-          <Route path="/api" element={<ApiDocs />} />
-          <Route path="/intraday" element={<Intraday />} />
-          <Route path="/corporate-actions" element={<CorporateActions />} />
-          <Route path="/optimizer" element={<Optimizer />} />
-          <Route path="/rebalance" element={<Rebalance />} />
-          <Route path="/peers" element={<Peers />} />
-          <Route path="/quant" element={<QuantAlpha />} />
-          <Route path="/blotter" element={<Blotter />} />
-          <Route path="/notes" element={<Notes />} />
-          <Route path="/suitability" element={<Suitability />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/admin/audit" element={<AdminAuditLog />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          <Route path="/advisor" element={<Advisor />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/sentiment" element={<SentimentDashboard />} />
+            <Route path="/backtest" element={<BacktestingModule />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/watchlist" element={<Watchlist />} />
+            <Route path="/picks" element={<SmartPicks />} />
+            <Route path="/technical" element={<TechnicalAnalysis />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/sectors" element={<SectorHeatmap />} />
+            <Route path="/stock/:symbol" element={<StockDetails />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/risk" element={<Risk />} />
+            <Route path="/screener" element={<Screener />} />
+            <Route path="/baskets" element={<Baskets />} />
+            <Route path="/filings" element={<Filings />} />
+            <Route path="/earnings" element={<Earnings />} />
+            <Route path="/insider" element={<Insider />} />
+            <Route path="/macro" element={<Macro />} />
+            <Route path="/copilot" element={<Copilot />} />
+            <Route path="/goals" element={<Goals />} />
+            <Route path="/event-study" element={<EventStudy />} />
+            <Route path="/tax-harvest" element={<TaxHarvest />} />
+            <Route path="/methodology" element={<Methodology />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/learn" element={<Education />} />
+            <Route path="/api" element={<ApiDocs />} />
+            <Route path="/intraday" element={<Intraday />} />
+            <Route path="/corporate-actions" element={<CorporateActions />} />
+            <Route path="/optimizer" element={<Optimizer />} />
+            <Route path="/rebalance" element={<Rebalance />} />
+            <Route path="/peers" element={<Peers />} />
+            <Route path="/quant" element={<QuantAlpha />} />
+            <Route path="/blotter" element={<Blotter />} />
+            <Route path="/notes" element={<Notes />} />
+            <Route path="/suitability" element={<Suitability />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/admin/audit" element={<AdminAuditLog />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/advisor" element={<Advisor />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
         </Routes>
         </PortfoliosProvider>
         </FeatureFlagsProvider>

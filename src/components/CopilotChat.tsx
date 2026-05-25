@@ -160,7 +160,7 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
                   ))}
                 </div>
               )}
-              <div className={`rounded-lg px-3 py-2 prose prose-sm prose-invert max-w-none ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              <div className={`rounded-lg px-3 py-2 prose prose-sm max-w-none ${m.role === "user" ? "prose-invert bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
                 <ReactMarkdown>{m.content || (m.tools && m.tools.length > 0 ? "_working..._" : "...")}</ReactMarkdown>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { fetchAllByoNews } from "../_shared/data-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -259,7 +260,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const articles = await fetchHeadlines(symbol, name);
+    // Free + public sources
+    const freeArticles = await fetchHeadlines(symbol, name);
+    // Phase 2: BYO premium news (NewsAPI / Marketaux / Finnhub / Benzinga)
+    let byo: Article[] = [];
+    try {
+      const byoRaw = await fetchAllByoNews(req.headers.get("Authorization"), symbol, name);
+      byo = byoRaw.map(a => ({ title: a.title, link: a.link, source: a.source, pubDate: a.pubDate, description: a.description }));
+    } catch (e) { console.warn("BYO news fetch failed", e); }
+    const articles = dedupe([...byo, ...freeArticles], 70);
     if (articles.length === 0) {
       return new Response(JSON.stringify({
         symbol, score: 50, label: "neutral",

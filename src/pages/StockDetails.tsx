@@ -204,8 +204,8 @@ const StockDetails = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title={`${symbol} — ${catalogEntry?.name ?? "Stock"} Analysis & Live Price`}
-        description={`Live price, fundamentals, technical signals, sentiment, and AI verdict for ${catalogEntry?.name ?? symbol} (${symbol}). Risk and valuation insights in one view.`}
+        title={`${symbol} — ${entry?.name ?? "Stock"} Analysis & Live Price`}
+        description={`Live price, fundamentals, technical signals, sentiment, and AI verdict for ${entry?.name ?? sym} (${symbol}). Risk and valuation insights in one view.`}
         path={`/stock/${symbol}`}
       />
       <TopNav />

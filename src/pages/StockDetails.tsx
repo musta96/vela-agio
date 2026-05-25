@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { generateStockReport } from "@/lib/pdfReports";
+import { generateStockReport, generateDeepAnalysisReport } from "@/lib/pdfReports";
 import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert } from "lucide-react";
@@ -271,6 +271,42 @@ const StockDetails = () => {
                   }
                 >
                   <FileDown className="h-4 w-4" /> PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="gap-1.5"
+                  disabled={deepLoading}
+                  onClick={async () => {
+                    let d = deep;
+                    if (!d) {
+                      await fetchDeep();
+                      // re-read after fetch (state may not be updated yet); attempt direct invoke
+                      try {
+                        const { data } = await supabase.functions.invoke("deep-analysis", {
+                          body: { symbol: sym, name },
+                        });
+                        if (data && !(data as any)?.error) d = data as any;
+                      } catch {}
+                    }
+                    if (!d) {
+                      toast({ title: "Deep analysis unavailable", description: "Try again in a moment", variant: "destructive" });
+                      return;
+                    }
+                    generateDeepAnalysisReport({
+                      symbol: sym,
+                      name: name ?? entry?.name ?? undefined,
+                      fundamentals: d.fundamentals,
+                      liquidity: d.liquidity ?? null,
+                      valuation: d.valuation,
+                      analysis: d.analysis,
+                      sentiment: sentiment
+                        ? { label: sentiment.label, score: sentiment.score, summary: sentiment.summary }
+                        : null,
+                    });
+                  }}
+                >
+                  <FileDown className="h-4 w-4" /> {deepLoading ? "Preparing…" : "Full analysis PDF"}
                 </Button>
               </div>
               <p className="text-muted-foreground">{name}</p>

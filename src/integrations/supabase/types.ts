@@ -639,12 +639,17 @@ export type Database = {
         Row: {
           ai_model: string | null
           ai_provider: string
+          avatar_url: string | null
+          bio: string | null
           briefing_focus: string | null
           country_residence: string | null
           country_tax_residence: string | null
           created_at: string
+          date_of_birth: string | null
           display_name: string | null
           id: string
+          onboarding_dismissed: boolean
+          phone: string | null
           secondary_tax_residences: string[] | null
           updated_at: string
           user_id: string
@@ -652,12 +657,17 @@ export type Database = {
         Insert: {
           ai_model?: string | null
           ai_provider?: string
+          avatar_url?: string | null
+          bio?: string | null
           briefing_focus?: string | null
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string | null
           id?: string
+          onboarding_dismissed?: boolean
+          phone?: string | null
           secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id: string
@@ -665,12 +675,17 @@ export type Database = {
         Update: {
           ai_model?: string | null
           ai_provider?: string
+          avatar_url?: string | null
+          bio?: string | null
           briefing_focus?: string | null
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string | null
           id?: string
+          onboarding_dismissed?: boolean
+          phone?: string | null
           secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id?: string

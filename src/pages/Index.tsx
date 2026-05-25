@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -108,6 +109,8 @@ export default function Index() {
             ))}
           </div>
         </div>
+
+        <OnboardingChecklist />
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

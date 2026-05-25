@@ -41,6 +41,8 @@ import Peers from "./pages/Peers";
 import QuantAlpha from "./pages/QuantAlpha";
 import Blotter from "./pages/Blotter";
 import OrderHistory from "./pages/OrderHistory";
+import Profile from "./pages/Profile";
+import Security from "./pages/Security";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
@@ -111,6 +113,8 @@ const App = () => (
             <Route path="/quant" element={<QuantAlpha />} />
             <Route path="/blotter" element={<Blotter />} />
             <Route path="/orders" element={<OrderHistory />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/security" element={<Security />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />

@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown } from "lucide-react";
-import { Pencil } from "lucide-react";
+import { Pencil, Settings as SettingsIcon, FlaskConical, FolderPlus, Trash2, Copy } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
@@ -19,6 +22,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { STOCK_CATALOG, currencySign, findCatalogEntry } from "@/data/stockCatalog";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { usePortfolios } from "@/hooks/usePortfolios";
+import { PortfolioSimulator } from "@/components/PortfolioSimulator";
 
 interface PortfolioStock {
   symbol: string;
@@ -45,6 +50,7 @@ const readLocal = (): PortfolioStock[] => {
 const Portfolio = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const { portfolios, active, activeId, setActiveId, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
@@ -64,7 +70,7 @@ const Portfolio = () => {
   // Cloud sync (load + migrate on first login)
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
+    if (!user || !activeId) {
       migratedRef.current = false;
       return;
     }
@@ -76,51 +82,54 @@ const Portfolio = () => {
         if (local.length) {
           await supabase.from("portfolio_holdings").upsert(
             local.map((s) => ({
-              user_id: user.id, symbol: s.symbol, name: s.name,
+              user_id: user.id, portfolio_id: activeId, symbol: s.symbol, name: s.name,
               shares: s.shares, avg_price: s.avgPrice,
-            })),
-            { onConflict: "user_id,symbol", ignoreDuplicates: true }
+              currency: (s as any).currency || findCatalogEntry(s.symbol)?.currency || "EUR",
+            })) as any,
+            { onConflict: "portfolio_id,symbol", ignoreDuplicates: true }
           );
         }
       }
       const { data } = await supabase
         .from("portfolio_holdings")
-        .select("symbol,name,shares,avg_price")
+        .select("symbol,name,shares,avg_price,currency")
+        .eq("portfolio_id", activeId)
         .order("created_at", { ascending: true });
       if (cancelled || !data) return;
-      const next: PortfolioStock[] = data.map((r) => ({
+      const next: PortfolioStock[] = data.map((r: any) => ({
         symbol: r.symbol, name: r.name,
         shares: Number(r.shares), avgPrice: Number(r.avg_price),
         currentPrice: Number(r.avg_price),
-        currency: findCatalogEntry(r.symbol)?.currency || "EUR",
+        currency: r.currency || findCatalogEntry(r.symbol)?.currency || "EUR",
       }));
       setPortfolio(next);
     })();
     return () => { cancelled = true; };
-  }, [user, authLoading]);
+  }, [user, authLoading, activeId]);
 
   // Realtime updates from other devices
   useEffect(() => {
-    if (!user) return;
-    const ch = supabase.channel(`pf-${user.id}`).on(
+    if (!user || !activeId) return;
+    const ch = supabase.channel(`pf-${activeId}`).on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "portfolio_holdings", filter: `user_id=eq.${user.id}` },
+      { event: "*", schema: "public", table: "portfolio_holdings", filter: `portfolio_id=eq.${activeId}` },
       async () => {
         const { data } = await supabase
           .from("portfolio_holdings")
-          .select("symbol,name,shares,avg_price")
+          .select("symbol,name,shares,avg_price,currency")
+          .eq("portfolio_id", activeId)
           .order("created_at", { ascending: true });
         if (!data) return;
-        setPortfolio(data.map((r) => ({
+        setPortfolio(data.map((r: any) => ({
           symbol: r.symbol, name: r.name,
           shares: Number(r.shares), avgPrice: Number(r.avg_price),
           currentPrice: Number(r.avg_price),
-          currency: findCatalogEntry(r.symbol)?.currency || "EUR",
+          currency: r.currency || findCatalogEntry(r.symbol)?.currency || "EUR",
         })));
       }
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user]);
+  }, [user, activeId]);
 
   // === Live quotes: merge real market prices into currentPrice ===
   const symbols = useMemo(() => portfolio.map((p) => p.symbol), [portfolio]);

@@ -11,6 +11,7 @@ import {
   ComposedChart,
   Line,
   Area,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -54,6 +55,7 @@ interface SentimentResult {
 interface DeepAnalysis {
   symbol: string;
   fundamentals: Record<string, any>;
+  liquidity?: { avgVolume: number; avgDollarVolume: number; tier: string } | null;
   valuation: {
     dcf: { perShare: number; assumptions: any; upside: number | null } | null;
     ddm: { perShare: number; assumptions: any; upside: number | null } | null;
@@ -122,6 +124,8 @@ const StockDetails = () => {
       close: b.close,
       sma50: s50[i] ?? null,
       sma200: s200[i] ?? null,
+      volume: b.volume ?? 0,
+      up: b.close >= b.open,
     }));
   }, [bars]);
 
@@ -299,10 +303,23 @@ const StockDetails = () => {
                     </ComposedChart>
                   </ResponsiveContainer>
                 )}
+                {!chartLoading && !chartError && chartData.length > 0 && (
+                  <ResponsiveContainer width="100%" height={90}>
+                    <ComposedChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                      <XAxis dataKey="date" hide />
+                      <YAxis hide />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                        formatter={(v: any) => [(v as number).toLocaleString(), "Volume"]}
+                      />
+                      <Bar dataKey="volume" fill="hsl(var(--muted-foreground))" opacity={0.45} name="Volume" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Composite Signal</CardTitle></CardHeader>
                 <CardContent>
@@ -314,6 +331,27 @@ const StockDetails = () => {
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground">Need more history for analysis.</p>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Volume vs 20d avg</CardTitle></CardHeader>
+                <CardContent>
+                  {tech?.volume ? (
+                    <>
+                      <Badge
+                        variant="outline"
+                        className={tech.volume.spike ? "text-primary border-primary/30 bg-primary/10" : tech.volume.weak ? "text-muted-foreground border-border bg-muted/30" : "text-foreground border-border"}
+                      >
+                        {tech.volume.spike ? "SPIKE" : tech.volume.weak ? "THIN" : "NORMAL"}
+                      </Badge>
+                      <p className="text-3xl font-bold mt-2">{tech.volume.ratio.toFixed(2)}×</p>
+                      <p className="text-xs text-muted-foreground">
+                        OBV {tech.volume.obvSlopePct >= 0 ? "+" : ""}{tech.volume.obvSlopePct.toFixed(1)}% / 20 bars
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No volume data.</p>
                   )}
                 </CardContent>
               </Card>
@@ -598,6 +636,30 @@ const StockDetails = () => {
                         })}
                       </div>
                     </div>
+
+                    {/* Liquidity */}
+                    {deep.liquidity && (
+                      <div className="p-3 rounded-lg border border-border/50 flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="text-sm font-semibold">Liquidity</p>
+                          <p className="text-xs text-muted-foreground">
+                            Avg daily volume {(deep.liquidity.avgVolume / 1e6).toFixed(2)}M shares · ${(deep.liquidity.avgDollarVolume / 1e6).toFixed(1)}M traded/day
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            deep.liquidity.tier === "very-liquid" || deep.liquidity.tier === "liquid"
+                              ? "text-success border-success/30 bg-success/10"
+                              : deep.liquidity.tier === "moderate"
+                              ? "text-foreground border-border"
+                              : "text-destructive border-destructive/30 bg-destructive/10"
+                          }
+                        >
+                          {deep.liquidity.tier.toUpperCase()}
+                        </Badge>
+                      </div>
+                    )}
 
                     {/* Analyst targets */}
                     {(deep.fundamentals.targetMeanPrice || deep.fundamentals.numberOfAnalystOpinions) && (

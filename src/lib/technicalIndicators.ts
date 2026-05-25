@@ -152,6 +152,85 @@ export function atr(bars: OHLCBar[], period = 14): (number | null)[] {
   return out;
 }
 
+// ---------- Volume indicators ----------
+
+// On-Balance Volume
+export function obv(bars: OHLCBar[]): (number | null)[] {
+  const out: (number | null)[] = new Array(bars.length).fill(null);
+  let v = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const vol = bars[i].volume ?? 0;
+    if (i === 0) { out[i] = 0; continue; }
+    if (bars[i].close > bars[i - 1].close) v += vol;
+    else if (bars[i].close < bars[i - 1].close) v -= vol;
+    out[i] = v;
+  }
+  return out;
+}
+
+// Accumulation/Distribution line
+export function ad(bars: OHLCBar[]): (number | null)[] {
+  const out: (number | null)[] = new Array(bars.length).fill(null);
+  let acc = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const { high, low, close, volume = 0 } = bars[i];
+    const range = high - low;
+    const clv = range === 0 ? 0 : ((close - low) - (high - close)) / range;
+    acc += clv * volume;
+    out[i] = acc;
+  }
+  return out;
+}
+
+// VWAP (session-less rolling, useful for intraday). For daily bars it's a running anchored VWAP.
+export function vwap(bars: OHLCBar[]): (number | null)[] {
+  const out: (number | null)[] = new Array(bars.length).fill(null);
+  let cumPV = 0, cumV = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const v = bars[i].volume ?? 0;
+    const typical = (bars[i].high + bars[i].low + bars[i].close) / 3;
+    cumPV += typical * v;
+    cumV += v;
+    out[i] = cumV > 0 ? cumPV / cumV : null;
+  }
+  return out;
+}
+
+export interface VolumeStats {
+  lastVolume: number;
+  avg20: number;
+  ratio: number;            // last / avg20
+  spike: boolean;           // ratio > 2
+  weak: boolean;            // ratio < 0.5
+  obvSlopePct: number;      // % change in OBV over last 20 bars
+  dollarVolume20: number;   // avg 20d $ volume
+}
+
+export function volumeStats(bars: OHLCBar[]): VolumeStats | null {
+  const vols = bars.map((b) => b.volume ?? 0);
+  if (vols.length < 21 || vols.every((v) => v === 0)) return null;
+  const n = vols.length;
+  const last = vols[n - 1];
+  const recent = vols.slice(Math.max(0, n - 21), n - 1);
+  const avg20 = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const ratio = avg20 > 0 ? last / avg20 : 0;
+  const obvArr = obv(bars);
+  const obvNow = obvArr[n - 1] ?? 0;
+  const obvPast = obvArr[Math.max(0, n - 21)] ?? 0;
+  const obvSlopePct = obvPast !== 0 ? ((obvNow - obvPast) / Math.abs(obvPast)) * 100 : 0;
+  const dollarVolume20 =
+    bars.slice(-20).reduce((acc, b) => acc + (b.volume ?? 0) * b.close, 0) / Math.min(20, bars.length);
+  return {
+    lastVolume: last,
+    avg20,
+    ratio,
+    spike: ratio > 2,
+    weak: ratio < 0.5,
+    obvSlopePct,
+    dollarVolume20,
+  };
+}
+
 // ---------- Support / Resistance via swing pivots ----------
 export interface PivotLevel {
   price: number;
@@ -292,6 +371,7 @@ export interface AnalysisSummary {
   patterns: CandlePattern[];
   levels: { price: number; type: "support" | "resistance"; touches: number }[];
   lastClose: number;
+  volume?: VolumeStats | null;
 }
 
 export function analyze(bars: OHLCBar[]): AnalysisSummary | null {
@@ -444,14 +524,68 @@ export function analyze(bars: OHLCBar[]): AnalysisSummary | null {
   patterns.forEach((p) => {
     const bullish = ["Bullish Engulfing", "Hammer", "Morning Star"].includes(p);
     const bearish = ["Bearish Engulfing", "Shooting Star", "Evening Star"].includes(p);
-    if (bullish) score += 10;
-    if (bearish) score -= 10;
+    // Pattern confirmation is much stronger on above-average volume.
+    const vol = volumeStats(bars);
+    const mult = vol ? (vol.ratio >= 1.5 ? 1.5 : vol.ratio < 0.7 ? 0.5 : 1) : 1;
+    if (bullish) score += 10 * mult;
+    if (bearish) score -= 10 * mult;
   });
 
   const levels = consolidatedLevels(bars);
 
+  // Volume signals
+  const vol = volumeStats(bars);
+  if (vol) {
+    const lastBar = bars[bars.length - 1];
+    const up = lastBar.close >= lastBar.open;
+    let volSig: Signal = "neutral";
+    let reason = `Volume ${(vol.ratio).toFixed(2)}× 20-day average.`;
+    if (vol.spike && up) {
+      volSig = "bullish";
+      reason = `Volume spike on green candle (${vol.ratio.toFixed(2)}× avg) — strong demand confirms move.`;
+      score += 12;
+    } else if (vol.spike && !up) {
+      volSig = "bearish";
+      reason = `Volume spike on red candle (${vol.ratio.toFixed(2)}× avg) — distribution / selling pressure.`;
+      score -= 12;
+    } else if (vol.weak) {
+      reason = `Thin volume (${vol.ratio.toFixed(2)}× avg) — weak conviction behind the move.`;
+    } else if (vol.ratio >= 1.2 && up) {
+      volSig = "bullish";
+      score += 5;
+    } else if (vol.ratio >= 1.2 && !up) {
+      volSig = "bearish";
+      score -= 5;
+    }
+    sigs.push({
+      name: "Volume (20-day)",
+      value: `${(vol.lastVolume / 1e6).toFixed(2)}M vs ${(vol.avg20 / 1e6).toFixed(2)}M avg`,
+      signal: volSig,
+      reason,
+    });
+
+    // OBV trend confirms price direction
+    let obvSig: Signal = "neutral";
+    let obvReason = "OBV is flat — no clear accumulation or distribution.";
+    if (vol.obvSlopePct > 5) {
+      obvSig = "bullish";
+      obvReason = `OBV up ${vol.obvSlopePct.toFixed(1)}% over 20 bars — accumulation underway.`;
+      score += 8;
+    } else if (vol.obvSlopePct < -5) {
+      obvSig = "bearish";
+      obvReason = `OBV down ${vol.obvSlopePct.toFixed(1)}% over 20 bars — distribution underway.`;
+      score -= 8;
+    }
+    sigs.push({
+      name: "OBV trend",
+      value: `${vol.obvSlopePct >= 0 ? "+" : ""}${vol.obvSlopePct.toFixed(1)}% / 20 bars`,
+      signal: obvSig,
+      reason: obvReason,
+    });
+  }
+
   score = Math.max(-100, Math.min(100, score));
   const overall: Signal = score > 15 ? "bullish" : score < -15 ? "bearish" : "neutral";
 
-  return { overall, score, signals: sigs, patterns, levels, lastClose: last };
+  return { overall, score, signals: sigs, patterns, levels, lastClose: last, volume: vol };
 }

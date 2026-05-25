@@ -16,7 +16,7 @@ export const AuthButton = () => {
   if (loading) return null;
   if (!user) {
     return (
-      <Button asChild variant="default" size="sm" className="gap-2 hover-scale">
+      <Button asChild size="sm" className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90 border-0">
         <Link to="/auth">
           <LogIn className="h-4 w-4" />
           Sign In
@@ -28,7 +28,7 @@ export const AuthButton = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 max-w-[160px]">
+        <Button variant="ghost" size="sm" className="gap-2 max-w-[160px] bg-white/5 text-sidebar-foreground/80 border border-white/10 hover:bg-white/10 hover:text-sidebar-foreground">
           <UserIcon className="h-4 w-4" />
           <span className="truncate">{label}</span>
         </Button>

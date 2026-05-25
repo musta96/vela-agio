@@ -51,7 +51,12 @@ function ChangePill({ pct, className = "" }: { pct: number; className?: string }
   );
 }
 
-function Sparkline({ trend }: { trend: "up" | "down" | "flat" }) {
+function Sparkline({ trend, loading }: { trend: "up" | "down" | "flat"; loading?: boolean }) {
+  if (loading) {
+    return (
+      <div className="h-[22px] w-16 rounded bg-muted/50 animate-pulse" aria-label="Loading price" />
+    );
+  }
   const stroke = trend === "up" ? "hsl(var(--success))" : trend === "down" ? "hsl(var(--destructive))" : "hsl(var(--warning))";
   const d = trend === "up"
     ? "M0,18 L10,15 L20,17 L30,12 L40,13 L50,8 L60,6"
@@ -175,16 +180,16 @@ export default function Index() {
                 const ccy = q?.currency || (w.sym.endsWith(".MI") ? "EUR" : "USD");
                 return (
                   <button key={w.sym} onClick={() => navigate(`/stock/${encodeURIComponent(w.sym)}`)} className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-muted/40 rounded-md -mx-2 px-2">
-                    <span className={`h-2 w-2 rounded-full ${trend==="up"?"bg-success":trend==="down"?"bg-destructive":"bg-warning"}`} />
+                    <span className={`h-2 w-2 rounded-full ${!q ? "bg-muted-foreground/30" : trend==="up"?"bg-success":trend==="down"?"bg-destructive":"bg-warning"}`} />
                     <div className="min-w-0">
                       <div className="text-[13px] font-semibold leading-tight">{w.sym}</div>
                       <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
                     </div>
                     <div className="ml-auto flex items-center gap-2">
-                      <Sparkline trend={trend} />
+                      <Sparkline trend={trend} loading={!q} />
                       <div className="text-right">
                         <div className="font-mono text-[12px]">{price != null ? fmtMoney(price, ccy) : "—"}</div>
-                        <ChangePill pct={chg} />
+                        {q ? <ChangePill pct={chg} /> : <span className="text-[11px] text-muted-foreground/60">—</span>}
                       </div>
                     </div>
                   </button>

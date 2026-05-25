@@ -33,6 +33,7 @@ export const PortfoliosProvider = ({ children }: { children: ReactNode }) => {
   const [activeId, setActiveIdState] = useState<string | null>(() => localStorage.getItem(ACTIVE_KEY));
   const [loading, setLoading] = useState(false);
   const ensuredRef = useRef(false);
+  const [initialized, setInitialized] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user) { setPortfolios([]); return; }
@@ -43,16 +44,27 @@ export const PortfoliosProvider = ({ children }: { children: ReactNode }) => {
       .order("created_at", { ascending: true });
     if (data) setPortfolios(data as Portfolio[]);
     setLoading(false);
+    setInitialized(true);
   }, [user]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Ensure user has at least one portfolio
+  // Ensure user has at least one portfolio (only after first fetch completes)
   useEffect(() => {
-    if (!user || loading || ensuredRef.current) return;
+    if (!user || loading || !initialized || ensuredRef.current) return;
     if (portfolios.length === 0) {
       ensuredRef.current = true;
       (async () => {
+        // Double-check against DB to avoid races across tabs / strict-mode
+        const { data: existing } = await (supabase as any)
+          .from("portfolios")
+          .select("*")
+          .limit(1);
+        if (existing && existing.length > 0) {
+          setPortfolios(existing as Portfolio[]);
+          setActiveId((existing[0] as Portfolio).id);
+          return;
+        }
         const { data } = await (supabase as any)
           .from("portfolios")
           .insert({ user_id: user.id, name: "My Portfolio", description: "Default portfolio" })
@@ -67,7 +79,7 @@ export const PortfoliosProvider = ({ children }: { children: ReactNode }) => {
       setActiveId(portfolios[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, portfolios.length, loading]);
+  }, [user, portfolios.length, loading, initialized]);
 
   const setActiveId = useCallback((id: string) => {
     setActiveIdState(id);

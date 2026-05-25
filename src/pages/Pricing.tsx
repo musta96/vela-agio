@@ -17,7 +17,7 @@ export default function Pricing() {
   if (!pricingEnabled) {
     return (
       <div className="min-h-screen bg-background">
-        <SEO title="Free for everyone | FTSE MIB Analytics" description="The platform is currently free for everyone." path="/pricing" />
+        <SEO title="Free for everyone | Vela.ai" description="The platform is currently free for everyone." path="/pricing" />
         <TopNav />
         <main className="container mx-auto px-6 py-20 text-center max-w-2xl">
           <Gift className="h-14 w-14 mx-auto text-primary mb-4" />
@@ -33,7 +33,7 @@ export default function Pricing() {
   }
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Pricing | FTSE MIB Analytics" description="Tiered plans from free to enterprise" path="/pricing" />
+      <SEO title="Pricing | Vela.ai" description="Tiered plans from free to enterprise" path="/pricing" />
       <TopNav />
       <main className="container mx-auto px-6 py-10 space-y-8">
         <div className="text-center">

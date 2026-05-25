@@ -46,7 +46,7 @@ export default function Optimizer() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Portfolio Optimizer | FTSE MIB Analytics" description="Mean-Variance, Risk-Parity, HRP" path="/optimizer" />
+      <SEO title="Portfolio Optimizer | Vela.ai" description="Mean-Variance, Risk-Parity, HRP" path="/optimizer" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Scale className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Portfolio Optimizer</h1></div>

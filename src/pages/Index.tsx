@@ -79,7 +79,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <SEO title="FTSE MIB Analytics — Trading Strategy & Stock Insights" description="Track FTSE MIB, European and US stocks with live quotes, AI-powered fundamentals, and technical insights for smarter trading decisions." path="/" />
+      <SEO title="Vela.ai — Trading Strategy & Stock Insights" description="Track FTSE MIB, European and US stocks with live quotes, AI-powered fundamentals, and technical insights for smarter trading decisions." path="/" />
       <TopNav />
       <main>
 
@@ -284,7 +284,7 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Activity className="h-5 w-5 text-primary" />
-              <span className="font-semibold">FTSE MIB Analytics</span>
+              <span className="font-semibold">Vela.ai</span>
             </div>
             <p className="text-sm text-muted-foreground">
               © 2025 Trading Analytics Platform. All rights reserved.

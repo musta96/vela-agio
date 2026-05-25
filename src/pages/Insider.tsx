@@ -24,7 +24,7 @@ export default function Insider() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Insider Transactions | FTSE MIB Analytics" description="SEC Form 3/4/5 insider filings" path="/insider" />
+      <SEO title="Insider Transactions | Vela.ai" description="SEC Form 3/4/5 insider filings" path="/insider" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.insider.title")}</h1></div>

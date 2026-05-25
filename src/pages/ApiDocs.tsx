@@ -18,7 +18,7 @@ export default function ApiDocs() {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="API & Webhooks | FTSE MIB Analytics" description="REST API + webhooks for institutional integration" path="/api" />
+      <SEO title="API & Webhooks | Vela.ai" description="REST API + webhooks for institutional integration" path="/api" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6 max-w-4xl">
         <div className="flex items-center gap-3"><Code2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.api.title")}</h1></div>

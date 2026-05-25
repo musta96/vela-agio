@@ -33,7 +33,7 @@ export default function Suitability() {
   if (done && profile) {
     return (
       <div className="min-h-screen bg-background">
-        <SEO title="MiFID II Suitability | FTSE MIB Analytics" description="Suitability assessment & KID-style summary" path="/suitability" />
+        <SEO title="MiFID II Suitability | Vela.ai" description="Suitability assessment & KID-style summary" path="/suitability" />
         <TopNav />
         <main className="container mx-auto px-6 py-8 max-w-3xl space-y-6">
           <div className="flex items-center gap-3"><Shield className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Suitability Result</h1></div>
@@ -56,7 +56,7 @@ export default function Suitability() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="MiFID II Suitability | FTSE MIB Analytics" description="Suitability assessment" path="/suitability" />
+      <SEO title="MiFID II Suitability | Vela.ai" description="Suitability assessment" path="/suitability" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 max-w-3xl space-y-6">
         <div className="flex items-center gap-3"><Shield className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">MiFID II Suitability Assessment</h1></div>

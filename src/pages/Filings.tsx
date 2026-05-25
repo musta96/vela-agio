@@ -25,7 +25,7 @@ export default function Filings() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="SEC Filings | FTSE MIB Analytics" description="10-K, 10-Q, 8-K, 13F filings from SEC EDGAR" path="/filings" />
+      <SEO title="SEC Filings | Vela.ai" description="10-K, 10-Q, 8-K, 13F filings from SEC EDGAR" path="/filings" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3">

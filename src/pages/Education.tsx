@@ -34,7 +34,7 @@ export default function Education() {
   const ITEMS = i18n.resolvedLanguage === "it" ? ITEMS_IT : ITEMS_EN;
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Learn | FTSE MIB Analytics" description="Plain-English explanations of every metric" path="/learn" />
+      <SEO title="Learn | Vela.ai" description="Plain-English explanations of every metric" path="/learn" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6 max-w-3xl">
         <div className="flex items-center gap-3"><GraduationCap className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.learn.title")}</h1></div>

@@ -46,7 +46,7 @@ export default function EventStudy() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Event Study | FTSE MIB Analytics" description="Average abnormal return around events" path="/event-study" />
+      <SEO title="Event Study | Vela.ai" description="Average abnormal return around events" path="/event-study" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><TrendingUp className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.eventStudy.title")}</h1></div>

@@ -46,7 +46,7 @@ export default function Goals() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Goal Planner | FTSE MIB Analytics" description="Monte Carlo retirement & life-goal planner" path="/goals" />
+      <SEO title="Goal Planner | Vela.ai" description="Monte Carlo retirement & life-goal planner" path="/goals" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Target className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.goals.title")}</h1></div>

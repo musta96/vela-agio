@@ -36,7 +36,7 @@ export default function TaxHarvest() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Tax-Loss Harvesting | FTSE MIB Analytics" description="Realise losses to offset capital gains" path="/tax-harvest" />
+      <SEO title="Tax-Loss Harvesting | Vela.ai" description="Realise losses to offset capital gains" path="/tax-harvest" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Receipt className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.taxHarvest.title")}</h1></div>

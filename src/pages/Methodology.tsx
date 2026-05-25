@@ -28,7 +28,7 @@ export default function Methodology() {
   const sections = i18n.resolvedLanguage === "it" ? SECTIONS_IT : SECTIONS_EN;
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Methodology | FTSE MIB Analytics" description="How our scores, models and AI work" path="/methodology" />
+      <SEO title="Methodology | Vela.ai" description="How our scores, models and AI work" path="/methodology" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6 max-w-4xl">
         <div className="flex items-center gap-3"><BookOpen className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.methodology.title")}</h1></div>

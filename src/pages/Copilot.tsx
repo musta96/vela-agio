@@ -67,7 +67,7 @@ export default function Copilot() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <SEO title="AI Copilot | FTSE MIB Analytics" description="Chat with your portfolio-aware investment copilot" path="/copilot" />
+      <SEO title="AI Copilot | Vela.ai" description="Chat with your portfolio-aware investment copilot" path="/copilot" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 flex-1 flex flex-col max-w-4xl w-full">
         <div className="flex items-center gap-3 mb-4"><Bot className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.copilot.title")}</h1></div>

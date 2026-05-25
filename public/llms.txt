@@ -1,4 +1,4 @@
-# FTSE MIB Analytics
+# Vela.ai
 
 > Advanced trading strategy platform for FTSE MIB, European, and US stocks/ETFs. Combines fundamental analysis, technical indicators, AI-powered sentiment, risk metrics, and backtesting in a Bloomberg Terminal–style UI.
 

@@ -61,16 +61,16 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <SEO
-        title="Sign In or Create Account — FTSE MIB Analytics"
-        description="Sign in or create your FTSE MIB Analytics account to save watchlists, portfolios, and access AI-powered trading insights."
+        title="Sign In or Create Account — Vela.ai"
+        description="Sign in or create your Vela.ai account to save watchlists, portfolios, and access AI-powered trading insights."
         path="/auth"
       />
       <main className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <Activity className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
+          <span className="text-xl font-bold text-gradient">Vela.ai</span>
         </Link>
-        <h1 className="text-2xl font-bold text-center mb-4">Sign in to FTSE MIB Analytics</h1>
+        <h1 className="text-2xl font-bold text-center mb-4">Sign in to Vela.ai</h1>
         <Card className="p-6 card-gradient border-border">
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2 mb-4">

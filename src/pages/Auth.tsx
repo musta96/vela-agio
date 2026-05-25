@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { SEO } from "@/components/SEO";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -59,6 +60,11 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <SEO
+        title="Sign In or Create Account — FTSE MIB Analytics"
+        description="Sign in or create your FTSE MIB Analytics account to save watchlists, portfolios, and access AI-powered trading insights."
+        path="/auth"
+      />
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <Activity className="h-6 w-6 text-primary" />

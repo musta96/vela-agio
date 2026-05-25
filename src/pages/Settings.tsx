@@ -177,6 +177,7 @@ const Settings = () => {
     <div className="min-h-screen bg-background">
       <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, preferences, notification settings, and connected integrations for FTSE MIB Analytics." path="/settings" />
       <TopNav />
+      <main>
 
       <div className="container mx-auto px-6 py-8 max-w-5xl">
         <div className="mb-8">
@@ -257,6 +258,7 @@ const Settings = () => {
           })}
         </Tabs>
       </div>
+    </main>
     </div>
   );
 };

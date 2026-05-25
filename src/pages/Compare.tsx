@@ -87,6 +87,7 @@ const Compare = () => {
     <div className="min-h-screen bg-background">
       <SEO title="Compare Stocks — Side-by-Side Fundamental & Technical Analysis" description="Compare multiple stocks side-by-side: valuation, growth, profitability, technicals, and AI verdicts in one consolidated view." path="/compare" />
       <TopNav />
+      <main>
       <div className="container mx-auto px-6 py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2"><GitCompare className="h-7 w-7 text-primary" /> Compare tickers</h1>
@@ -152,6 +153,7 @@ const Compare = () => {
           {tickers.map((t, i) => <TickerStats key={t} symbol={t} bars={histories[i] ?? []} color={COLORS[i]} />)}
         </div>
       </div>
+    </main>
     </div>
   );
 };

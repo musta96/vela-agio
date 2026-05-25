@@ -100,6 +100,7 @@ const SentimentDashboard = () => {
     <div className="min-h-screen bg-background">
       <SEO title="News Sentiment Dashboard — AI Market Sentiment Analysis" description="Real-time AI sentiment analysis on news, analyst opinions, and market drivers for FTSE MIB, EU, and US equities." path="/sentiment" />
       <TopNav />
+      <main>
 
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
@@ -418,6 +419,7 @@ const SentimentDashboard = () => {
           </>
         )}
       </div>
+    </main>
     </div>
   );
 };

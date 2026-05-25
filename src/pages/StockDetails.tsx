@@ -221,6 +221,7 @@ const StockDetails = () => {
         })}</script>
       </Helmet>
       <TopNav />
+      <main>
 
       {/* Header */}
       <div className="border-b border-border bg-card">
@@ -852,6 +853,7 @@ const StockDetails = () => {
           </TabsContent>
         </Tabs>
       </div>
+    </main>
     </div>
   );
 };

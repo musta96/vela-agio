@@ -95,6 +95,7 @@ const SmartPicks = () => {
     <div className="min-h-screen bg-background">
       <SEO title="AI Smart Picks — Algorithmic Stock Recommendations" description="Discover AI-curated stock picks across markets with conviction scores, risk flags, and supporting fundamental and technical signals." path="/picks" />
       <TopNav />
+      <main>
 
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
@@ -303,6 +304,7 @@ const SmartPicks = () => {
           </p>
         )}
       </div>
+    </main>
     </div>
   );
 };

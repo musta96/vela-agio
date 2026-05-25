@@ -202,6 +202,7 @@ const BacktestingModule = () => {
     <div className="min-h-screen bg-background">
       <SEO title="Strategy Backtesting — Test Trading Strategies on Historical Data" description="Backtest custom trading strategies on FTSE MIB, EU, and US stocks. Measure returns, drawdown, Sharpe ratio, and benchmark performance." path="/backtest" />
       <TopNav />
+      <main>
 
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
@@ -443,6 +444,7 @@ const BacktestingModule = () => {
           </div>
         </div>
       </div>
+    </main>
     </div>
   );
 };

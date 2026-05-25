@@ -267,6 +267,7 @@ const Portfolio = () => {
       {/* Navigation */}
       <SEO title="Portfolio Tracker — Live P/L, Allocation & Risk Insights" description="Track your stock portfolio with live prices, P/L, allocation breakdown, sector exposure, and AI-driven risk insights." path="/portfolio" />
       <TopNav />
+      <main>
 
       {/* Portfolio Header */}
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -511,6 +512,7 @@ const Portfolio = () => {
           )}
         </div>
       </section>
+    </main>
     </div>
   );
 };

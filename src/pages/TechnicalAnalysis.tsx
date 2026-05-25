@@ -115,6 +115,7 @@ const TechnicalAnalysis = () => {
       {/* Nav */}
       <SEO title="Technical Analysis — RSI, MACD & Trend Signals" description="Analyze stocks with RSI, MACD, moving averages, and trend signals. Spot breakouts and reversals across FTSE MIB, EU, and US markets." path="/technical" />
       <TopNav />
+      <main>
 
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
@@ -388,6 +389,7 @@ const TechnicalAnalysis = () => {
           </>
         )}
       </section>
+    </main>
     </div>
   );
 };

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { X, GitCompare } from "lucide-react";
+import { X, GitCompare, FileDown } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useOHLCHistory } from "@/hooks/useOHLCHistory";
 import { analyze } from "@/lib/technicalIndicators";
@@ -13,6 +13,7 @@ import type { OHLCBar } from "@/lib/technicalIndicators";
 import { riskSummary } from "@/lib/riskMetrics";
 import { findCatalogEntry } from "@/data/stockCatalog";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { generateComparisonReport } from "@/lib/pdfReports";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
@@ -83,6 +84,31 @@ const Compare = () => {
   };
   const remove = (s: string) => setTickers(tickers.filter((t) => t !== s));
 
+  const exportPdf = () => {
+    generateComparisonReport({
+      period: "1Y",
+      tickers: tickers.map((sym, i) => {
+        const bars = histories[i] ?? [];
+        const tech = bars.length >= 60 ? analyze(bars) : null;
+        const risk = bars.length >= 30 ? riskSummary(bars) : null;
+        const perf =
+          bars.length >= 2 ? bars[bars.length - 1].close / bars[0].close - 1 : null;
+        const entry = findCatalogEntry(sym);
+        return {
+          symbol: sym,
+          name: entry?.name ?? sym,
+          price: quotes[sym]?.price,
+          change: quotes[sym]?.change != null ? quotes[sym].change / 100 : undefined,
+          composite: tech?.score ?? null,
+          vol: risk?.vol ?? null,
+          sharpe: risk?.sharpe ?? null,
+          maxDD: risk?.maxDD ?? null,
+          perf1Y: perf,
+        };
+      }),
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SEO title="Compare Stocks — Side-by-Side Fundamental & Technical Analysis" description="Compare multiple stocks side-by-side: valuation, growth, profitability, technicals, and AI verdicts in one consolidated view." path="/compare" />
@@ -92,6 +118,12 @@ const Compare = () => {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2"><GitCompare className="h-7 w-7 text-primary" /> Compare tickers</h1>
           <p className="text-muted-foreground mt-1">Side-by-side performance, technicals, and risk for up to 4 tickers.</p>
+        </div>
+
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportPdf} disabled={tickers.length === 0}>
+            <FileDown className="h-4 w-4" /> Export comparison PDF
+          </Button>
         </div>
 
         <Card>

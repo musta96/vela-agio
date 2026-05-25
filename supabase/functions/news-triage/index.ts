@@ -14,7 +14,8 @@ async function newsFor(symbol: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const { symbols } = await req.json();
+    const { symbols, lang } = await req.json();
+    const langName = lang === "it" ? "Italian" : "English";
     const all: any[] = [];
     for (const s of (symbols ?? []).slice(0, 15)) {
       const items = await newsFor(s);
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are a sell-side news triage. Classify materiality. Return STRICT JSON: {items:[{symbol,title,link,materiality:"high"|"medium"|"low",impact:"bullish"|"bearish"|"neutral",reason}]}.' },
+          { role: 'system', content: `You are a sell-side news triage. Respond in ${langName} (the "reason" field). Classify materiality. Return STRICT JSON: {items:[{symbol,title,link,materiality:"high"|"medium"|"low",impact:"bullish"|"bearish"|"neutral",reason}]}.` },
           { role: 'user', content: `Triage these and keep only HIGH or MEDIUM materiality items: ${JSON.stringify(all).slice(0, 12000)}` },
         ],
         response_format: { type: 'json_object' },

@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, ExternalLink, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Filings() {
+  const { t } = useTranslation();
   const [symbol, setSymbol] = useState("AAPL");
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,12 +30,12 @@ export default function Filings() {
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Regulatory Filings</h1>
+          <h1 className="text-3xl font-bold">{t("pages.filings.title")}</h1>
         </div>
-        <p className="text-muted-foreground">SEC EDGAR (US listings). Free, real-time. European filings (Consob/ESMA/AMF) coming soon.</p>
+        <p className="text-muted-foreground">{t("pages.filings.subtitle")}</p>
         <div className="flex gap-2 max-w-md">
-          <Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="Ticker (e.g. AAPL)" />
-          <Button onClick={load} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load"}</Button>
+          <Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder={t("pages.filings.ticker")} />
+          <Button onClick={load} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("pages.filings.load")}</Button>
         </div>
         {note && <p className="text-sm text-muted-foreground">{note}</p>}
         <div className="space-y-2">

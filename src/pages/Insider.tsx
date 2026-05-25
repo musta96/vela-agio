@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, ExternalLink, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Insider() {
+  const { t } = useTranslation();
   const [symbol, setSymbol] = useState("AAPL");
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,8 +27,8 @@ export default function Insider() {
       <SEO title="Insider Transactions | FTSE MIB Analytics" description="SEC Form 3/4/5 insider filings" path="/insider" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Insider Transactions</h1></div>
-        <p className="text-muted-foreground">SEC Form 3 (initial), 4 (changes), 5 (annual). Free from EDGAR.</p>
+        <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.insider.title")}</h1></div>
+        <p className="text-muted-foreground">{t("pages.insider.subtitle")}</p>
         <div className="flex gap-2 max-w-md">
           <Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} />
           <Button onClick={load} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load"}</Button>

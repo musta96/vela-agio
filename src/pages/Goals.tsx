@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Target } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { useTranslation } from "react-i18next";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -31,6 +32,7 @@ function monteCarlo(initial: number, monthlyAdd: number, years: number, mean: nu
 }
 
 export default function Goals() {
+  const { t } = useTranslation();
   const [initial, setInitial] = useState(20000);
   const [monthly, setMonthly] = useState(500);
   const [years, setYears] = useState(25);
@@ -47,17 +49,17 @@ export default function Goals() {
       <SEO title="Goal Planner | FTSE MIB Analytics" description="Monte Carlo retirement & life-goal planner" path="/goals" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Target className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Goals-Based Planning</h1></div>
+        <div className="flex items-center gap-3"><Target className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.goals.title")}</h1></div>
         <div className="grid md:grid-cols-3 gap-4">
           <Card><CardContent className="p-4 space-y-3">
-            <div><Label>Initial capital (€)</Label><Input type="number" value={initial} onChange={e => setInitial(+e.target.value)} /></div>
-            <div><Label>Monthly contribution (€)</Label><Input type="number" value={monthly} onChange={e => setMonthly(+e.target.value)} /></div>
-            <div><Label>Horizon (years)</Label><Input type="number" value={years} onChange={e => setYears(+e.target.value)} /></div>
-            <div><Label>Target (€)</Label><Input type="number" value={target} onChange={e => setTarget(+e.target.value)} /></div>
-            <div><Label>Expected return</Label><Input type="number" step="0.01" value={mean} onChange={e => setMean(+e.target.value)} /></div>
-            <div><Label>Volatility</Label><Input type="number" step="0.01" value={sd} onChange={e => setSd(+e.target.value)} /></div>
+            <div><Label>{t("pages.goals.initial")}</Label><Input type="number" value={initial} onChange={e => setInitial(+e.target.value)} /></div>
+            <div><Label>{t("pages.goals.monthly")}</Label><Input type="number" value={monthly} onChange={e => setMonthly(+e.target.value)} /></div>
+            <div><Label>{t("pages.goals.horizon")}</Label><Input type="number" value={years} onChange={e => setYears(+e.target.value)} /></div>
+            <div><Label>{t("pages.goals.target")}</Label><Input type="number" value={target} onChange={e => setTarget(+e.target.value)} /></div>
+            <div><Label>{t("pages.goals.expectedReturn")}</Label><Input type="number" step="0.01" value={mean} onChange={e => setMean(+e.target.value)} /></div>
+            <div><Label>{t("pages.goals.volatility")}</Label><Input type="number" step="0.01" value={sd} onChange={e => setSd(+e.target.value)} /></div>
           </CardContent></Card>
-          <Card className="md:col-span-2"><CardHeader><CardTitle>Probability of success: <span className={successProb >= 0.7 ? "text-bull" : successProb >= 0.4 ? "text-yellow-500" : "text-bear"}>{(successProb * 100).toFixed(0)}%</span></CardTitle></CardHeader><CardContent>
+          <Card className="md:col-span-2"><CardHeader><CardTitle>{t("pages.goals.successProb")}: <span className={successProb >= 0.7 ? "text-bull" : successProb >= 0.4 ? "text-yellow-500" : "text-bear"}>{(successProb * 100).toFixed(0)}%</span></CardTitle></CardHeader><CardContent>
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={data}><CartesianGrid strokeDasharray="3 3" opacity={0.2} /><XAxis dataKey="year" /><YAxis tickFormatter={v => `€${(v/1000).toFixed(0)}k`} /><Tooltip formatter={(v: number) => `€${v.toFixed(0)}`} />
                 <Line dataKey="p10" stroke="hsl(var(--bear))" dot={false} name="10th pct" />
@@ -67,7 +69,7 @@ export default function Goals() {
             </ResponsiveContainer>
           </CardContent></Card>
         </div>
-        <p className="text-xs text-muted-foreground">800 Monte Carlo trials, lognormal returns. This is not financial advice.</p>
+        <p className="text-xs text-muted-foreground">{t("pages.goals.trials")} {t("common.notFinancialAdvice")}</p>
       </main>
     </div>
   );

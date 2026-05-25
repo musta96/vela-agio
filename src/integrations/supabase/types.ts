@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_preferences: {
+        Row: {
+          daily_digest_enabled: boolean
+          digest_hour_utc: number
+          email_enabled: boolean
+          immediate_only_critical: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          daily_digest_enabled?: boolean
+          digest_hour_utc?: number
+          email_enabled?: boolean
+          immediate_only_critical?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          daily_digest_enabled?: boolean
+          digest_hour_utc?: number
+          email_enabled?: boolean
+          immediate_only_critical?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      alert_rules: {
+        Row: {
+          cooldown_minutes: number
+          created_at: string
+          enabled: boolean
+          id: string
+          kind: string
+          last_fired_at: string | null
+          name: string | null
+          notify_email_immediate: boolean
+          params: Json
+          symbol: string | null
+          threshold: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cooldown_minutes?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          kind: string
+          last_fired_at?: string | null
+          name?: string | null
+          notify_email_immediate?: boolean
+          params?: Json
+          symbol?: string | null
+          threshold?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cooldown_minutes?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          kind?: string
+          last_fired_at?: string | null
+          name?: string | null
+          notify_email_immediate?: boolean
+          params?: Json
+          symbol?: string | null
+          threshold?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -88,6 +163,62 @@ export type Database = {
           symbol?: string
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          digested_at: string | null
+          emailed_at: string | null
+          id: string
+          kind: string
+          payload: Json
+          read_at: string | null
+          rule_id: string | null
+          severity: string
+          symbol: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          digested_at?: string | null
+          emailed_at?: string | null
+          id?: string
+          kind: string
+          payload?: Json
+          read_at?: string | null
+          rule_id?: string | null
+          severity?: string
+          symbol?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          digested_at?: string | null
+          emailed_at?: string | null
+          id?: string
+          kind?: string
+          payload?: Json
+          read_at?: string | null
+          rule_id?: string | null
+          severity?: string
+          symbol?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "alert_rules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       portfolio_holdings: {
         Row: {

@@ -1,0 +1,23 @@
+# FTSE MIB Analytics
+
+> Advanced trading strategy platform for FTSE MIB, European, and US stocks/ETFs. Combines fundamental analysis, technical indicators, AI-powered sentiment, risk metrics, and backtesting in a Bloomberg Terminal–style UI.
+
+## Pages
+
+- [Dashboard](/): Market regime banner, watchlist quotes, and AI smart picks overview.
+- [Watchlist](/watchlist): Track symbols with live quotes, alerts, and quick analysis.
+- [Portfolio](/portfolio): Holdings P/L, weighted risk metrics, VaR, Italian CGT estimate, and correlation matrix.
+- [Smart Picks](/smart-picks): AI-generated trade ideas with rationale and verdict.
+- [Stock Details](/stock/:symbol): Per-ticker chart, technicals, fundamentals (DCF/DDM), risk panel, and AI deep analysis.
+- [Compare](/compare): Side-by-side normalized performance for up to 4 tickers.
+- [Sector Heatmap](/sectors): Sector performance grid across 1M–YTD using SPDR ETFs.
+- [Technical Analysis](/technical): Indicator-driven scans across the universe.
+- [Sentiment](/sentiment): News sentiment with source tiering, momentum, and institutional holdings.
+- [Backtesting](/backtesting): Strategy simulation with risk-adjusted metrics.
+- [Settings](/settings): Account, encrypted API key vault, and preferences.
+
+## Data sources
+
+- Yahoo Finance (quotes, OHLCV, fundamentals)
+- SEC EDGAR (US institutional 13D/13G filings)
+- Lovable AI Gateway (Gemini / GPT models for analysis and sentiment)

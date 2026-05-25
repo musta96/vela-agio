@@ -181,9 +181,14 @@ const Portfolio = () => {
     shares: "",
     avgPrice: "",
   });
+  // Per-holding currency. Defaults from catalog match but can be overridden
+  // (e.g. for off-catalog symbols or dual listings).
+  const [newCurrency, setNewCurrency] = useState<string>("EUR");
+  const [newDisplayName, setNewDisplayName] = useState<string>("");
   const [symbolPickerOpen, setSymbolPickerOpen] = useState(false);
   const [symbolSearch, setSymbolSearch] = useState("");
   const selectedCatalog = STOCK_CATALOG.find((s) => s.symbol === newStock.symbol);
+  const isCustomSymbol = !!newStock.symbol && !selectedCatalog;
 
   const filteredCatalog = useMemo(() => {
     const query = symbolSearch.trim().toLowerCase();
@@ -223,11 +228,13 @@ const Portfolio = () => {
     }
 
     const stockInfo = STOCK_CATALOG.find(s => s.symbol === newStock.symbol);
-    if (!stockInfo) {
-      console.warn("[Portfolio] handleAddStock invalid symbol", newStock.symbol);
+    // Custom (off-catalog) symbols are allowed — fall back to user-entered name + currency.
+    const resolvedName = stockInfo?.name || newDisplayName.trim() || newStock.symbol;
+    const resolvedCurrency = (stockInfo?.currency || newCurrency || "EUR").toUpperCase();
+    if (!stockInfo && !newDisplayName.trim()) {
       toast({
-        title: "Invalid symbol",
-        description: `"${newStock.symbol}" was not found in the catalog. Pick one from the list.`,
+        title: "Name required for custom symbol",
+        description: `"${newStock.symbol}" isn't in our catalog — please provide a display name and currency.`,
         variant: "destructive",
       });
       return;
@@ -256,11 +263,11 @@ const Portfolio = () => {
 
     const added: PortfolioStock = {
       symbol: newStock.symbol,
-      name: stockInfo.name,
+      name: resolvedName,
       shares: sharesNum,
       avgPrice: avg,
       currentPrice: avg,
-      currency: stockInfo.currency || "EUR",
+      currency: resolvedCurrency,
     };
 
     if (user && activeId) {
@@ -284,12 +291,14 @@ const Portfolio = () => {
     console.log("[Portfolio] handleAddStock success — appending to portfolio", added);
     setPortfolio([...portfolio, added]);
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
+    setNewDisplayName("");
+    setNewCurrency("EUR");
     setSymbolSearch("");
     closeAddForm();
 
     toast({
       title: "Stock Added",
-      description: `${stockInfo.name} added to your portfolio`,
+      description: `${resolvedName} added to your portfolio`,
     });
   };
 

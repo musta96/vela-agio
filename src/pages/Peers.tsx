@@ -50,7 +50,7 @@ export default function Peers() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Peer Analysis | FTSE MIB Analytics" description="Auto-discovered peers and cross-sectional ranking" path="/peers" />
+      <SEO title="Peer Analysis | Vela.ai" description="Auto-discovered peers and cross-sectional ranking" path="/peers" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Peer Discovery & Ranking</h1></div>

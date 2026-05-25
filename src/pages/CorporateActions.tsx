@@ -38,7 +38,7 @@ export default function CorporateActions() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Corporate Actions | FTSE MIB Analytics" description="Splits, dividends, adjusted price reconstruction" path="/corporate-actions" />
+      <SEO title="Corporate Actions | Vela.ai" description="Splits, dividends, adjusted price reconstruction" path="/corporate-actions" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><GitBranch className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Corporate Actions</h1></div>

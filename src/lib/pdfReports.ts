@@ -13,7 +13,7 @@ function header(doc: jsPDF, title: string, subtitle?: string) {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("FTSE MIB Analytics", 14, 14);
+  doc.text("Vela.ai", 14, 14);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text(new Date().toLocaleString(), doc.internal.pageSize.getWidth() - 14, 14, { align: "right" });
@@ -41,7 +41,7 @@ function footer(doc: jsPDF) {
     doc.setFontSize(8);
     doc.setTextColor(...BRAND.muted);
     doc.text(
-      `FTSE MIB Analytics · ${disclaim} · ${pageLabel} ${i} ${ofLabel} ${pageCount}`,
+      `Vela.ai · ${disclaim} · ${pageLabel} ${i} ${ofLabel} ${pageCount}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: "center" },
@@ -54,8 +54,8 @@ function disclaimer(doc: jsPDF, y: number) {
   doc.setTextColor(...BRAND.muted);
   const isIt = (typeof window !== "undefined" && (localStorage.getItem("i18nextLng") ?? "").startsWith("it"));
   const txt = isIt
-    ? "Disclaimer: Questo report è generato automaticamente da FTSE MIB Analytics a soli fini informativi ed educativi. Non costituisce consulenza in materia di investimenti, raccomandazione, né offerta di acquisto o vendita di strumenti finanziari. I dati possono essere ritardati, incompleti o inaccurati. Effettua sempre le tue analisi e consulta un consulente finanziario abilitato prima di prendere decisioni di investimento."
-    : "Disclaimer: This report is generated automatically by FTSE MIB Analytics for informational and educational purposes only. It does not constitute investment advice, a recommendation, or an offer to buy or sell any security. Data may be delayed, incomplete, or inaccurate. Always do your own research and consult a licensed financial advisor before making investment decisions.";
+    ? "Disclaimer: Questo report è generato automaticamente da Vela.ai a soli fini informativi ed educativi. Non costituisce consulenza in materia di investimenti, raccomandazione, né offerta di acquisto o vendita di strumenti finanziari. I dati possono essere ritardati, incompleti o inaccurati. Effettua sempre le tue analisi e consulta un consulente finanziario abilitato prima di prendere decisioni di investimento."
+    : "Disclaimer: This report is generated automatically by Vela.ai for informational and educational purposes only. It does not constitute investment advice, a recommendation, or an offer to buy or sell any security. Data may be delayed, incomplete, or inaccurate. Always do your own research and consult a licensed financial advisor before making investment decisions.";
   const lines = doc.splitTextToSize(txt, doc.internal.pageSize.getWidth() - 28);
   doc.text(lines, 14, y);
   doc.setTextColor(0, 0, 0);

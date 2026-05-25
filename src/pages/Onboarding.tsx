@@ -47,7 +47,7 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Onboarding | FTSE MIB Analytics" description="Risk profile and model portfolio" path="/onboarding" />
+      <SEO title="Onboarding | Vela.ai" description="Risk profile and model portfolio" path="/onboarding" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6 max-w-2xl">
         <div className="flex items-center gap-3"><Sparkles className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.onboarding.title")}</h1></div>

@@ -60,7 +60,7 @@ export default function QuantAlpha() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Quant Alpha | FTSE MIB Analytics" description="Composite multi-factor alpha scoring" path="/quant" />
+      <SEO title="Quant Alpha | Vela.ai" description="Composite multi-factor alpha scoring" path="/quant" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Sigma className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Quant Alpha — Composite Score</h1></div>

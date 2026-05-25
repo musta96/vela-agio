@@ -48,7 +48,7 @@ export default function Intraday() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Intraday | FTSE MIB Analytics" description="Minute bars, VWAP, TWAP, simulated order book" path="/intraday" />
+      <SEO title="Intraday | Vela.ai" description="Minute bars, VWAP, TWAP, simulated order book" path="/intraday" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Activity className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Intraday & Microstructure</h1></div>

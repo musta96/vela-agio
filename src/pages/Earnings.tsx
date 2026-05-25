@@ -31,7 +31,7 @@ export default function Earnings() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Earnings Calendar | FTSE MIB Analytics" description="Upcoming earnings, consensus, surprise history" path="/earnings" />
+      <SEO title="Earnings Calendar | Vela.ai" description="Upcoming earnings, consensus, surprise history" path="/earnings" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><CalendarDays className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.earnings.title")}</h1></div>

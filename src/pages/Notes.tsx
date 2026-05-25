@@ -28,7 +28,7 @@ export default function Notes() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Research Notes | FTSE MIB Analytics" description="Shareable research notes with versioning" path="/notes" />
+      <SEO title="Research Notes | Vela.ai" description="Shareable research notes with versioning" path="/notes" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><FileText className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Research Notes</h1></div>

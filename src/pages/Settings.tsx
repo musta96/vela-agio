@@ -175,7 +175,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, preferences, notification settings, and connected integrations for FTSE MIB Analytics." path="/settings" />
+      <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, preferences, notification settings, and connected integrations for Vela.ai." path="/settings" />
       <TopNav />
       <main>
 

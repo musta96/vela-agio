@@ -62,7 +62,6 @@ const App = () => (
         <FeatureFlagsProvider>
         <PortfoliosProvider>
         <Routes>
-        <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route element={<AppShell />}>
             <Route path="/" element={<Index />} />

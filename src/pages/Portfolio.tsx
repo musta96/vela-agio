@@ -251,6 +251,7 @@ const Portfolio = () => {
       shares: sharesNum,
       avgPrice: avg,
       currentPrice: avg,
+      currency: stockInfo.currency || "EUR",
     };
 
     if (user) {

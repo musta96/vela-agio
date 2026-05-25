@@ -1,7 +1,6 @@
-// Local-only API key store for the Settings page.
-// Keys live in the browser (localStorage) so the user can plug their own
-// LLM / market-data providers without exposing them in the codebase.
-// Anything truly sensitive should go through Lovable Cloud secrets instead.
+// Catalog of supported third-party API providers.
+// Keys themselves are stored ENCRYPTED in Lovable Cloud via the `keys-vault` edge
+// function — never in localStorage. This file only describes what we support.
 
 export type ApiKeyCategory = "ai" | "market" | "social";
 
@@ -12,7 +11,7 @@ export interface ApiKeySpec {
   category: ApiKeyCategory;
   docsUrl?: string;
   signupUrl?: string;
-  serverOnly?: boolean; // true => recommend storing as Lovable Cloud secret instead of localStorage
+  serverOnly?: boolean; // hint that this key is used in server-side calls
 }
 
 export const API_KEY_SPECS: ApiKeySpec[] = [

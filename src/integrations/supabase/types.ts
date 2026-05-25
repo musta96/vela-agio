@@ -146,6 +146,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sentiment_history: {
+        Row: {
+          article_count: number
+          created_at: string
+          id: string
+          label: string | null
+          score: number
+          symbol: string
+          tier1_score: number | null
+          tier2_score: number | null
+          weighted_score: number | null
+        }
+        Insert: {
+          article_count?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          score: number
+          symbol: string
+          tier1_score?: number | null
+          tier2_score?: number | null
+          weighted_score?: number | null
+        }
+        Update: {
+          article_count?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          score?: number
+          symbol?: string
+          tier1_score?: number | null
+          tier2_score?: number | null
+          weighted_score?: number | null
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           ciphertext: string

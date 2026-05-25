@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type HistoryRange = "1W" | "1M" | "3M" | "6M" | "1Y" | "YTD";
 
@@ -16,34 +17,13 @@ export interface PriceBar {
   close: number;
 }
 
-const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
-
-const buildUrl = (symbol: string, range: HistoryRange) => {
-  const { range: r, interval } = RANGE_MAP[range];
-  const target = `${YF_BASE}${encodeURIComponent(symbol)}?interval=${interval}&range=${r}`;
-  return `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
-};
-
 async function fetchHistory(symbol: string, range: HistoryRange): Promise<PriceBar[]> {
-  try {
-    const res = await fetch(buildUrl(symbol, range));
-    if (!res.ok) return [];
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return [];
-    const timestamps: number[] = result.timestamp || [];
-    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close || [];
-    const bars: PriceBar[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const c = closes[i];
-      if (typeof c === "number" && !isNaN(c)) {
-        bars.push({ t: timestamps[i] * 1000, close: c });
-      }
-    }
-    return bars;
-  } catch {
-    return [];
-  }
+  const { range: r, interval } = RANGE_MAP[range];
+  const { data, error } = await supabase.functions.invoke("market-data", {
+    body: { action: "ohlc", symbol, range: r, interval },
+  });
+  if (error || !Array.isArray(data?.bars)) return [];
+  return (data.bars as Array<{ t: number; close: number }>).map((b) => ({ t: b.t, close: b.close }));
 }
 
 export interface SymbolHistory {

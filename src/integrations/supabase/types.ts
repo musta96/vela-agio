@@ -425,9 +425,12 @@ export type Database = {
           ai_model: string | null
           ai_provider: string
           briefing_focus: string | null
+          country_residence: string | null
+          country_tax_residence: string | null
           created_at: string
           display_name: string | null
           id: string
+          secondary_tax_residences: string[] | null
           updated_at: string
           user_id: string
         }
@@ -435,9 +438,12 @@ export type Database = {
           ai_model?: string | null
           ai_provider?: string
           briefing_focus?: string | null
+          country_residence?: string | null
+          country_tax_residence?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id: string
         }
@@ -445,9 +451,12 @@ export type Database = {
           ai_model?: string | null
           ai_provider?: string
           briefing_focus?: string | null
+          country_residence?: string | null
+          country_tax_residence?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id?: string
         }

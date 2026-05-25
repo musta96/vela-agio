@@ -450,14 +450,17 @@ const Portfolio = () => {
 
       {/* Portfolio Header */}
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+          <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
               <Briefcase className="h-8 w-8 text-primary" />
-              My Portfolio
+              {active?.name || "My Portfolio"}
+              {active?.is_simulation && (
+                <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
+              )}
             </h1>
             <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm sm:text-base">
-              Track your FTSE MIB investments
+              {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "—"}
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
               ) : (
@@ -465,21 +468,53 @@ const Portfolio = () => {
               )}
             </p>
           </div>
-          <Button
+
+          {/* Portfolio switcher + actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            {user && portfolios.length > 0 && (
+              <Select value={activeId || undefined} onValueChange={(v) => setActiveId(v)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select portfolio" />
+                </SelectTrigger>
+                <SelectContent>
+                  {portfolios.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.is_simulation ? "🧪 " : ""}{p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {user && (
+              <Button variant="outline" size="icon" title="New portfolio" onClick={() => { setNewPfName(""); setNewPfBase("EUR"); setNewPfBench("FTSEMIB.MI"); setNewPfSim(false); setNewPfClone(false); setCreateOpen(true); }}>
+                <FolderPlus className="h-4 w-4" />
+              </Button>
+            )}
+            {user && active && (
+              <Button variant="outline" size="icon" title="Portfolio settings" onClick={() => setSettingsOpen(true)}>
+                <SettingsIcon className="h-4 w-4" />
+              </Button>
+            )}
+            {user && active && (
+              <Button variant="outline" size="sm" className="gap-2" title="Run Monte-Carlo simulation" onClick={() => setSimOpen(true)}>
+                <FlaskConical className="h-4 w-4" /> Simulate
+              </Button>
+            )}
+            <Button
             onClick={(e) => {
               console.log("[Portfolio] Add Stock button click event", { target: e.target });
               toggleAddForm();
             }}
-            size="lg"
-            className="gap-2 hover-scale w-full sm:w-auto"
+            size="default"
+            className="gap-2 hover-scale"
           >
             <Plus className="h-4 w-4" />
             Add Stock
           </Button>
-          <Button
+            <Button
             variant="outline"
-            size="lg"
-            className="gap-2 w-full sm:w-auto"
+            size="default"
+            className="gap-2"
             disabled={portfolio.length === 0}
             onClick={() => {
               generatePortfolioReport({
@@ -496,6 +531,7 @@ const Portfolio = () => {
           >
             <FileDown className="h-4 w-4" /> Export PDF
           </Button>
+          </div>
         </div>
 
         {/* Portfolio Summary */}

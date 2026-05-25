@@ -41,6 +41,8 @@ import Peers from "./pages/Peers";
 import QuantAlpha from "./pages/QuantAlpha";
 import Blotter from "./pages/Blotter";
 import OrderHistory from "./pages/OrderHistory";
+import Profile from "./pages/Profile";
+import Security from "./pages/Security";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";

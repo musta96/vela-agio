@@ -1,0 +1,413 @@
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Activity,
+  CandlestickChart,
+  ChevronsUpDown,
+  Check,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { NavLink } from "@/components/NavLink";
+import { AuthButton } from "@/components/AuthButton";
+import { STOCK_CATALOG } from "@/data/stockCatalog";
+import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
+import {
+  analyze,
+  bollinger,
+  ema,
+  macd as macdFn,
+  rsi as rsiFn,
+  sma,
+  type Signal,
+} from "@/lib/technicalIndicators";
+import {
+  Area,
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
+
+const signalColor: Record<Signal, string> = {
+  bullish: "text-success",
+  bearish: "text-destructive",
+  neutral: "text-muted-foreground",
+};
+const signalBg: Record<Signal, string> = {
+  bullish: "bg-success/10 border-success/30",
+  bearish: "bg-destructive/10 border-destructive/30",
+  neutral: "bg-muted/30 border-border",
+};
+const SignalIcon = ({ s }: { s: Signal }) =>
+  s === "bullish" ? (
+    <TrendingUp className="h-4 w-4 text-success" />
+  ) : s === "bearish" ? (
+    <TrendingDown className="h-4 w-4 text-destructive" />
+  ) : (
+    <Minus className="h-4 w-4 text-muted-foreground" />
+  );
+
+const fmtDate = (t: number) => new Date(t).toLocaleDateString();
+
+const TechnicalAnalysis = () => {
+  const [symbol, setSymbol] = useState<string>("ENEL.MI");
+  const [range, setRange] = useState<OHLCRange>("6M");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const { bars, loading, error } = useOHLCHistory(symbol, range);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return STOCK_CATALOG;
+    return STOCK_CATALOG.filter((s) =>
+      `${s.symbol} ${s.name} ${s.market}`.toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  const selected = STOCK_CATALOG.find((s) => s.symbol === symbol);
+
+  const chartData = useMemo(() => {
+    if (bars.length === 0) return [];
+    const closes = bars.map((b) => b.close);
+    const s20 = sma(closes, 20);
+    const s50 = sma(closes, 50);
+    const s200 = sma(closes, 200);
+    const e9 = ema(closes, 9);
+    const bb = bollinger(closes, 20, 2);
+    const r = rsiFn(closes, 14);
+    const m = macdFn(closes);
+    return bars.map((b, i) => ({
+      t: b.t,
+      close: b.close,
+      sma20: s20[i],
+      sma50: s50[i],
+      sma200: s200[i],
+      ema9: e9[i],
+      bbUpper: bb[i].upper,
+      bbLower: bb[i].lower,
+      rsi: r[i],
+      macd: m[i].macd,
+      macdSignal: m[i].signal,
+      macdHist: m[i].hist,
+    }));
+  }, [bars]);
+
+  const summary = useMemo(() => analyze(bars), [bars]);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Nav */}
+      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <Link to="/" className="flex items-center space-x-2">
+              <Activity className="h-6 w-6 text-primary" />
+              <span className="text-xl font-bold text-gradient">FTSE MIB Analytics</span>
+            </Link>
+            <div className="hidden md:flex items-center space-x-6">
+              <NavLink to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Dashboard</NavLink>
+              <NavLink to="/technical" className="text-sm font-medium text-foreground" activeClassName="text-primary">Technicals</NavLink>
+              <NavLink to="/sentiment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sentiment</NavLink>
+              <NavLink to="/backtest" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Backtest</NavLink>
+              <NavLink to="/picks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">AI Picks</NavLink>
+              <NavLink to="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Portfolio</NavLink>
+              <NavLink to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Watchlist</NavLink>
+              <AuthButton />
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
+              <CandlestickChart className="h-8 w-8 text-primary" />
+              Technical Analysis
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Chart reading with SMAs, EMA, Bollinger Bands, RSI, MACD, ATR, support/resistance and candlestick patterns.
+            </p>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-end">
+            <div className="relative">
+              <label className="text-sm text-muted-foreground mb-2 block">Symbol</label>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between font-normal h-11"
+                onClick={() => setPickerOpen((o) => !o)}
+              >
+                <span className="truncate">
+                  {selected ? `${selected.symbol} — ${selected.name}` : "Pick a stock or ETF…"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+              {pickerOpen && (
+                <div className="absolute left-0 top-full z-[60] mt-2 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
+                  <Input
+                    autoFocus
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by symbol, name, or market…"
+                    className="rounded-b-none border-0 border-b border-border focus-visible:ring-0 focus-visible:ring-offset-0 h-11 text-base"
+                  />
+                  <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto p-1">
+                    {filtered.length === 0 ? (
+                      <p className="px-3 py-6 text-center text-sm text-muted-foreground">No instrument found.</p>
+                    ) : (
+                      filtered.map((s) => (
+                        <button
+                          key={s.symbol}
+                          type="button"
+                          className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => {
+                            setSymbol(s.symbol);
+                            setSearch("");
+                            setPickerOpen(false);
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${symbol === s.symbol ? "opacity-100" : "opacity-0"}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{s.symbol}</span>
+                              <Badge variant="outline" className="text-[10px]">{s.market}</Badge>
+                            </div>
+                            <p className="truncate text-xs text-muted-foreground">{s.name}</p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Range</label>
+              <ToggleGroup
+                type="single"
+                value={range}
+                onValueChange={(v) => v && setRange(v as OHLCRange)}
+                className="justify-start"
+              >
+                {RANGES.map((r) => (
+                  <ToggleGroupItem key={r} value={r} size="sm">
+                    {r}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+          </div>
+        </Card>
+
+        {loading && (
+          <Card className="p-8 text-center card-gradient border-border">
+            <p className="text-muted-foreground">Loading chart data…</p>
+          </Card>
+        )}
+        {error && !loading && (
+          <Card className="p-8 text-center card-gradient border-destructive/40">
+            <p className="text-destructive">{error}</p>
+          </Card>
+        )}
+
+        {!loading && bars.length > 0 && (
+          <>
+            {/* Summary */}
+            {summary && (
+              <Card className={`p-4 sm:p-6 mb-6 border ${signalBg[summary.overall]}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <SignalIcon s={summary.overall} />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Overall read</p>
+                      <p className={`text-2xl font-bold uppercase ${signalColor[summary.overall]}`}>
+                        {summary.overall}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Composite score</p>
+                    <p className="text-2xl font-bold">{summary.score > 0 ? "+" : ""}{summary.score}</p>
+                    <p className="text-xs text-muted-foreground">Last close {summary.lastClose.toFixed(2)}</p>
+                  </div>
+                </div>
+                {summary.patterns.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {summary.patterns.map((p) => (
+                      <Badge key={p} variant="outline" className="text-xs">
+                        Pattern: {p}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Price + overlays */}
+            <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
+              <h3 className="text-lg font-semibold mb-3">Price · SMA 20/50/200 · Bollinger</h3>
+              <div className="w-full h-[360px]">
+                <ResponsiveContainer>
+                  <ComposedChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="t" tickFormatter={fmtDate} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={["auto", "auto"]} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }}
+                      labelFormatter={(t) => fmtDate(t as number)}
+                      formatter={(v: number | string) =>
+                        typeof v === "number" ? v.toFixed(2) : v
+                      }
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Area type="monotone" dataKey="bbUpper" stroke="hsl(var(--muted-foreground))" fill="hsl(var(--muted))" fillOpacity={0.08} name="BB upper" dot={false} />
+                    <Area type="monotone" dataKey="bbLower" stroke="hsl(var(--muted-foreground))" fill="hsl(var(--background))" fillOpacity={0} name="BB lower" dot={false} />
+                    <Line type="monotone" dataKey="close" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="Close" />
+                    <Line type="monotone" dataKey="sma20" stroke="hsl(var(--success))" strokeWidth={1.5} dot={false} name="SMA 20" />
+                    <Line type="monotone" dataKey="sma50" stroke="hsl(var(--accent-foreground))" strokeWidth={1.5} dot={false} name="SMA 50" />
+                    <Line type="monotone" dataKey="sma200" stroke="hsl(var(--destructive))" strokeWidth={1.5} dot={false} name="SMA 200" />
+                    {summary?.levels.map((lv, i) => (
+                      <ReferenceLine
+                        key={i}
+                        y={lv.price}
+                        stroke={lv.type === "support" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        strokeDasharray="4 4"
+                        strokeOpacity={0.5}
+                        label={{
+                          value: `${lv.type === "support" ? "S" : "R"} ${lv.price.toFixed(2)}`,
+                          fill: "hsl(var(--muted-foreground))",
+                          fontSize: 10,
+                          position: "right",
+                        }}
+                      />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* RSI */}
+            <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
+              <h3 className="text-lg font-semibold mb-3">RSI (14)</h3>
+              <div className="w-full h-[180px]">
+                <ResponsiveContainer>
+                  <ComposedChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="t" tickFormatter={fmtDate} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }}
+                      labelFormatter={(t) => fmtDate(t as number)}
+                      formatter={(v: number | string) => (typeof v === "number" ? v.toFixed(1) : v)}
+                    />
+                    <ReferenceLine y={70} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
+                    <ReferenceLine y={30} stroke="hsl(var(--success))" strokeDasharray="3 3" />
+                    <Line type="monotone" dataKey="rsi" stroke="hsl(var(--primary))" dot={false} name="RSI" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* MACD */}
+            <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
+              <h3 className="text-lg font-semibold mb-3">MACD (12, 26, 9)</h3>
+              <div className="w-full h-[200px]">
+                <ResponsiveContainer>
+                  <ComposedChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="t" tickFormatter={fmtDate} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }}
+                      labelFormatter={(t) => fmtDate(t as number)}
+                      formatter={(v: number | string) => (typeof v === "number" ? v.toFixed(3) : v)}
+                    />
+                    <ReferenceLine y={0} stroke="hsl(var(--border))" />
+                    <Bar dataKey="macdHist" name="Histogram" fill="hsl(var(--muted-foreground))" opacity={0.6} />
+                    <Line type="monotone" dataKey="macd" stroke="hsl(var(--primary))" dot={false} name="MACD" />
+                    <Line type="monotone" dataKey="macdSignal" stroke="hsl(var(--destructive))" dot={false} name="Signal" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Signals breakdown */}
+            {summary && (
+              <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
+                <h3 className="text-lg font-semibold mb-4">Indicator breakdown</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {summary.signals.map((s) => (
+                    <div
+                      key={s.name}
+                      className={`p-3 rounded-md border ${signalBg[s.signal]} flex items-start gap-3`}
+                    >
+                      <SignalIcon s={s.signal} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-sm">{s.name}</p>
+                          <Badge variant="outline" className={`text-[10px] ${signalColor[s.signal]}`}>
+                            {s.signal}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{s.value}</p>
+                        <p className="text-xs mt-1">{s.reason}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Levels */}
+            {summary && summary.levels.length > 0 && (
+              <Card className="p-4 sm:p-6 card-gradient border-border">
+                <h3 className="text-lg font-semibold mb-4">Key levels (swing pivots)</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                  {summary.levels.map((lv, i) => (
+                    <div
+                      key={i}
+                      className={`p-3 rounded-md border text-center ${
+                        lv.type === "support"
+                          ? "border-success/30 bg-success/10"
+                          : "border-destructive/30 bg-destructive/10"
+                      }`}
+                    >
+                      <p className={`text-xs uppercase ${lv.type === "support" ? "text-success" : "text-destructive"}`}>
+                        {lv.type}
+                      </p>
+                      <p className="text-lg font-bold">{lv.price.toFixed(2)}</p>
+                      <p className="text-[10px] text-muted-foreground">{lv.touches} touch{lv.touches > 1 ? "es" : ""}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+      </section>
+    </div>
+  );
+};
+
+export default TechnicalAnalysis;

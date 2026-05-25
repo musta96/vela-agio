@@ -110,6 +110,7 @@ const App = () => (
             <Route path="/peers" element={<Peers />} />
             <Route path="/quant" element={<QuantAlpha />} />
             <Route path="/blotter" element={<Blotter />} />
+            <Route path="/orders" element={<OrderHistory />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />

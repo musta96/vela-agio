@@ -538,15 +538,15 @@ const Portfolio = () => {
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <Card className="p-6 card-gradient border-border">
             <p className="text-sm text-muted-foreground mb-1">Total Value</p>
-            <p className="text-3xl font-bold text-foreground">€{portfolioTotal.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-foreground">{baseSign}{totalBase.toFixed(2)}</p>
           </Card>
           <Card className="p-6 card-gradient border-border">
             <p className="text-sm text-muted-foreground mb-1">Total Gain/Loss</p>
             <div className="flex items-center gap-2">
-              <p className={`text-3xl font-bold ${portfolioGain >= 0 ? 'text-success' : 'text-destructive'}`}>
-                €{portfolioGain.toFixed(2)}
+              <p className={`text-3xl font-bold ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {baseSign}{gainBase.toFixed(2)}
               </p>
-              {portfolioGain >= 0 ? (
+              {gainBase >= 0 ? (
                 <TrendingUp className="h-6 w-6 text-success" />
               ) : (
                 <TrendingDown className="h-6 w-6 text-destructive" />

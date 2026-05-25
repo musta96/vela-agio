@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,6 @@ import { AuthButton } from "@/components/AuthButton";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { STOCK_CATALOG, currencySign } from "@/data/stockCatalog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 
 interface PortfolioStock {
   symbol: string;
@@ -125,7 +122,16 @@ const Portfolio = () => {
     avgPrice: "",
   });
   const [symbolPickerOpen, setSymbolPickerOpen] = useState(false);
+  const [symbolSearch, setSymbolSearch] = useState("");
   const selectedCatalog = STOCK_CATALOG.find((s) => s.symbol === newStock.symbol);
+
+  const filteredCatalog = useMemo(() => {
+    const query = symbolSearch.trim().toLowerCase();
+    if (!query) return STOCK_CATALOG;
+    return STOCK_CATALOG.filter((stock) =>
+      `${stock.symbol} ${stock.name} ${stock.market}`.toLowerCase().includes(query)
+    );
+  }, [symbolSearch]);
 
   const toggleAddForm = () => {
     const shouldOpen = !showAddForm;
@@ -175,6 +181,7 @@ const Portfolio = () => {
     }
 
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
+    setSymbolSearch("");
     closeAddForm();
     
     toast({

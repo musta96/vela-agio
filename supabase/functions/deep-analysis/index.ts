@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
+import { fetchAllByoFundamentals } from '../_shared/data-provider.ts';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface Body { symbol: string; name?: string; currency?: string }
@@ -268,15 +269,21 @@ Deno.serve(async (req) => {
     const q = await fetchQuoteSummary(sym);
     if (!q) throw new Error('No data from Yahoo');
     const fundamentals = extractFundamentals(q);
+    // Phase 2: optionally enrich with BYO providers (FMP, AlphaVantage). Never throws.
+    const byoFundamentals = await fetchAllByoFundamentals(req.headers.get('Authorization'), sym);
     const dcf = dcfValuation(fundamentals);
     const ddm = ddmValuation(fundamentals);
     const liquidity = liquidityProfile(fundamentals);
     const cfg = await resolveAIConfig(req.headers.get('Authorization'));
-    const ai = await aiNarrative(cfg, sym, body.name || fundamentals.longName || sym, fundamentals, dcf, ddm, liquidity);
+    const enrichedForAi = byoFundamentals.length
+      ? { ...fundamentals, _byo: byoFundamentals.map(b => ({ source: b.source, snapshot: b.data })) }
+      : fundamentals;
+    const ai = await aiNarrative(cfg, sym, body.name || fundamentals.longName || sym, enrichedForAi, dcf, ddm, liquidity);
 
     return new Response(JSON.stringify({
       symbol: sym,
       fundamentals,
+      byoFundamentals: byoFundamentals.length ? byoFundamentals : undefined,
       liquidity,
       valuation: { dcf, ddm },
       analysis: ai,

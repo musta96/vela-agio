@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, Brain, Target
 import { StockCard } from "@/components/StockCard";
 import { MetricCard } from "@/components/MetricCard";
 import { TopNav } from "@/components/TopNav";
+import { MarketRegimeBanner } from "@/components/MarketRegimeBanner";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -151,6 +152,7 @@ const Index = () => {
 
       {/* Market Overview */}
       <section id="stocks" className="container mx-auto px-6 py-16">
+        <MarketRegimeBanner />
         <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">

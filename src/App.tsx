@@ -50,6 +50,7 @@ import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
 import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
+import Home from "./pages/Home";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -75,13 +76,14 @@ const App = () => (
         <PortfoliosProvider>
         <ConsentBanner />
         <Routes>
+          <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/disclaimer" element={<Disclaimer />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route element={<AppShell />}>
-            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />
             <Route path="/backtest" element={<BacktestingModule />} />
             <Route path="/portfolio" element={<Portfolio />} />

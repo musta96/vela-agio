@@ -1,4 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -392,9 +393,108 @@ Deno.serve(async (req) => {
       count: v.count,
     }));
 
+    // === Wave 4: per-source tiering & weighted score ===
+    // Tier 1 = institutional / analyst-driven publishers (weight 3)
+    // Tier 2 = mainstream financial press (weight 2)
+    // Tier 3 = retail / social chatter (weight 1)
+    const TIER1 = new Set([
+      "Bloomberg", "Financial Times", "Reuters", "Reuters Italia",
+      "Wall Street Journal", "Morningstar", "Barron's", "Value Line",
+      "Il Sole 24 Ore", "Borsa Italiana",
+    ]);
+    const TIER3_PREFIX = ["Reddit", "X /", "Twitter"];
+    const tierOf = (src: string): 1 | 2 | 3 => {
+      if (TIER1.has(src)) return 1;
+      if (TIER3_PREFIX.some((p) => src.startsWith(p))) return 3;
+      return 2;
+    };
+    const weightOf = (t: number) => (t === 1 ? 3 : t === 2 ? 2 : 1);
+
+    let wSum = 0, wCount = 0;
+    const tierAgg: Record<1 | 2 | 3, { total: number; count: number }> = {
+      1: { total: 0, count: 0 }, 2: { total: 0, count: 0 }, 3: { total: 0, count: 0 },
+    };
+    enrichedArticles.forEach((a: any) => {
+      const t = tierOf(a.source);
+      const w = weightOf(t);
+      wSum += a.score * w;
+      wCount += w;
+      tierAgg[t].total += a.score;
+      tierAgg[t].count += 1;
+    });
+    const weightedScore = wCount ? Math.round(wSum / wCount) : (typeof parsed.score === "number" ? parsed.score : 50);
+    const tierBreakdown = {
+      tier1: tierAgg[1].count ? Math.round(tierAgg[1].total / tierAgg[1].count) : null,
+      tier2: tierAgg[2].count ? Math.round(tierAgg[2].total / tierAgg[2].count) : null,
+      tier3: tierAgg[3].count ? Math.round(tierAgg[3].total / tierAgg[3].count) : null,
+      tier1Count: tierAgg[1].count,
+      tier2Count: tierAgg[2].count,
+      tier3Count: tierAgg[3].count,
+    };
+    // Retail vs institutional divergence: tier3 (retail) − tier1 (institutional)
+    const divergence =
+      tierBreakdown.tier1 !== null && tierBreakdown.tier3 !== null
+        ? (tierBreakdown.tier3 as number) - (tierBreakdown.tier1 as number)
+        : null;
+
+    // === Persist snapshot & compute momentum from history ===
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    let momentum: { d7: number | null; d30: number | null; trend: string; history: { t: string; score: number }[] } = {
+      d7: null, d30: null, trend: "flat", history: [],
+    };
+    if (SUPABASE_URL && SERVICE_KEY) {
+      const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+      try {
+        await sb.from("sentiment_history").insert({
+          symbol,
+          score: typeof parsed.score === "number" ? parsed.score : 50,
+          weighted_score: weightedScore,
+          tier1_score: tierBreakdown.tier1,
+          tier2_score: tierBreakdown.tier2,
+          article_count: enrichedArticles.length,
+          label: parsed.label || "neutral",
+        });
+      } catch (e) { console.error("sentiment_history insert failed", e); }
+
+      try {
+        const { data: hist } = await sb
+          .from("sentiment_history")
+          .select("created_at,weighted_score,score")
+          .eq("symbol", symbol)
+          .gte("created_at", new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString())
+          .order("created_at", { ascending: true });
+        const history = (hist || []).map((r: any) => ({
+          t: r.created_at,
+          score: Number(r.weighted_score ?? r.score),
+        }));
+        const now = Date.now();
+        const findNear = (daysAgo: number) => {
+          const target = now - daysAgo * 24 * 3600 * 1000;
+          let best: any = null, bestDiff = Infinity;
+          for (const h of history) {
+            const diff = Math.abs(new Date(h.t).getTime() - target);
+            if (diff < bestDiff) { bestDiff = diff; best = h; }
+          }
+          // require sample within ±(daysAgo/2 + 2) days for relevance
+          return best && bestDiff <= (daysAgo / 2 + 2) * 24 * 3600 * 1000 ? best.score : null;
+        };
+        const past7 = findNear(7);
+        const past30 = findNear(30);
+        const d7 = past7 !== null ? weightedScore - past7 : null;
+        const d30 = past30 !== null ? weightedScore - past30 : null;
+        const trend = d7 === null ? "insufficient_history" : d7 >= 5 ? "improving" : d7 <= -5 ? "deteriorating" : "stable";
+        momentum = { d7, d30, trend, history };
+      } catch (e) { console.error("sentiment_history read failed", e); }
+    }
+
     return new Response(JSON.stringify({
       symbol,
       score: typeof parsed.score === "number" ? parsed.score : 50,
+      weightedScore,
+      tierBreakdown,
+      divergence,
+      momentum,
       label: parsed.label || "neutral",
       summary: parsed.summary || "",
       drivers: parsed.drivers || [],

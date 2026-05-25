@@ -302,10 +302,23 @@ const StockDetails = () => {
                     </ComposedChart>
                   </ResponsiveContainer>
                 )}
+                {!chartLoading && !chartError && chartData.length > 0 && (
+                  <ResponsiveContainer width="100%" height={90}>
+                    <ComposedChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                      <XAxis dataKey="date" hide />
+                      <YAxis hide />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                        formatter={(v: any) => [(v as number).toLocaleString(), "Volume"]}
+                      />
+                      <Bar dataKey="volume" fill="hsl(var(--muted-foreground))" opacity={0.45} name="Volume" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Composite Signal</CardTitle></CardHeader>
                 <CardContent>
@@ -317,6 +330,27 @@ const StockDetails = () => {
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground">Need more history for analysis.</p>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Volume vs 20d avg</CardTitle></CardHeader>
+                <CardContent>
+                  {tech?.volume ? (
+                    <>
+                      <Badge
+                        variant="outline"
+                        className={tech.volume.spike ? "text-primary border-primary/30 bg-primary/10" : tech.volume.weak ? "text-muted-foreground border-border bg-muted/30" : "text-foreground border-border"}
+                      >
+                        {tech.volume.spike ? "SPIKE" : tech.volume.weak ? "THIN" : "NORMAL"}
+                      </Badge>
+                      <p className="text-3xl font-bold mt-2">{tech.volume.ratio.toFixed(2)}×</p>
+                      <p className="text-xs text-muted-foreground">
+                        OBV {tech.volume.obvSlopePct >= 0 ? "+" : ""}{tech.volume.obvSlopePct.toFixed(1)}% / 20 bars
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No volume data.</p>
                   )}
                 </CardContent>
               </Card>

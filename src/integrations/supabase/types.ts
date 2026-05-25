@@ -158,6 +158,60 @@ export type Database = {
         }
         Relationships: []
       }
+      investor_profiles: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          created_at: string
+          esg_preference: string | null
+          excluded_sectors: string[] | null
+          horizon_years: number | null
+          id: string
+          loss_tolerance_pct: number | null
+          notes: string | null
+          objectives: string[] | null
+          profile_name: string | null
+          risk_level: number | null
+          score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          esg_preference?: string | null
+          excluded_sectors?: string[] | null
+          horizon_years?: number | null
+          id?: string
+          loss_tolerance_pct?: number | null
+          notes?: string | null
+          objectives?: string[] | null
+          profile_name?: string | null
+          risk_level?: number | null
+          score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          esg_preference?: string | null
+          excluded_sectors?: string[] | null
+          horizon_years?: number | null
+          id?: string
+          loss_tolerance_pct?: number | null
+          notes?: string | null
+          objectives?: string[] | null
+          profile_name?: string | null
+          risk_level?: number | null
+          score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       market_data_cache: {
         Row: {
           cache_key: string

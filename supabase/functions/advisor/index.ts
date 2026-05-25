@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { getInvestorProfileSummary } from '../_shared/investor-profile.ts';
 
 type Holding = { symbol: string; name?: string; shares: number; avg_price: number; current_price?: number };
 
@@ -97,7 +98,9 @@ You return STRICT JSON with these top-level keys:
 - disclaimer: string
 Be specific and quantitative when possible. NEVER fabricate news; if no headline supports a claim, say "no headline-driven catalyst". This is educational, not financial advice.`;
 
+    const investorProfile = await getInvestorProfileSummary(req.headers.get('Authorization'));
     const user = `RISK PROFILE: ${riskProfile}
+INVESTOR SUITABILITY (MiFID II): ${investorProfile ?? 'not completed — invite user to fill /suitability'}
 GOALS: ${JSON.stringify(goals).slice(0, 1500)}
 WEATHER CONTEXT (optional, for weather-sensitive holdings): ${JSON.stringify(wx).slice(0, 1500)}
 POSITIONS (${positions.length}, total value ${totalValue.toFixed(0)}):

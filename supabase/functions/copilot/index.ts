@@ -1,18 +1,22 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { getInvestorProfileSummary } from '../_shared/investor-profile.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
     const { messages, portfolio, watchlist, lang } = await req.json();
     const langName = lang === "it" ? "Italian" : "English";
+    const investorProfile = await getInvestorProfileSummary(req.headers.get('Authorization'));
     const sys = `You are the user's personal investment research copilot for the FTSE MIB Analytics platform.
 ALWAYS respond in ${langName}.
 You have full read access to the user's portfolio and watchlist provided in context.
 Be specific, number-driven, and balanced. Cite metrics. Always end with: "This is not financial advice."
 
 PORTFOLIO: ${JSON.stringify(portfolio ?? []).slice(0, 4000)}
-WATCHLIST: ${JSON.stringify(watchlist ?? []).slice(0, 2000)}`;
+WATCHLIST: ${JSON.stringify(watchlist ?? []).slice(0, 2000)}
+INVESTOR SUITABILITY (MiFID II): ${investorProfile ?? 'not completed — invite the user to fill /suitability so you can tailor risk-appropriate recommendations'}
+When the suitability profile is present, tailor tone, risk language, instrument complexity and ESG filters to it.`;
     const cfg = await resolveAIConfig(req.headers.get('Authorization'));
     const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',

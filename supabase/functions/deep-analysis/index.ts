@@ -154,7 +154,23 @@ function extractFundamentals(q: any) {
     numberOfAnalystOpinions: n(fd?.numberOfAnalystOpinions),
     fiftyTwoWeekHigh: n(sd?.fiftyTwoWeekHigh),
     fiftyTwoWeekLow: n(sd?.fiftyTwoWeekLow),
+    averageVolume: n(sd?.averageVolume),
+    averageVolume10days: n(sd?.averageVolume10days) ?? n(sd?.averageDailyVolume10Day),
+    floatShares: n(ks?.floatShares),
   };
+}
+
+function liquidityProfile(f: ReturnType<typeof extractFundamentals>) {
+  const v = f.averageVolume ?? f.averageVolume10days;
+  if (!v || !f.price) return null;
+  const dollar = v * f.price;
+  let tier: "very-liquid" | "liquid" | "moderate" | "thin" | "illiquid";
+  if (dollar > 100e6) tier = "very-liquid";
+  else if (dollar > 25e6) tier = "liquid";
+  else if (dollar > 5e6) tier = "moderate";
+  else if (dollar > 1e6) tier = "thin";
+  else tier = "illiquid";
+  return { avgVolume: v, avgDollarVolume: dollar, tier };
 }
 
 function dcfValuation(f: ReturnType<typeof extractFundamentals>) {
@@ -254,11 +270,13 @@ Deno.serve(async (req) => {
     const fundamentals = extractFundamentals(q);
     const dcf = dcfValuation(fundamentals);
     const ddm = ddmValuation(fundamentals);
-    const ai = await aiNarrative(sym, body.name || fundamentals.longName || sym, fundamentals, dcf, ddm);
+    const liquidity = liquidityProfile(fundamentals);
+    const ai = await aiNarrative(sym, body.name || fundamentals.longName || sym, fundamentals, dcf, ddm, liquidity);
 
     return new Response(JSON.stringify({
       symbol: sym,
       fundamentals,
+      liquidity,
       valuation: { dcf, ddm },
       analysis: ai,
       generatedAt: new Date().toISOString(),

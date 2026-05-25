@@ -826,6 +826,100 @@ const Portfolio = () => {
         </DialogContent>
       </Dialog>
     </main>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>New portfolio</DialogTitle>
+            <DialogDescription>Create a real or simulated portfolio with its own currency and benchmark.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Name</Label><Input value={newPfName} onChange={(e) => setNewPfName(e.target.value)} placeholder="Long-term EU equities" /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Base currency</Label>
+                <Select value={newPfBase} onValueChange={setNewPfBase}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{["EUR","USD","GBP","CHF","JPY"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Benchmark</Label><Input value={newPfBench} onChange={(e) => setNewPfBench(e.target.value)} placeholder="FTSEMIB.MI" /></div>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div><Label>Simulation</Label><p className="text-xs text-muted-foreground">Mark as paper-trading / what-if</p></div>
+              <Switch checked={newPfSim} onCheckedChange={setNewPfSim} />
+            </div>
+            {active && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div><Label>Clone from "{active.name}"</Label><p className="text-xs text-muted-foreground">Copy current holdings</p></div>
+                <Switch checked={newPfClone} onCheckedChange={setNewPfClone} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!newPfName.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
+              const p = await createPortfolio({ name: newPfName.trim(), base_currency: newPfBase, benchmark_symbol: newPfBench, is_simulation: newPfSim, cloneFromId: newPfClone ? activeId || undefined : undefined });
+              if (p) { toast({ title: "Portfolio created" }); setCreateOpen(false); }
+              else toast({ title: "Couldn't create portfolio", variant: "destructive" });
+            }}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Portfolio settings</DialogTitle></DialogHeader>
+          {active && (
+            <div className="space-y-3">
+              <div><Label>Name</Label><Input value={pfName} onChange={(e) => setPfName(e.target.value)} /></div>
+              <div><Label>Description</Label><Input value={pfDesc} onChange={(e) => setPfDesc(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>Base currency</Label>
+                  <Select value={pfBase} onValueChange={setPfBase}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{["EUR","USD","GBP","CHF","JPY"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Benchmark</Label><Input value={pfBench} onChange={(e) => setPfBench(e.target.value)} /></div>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div><Label>Simulation portfolio</Label><p className="text-xs text-muted-foreground">Excluded from real totals</p></div>
+                <Switch checked={pfSim} onCheckedChange={setPfSim} />
+              </div>
+              {portfolios.length > 1 && (
+                <Button variant="destructive" className="w-full gap-2" onClick={async () => {
+                  if (!confirm(`Delete portfolio "${active.name}" and all its holdings?`)) return;
+                  await removePortfolio(active.id);
+                  toast({ title: "Portfolio deleted" });
+                  setSettingsOpen(false);
+                }}><Trash2 className="h-4 w-4" /> Delete portfolio</Button>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!active) return;
+              await updatePortfolio(active.id, { name: pfName, description: pfDesc, base_currency: pfBase, benchmark_symbol: pfBench, is_simulation: pfSim });
+              toast({ title: "Saved" });
+              setSettingsOpen(false);
+            }}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {active && (
+        <PortfolioSimulator
+          open={simOpen}
+          onClose={() => setSimOpen(false)}
+          portfolioId={active.id}
+          portfolioName={active.name}
+          baseCurrency={active.base_currency}
+          holdings={portfolio.map((p) => ({ symbol: p.symbol, shares: p.shares, currentPrice: p.currentPrice, currency: p.currency }))}
+          fxToBase={fxRates}
+        />
+      )}
     </div>
   );
 };

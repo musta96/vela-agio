@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
 import { TopNav } from "@/components/TopNav";
+import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";

@@ -6,7 +6,7 @@ import {
   GitBranch, Users, Sigma, NotebookPen, Eye, ShieldAlert,
   Repeat, Wallet, Target, Bell, Scale, RefreshCw, ClipboardList,
   ShieldCheck, GraduationCap, BookOpen, Code2, Tag, Settings as SettingsIcon,
-  ScrollText,
+  ScrollText, Shield,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
@@ -26,8 +26,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
-type Item = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type Item = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; flag?: string };
 type Group = { label: string; icon: React.ComponentType<{ className?: string }>; items: Item[] };
 
 export const TopNav = () => {
@@ -36,6 +37,7 @@ export const TopNav = () => {
   const { pathname } = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isEnabled } = useFeatureFlags();
 
   useEffect(() => {
     let cancelled = false;
@@ -62,43 +64,56 @@ export const TopNav = () => {
       { to: "/sectors", label: t("nav.sectors"), icon: Grid3x3 },
       { to: "/sentiment", label: t("nav.sentiment"), icon: Heart },
       { to: "/technical", label: t("nav.technicals"), icon: LineChart },
-      { to: "/screener", label: t("nav.screener"), icon: Filter },
-      { to: "/baskets", label: t("nav.baskets"), icon: Layers },
-      { to: "/filings", label: t("nav.filings"), icon: FileText },
-      { to: "/earnings", label: t("nav.earnings"), icon: CalendarDays },
-      { to: "/insider", label: t("nav.insider"), icon: UserSearch },
-      { to: "/event-study", label: t("nav.eventStudy"), icon: FlaskConical },
-      { to: "/intraday", label: "Intraday & L2", icon: Clock },
-      { to: "/corporate-actions", label: "Corporate Actions", icon: GitBranch },
-      { to: "/peers", label: "Peer Analysis", icon: Users },
-      { to: "/quant", label: "Quant Alpha", icon: Sigma },
-      { to: "/notes", label: "Research Notes", icon: NotebookPen },
+      { to: "/screener", label: t("nav.screener"), icon: Filter, flag: "screener" },
+      { to: "/baskets", label: t("nav.baskets"), icon: Layers, flag: "baskets" },
+      { to: "/filings", label: t("nav.filings"), icon: FileText, flag: "filings" },
+      { to: "/earnings", label: t("nav.earnings"), icon: CalendarDays, flag: "earnings" },
+      { to: "/insider", label: t("nav.insider"), icon: UserSearch, flag: "insider" },
+      { to: "/event-study", label: t("nav.eventStudy"), icon: FlaskConical, flag: "event_study" },
+      { to: "/intraday", label: "Intraday & L2", icon: Clock, flag: "intraday" },
+      { to: "/corporate-actions", label: "Corporate Actions", icon: GitBranch, flag: "corporate_actions" },
+      { to: "/peers", label: "Peer Analysis", icon: Users, flag: "peers" },
+      { to: "/quant", label: "Quant Alpha", icon: Sigma, flag: "quant" },
+      { to: "/notes", label: "Research Notes", icon: NotebookPen, flag: "notes" },
     ]},
     { label: t("nav.portfolio"), icon: Briefcase, items: [
       { to: "/watchlist", label: t("nav.watchlist"), icon: Eye },
       { to: "/risk", label: t("nav.riskEngine"), icon: ShieldAlert },
       { to: "/backtest", label: t("nav.backtest"), icon: Repeat },
-      { to: "/tax-harvest", label: t("nav.taxHarvesting"), icon: Wallet },
-      { to: "/goals", label: t("nav.goalsPlanner"), icon: Target },
-      { to: "/alerts", label: t("nav.alerts"), icon: Bell },
-      { to: "/optimizer", label: "Optimizer", icon: Scale },
-      { to: "/rebalance", label: "Rebalance", icon: RefreshCw },
-      { to: "/blotter", label: "Paper Blotter", icon: ClipboardList },
-      { to: "/suitability", label: "Suitability (MiFID II)", icon: ShieldCheck },
+      { to: "/tax-harvest", label: t("nav.taxHarvesting"), icon: Wallet, flag: "tax_harvest" },
+      { to: "/goals", label: t("nav.goalsPlanner"), icon: Target, flag: "goals" },
+      { to: "/alerts", label: t("nav.alerts"), icon: Bell, flag: "alerts" },
+      { to: "/optimizer", label: "Optimizer", icon: Scale, flag: "optimizer" },
+      { to: "/rebalance", label: "Rebalance", icon: RefreshCw, flag: "rebalance" },
+      { to: "/blotter", label: "Paper Blotter", icon: ClipboardList, flag: "blotter" },
+      { to: "/suitability", label: "Suitability (MiFID II)", icon: ShieldCheck, flag: "suitability" },
     ]},
     { label: t("nav.more"), icon: Menu, items: [
-      { to: "/onboarding", label: t("nav.onboarding"), icon: GraduationCap },
-      { to: "/learn", label: t("nav.learn"), icon: BookOpen },
+      { to: "/onboarding", label: t("nav.onboarding"), icon: GraduationCap, flag: "onboarding" },
+      { to: "/learn", label: t("nav.learn"), icon: BookOpen, flag: "education" },
       { to: "/methodology", label: t("nav.methodology"), icon: ScrollText },
-      { to: "/api", label: t("nav.apiWebhooks"), icon: Code2 },
-      { to: "/pricing", label: "Pricing", icon: Tag },
+      { to: "/api", label: t("nav.apiWebhooks"), icon: Code2, flag: "api_docs" },
+      { to: "/pricing", label: "Pricing", icon: Tag, flag: "pricing" },
       { to: "/settings", label: t("nav.settings"), icon: SettingsIcon },
     ]},
   ];
 
-  const primary = isAdmin
-    ? [...PRIMARY, { to: "/admin/audit", label: t("nav.audit"), icon: ScrollText }]
-    : PRIMARY;
+  const filterItems = (items: Item[]) => items.filter(it => !it.flag || isEnabled(it.flag, true));
+
+  const visibleGroups: Group[] = GROUPS
+    .map(g => ({ ...g, items: filterItems(g.items) }))
+    .filter(g => g.items.length > 0);
+
+  if (isAdmin) {
+    visibleGroups.push({
+      label: "Admin", icon: Shield, items: [
+        { to: "/admin/settings", label: "Feature Flags", icon: SettingsIcon },
+        { to: "/admin/audit", label: t("nav.audit"), icon: ScrollText },
+      ]
+    });
+  }
+
+  const primary = filterItems(PRIMARY);
 
   const isActive = (to: string) => to === "/" ? pathname === "/" : pathname.startsWith(to);
   const groupActive = (g: Group) => g.items.some(i => isActive(i.to));
@@ -128,7 +143,7 @@ export const TopNav = () => {
                       <MobileLink key={it.to} item={it} active={isActive(it.to)} />
                     ))}
                   </div>
-                  {GROUPS.map(g => (
+                  {visibleGroups.map(g => (
                     <div key={g.label}>
                       <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <g.icon className="h-3 w-3" /> {g.label}
@@ -167,7 +182,7 @@ export const TopNav = () => {
               {l.label}
             </NavLink>
           ))}
-          {GROUPS.map(g => {
+          {visibleGroups.map(g => {
             const active = groupActive(g);
             return (
               <DropdownMenu key={g.label}>

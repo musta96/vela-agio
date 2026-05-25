@@ -2,7 +2,8 @@ import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Gift } from "lucide-react";
+import { useFlag } from "@/hooks/useFeatureFlags";
 
 const TIERS = [
   { name: "Free", price: "€0", note: "Forever", features: ["Live quotes (delayed)", "Watchlist (5 symbols)", "Basic charts & news", "AI sentiment on top names", "Community"], cta: "Start free" },
@@ -12,6 +13,24 @@ const TIERS = [
 ];
 
 export default function Pricing() {
+  const pricingEnabled = useFlag("pricing", false);
+  if (!pricingEnabled) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SEO title="Free for everyone | FTSE MIB Analytics" description="The platform is currently free for everyone." path="/pricing" />
+        <TopNav />
+        <main className="container mx-auto px-6 py-20 text-center max-w-2xl">
+          <Gift className="h-14 w-14 mx-auto text-primary mb-4" />
+          <h1 className="text-4xl font-bold">Free for everyone</h1>
+          <p className="text-muted-foreground mt-3">
+            Every feature — AI research, optimizer, intraday data, alerts, reports — is currently free
+            for all users. No paid tiers, no limits.
+          </p>
+          <Button asChild className="mt-6"><a href="/">Start exploring</a></Button>
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-background">
       <SEO title="Pricing | FTSE MIB Analytics" description="Tiered plans from free to enterprise" path="/pricing" />

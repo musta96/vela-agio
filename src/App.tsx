@@ -45,6 +45,7 @@ import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
+import { PortfoliosProvider } from "./hooks/usePortfolios";
 import AdminSettings from "./pages/AdminSettings";
 import Advisor from "./pages/Advisor";
 
@@ -58,6 +59,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
         <FeatureFlagsProvider>
+        <PortfoliosProvider>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
@@ -103,6 +105,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </PortfoliosProvider>
         </FeatureFlagsProvider>
         </AuthProvider>
       </BrowserRouter>

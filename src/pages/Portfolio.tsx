@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown } from "lucide-react";
-import { Pencil } from "lucide-react";
+import { Pencil, Settings as SettingsIcon, FlaskConical, FolderPlus, Trash2, Copy } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
@@ -19,6 +22,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { STOCK_CATALOG, currencySign, findCatalogEntry } from "@/data/stockCatalog";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { usePortfolios } from "@/hooks/usePortfolios";
+import { PortfolioSimulator } from "@/components/PortfolioSimulator";
 
 interface PortfolioStock {
   symbol: string;
@@ -45,6 +50,7 @@ const readLocal = (): PortfolioStock[] => {
 const Portfolio = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const { portfolios, active, activeId, setActiveId, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
@@ -64,7 +70,7 @@ const Portfolio = () => {
   // Cloud sync (load + migrate on first login)
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
+    if (!user || !activeId) {
       migratedRef.current = false;
       return;
     }
@@ -76,51 +82,54 @@ const Portfolio = () => {
         if (local.length) {
           await supabase.from("portfolio_holdings").upsert(
             local.map((s) => ({
-              user_id: user.id, symbol: s.symbol, name: s.name,
+              user_id: user.id, portfolio_id: activeId, symbol: s.symbol, name: s.name,
               shares: s.shares, avg_price: s.avgPrice,
-            })),
-            { onConflict: "user_id,symbol", ignoreDuplicates: true }
+              currency: (s as any).currency || findCatalogEntry(s.symbol)?.currency || "EUR",
+            })) as any,
+            { onConflict: "portfolio_id,symbol", ignoreDuplicates: true }
           );
         }
       }
       const { data } = await supabase
         .from("portfolio_holdings")
-        .select("symbol,name,shares,avg_price")
+        .select("symbol,name,shares,avg_price,currency")
+        .eq("portfolio_id", activeId)
         .order("created_at", { ascending: true });
       if (cancelled || !data) return;
-      const next: PortfolioStock[] = data.map((r) => ({
+      const next: PortfolioStock[] = data.map((r: any) => ({
         symbol: r.symbol, name: r.name,
         shares: Number(r.shares), avgPrice: Number(r.avg_price),
         currentPrice: Number(r.avg_price),
-        currency: findCatalogEntry(r.symbol)?.currency || "EUR",
+        currency: r.currency || findCatalogEntry(r.symbol)?.currency || "EUR",
       }));
       setPortfolio(next);
     })();
     return () => { cancelled = true; };
-  }, [user, authLoading]);
+  }, [user, authLoading, activeId]);
 
   // Realtime updates from other devices
   useEffect(() => {
-    if (!user) return;
-    const ch = supabase.channel(`pf-${user.id}`).on(
+    if (!user || !activeId) return;
+    const ch = supabase.channel(`pf-${activeId}`).on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "portfolio_holdings", filter: `user_id=eq.${user.id}` },
+      { event: "*", schema: "public", table: "portfolio_holdings", filter: `portfolio_id=eq.${activeId}` },
       async () => {
         const { data } = await supabase
           .from("portfolio_holdings")
-          .select("symbol,name,shares,avg_price")
+          .select("symbol,name,shares,avg_price,currency")
+          .eq("portfolio_id", activeId)
           .order("created_at", { ascending: true });
         if (!data) return;
-        setPortfolio(data.map((r) => ({
+        setPortfolio(data.map((r: any) => ({
           symbol: r.symbol, name: r.name,
           shares: Number(r.shares), avgPrice: Number(r.avg_price),
           currentPrice: Number(r.avg_price),
-          currency: findCatalogEntry(r.symbol)?.currency || "EUR",
+          currency: r.currency || findCatalogEntry(r.symbol)?.currency || "EUR",
         })));
       }
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user]);
+  }, [user, activeId]);
 
   // === Live quotes: merge real market prices into currentPrice ===
   const symbols = useMemo(() => portfolio.map((p) => p.symbol), [portfolio]);
@@ -254,12 +263,12 @@ const Portfolio = () => {
       currency: stockInfo.currency || "EUR",
     };
 
-    if (user) {
+    if (user && activeId) {
       console.log("[Portfolio] handleAddStock syncing to backend", added);
       const { error } = await supabase.from("portfolio_holdings").upsert({
-        user_id: user.id, symbol: added.symbol, name: added.name,
-        shares: added.shares, avg_price: added.avgPrice,
-      }, { onConflict: "user_id,symbol" });
+        user_id: user.id, portfolio_id: activeId, symbol: added.symbol, name: added.name,
+        shares: added.shares, avg_price: added.avgPrice, currency: added.currency,
+      } as any, { onConflict: "portfolio_id,symbol" });
       if (error) {
         console.error("[Portfolio] handleAddStock backend upsert failed", error);
         toast({
@@ -286,8 +295,8 @@ const Portfolio = () => {
 
   const handleRemoveStock = (symbol: string) => {
     setPortfolio(portfolio.filter(stock => stock.symbol !== symbol));
-    if (user) {
-      supabase.from("portfolio_holdings").delete().eq("user_id", user.id).eq("symbol", symbol).then();
+    if (user && activeId) {
+      supabase.from("portfolio_holdings").delete().eq("portfolio_id", activeId).eq("symbol", symbol).then();
     }
     toast({
       title: "Stock Removed",
@@ -313,11 +322,11 @@ const Portfolio = () => {
   };
 
   const persistEdit = async (symbol: string, shares: number, avgPrice: number) => {
-    if (user) {
+    if (user && activeId) {
       const { error } = await supabase.from("portfolio_holdings").upsert({
-        user_id: user.id, symbol, name: editing?.name || symbol,
-        shares, avg_price: avgPrice,
-      }, { onConflict: "user_id,symbol" });
+        user_id: user.id, portfolio_id: activeId, symbol, name: editing?.name || symbol,
+        shares, avg_price: avgPrice, currency: editing?.currency || "EUR",
+      } as any, { onConflict: "portfolio_id,symbol" });
       if (error) {
         toast({ title: "Couldn't update", description: error.message, variant: "destructive" });
         return false;
@@ -361,7 +370,7 @@ const Portfolio = () => {
       newShares = editing.shares - ts;
       newAvg = editing.avgPrice; // average cost unchanged on partial sell
       if (newShares === 0) {
-        if (user) await supabase.from("portfolio_holdings").delete().eq("user_id", user.id).eq("symbol", editing.symbol);
+        if (user && activeId) await supabase.from("portfolio_holdings").delete().eq("portfolio_id", activeId).eq("symbol", editing.symbol);
         setPortfolio((prev) => prev.filter((p) => p.symbol !== editing.symbol));
         toast({ title: "Position closed" });
         setEditing(null);
@@ -392,6 +401,46 @@ const Portfolio = () => {
     return sum + toEur(gain, stock.currency);
   }, 0);
 
+  // === Portfolio settings / create dialogs ===
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pfName, setPfName] = useState("");
+  const [pfDesc, setPfDesc] = useState("");
+  const [pfBase, setPfBase] = useState("EUR");
+  const [pfBench, setPfBench] = useState("FTSEMIB.MI");
+  const [pfSim, setPfSim] = useState(false);
+  useEffect(() => {
+    if (active) {
+      setPfName(active.name);
+      setPfDesc(active.description || "");
+      setPfBase(active.base_currency);
+      setPfBench(active.benchmark_symbol);
+      setPfSim(active.is_simulation);
+    }
+  }, [active?.id]);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newPfName, setNewPfName] = useState("");
+  const [newPfBase, setNewPfBase] = useState("EUR");
+  const [newPfBench, setNewPfBench] = useState("FTSEMIB.MI");
+  const [newPfSim, setNewPfSim] = useState(false);
+  const [newPfClone, setNewPfClone] = useState(false);
+
+  const [simOpen, setSimOpen] = useState(false);
+
+  const baseCcy = active?.base_currency || "EUR";
+  const baseSign = baseCcy === "USD" ? "$" : baseCcy === "GBP" ? "£" : baseCcy === "EUR" ? "€" : baseCcy + " ";
+  // Convert helper using selected base currency (we have EUR rates; for non-EUR base, approximate via cross)
+  const toBase = (amount: number, currency: string) => {
+    if (currency === baseCcy) return amount;
+    const inEur = currency === "EUR" ? amount : amount * (fxRates[currency] ?? 1);
+    if (baseCcy === "EUR") return inEur;
+    // EUR -> base via inverse rate if available
+    const rate = fxRates[baseCcy];
+    return rate ? inEur / rate : inEur;
+  };
+  const totalBase = portfolio.reduce((s, p) => s + toBase(p.shares * p.currentPrice, p.currency), 0);
+  const gainBase = portfolio.reduce((s, p) => s + toBase(p.shares * (p.currentPrice - p.avgPrice), p.currency), 0);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -401,14 +450,17 @@ const Portfolio = () => {
 
       {/* Portfolio Header */}
       <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+          <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
               <Briefcase className="h-8 w-8 text-primary" />
-              My Portfolio
+              {active?.name || "My Portfolio"}
+              {active?.is_simulation && (
+                <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
+              )}
             </h1>
             <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm sm:text-base">
-              Track your FTSE MIB investments
+              {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "—"}
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
               ) : (
@@ -416,21 +468,53 @@ const Portfolio = () => {
               )}
             </p>
           </div>
-          <Button
+
+          {/* Portfolio switcher + actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            {user && portfolios.length > 0 && (
+              <Select value={activeId || undefined} onValueChange={(v) => setActiveId(v)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select portfolio" />
+                </SelectTrigger>
+                <SelectContent>
+                  {portfolios.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.is_simulation ? "🧪 " : ""}{p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {user && (
+              <Button variant="outline" size="icon" title="New portfolio" onClick={() => { setNewPfName(""); setNewPfBase("EUR"); setNewPfBench("FTSEMIB.MI"); setNewPfSim(false); setNewPfClone(false); setCreateOpen(true); }}>
+                <FolderPlus className="h-4 w-4" />
+              </Button>
+            )}
+            {user && active && (
+              <Button variant="outline" size="icon" title="Portfolio settings" onClick={() => setSettingsOpen(true)}>
+                <SettingsIcon className="h-4 w-4" />
+              </Button>
+            )}
+            {user && active && (
+              <Button variant="outline" size="sm" className="gap-2" title="Run Monte-Carlo simulation" onClick={() => setSimOpen(true)}>
+                <FlaskConical className="h-4 w-4" /> Simulate
+              </Button>
+            )}
+            <Button
             onClick={(e) => {
               console.log("[Portfolio] Add Stock button click event", { target: e.target });
               toggleAddForm();
             }}
-            size="lg"
-            className="gap-2 hover-scale w-full sm:w-auto"
+            size="default"
+            className="gap-2 hover-scale"
           >
             <Plus className="h-4 w-4" />
             Add Stock
           </Button>
-          <Button
+            <Button
             variant="outline"
-            size="lg"
-            className="gap-2 w-full sm:w-auto"
+            size="default"
+            className="gap-2"
             disabled={portfolio.length === 0}
             onClick={() => {
               generatePortfolioReport({
@@ -447,21 +531,22 @@ const Portfolio = () => {
           >
             <FileDown className="h-4 w-4" /> Export PDF
           </Button>
+          </div>
         </div>
 
         {/* Portfolio Summary */}
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <Card className="p-6 card-gradient border-border">
             <p className="text-sm text-muted-foreground mb-1">Total Value</p>
-            <p className="text-3xl font-bold text-foreground">€{portfolioTotal.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-foreground">{baseSign}{totalBase.toFixed(2)}</p>
           </Card>
           <Card className="p-6 card-gradient border-border">
             <p className="text-sm text-muted-foreground mb-1">Total Gain/Loss</p>
             <div className="flex items-center gap-2">
-              <p className={`text-3xl font-bold ${portfolioGain >= 0 ? 'text-success' : 'text-destructive'}`}>
-                €{portfolioGain.toFixed(2)}
+              <p className={`text-3xl font-bold ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {baseSign}{gainBase.toFixed(2)}
               </p>
-              {portfolioGain >= 0 ? (
+              {gainBase >= 0 ? (
                 <TrendingUp className="h-6 w-6 text-success" />
               ) : (
                 <TrendingDown className="h-6 w-6 text-destructive" />
@@ -741,6 +826,100 @@ const Portfolio = () => {
         </DialogContent>
       </Dialog>
     </main>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>New portfolio</DialogTitle>
+            <DialogDescription>Create a real or simulated portfolio with its own currency and benchmark.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Name</Label><Input value={newPfName} onChange={(e) => setNewPfName(e.target.value)} placeholder="Long-term EU equities" /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Base currency</Label>
+                <Select value={newPfBase} onValueChange={setNewPfBase}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{["EUR","USD","GBP","CHF","JPY"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Benchmark</Label><Input value={newPfBench} onChange={(e) => setNewPfBench(e.target.value)} placeholder="FTSEMIB.MI" /></div>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div><Label>Simulation</Label><p className="text-xs text-muted-foreground">Mark as paper-trading / what-if</p></div>
+              <Switch checked={newPfSim} onCheckedChange={setNewPfSim} />
+            </div>
+            {active && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div><Label>Clone from "{active.name}"</Label><p className="text-xs text-muted-foreground">Copy current holdings</p></div>
+                <Switch checked={newPfClone} onCheckedChange={setNewPfClone} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!newPfName.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
+              const p = await createPortfolio({ name: newPfName.trim(), base_currency: newPfBase, benchmark_symbol: newPfBench, is_simulation: newPfSim, cloneFromId: newPfClone ? activeId || undefined : undefined });
+              if (p) { toast({ title: "Portfolio created" }); setCreateOpen(false); }
+              else toast({ title: "Couldn't create portfolio", variant: "destructive" });
+            }}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Portfolio settings</DialogTitle></DialogHeader>
+          {active && (
+            <div className="space-y-3">
+              <div><Label>Name</Label><Input value={pfName} onChange={(e) => setPfName(e.target.value)} /></div>
+              <div><Label>Description</Label><Input value={pfDesc} onChange={(e) => setPfDesc(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>Base currency</Label>
+                  <Select value={pfBase} onValueChange={setPfBase}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{["EUR","USD","GBP","CHF","JPY"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Benchmark</Label><Input value={pfBench} onChange={(e) => setPfBench(e.target.value)} /></div>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div><Label>Simulation portfolio</Label><p className="text-xs text-muted-foreground">Excluded from real totals</p></div>
+                <Switch checked={pfSim} onCheckedChange={setPfSim} />
+              </div>
+              {portfolios.length > 1 && (
+                <Button variant="destructive" className="w-full gap-2" onClick={async () => {
+                  if (!confirm(`Delete portfolio "${active.name}" and all its holdings?`)) return;
+                  await removePortfolio(active.id);
+                  toast({ title: "Portfolio deleted" });
+                  setSettingsOpen(false);
+                }}><Trash2 className="h-4 w-4" /> Delete portfolio</Button>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!active) return;
+              await updatePortfolio(active.id, { name: pfName, description: pfDesc, base_currency: pfBase, benchmark_symbol: pfBench, is_simulation: pfSim });
+              toast({ title: "Saved" });
+              setSettingsOpen(false);
+            }}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {active && (
+        <PortfolioSimulator
+          open={simOpen}
+          onClose={() => setSimOpen(false)}
+          portfolioId={active.id}
+          portfolioName={active.name}
+          baseCurrency={active.base_currency}
+          holdings={portfolio.map((p) => ({ symbol: p.symbol, shares: p.shares, currentPrice: p.currentPrice, currency: p.currency }))}
+          fxToBase={fxRates}
+        />
+      )}
     </div>
   );
 };

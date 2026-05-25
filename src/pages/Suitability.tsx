@@ -535,8 +535,8 @@ export default function Suitability() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">5. Sustainability Preferences (SFDR)</CardTitle>
-                <CardDescription>EU MiFID II amendment 2022/1288 — required since Aug 2022.</CardDescription>
+                <CardTitle className="text-lg">9. Sustainability Preferences (SFDR)</CardTitle>
+                <CardDescription>EU MiFID II amendment 2022/1288 — required since Aug 2022. Three sustainability dimensions.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -550,6 +550,20 @@ export default function Suitability() {
                     ))}
                   </RadioGroup>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Min. % Taxonomy-aligned (Reg. 2020/852)</Label>
+                    <Input type="number" min={0} max={100} value={sfdrTaxonomyMinPct} onChange={e => setSfdrTaxonomyMinPct(Number(e.target.value) || 0)} className="mt-2" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Min. % Sustainable Investments (SFDR Art. 2(17))</Label>
+                    <Input type="number" min={0} max={100} value={sfdrSustainableMinPct} onChange={e => setSfdrSustainableMinPct(Number(e.target.value) || 0)} className="mt-2" />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={sfdrPaiConsidered} onCheckedChange={(v) => setSfdrPaiConsidered(!!v)} />
+                  Consider Principal Adverse Impact (PAI) indicators
+                </label>
                 <div>
                   <Label className="text-sm font-medium">Excluded sectors</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
@@ -566,7 +580,7 @@ export default function Suitability() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">6. Personal Goals & Constraints</CardTitle>
+                <CardTitle className="text-lg">10. Personal Goals & Constraints</CardTitle>
                 <CardDescription>Used to ground AI recommendations in your real-life objectives.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -592,12 +606,42 @@ export default function Suitability() {
               </CardContent>
             </Card>
 
+            {warnings.length > 0 && (
+              <Card className="border-warning/40 bg-warning/5">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Consistency checks</CardTitle>
+                  <CardDescription>ESMA Suitability Guideline 5 — we flag contradictions before saving.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">11. Attestation</CardTitle>
+                <CardDescription>Required before saving — records date, version and warnings acknowledged.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={attestation} onCheckedChange={(v) => setAttestation(!!v)} className="mt-0.5" />
+                  <span>
+                    I confirm the information above is accurate and complete to the best of my knowledge, and I understand it will be used to assess suitability and appropriateness under MiFID II, IDD and SFDR.
+                  </span>
+                </label>
+              </CardContent>
+            </Card>
+
             <div className="flex items-center gap-2 flex-wrap">
-              <Button onClick={handleSave} disabled={!complete || saving}>
+              <Button onClick={handleSave} disabled={!complete || saving || !attestation}>
                 {saving ? "Saving…" : "Save profile"}
               </Button>
               <Button variant="outline" onClick={handleReset}><RefreshCw className="h-4 w-4 mr-2" />Reset</Button>
               {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
+              {complete && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
             </div>
 
             <p className="text-xs text-muted-foreground">

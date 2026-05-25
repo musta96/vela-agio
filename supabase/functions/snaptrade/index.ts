@@ -62,10 +62,17 @@ Deno.serve(async (req) => {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    const clientId = await getUserDataKey(auth, 'SNAPTRADE_CLIENT_ID');
-    const consumerKey = await getUserDataKey(auth, 'SNAPTRADE_CONSUMER_KEY');
+    // Prefer per-user BYO key from the vault; fall back to project-wide secret.
+    const clientId =
+      (await getUserDataKey(auth, 'SNAPTRADE_CLIENT_ID')) ||
+      Deno.env.get('SNAPTRADE_CLIENT_ID') ||
+      '';
+    const consumerKey =
+      (await getUserDataKey(auth, 'SNAPTRADE_CONSUMER_KEY')) ||
+      Deno.env.get('SNAPTRADE_CONSUMER_KEY') ||
+      '';
     if (!clientId || !consumerKey) {
-      return new Response(JSON.stringify({ error: 'SnapTrade not configured. Add SNAPTRADE_CLIENT_ID and SNAPTRADE_CONSUMER_KEY in Settings → Data Providers.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'SnapTrade not configured. Add SNAPTRADE_CLIENT_ID and SNAPTRADE_CONSUMER_KEY in Settings → Data Providers, or set them as project secrets.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { action, redirectURI } = await req.json();

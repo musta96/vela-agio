@@ -10,6 +10,7 @@ import BacktestingModule from "./pages/BacktestingModule";
 import Portfolio from "./pages/Portfolio";
 import Watchlist from "./pages/Watchlist";
 import SmartPicks from "./pages/SmartPicks";
+import TechnicalAnalysis from "./pages/TechnicalAnalysis";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./hooks/useAuth";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/watchlist" element={<Watchlist />} />
           <Route path="/picks" element={<SmartPicks />} />
+          <Route path="/technical" element={<TechnicalAnalysis />} />
           <Route path="/stock/:symbol" element={<StockDetails />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -130,12 +130,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return bad("Method not allowed", 405);
 
-  // Require an authenticated user (anon JWT is fine — we just want to attribute usage)
-  const authHeader = req.headers.get("Authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) return bad("Missing auth", 401);
-  const { data: userRes } = await supabase.auth.getUser(token);
-  if (!userRes?.user) return bad("Invalid auth", 401);
+  // Public endpoint — quotes/OHLC are public market data. We still cache
+  // server-side and rate-limit via Yahoo's own throttling.
 
   let body: Action;
   try { body = await req.json(); } catch { return bad("Invalid JSON"); }

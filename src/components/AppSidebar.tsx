@@ -15,7 +15,7 @@ import { VelaLogo } from "@/components/VelaLogo";
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 
 const OVERVIEW: Item[] = [
-  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Portfolio", url: "/portfolio", icon: Briefcase },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
   { title: "Orders", url: "/orders", icon: History },

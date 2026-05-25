@@ -106,7 +106,7 @@ const Watchlist = () => {
               Browse the dashboard and tap the star icon on any stock to track it here.
             </p>
             <Button asChild>
-              <Link to="/">Browse stocks</Link>
+              <Link to="/dashboard">Browse stocks</Link>
             </Button>
           </Card>
         ) : (

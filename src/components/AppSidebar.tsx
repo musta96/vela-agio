@@ -7,7 +7,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon,
-  BookOpen, ScrollText, GraduationCap, Handshake, History,
+  BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -43,6 +43,8 @@ const MORE: Item[] = [
   { title: "Onboarding", url: "/onboarding", icon: GraduationCap },
   { title: "Learn", url: "/learn", icon: BookOpen },
   { title: "Methodology", url: "/methodology", icon: ScrollText },
+  { title: "Profile", url: "/profile", icon: User },
+  { title: "Security", url: "/security", icon: ShieldCheck },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
 

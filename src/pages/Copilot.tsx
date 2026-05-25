@@ -41,9 +41,14 @@ export default function Copilot() {
     setMessages(next);
     try {
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch(`${SUPABASE_URL}/functions/v1/copilot`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "" },
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ messages: next, portfolio: ctx.portfolio, watchlist: ctx.watchlist, lang: i18n.resolvedLanguage }),
       });
       if (!r.ok || !r.body) throw new Error("Stream failed");

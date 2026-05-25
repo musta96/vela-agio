@@ -263,12 +263,12 @@ const Portfolio = () => {
       currency: stockInfo.currency || "EUR",
     };
 
-    if (user) {
+    if (user && activeId) {
       console.log("[Portfolio] handleAddStock syncing to backend", added);
       const { error } = await supabase.from("portfolio_holdings").upsert({
-        user_id: user.id, symbol: added.symbol, name: added.name,
-        shares: added.shares, avg_price: added.avgPrice,
-      }, { onConflict: "user_id,symbol" });
+        user_id: user.id, portfolio_id: activeId, symbol: added.symbol, name: added.name,
+        shares: added.shares, avg_price: added.avgPrice, currency: added.currency,
+      } as any, { onConflict: "portfolio_id,symbol" });
       if (error) {
         console.error("[Portfolio] handleAddStock backend upsert failed", error);
         toast({
@@ -295,8 +295,8 @@ const Portfolio = () => {
 
   const handleRemoveStock = (symbol: string) => {
     setPortfolio(portfolio.filter(stock => stock.symbol !== symbol));
-    if (user) {
-      supabase.from("portfolio_holdings").delete().eq("user_id", user.id).eq("symbol", symbol).then();
+    if (user && activeId) {
+      supabase.from("portfolio_holdings").delete().eq("portfolio_id", activeId).eq("symbol", symbol).then();
     }
     toast({
       title: "Stock Removed",
@@ -322,11 +322,11 @@ const Portfolio = () => {
   };
 
   const persistEdit = async (symbol: string, shares: number, avgPrice: number) => {
-    if (user) {
+    if (user && activeId) {
       const { error } = await supabase.from("portfolio_holdings").upsert({
-        user_id: user.id, symbol, name: editing?.name || symbol,
-        shares, avg_price: avgPrice,
-      }, { onConflict: "user_id,symbol" });
+        user_id: user.id, portfolio_id: activeId, symbol, name: editing?.name || symbol,
+        shares, avg_price: avgPrice, currency: editing?.currency || "EUR",
+      } as any, { onConflict: "portfolio_id,symbol" });
       if (error) {
         toast({ title: "Couldn't update", description: error.message, variant: "destructive" });
         return false;

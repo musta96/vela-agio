@@ -1031,9 +1031,12 @@ const Portfolio = () => {
             <div className="space-y-3">
               {(() => {
                 const bySector: Record<string, number> = {};
+                const SECTOR_MAP: Record<string, string> = {
+                  ENEL: "Utilities", UCG: "Financials", ISP: "Financials", G: "Financials",
+                  ENI: "Energy", STM: "Technology", RACE: "Consumer", MONC: "Consumer",
+                };
                 portfolio.forEach((p) => {
-                  const entry = findCatalogEntry(p.symbol);
-                  const sector = entry?.sector || "Other";
+                  const sector = SECTOR_MAP[p.symbol] || "Other";
                   bySector[sector] = (bySector[sector] || 0) + toBase(p.shares * p.currentPrice, p.currency);
                 });
                 const total = Object.values(bySector).reduce((s, v) => s + v, 0) || 1;

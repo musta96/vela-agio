@@ -72,7 +72,7 @@ export default function OwnerConsole() {
   const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [] } = data;
   const filteredUsers = users.filter((u) => !q || u.email?.toLowerCase().includes(q.toLowerCase()));
   const controlByKey = (k: string) => controls.find((c) => c.key === k);
-  const aiConfig: AiConfig = (controlByKey("ai_config")?.['value' as any] as any) || (controls.find(c => c.key === "ai_config") as any)?.value || {};
+  const aiConfig: AiConfig = ((controls.find((c) => c.key === "ai_config") as any)?.value) || {};
 
   const downloadAuditCsv = async () => {
     const { data: { session } } = await supabase.auth.getSession();

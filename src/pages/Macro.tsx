@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { Globe2 } from "lucide-react";
@@ -30,12 +29,14 @@ export default function Macro() {
   const { quotes } = useLiveQuotes(allSyms, 30_000);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Macro Dashboard | Vela.ai" description="Rates, FX, commodities, credit, vol" path="/macro" />
-      <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Globe2 className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.macro.title")}</h1></div>
-        {GROUPS.map(g => (
+      <PageHeader
+        icon={Globe2}
+        title={t("pages.macro.title")}
+        description="Rates, FX, commodities and volatility across global markets."
+      />
+      {GROUPS.map(g => (
           <div key={g.title}>
             <h2 className="text-lg font-semibold mb-2">{t(`pages.macro.groups.${g.title}`, g.title)}</h2>
             <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -55,7 +56,6 @@ export default function Macro() {
             </div>
           </div>
         ))}
-      </main>
     </div>
   );
 }

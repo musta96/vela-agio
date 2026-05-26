@@ -221,7 +221,7 @@ export default function OwnerConsole() {
                           : <Badge variant="outline" className="text-[10px]">unverified</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <UserActionsMenu user={u} act={act} />
+                        <UserActionsMenu user={u} act={act} onExport={() => exportUserData(u.id, u.email)} />
                       </TableCell>
                     </TableRow>
                   ))}

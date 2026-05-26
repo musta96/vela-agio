@@ -43,6 +43,9 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const action = String(body?.action || "");
+      if (!action) {
+        // No action → treat as data load (invoke() defaults to POST with empty body)
+      } else {
       const logIncident = (category: string, payload: any, reason?: string) =>
         admin.from("incident_log").insert({
           actor_id: userRes.user!.id,
@@ -152,6 +155,7 @@ Deno.serve(async (req) => {
         }
       } catch (err: any) {
         return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 500, headers: jsonHeaders });
+      }
       }
     }
 

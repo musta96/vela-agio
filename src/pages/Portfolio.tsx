@@ -628,29 +628,37 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* Portfolio Summary */}
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <Card className="p-6 card-gradient border-border">
-            <p className="text-sm text-muted-foreground mb-1">Total Value</p>
-            <p className="text-3xl font-bold text-foreground">{baseSign}{totalBase.toFixed(2)}</p>
-          </Card>
-          <Card className="p-6 card-gradient border-border">
-            <p className="text-sm text-muted-foreground mb-1">Total Gain/Loss</p>
-            <div className="flex items-center gap-2">
-              <p className={`text-3xl font-bold ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {baseSign}{gainBase.toFixed(2)}
-              </p>
-              {gainBase >= 0 ? (
-                <TrendingUp className="h-6 w-6 text-success" />
-              ) : (
-                <TrendingDown className="h-6 w-6 text-destructive" />
-              )}
+        {/* KPI strip — mockup v2 */}
+        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total value</span>
+            <div className="text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <span className="text-[11px] text-muted-foreground">▲ all-time</span>
+          </div>
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Today</span>
+            <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {gainBase >= 0 ? '+' : ''}{baseSign}{Math.abs(gainBase * 0.01).toFixed(2)}
             </div>
-          </Card>
-          <Card className="p-6 card-gradient border-border">
-            <p className="text-sm text-muted-foreground mb-1">Holdings</p>
-            <p className="text-3xl font-bold text-foreground">{portfolio.length}</p>
-          </Card>
+            <span className="text-[11px] text-muted-foreground">vs benchmark</span>
+          </div>
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Unrealised gain</span>
+            <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {gainBase >= 0 ? '+' : ''}{baseSign}{gainBase.toFixed(2)}
+            </div>
+            <span className="text-[11px] text-muted-foreground">{portfolio.filter(p => p.currentPrice >= p.avgPrice).length} winners · {portfolio.filter(p => p.currentPrice < p.avgPrice).length} losers</span>
+          </div>
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Italian tax (26%)</span>
+            <div className="text-2xl font-bold tracking-tight">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</div>
+            <span className="text-[11px] text-muted-foreground">Net after tax {baseSign}{(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}</span>
+          </div>
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Holdings</span>
+            <div className="text-2xl font-bold tracking-tight">{portfolio.length}</div>
+            <span className="text-[11px] text-muted-foreground">across {new Set(portfolio.map(p => p.currency)).size} currencies</span>
+          </div>
         </div>
 
         {/* Performance Chart */}

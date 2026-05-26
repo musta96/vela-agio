@@ -268,13 +268,15 @@ Deno.serve(async (req) => {
         portfolios: portfolioByUser[u.id] || 0,
       }));
 
-    const [{ data: controls }, { data: banners }, { data: signals }, { data: incidents }, { data: flags }, { data: suspensions }] = await Promise.all([
+    const [{ data: controls }, { data: banners }, { data: signals }, { data: incidents }, { data: flags }, { data: suspensions }, { data: consents }, { data: auditFull }] = await Promise.all([
       admin.from("platform_controls").select("*").order("key"),
       admin.from("platform_banners").select("*").order("created_at", { ascending: false }).limit(50),
       admin.from("ai_signal_log").select("*").order("created_at", { ascending: false }).limit(100),
       admin.from("incident_log").select("*").order("ts", { ascending: false }).limit(50),
       admin.from("feature_flags").select("*").order("category"),
       admin.from("user_suspensions").select("*"),
+      admin.from("user_consents").select("*").order("accepted_at", { ascending: false }).limit(500),
+      admin.from("audit_log").select("*").order("ts", { ascending: false }).limit(500),
     ]);
     const suspendedSet = new Set((suspensions || []).map((s: any) => s.user_id));
     const rolesMap: Record<string, string[]> = {};
@@ -303,6 +305,8 @@ Deno.serve(async (req) => {
       signals: signals || [],
       incidents: incidents || [],
       flags: flags || [],
+      consents: consents || [],
+      audit: auditFull || [],
     }), { headers: jsonHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

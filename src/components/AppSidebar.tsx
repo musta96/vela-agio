@@ -120,6 +120,43 @@ function NavGroup({ label, items }: { label: string; items: Item[] }) {
   );
 }
 
+function InlineItems({ items }: { items: Item[] }) {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const { pathname } = useLocation();
+  const isActive = (url: string) => url === "/" ? pathname === "/" : pathname.startsWith(url);
+  return (
+    <SidebarMenu>
+      {items.map((it) => {
+        const active = isActive(it.url);
+        return (
+          <SidebarMenuItem key={it.url}>
+            <SidebarMenuButton asChild tooltip={it.title}>
+              <NavLink
+                to={it.url}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-none border-l-2 border-transparent px-4 py-2.5 text-[13px] transition-colors",
+                  active
+                    ? "border-l-[hsl(var(--sidebar-ring))] bg-[hsl(var(--sidebar-accent))] text-sidebar-foreground"
+                    : "text-sidebar-foreground/55 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                )}
+              >
+                <it.icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="flex-1 truncate">{it.title}</span>}
+                {!collapsed && it.badge && (
+                  <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                    {it.badge}
+                  </span>
+                )}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
+}
+
 function NetWorthCollapsible() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";

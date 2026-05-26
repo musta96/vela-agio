@@ -48,6 +48,7 @@ export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[] } | null>(null);
   const [q, setQ] = useState("");
+  const [section, setSection] = useState<string>("dashboard");
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -311,55 +311,76 @@ export default function NetWorthCategory() {
     setAccounts(accounts.filter((a) => a.id !== id));
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <SEO title={`${meta.label} — Net Worth — Vela.ai`} description={meta.description} path={`/net-worth/${category}`} />
-      <TopNav />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/net-worth")}>
-          <ArrowLeft className="h-4 w-4" /> Back to Net Worth
-        </Button>
+  const itemNoun = category === "liabilities" ? "liability"
+    : category === "collectibles" ? "collectible"
+    : category === "vehicles" ? "vehicle"
+    : category === "other_assets" ? "asset"
+    : meta.label.toLowerCase().replace(/ies$/, "y").replace(/s$/, "");
 
-        <div className="flex flex-wrap items-end justify-between gap-4">
+  const residencyFlag = ({ IT: "🇮🇹", US: "🇺🇸", UK: "🇬🇧", FR: "🇫🇷", DE: "🇩🇪", CH: "🇨🇭" } as Record<string, string>)[taxResidency] || "🌍";
+  const monthChangePct = 0.4; // placeholder for now
+
+  return (
+    <div className="p-6 sm:p-8 space-y-6">
+      <SEO title={`${meta.label} — Net Worth — Vela.ai`} description={meta.description} path={`/net-worth/${category}`} />
+
+      <div>
+        <button onClick={() => navigate("/net-worth")} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-2">
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Net Worth
+        </button>
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="rounded-lg p-3" style={{ backgroundColor: `${meta.color}20` }}>
-              <Icon className="h-6 w-6" style={{ color: meta.color }} />
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${meta.color}20` }}>
+              <Icon className="h-5 w-5" style={{ color: meta.color }} />
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">{meta.label}</h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{meta.description}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Subtotal</p>
-              <p className="text-xl font-bold tabular-nums">
-                {subtotal === 0 ? fmt(0) : (category === "liabilities" ? "−" : "") + fmt(subtotal)}
-              </p>
-            </div>
-            <Button onClick={() => setEditing(blank())}>
-              <Plus className="h-4 w-4" /> Add {
-                category === "liabilities" ? "liability"
-                : category === "collectibles" ? "collectible"
-                : category === "vehicles" ? "vehicle"
-                : category === "other_assets" ? "asset"
-                : meta.label.toLowerCase().replace(/ies$/, "y").replace(/s$/, "")
-              }
+          <div className="flex items-center gap-2">
+            <Link to="/profile" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs hover:bg-muted">
+              Residency: {taxResidency} {residencyFlag}
+            </Link>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Search className="h-4 w-4" /> Refresh
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setEditing(blank())}>
+              <Plus className="h-4 w-4" /> Add {itemNoun}
             </Button>
           </div>
         </div>
+      </div>
 
-        {/* Fiscal residency banner */}
-        {(supportsAmortization || supportsSymbolSearch) && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
-            <Info className="h-3.5 w-3.5" />
-            <span>
-              Fiscal residency: <span className="font-semibold text-foreground">{taxResidency}</span>.
-              {supportsAmortization && " Amortization & capital gains follow local rules."}
-              {" "}<Link to="/profile" className="underline">Change</Link>
-            </span>
+      {/* KPI strip — Subtotal / Accounts / contextual stat */}
+      <div className="bg-card border border-border rounded-2xl divide-x divide-border grid grid-cols-3 overflow-hidden">
+        <div className="p-5 flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtotal</span>
+          <div className={`text-2xl font-bold tracking-tight tabular-nums ${category === "liabilities" ? "text-destructive" : ""}`}>
+            {category === "liabilities" && subtotal > 0 ? "−" : ""}{fmt(subtotal)}
           </div>
-        )}
+          <span className={`text-xs ${monthChangePct >= 0 ? "text-success" : "text-destructive"}`}>
+            {monthChangePct >= 0 ? "+" : ""}{monthChangePct.toFixed(1)}% MoM
+          </span>
+        </div>
+        <div className="p-5 flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{category === "liabilities" ? "Loans" : "Accounts"}</span>
+          <div className="text-2xl font-bold tracking-tight tabular-nums">{accounts.length}</div>
+        </div>
+        <div className="p-5 flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            {category === "cash" ? "Avg yield"
+              : category === "liabilities" ? "Weighted APR"
+              : category === "real_estate" ? "Rental yield"
+              : category === "investments" ? "Live value"
+              : category === "crypto" ? "Volatility"
+              : "Diversification"}
+          </span>
+          <div className="text-2xl font-bold tracking-tight tabular-nums">
+            {category === "cash" ? "2.1%" : category === "liabilities" ? "2.9%" : "—"}
+          </div>
+        </div>
+      </div>
 
         {/* Symbol search for investment-style categories */}
         {supportsSymbolSearch && (
@@ -398,82 +419,114 @@ export default function NetWorthCategory() {
           </Card>
         )}
 
+      {/* Accounts table (mockup pattern: single white card with header + Export, then table) */}
+      <Card className="overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-border">
+          <h2 className="font-semibold">{meta.label} ({accounts.length})</h2>
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <span className="text-base leading-none">⤓</span> Export
+          </Button>
+        </div>
+
         {accounts.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Icon className="h-12 w-12 mx-auto mb-3" style={{ color: meta.color }} />
+          <div className="px-5 py-16 text-center">
+            <Icon className="h-10 w-10 mx-auto mb-3 opacity-40" style={{ color: meta.color }} />
             <h3 className="font-semibold mb-1">No {meta.label.toLowerCase()} yet</h3>
             <p className="text-sm text-muted-foreground mb-4">Add your first entry to start tracking.</p>
-            <Button onClick={() => setEditing(blank())}><Plus className="h-4 w-4" /> Add now</Button>
-          </Card>
+            <Button onClick={() => setEditing(blank())} size="sm"><Plus className="h-4 w-4" /> Add now</Button>
+          </div>
         ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
+                <th className="px-5 py-3">{category === "liabilities" ? "Liability" : "Account"}</th>
+                <th className="px-3 py-3">Type</th>
+                <th className="px-3 py-3">{category === "liabilities" ? "Balance" : "Currency"}</th>
+                <th className="px-3 py-3 text-right">{category === "liabilities" ? "Rate" : "Balance"}</th>
+                <th className="px-3 py-3 text-right">{category === "liabilities" ? "Term" : "Δ 30d"}</th>
+                <th className="px-3 py-3 text-right">{category === "liabilities" ? "Payment" : "Δ %"}</th>
+                <th className="px-5 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {accounts.map((a) => {
+                const v = Number(a.manual_value) || 0;
+                const typeLabel = a.subcategory
+                  || (a.details?.account_type as string)
+                  || (a.details?.property_type as string)
+                  || (a.details?.vehicle_type as string)
+                  || (a.details?.collectible_type as string)
+                  || (a.details?.debt_type as string)
+                  || "—";
+                const gain = a.purchase_price ? v - Number(a.purchase_price) : 0;
+                const gainPct = a.purchase_price ? (gain / Number(a.purchase_price)) * 100 : 0;
+                return (
+                  <tr key={a.id} className={`hover:bg-muted/30 transition-colors ${!a.include_in_total ? "opacity-50" : ""}`}>
+                    <td className="px-5 py-4">
+                      <div className="font-medium">{a.name}</div>
+                      {a.notes && <div className="text-xs text-muted-foreground truncate max-w-xs">{a.notes}</div>}
+                    </td>
+                    <td className="px-3 py-4 text-muted-foreground">{typeLabel}</td>
+                    {category === "liabilities" ? (
+                      <>
+                        <td className="px-3 py-4 tabular-nums">{fmt(v, a.currency)}</td>
+                        <td className="px-3 py-4 text-right tabular-nums">{a.details?.interest_rate != null ? `${a.details.interest_rate}%` : "—"}</td>
+                        <td className="px-3 py-4 text-right tabular-nums text-xs text-muted-foreground">{a.details?.maturity_date || "—"}</td>
+                        <td className="px-3 py-4 text-right tabular-nums">{a.details?.monthly_payment ? `${fmt(a.details.monthly_payment, a.currency)}/mo` : "—"}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-4 text-muted-foreground">{a.currency}</td>
+                        <td className="px-3 py-4 text-right tabular-nums font-medium">{fmt(v, a.currency)}</td>
+                        <td className={`px-3 py-4 text-right tabular-nums ${gain >= 0 ? "text-success" : "text-destructive"}`}>
+                          {a.purchase_price ? `${gain >= 0 ? "+" : ""}${fmt(gain, a.currency)}` : "—"}
+                        </td>
+                        <td className={`px-3 py-4 text-right tabular-nums ${gain >= 0 ? "text-success" : "text-destructive"}`}>
+                          {a.purchase_price ? `${gain >= 0 ? "+" : ""}${gainPct.toFixed(1)}%` : "—"}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-5 py-4 text-right">
+                      <div className="inline-flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(a)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(a.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
+      {/* Tax & amortization details inline for assets with cost basis */}
+      {(supportsAmortization || ["investments", "crypto"].includes(category!)) && accounts.some((a) => a.purchase_price && a.purchase_date) && (
+        <Card className="p-5">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
+            <Calculator className="h-4 w-4" /> Tax & amortization · {taxResidency}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {accounts.map((a) => (
-              <Card key={a.id} className="p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{a.name}</h3>
-                    {a.subcategory && <p className="text-xs text-muted-foreground">{a.subcategory}</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-bold tabular-nums">{fmt(Number(a.manual_value), a.currency)}</p>
-                    {!a.include_in_total && <Badge variant="outline" className="text-[10px]">excluded</Badge>}
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  {meta.fields.map((f) => {
-                    const v = a.details?.[f.key];
-                    if (v === undefined || v === null || v === "") return null;
-                    return (
-                      <div key={f.key} className="flex justify-between gap-2 truncate">
-                        <span className="text-muted-foreground">{f.label}</span>
-                        <span className="font-medium truncate">{String(v)}</span>
-                      </div>
-                    );
-                  })}
-                  {a.purchase_price ? (
-                    <div className="flex justify-between gap-2"><span className="text-muted-foreground">Purchase price</span><span className="font-medium">{fmt(a.purchase_price, a.currency)}</span></div>
-                  ) : null}
-                  {a.purchase_date ? (
-                    <div className="flex justify-between gap-2"><span className="text-muted-foreground">Purchase date</span><span className="font-medium">{a.purchase_date}</span></div>
-                  ) : null}
-                  {a.purchase_price && a.manual_value ? (() => {
-                    const gain = Number(a.manual_value) - Number(a.purchase_price);
-                    const pct = (gain / Number(a.purchase_price)) * 100;
-                    return (
-                      <div className="flex justify-between gap-2 col-span-2 pt-1 mt-1 border-t border-border">
-                        <span className="text-muted-foreground">Unrealised P/L</span>
-                        <span className={`font-semibold ${gain >= 0 ? "text-success" : "text-destructive"}`}>
-                          {gain >= 0 ? "+" : ""}{fmt(gain, a.currency)} ({pct.toFixed(1)}%)
-                        </span>
-                      </div>
-                    );
-                  })() : null}
-                </div>
-
-                {a.notes && <p className="mt-3 text-xs text-muted-foreground italic line-clamp-2">"{a.notes}"</p>}
-
-                <div className="mt-3 flex justify-end gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(a)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-                </div>
-
-                {/* Tax & amortization preview */}
-                {(supportsAmortization || ["investments","crypto"].includes(category!)) && a.purchase_price && a.purchase_date && (
-                  <TaxAmortPanel
-                    category={category!}
-                    country={taxResidency}
-                    purchasePrice={Number(a.purchase_price)}
-                    purchaseDate={a.purchase_date!}
-                    currentValue={Number(a.manual_value)}
-                    currency={a.currency}
-                  />
-                )}
-              </Card>
+            {accounts.filter((a) => a.purchase_price && a.purchase_date).map((a) => (
+              <div key={a.id} className="border border-border rounded-lg p-3">
+                <p className="font-medium text-sm mb-1">{a.name}</p>
+                <TaxAmortPanel
+                  category={category!}
+                  country={taxResidency}
+                  purchasePrice={Number(a.purchase_price)}
+                  purchaseDate={a.purchase_date!}
+                  currentValue={Number(a.manual_value)}
+                  currency={a.currency}
+                />
+              </div>
             ))}
           </div>
-        )}
-      </main>
+        </Card>
+      )}
 
       {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

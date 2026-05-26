@@ -1023,3 +1023,115 @@ function ForceReconsentDialog({ onConfirm }: { onConfirm: (version: string, reas
     </Dialog>
   );
 }
+
+function PanicModeCard({ active, onPanic, onLift }: { active: boolean; onPanic: (reason: string) => void | Promise<unknown>; onLift: (reason: string) => void | Promise<unknown> }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [phrase, setPhrase] = useState("");
+  return (
+    <Card className="p-4 border-destructive bg-destructive/10 flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start gap-3">
+        <Zap className="h-5 w-5 text-destructive mt-0.5" />
+        <div>
+          <div className="font-semibold text-destructive">Panic mode</div>
+          <p className="text-xs text-muted-foreground max-w-md">Flips every critical kill switch at once: maintenance, AI signals, live trading, emails, signups and data feeds.</p>
+        </div>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant={active ? "outline" : "destructive"} className="gap-2"><Zap className="h-3.5 w-3.5" />{active ? "Lift panic mode" : "Activate panic mode"}</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{active ? "Lift panic mode" : "Activate PANIC MODE"}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{active ? "This re-enables platform-wide services." : "Every user is locked out within seconds. Use only for true emergencies."}</p>
+          <Textarea placeholder="Reason (mandatory, recorded in incident log)" value={reason} onChange={(e) => setReason(e.target.value)} />
+          {!active && <Input placeholder={`Type "PANIC" to confirm`} value={phrase} onChange={(e) => setPhrase(e.target.value)} />}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="destructive" disabled={!reason || (!active && phrase !== "PANIC")} onClick={() => { active ? onLift(reason) : onPanic(reason); setOpen(false); setPhrase(""); setReason(""); }}>{active ? "Lift" : "PANIC"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+function BulkRetractCard({ onSubmit }: { onSubmit: (symbol: string, since: string, reason: string) => void | Promise<unknown> }) {
+  const [symbol, setSymbol] = useState("");
+  const [since, setSince] = useState("");
+  const [reason, setReason] = useState("");
+  return (
+    <Card className="p-4 space-y-2 border-amber-400/40">
+      <h3 className="font-semibold text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Bulk retract by symbol</h3>
+      <p className="text-[11px] text-muted-foreground">Retracts every non-retracted signal on a ticker since a given date and notifies affected users.</p>
+      <div className="grid md:grid-cols-3 gap-2">
+        <Input placeholder="Symbol (e.g. UCG.MI)" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
+        <Input type="date" value={since} onChange={(e) => setSince(e.target.value)} />
+        <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" variant="destructive" disabled={!symbol || !reason} onClick={() => { onSubmit(symbol, since ? new Date(since).toISOString() : "", reason); setSymbol(""); setSince(""); setReason(""); }}>Retract all & notify</Button>
+      </div>
+    </Card>
+  );
+}
+
+function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestErasure }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void }) {
+  if (!user) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="relative w-full max-w-xl bg-background border-l border-border overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background/95 backdrop-blur border-b border-border p-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">{user.email}</h2>
+            <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+        </div>
+        {!data && <p className="text-xs text-muted-foreground p-6 text-center">Loading…</p>}
+        {data && (
+          <div className="p-4 space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-2">
+              <DetailKv label="Created" value={new Date(data.auth?.created_at || user.created_at).toLocaleString()} />
+              <DetailKv label="Last sign-in" value={data.auth?.last_sign_in_at ? new Date(data.auth.last_sign_in_at).toLocaleString() : "—"} />
+              <DetailKv label="Provider" value={(data.auth?.app_metadata?.provider) || "—"} />
+              <DetailKv label="Roles" value={(data.roles || []).join(", ") || "viewer"} />
+              <DetailKv label="Country" value={data.profile?.country_residence || "—"} />
+              <DetailKv label="Suspended" value={data.suspension ? "yes" : "no"} />
+            </div>
+            <DetailSection title={`Portfolios (${data.portfolios?.length || 0})`}>
+              {(data.portfolios || []).map((p: any) => <div key={p.id} className="flex justify-between border-b border-border/40 py-1"><span>{p.name}</span><span className="text-muted-foreground">{p.base_currency}</span></div>)}
+            </DetailSection>
+            <DetailSection title={`Holdings (${data.holdings?.length || 0})`}>
+              {(data.holdings || []).slice(0,10).map((h: any) => <div key={h.id} className="flex justify-between border-b border-border/40 py-1"><span className="font-mono">{h.symbol}</span><span className="text-muted-foreground">{h.shares} × {h.avg_price}</span></div>)}
+            </DetailSection>
+            <DetailSection title={`Brokers (${data.brokers?.length || 0})`}>
+              {(data.brokers || []).map((b: any) => <div key={b.id} className="flex justify-between border-b border-border/40 py-1"><span>{b.institution || b.source}</span><span className="text-muted-foreground">{b.currency} {b.total_value}</span></div>)}
+            </DetailSection>
+            <DetailSection title={`Recent AI signals (${data.signals?.length || 0})`}>
+              {(data.signals || []).slice(0,10).map((s: any) => <div key={s.id} className="flex justify-between border-b border-border/40 py-1"><span>{s.signal_type} <span className="font-mono">{s.symbol}</span></span><Badge variant="outline" className="text-[9px]">{s.status}</Badge></div>)}
+            </DetailSection>
+            <DetailSection title={`Recent orders (${data.orders?.length || 0})`}>
+              {(data.orders || []).slice(0,10).map((o: any) => <div key={o.id} className="flex justify-between border-b border-border/40 py-1"><span>{o.side} {o.qty} <span className="font-mono">{o.symbol}</span></span><Badge variant="outline" className="text-[9px]">{o.status}</Badge></div>)}
+            </DetailSection>
+            <DetailSection title={`Consents (${data.consents?.length || 0})`}>
+              {(data.consents || []).slice(0,5).map((c: any) => <div key={c.id} className="flex justify-between border-b border-border/40 py-1"><span>{new Date(c.accepted_at).toLocaleDateString()}</span><span className="font-mono text-muted-foreground">T&C {c.tos_version} / Priv {c.privacy_version}</span></div>)}
+            </DetailSection>
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => { const p = prompt("Purpose for impersonation (audited):"); if (p) onImpersonate(p); }}><Eye className="h-3.5 w-3.5" />Impersonate (audit)</Button>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => act("force_password_reset", { email: user.email })}><Shield className="h-3.5 w-3.5" />Send password reset</Button>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => { const r = prompt("Reason for erasure request (30-day grace):"); if (r) onRequestErasure(r); }}><Clock className="h-3.5 w-3.5" />Request erasure</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+function DetailKv({ label, value }: { label: string; value: string }) {
+  return <div><div className="text-[9px] uppercase text-muted-foreground tracking-wider">{label}</div><div className="font-medium">{value}</div></div>;
+}
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div><h4 className="font-semibold text-xs mb-1">{title}</h4><div className="max-h-40 overflow-auto">{children}</div></div>;
+}

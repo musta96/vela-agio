@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -256,12 +255,8 @@ const Settings = () => {
   const keyMissing = !!needsKey && !hints[needsKey];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6 max-w-5xl">
       <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, preferences, notification settings, and connected integrations for Vela.ai." path="/settings" />
-      <TopNav />
-      <main>
-
-      <div className="container mx-auto px-6 py-8 max-w-5xl">
         <PageHeader
           icon={KeyRound}
           title="Settings & Connectors"
@@ -422,8 +417,6 @@ const Settings = () => {
             );
           })}
         </Tabs>
-      </div>
-    </main>
     </div>
   );
 };

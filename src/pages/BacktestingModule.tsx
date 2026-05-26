@@ -12,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
@@ -201,22 +200,18 @@ const BacktestingModule = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Strategy Backtesting — Test Trading Strategies on Historical Data" description="Backtest custom trading strategies on FTSE MIB, EU, and US stocks. Measure returns, drawdown, Sharpe ratio, and benchmark performance." path="/backtest" />
-      <TopNav />
-      <main>
-
-      <div className="container mx-auto px-6 py-8">
-        <PageHeader
+      <PageHeader
           icon={Target}
           title="Strategy Backtesting"
           description="Test trading strategies on a single stock or your portfolio with real historical data."
         />
         <AiDisclaimerStrip variant="data" />
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid lg:grid-cols-3 gap-6">
           {/* Config */}
-          <Card className="card-gradient border-border">
+          <Card>
             <CardHeader>
               <CardTitle>Setup</CardTitle>
               <CardDescription>Pick what to backtest, then choose a strategy.</CardDescription>
@@ -319,14 +314,14 @@ const BacktestingModule = () => {
           {/* Results */}
           <div className="lg:col-span-2">
             {!result && !running && (
-              <Card className="p-12 text-center card-gradient border-border h-full flex flex-col items-center justify-center">
+              <Card className="p-12 text-center h-full flex flex-col items-center justify-center">
                 <Target className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No backtest yet</h3>
                 <p className="text-muted-foreground">Select a stock or your portfolio, pick a strategy, then click Run Backtest.</p>
               </Card>
             )}
             {running && (
-              <Card className="p-12 text-center card-gradient border-border h-full flex flex-col items-center justify-center">
+              <Card className="p-12 text-center h-full flex flex-col items-center justify-center">
                 <BarChart3 className="h-12 w-12 text-primary mb-4 animate-pulse" />
                 <p className="text-muted-foreground">Fetching historical bars and simulating strategy…</p>
               </Card>
@@ -352,7 +347,7 @@ const BacktestingModule = () => {
                   </DropdownMenu>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Card className="card-gradient border-border">
+                  <Card>
                     <CardContent className="pt-4">
                       <p className="text-xs text-muted-foreground">Strategy Return</p>
                       <p className={`text-2xl font-bold ${result.metrics.totalReturn >= 0 ? "text-success" : "text-destructive"}`}>
@@ -360,7 +355,7 @@ const BacktestingModule = () => {
                       </p>
                     </CardContent>
                   </Card>
-                  <Card className="card-gradient border-border">
+                  <Card>
                     <CardContent className="pt-4">
                       <p className="text-xs text-muted-foreground truncate" title={benchLabel}>{benchShort}</p>
                       <p className={`text-2xl font-bold ${result.metrics.benchReturn >= 0 ? "text-success" : "text-destructive"}`}>
@@ -368,13 +363,13 @@ const BacktestingModule = () => {
                       </p>
                     </CardContent>
                   </Card>
-                  <Card className="card-gradient border-border">
+                  <Card>
                     <CardContent className="pt-4">
                       <p className="text-xs text-muted-foreground">Sharpe</p>
                       <p className="text-2xl font-bold">{result.metrics.sharpe.toFixed(2)}</p>
                     </CardContent>
                   </Card>
-                  <Card className="card-gradient border-border">
+                  <Card>
                     <CardContent className="pt-4">
                       <p className="text-xs text-muted-foreground">Max Drawdown</p>
                       <p className="text-2xl font-bold text-destructive">{result.metrics.maxDrawdown.toFixed(2)}%</p>
@@ -382,7 +377,7 @@ const BacktestingModule = () => {
                   </Card>
                 </div>
 
-                <Card className="card-gradient border-border">
+                <Card>
                   <CardHeader>
                     <CardTitle>Equity Curve</CardTitle>
                     <CardDescription>Strategy vs {benchLabel}</CardDescription>
@@ -414,7 +409,7 @@ const BacktestingModule = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="card-gradient border-border">
+                <Card>
                   <CardHeader>
                     <CardTitle>Trade Log ({result.trades.length})</CardTitle>
                     <CardDescription>Win rate: {result.metrics.winRate.toFixed(0)}% · {result.metrics.winningTrades}/{Math.floor(result.metrics.totalTrades/2)} winning pairs</CardDescription>
@@ -444,8 +439,6 @@ const BacktestingModule = () => {
             )}
           </div>
         </div>
-      </div>
-    </main>
     </div>
   );
 };

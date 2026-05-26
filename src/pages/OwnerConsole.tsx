@@ -24,6 +24,14 @@ type Banner = { id: string; message: string; severity: "info"|"warning"|"critica
 type Signal = { id: string; user_id: string | null; signal_type: string; symbol: string | null; status: string; confidence: number | null; created_at: string; disclaimer: string | null; retracted_reason: string | null };
 type Flag = { key: string; label: string; description: string | null; category: string; enabled: boolean };
 type Incident = { id: number; ts: string; actor_email: string | null; category: string; action: string; reason: string | null };
+type Consent = { id: string; user_id: string; tos_version: string; privacy_version: string; marketing_opt_in: boolean; accepted_at: string };
+type AuditEntry = { id: number; ts: string; actor_email: string | null; action: string; entity: string | null; entity_id: string | null; payload: any };
+type AiConfig = {
+  min_confidence?: number;
+  ticker_blacklist?: string[];
+  mandatory_disclaimers?: Record<string, string>;
+  rate_limits?: { free?: number; pro?: number; team?: number };
+};
 
 const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
   { key: "maintenance_mode", label: "Maintenance mode", description: "Lock the entire platform. Only admins keep access." },
@@ -36,7 +44,7 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[] } | null>(null);
+  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[] } | null>(null);
   const [q, setQ] = useState("");
 
   const load = useCallback(async () => {
@@ -61,9 +69,35 @@ export default function OwnerConsole() {
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading owner console…</div>
     );
   }
-  const { stats, users, controls, banners, signals, incidents, flags, recentAudit } = data;
+  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [] } = data;
   const filteredUsers = users.filter((u) => !q || u.email?.toLowerCase().includes(q.toLowerCase()));
   const controlByKey = (k: string) => controls.find((c) => c.key === k);
+  const aiConfig: AiConfig = ((controls.find((c) => c.key === "ai_config") as any)?.value) || {};
+
+  const downloadAuditCsv = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/owner-console`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ action: "export_audit_csv" }),
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `audit-log-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportUserData = async (user_id: string, email: string) => {
+    const { data: res, error } = await supabase.functions.invoke("owner-console", { body: { action: "export_user_data", user_id } });
+    if (error || !res?.bundle) return toast.error("Export failed");
+    const blob = new Blob([JSON.stringify(res.bundle, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `gdpr-export-${email}.json`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export ready");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,6 +160,7 @@ export default function OwnerConsole() {
 
           {/* ---------- AI governance ---------- */}
           <TabsContent value="ai" className="mt-4 space-y-3">
+            <AiGovernanceConfig config={aiConfig} onSave={(value) => act("set_ai_config", { value })} />
             <Card className="p-4">
               <h3 className="font-semibold flex items-center gap-2"><Bot className="h-4 w-4" /> AI signal log</h3>
               <p className="text-xs text-muted-foreground">Every AI output served to a user. Retract anything that shouldn't be live.</p>
@@ -186,7 +221,7 @@ export default function OwnerConsole() {
                           : <Badge variant="outline" className="text-[10px]">unverified</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <UserActionsMenu user={u} act={act} />
+                        <UserActionsMenu user={u} act={act} onExport={() => exportUserData(u.id, u.email)} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -248,9 +283,12 @@ export default function OwnerConsole() {
 
           {/* ---------- Audit & incidents ---------- */}
           <TabsContent value="audit" className="mt-4 space-y-3">
-            <Card className="p-4">
-              <h3 className="font-semibold mb-1 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" /> Incident log</h3>
-              <p className="text-xs text-muted-foreground">Owner emergency actions. Immutable.</p>
+            <Card className="p-4 flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="font-semibold mb-1 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" /> Incident & audit logs</h3>
+                <p className="text-xs text-muted-foreground">Immutable record of every admin action. Export for CONSOB / FCA / SEC inquiries.</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Export audit log (CSV)</Button>
             </Card>
             <Card>
               <Table>
@@ -272,16 +310,17 @@ export default function OwnerConsole() {
               </Table>
             </Card>
             <Card className="p-4">
-              <h3 className="font-semibold mb-2 text-sm">Recent admin actions</h3>
-              <div className="space-y-1">
-                {(recentAudit || []).slice(0, 20).map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground">{new Date(a.ts).toLocaleTimeString()}</span>
-                    <span>{a.actor_email}</span>
+              <h3 className="font-semibold mb-2 text-sm">Audit log ({audit.length})</h3>
+              <div className="space-y-1 max-h-[480px] overflow-auto">
+                {audit.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 text-xs border-b border-border/40 py-1.5">
+                    <span className="text-muted-foreground tabular-nums">{new Date(a.ts).toLocaleString()}</span>
+                    <span className="truncate max-w-[160px]">{a.actor_email}</span>
                     <Badge variant="outline" className="text-[10px]">{a.action}</Badge>
-                    <span className="text-muted-foreground">{a.entity}</span>
+                    <span className="text-muted-foreground truncate">{a.entity}{a.entity_id ? `/${a.entity_id.slice(0,8)}` : ""}</span>
                   </div>
                 ))}
+                {audit.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No audit entries yet.</p>}
               </div>
             </Card>
           </TabsContent>
@@ -290,15 +329,38 @@ export default function OwnerConsole() {
           <TabsContent value="compliance" className="mt-4 space-y-3">
             <Card className="p-5 space-y-2">
               <h3 className="font-semibold flex items-center gap-2"><Scale className="h-4 w-4" /> GDPR & regulatory tools</h3>
-              <p className="text-xs text-muted-foreground">Use the user actions (in the Users tab) to fulfil access, portability, and right-to-erasure requests. All actions are written to the immutable incident log.</p>
+              <p className="text-xs text-muted-foreground">Access (Art. 15) & portability (Art. 20) via per-user export. Erasure (Art. 17) via the Users tab. All actions are written to the immutable incident log.</p>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" disabled className="gap-2"><FileDown className="h-3.5 w-3.5" /> Export MiFID II report (soon)</Button>
-                <Button variant="outline" size="sm" disabled className="gap-2"><FileDown className="h-3.5 w-3.5" /> Export CONSOB pack (soon)</Button>
+                <Button variant="outline" size="sm" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Audit log CSV (regulator-ready)</Button>
+                <ForceReconsentDialog onConfirm={(version, reason) => act("force_reconsent", { version, reason })} />
               </div>
             </Card>
-            <Card className="p-5 space-y-2">
-              <h3 className="font-semibold text-sm">Consent versions</h3>
-              <p className="text-xs text-muted-foreground">Force users to re-accept the latest terms by bumping the version in <code className="text-[10px]">src/lib/legal-versions.ts</code> — the consent banner will reappear automatically on next visit.</p>
+            <Card>
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-sm">Consent ledger ({consents.length})</h3>
+                <p className="text-xs text-muted-foreground">Per-user record of accepted T&C / Privacy versions — auditable for regulators.</p>
+              </div>
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>When</TableHead><TableHead>User</TableHead><TableHead>T&C</TableHead><TableHead>Privacy</TableHead><TableHead>Marketing</TableHead><TableHead>IP</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {consents.slice(0, 100).map((c) => {
+                    const u = users.find(x => x.id === c.user_id);
+                    return (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-xs text-muted-foreground">{new Date(c.accepted_at).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs">{u?.email || c.user_id.slice(0, 8)}</TableCell>
+                        <TableCell className="text-xs font-mono">{c.tos_version}</TableCell>
+                        <TableCell className="text-xs font-mono">{c.privacy_version}</TableCell>
+                        <TableCell className="text-xs">{c.marketing_opt_in ? "yes" : "—"}</TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground font-mono">{(c as any).ip || "—"}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {consents.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No consents recorded yet.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
             </Card>
           </TabsContent>
 
@@ -408,7 +470,7 @@ function BannerComposer({ onCreate }: { onCreate: (message: string, severity: "i
   );
 }
 
-function UserActionsMenu({ user, act }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean> }) {
+function UserActionsMenu({ user, act, onExport }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onExport: () => void }) {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [reason, setReason] = useState("");
   const isAdmin = user.roles?.includes("admin");
@@ -418,6 +480,7 @@ function UserActionsMenu({ user, act }: { user: UserRow; act: (a: string, p?: Re
         ? <Button size="sm" variant="outline" onClick={() => act("unsuspend_user", { user_id: user.id })}>Unsuspend</Button>
         : <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("suspend_user", { user_id: user.id, reason: "Owner action" })}><Ban className="h-3.5 w-3.5" /> Suspend</Button>}
       <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("force_password_reset", { email: user.email })}><Shield className="h-3.5 w-3.5" /> Reset pw</Button>
+      <Button size="sm" variant="ghost" className="gap-1" onClick={onExport}><FileDown className="h-3.5 w-3.5" /> Export</Button>
       {isAdmin
         ? <Button size="sm" variant="ghost" onClick={() => act("revoke_role", { user_id: user.id, role: "admin" })}>Revoke admin</Button>
         : <Button size="sm" variant="ghost" onClick={() => act("grant_role", { user_id: user.id, role: "admin" })}>Make admin</Button>}
@@ -434,5 +497,85 @@ function UserActionsMenu({ user, act }: { user: UserRow; act: (a: string, p?: Re
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function AiGovernanceConfig({ config, onSave }: { config: AiConfig; onSave: (value: AiConfig) => void }) {
+  const [minConf, setMinConf] = useState<string>(String(config.min_confidence ?? 0.6));
+  const [blacklist, setBlacklist] = useState<string>((config.ticker_blacklist || []).join(", "));
+  const [disclaimers, setDisclaimers] = useState<string>(JSON.stringify(config.mandatory_disclaimers || { briefing: "Not investment advice.", trade_signal: "Not investment advice. Do your own research." }, null, 2));
+  const [rateFree, setRateFree] = useState<string>(String(config.rate_limits?.free ?? 5));
+  const [ratePro, setRatePro] = useState<string>(String(config.rate_limits?.pro ?? 50));
+  const [rateTeam, setRateTeam] = useState<string>(String(config.rate_limits?.team ?? 500));
+  const save = () => {
+    let parsedDisclaimers: Record<string, string> = {};
+    try { parsedDisclaimers = JSON.parse(disclaimers); } catch { toast.error("Disclaimers must be valid JSON"); return; }
+    onSave({
+      min_confidence: Number(minConf) || 0,
+      ticker_blacklist: blacklist.split(",").map(t => t.trim().toUpperCase()).filter(Boolean),
+      mandatory_disclaimers: parsedDisclaimers,
+      rate_limits: { free: Number(rateFree) || 0, pro: Number(ratePro) || 0, team: Number(rateTeam) || 0 },
+    });
+  };
+  return (
+    <Card className="p-5 space-y-4">
+      <div>
+        <h3 className="font-semibold flex items-center gap-2"><Bot className="h-4 w-4" /> AI signal governance</h3>
+        <p className="text-xs text-muted-foreground">Liability surface. Every knob is read by the AI gateway on each request.</p>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Minimum confidence (0–1)</label>
+          <Input value={minConf} onChange={(e) => setMinConf(e.target.value)} placeholder="0.6" />
+          <p className="text-[10px] text-muted-foreground">Signals below this are suppressed before reaching users.</p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Ticker blacklist (comma-separated)</label>
+          <Input value={blacklist} onChange={(e) => setBlacklist(e.target.value)} placeholder="GME, AMC, ..." />
+          <p className="text-[10px] text-muted-foreground">No AI signals will be generated for these instruments.</p>
+        </div>
+        <div className="space-y-1.5 md:col-span-2">
+          <label className="text-xs font-medium">Mandatory disclaimers per signal type (JSON)</label>
+          <Textarea value={disclaimers} onChange={(e) => setDisclaimers(e.target.value)} className="font-mono text-xs min-h-[120px]" />
+          <p className="text-[10px] text-muted-foreground">Keys are signal_type names; values are appended to every output of that type.</p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Rate limit / user / day — Free</label>
+          <Input value={rateFree} onChange={(e) => setRateFree(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Rate limit — Pro</label>
+          <Input value={ratePro} onChange={(e) => setRatePro(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Rate limit — Team</label>
+          <Input value={rateTeam} onChange={(e) => setRateTeam(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={save}>Save AI config</Button>
+      </div>
+    </Card>
+  );
+}
+
+function ForceReconsentDialog({ onConfirm }: { onConfirm: (version: string, reason: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [version, setVersion] = useState(new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button size="sm" variant="outline" className="gap-2"><Scale className="h-3.5 w-3.5" />Force re-consent</Button></DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Force all users to re-accept legal terms</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Bumps the required consent version. On next visit, every user will see the consent banner again until they accept.</p>
+        <Input placeholder="Version (e.g. 2026-05-26)" value={version} onChange={(e) => setVersion(e.target.value)} />
+        <Textarea placeholder="Reason (recorded in incident log)" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => { onConfirm(version, reason); setOpen(false); }}>Publish</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

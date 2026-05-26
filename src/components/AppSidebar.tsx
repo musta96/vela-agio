@@ -215,13 +215,18 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="py-3">
         <NavGroup label="Markets" items={MARKETS} />
-        <NavGroup label="My Wealth" items={MY_WEALTH_TOP} />
         <SidebarGroup>
+          {!collapsed && (
+            <SidebarGroupLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 px-4">
+              My Wealth
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
+            <InlineItems items={MY_WEALTH_TOP} />
             <NetWorthCollapsible />
+            <InlineItems items={MY_WEALTH_BOTTOM} />
           </SidebarGroupContent>
         </SidebarGroup>
-        <NavGroup label=" " items={MY_WEALTH_BOTTOM} />
         <NavGroup label="Lab" items={LAB} />
         <NavGroup label="More" items={MORE} />
         {isOwner && (

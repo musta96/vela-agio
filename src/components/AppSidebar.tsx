@@ -20,22 +20,19 @@ type Item = { title: string; url: string; icon: React.ComponentType<{ className?
 
 const MARKETS: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Macro", url: "/macro", icon: Globe2 },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
   { title: "Screener", url: "/screener", icon: Filter },
-  { title: "Macro", url: "/macro", icon: Globe2 },
-  { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+  { title: "Signals", url: "/alerts", icon: Bell, badge: "3" },
 ];
 
 const MY_WEALTH_TOP: Item[] = [
   { title: "Portfolio", url: "/portfolio", icon: Briefcase },
   { title: "Orders", url: "/orders", icon: History },
+  { title: "Tax", url: "/tax-harvest", icon: Wallet },
 ];
 
-const MY_WEALTH_BOTTOM: Item[] = [
-  { title: "Goals", url: "/goals", icon: Target },
-  { title: "Risk engine", url: "/risk", icon: ShieldAlert },
-  { title: "Tax harvest", url: "/tax-harvest", icon: Wallet },
-];
+const MY_WEALTH_BOTTOM: Item[] = [];
 
 const NET_WORTH_SUB: Item[] = [
   { title: "Overview", url: "/net-worth", icon: WalletIcon },
@@ -52,17 +49,19 @@ const NET_WORTH_SUB: Item[] = [
 ];
 
 const LAB: Item[] = [
-  { title: "Idea Lab", url: "/picks", icon: Sparkles },
-  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
-  { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
-  { title: "Research Copilot", url: "/copilot", icon: Bot },
   { title: "Backtesting", url: "/backtest", icon: Repeat },
-  { title: "Related Graph", url: "/related", icon: Network, badge: "new" },
-  { title: "Deal flow", url: "/dealflow", icon: Handshake, badge: "new" },
-  { title: "Alerts", url: "/alerts", icon: Bell },
+  { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
+  { title: "AI Assistant", url: "/copilot", icon: Sparkles },
 ];
 
 const MORE: Item[] = [
+  { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+  { title: "Idea Lab", url: "/picks", icon: Sparkles },
+  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
+  { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
+  { title: "Related Graph", url: "/related", icon: Network },
+  { title: "Deal flow", url: "/dealflow", icon: Handshake },
+  { title: "Goals", url: "/goals", icon: Target },
   { title: "Onboarding", url: "/onboarding", icon: GraduationCap },
   { title: "Learn", url: "/learn", icon: BookOpen },
   { title: "Methodology", url: "/methodology", icon: ScrollText },

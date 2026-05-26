@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, History, RefreshCw } from "lucide-react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -89,19 +89,18 @@ export default function OrderHistory() {
   const clearFilters = () => { setSymbol(""); setStatus("all"); setBroker("all"); setFrom(undefined); setTo(undefined); };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Order & Trade History — Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
-      <TopNav />
-      <main className="container mx-auto px-4 py-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold"><History className="h-6 w-6" /> Order &amp; Trade History</h1>
-            <p className="text-sm text-muted-foreground">Live broker orders submitted via the confirm-modal flow.</p>
-          </div>
+      <PageHeader
+        icon={History}
+        title="Orders"
+        description="Live broker orders submitted via the confirm-modal flow."
+        actions={
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Refresh
           </Button>
-        </div>
+        }
+      />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Total</div><div className="text-2xl font-semibold">{stats.total}</div></CardContent></Card>
@@ -199,7 +198,6 @@ export default function OrderHistory() {
             </Table>
           </CardContent>
         </Card>
-      </main>
     </div>
   );
 }

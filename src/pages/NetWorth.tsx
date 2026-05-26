@@ -12,8 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
@@ -258,19 +258,14 @@ const NetWorth = () => {
     .map((k) => ({ name: CATEGORIES[k].label, value: totals.byCat[k], color: CATEGORIES[k].color, key: k }));
 
   return (
-    <div className="min-h-screen bg-background">
-        <SEO title="Net Worth Tracker — Vela.ai" description="Track every asset and liability in one customisable dashboard." path="/net-worth" />
-      <TopNav />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Net Worth</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              A complete picture of what you own and what you owe — live-linked to your Vela portfolios.
-            </p>
-          </div>
-          <div className="flex gap-2">
+    <div className="p-6 sm:p-8 space-y-6">
+      <SEO title="Net Worth Tracker — Vela.ai" description="Track every asset and liability in one customisable dashboard." path="/net-worth" />
+      <PageHeader
+        icon={Wallet}
+        title="Net Worth"
+        description="A complete picture of what you own and what you owe — live-linked to your Vela portfolios."
+        actions={
+          <>
             <Button variant="outline" size="sm" onClick={refreshQuotes} disabled={quotesLoading}>
               <RefreshCw className={`h-4 w-4 ${quotesLoading ? "animate-spin" : ""}`} /> Refresh prices
             </Button>
@@ -280,8 +275,9 @@ const NetWorth = () => {
             <Button size="sm" onClick={() => setEditing({ category: "cash", currency: "EUR", include_in_total: true, manual_value: 0, linked_portfolio_ids: [] })}>
               <Plus className="h-4 w-4" /> Add account
             </Button>
-          </div>
-        </div>
+          </>
+        }
+      />
 
         {/* KPI cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -548,7 +544,6 @@ const NetWorth = () => {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
 
       {/* Edit / Add account dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

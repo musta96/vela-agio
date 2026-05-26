@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Search, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { Search, Loader2, ExternalLink, Sparkles, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
@@ -82,14 +83,14 @@ const Screener = () => {
   const fmtCap = (v?: number) => (v == null ? "—" : v > 1e9 ? `${(v / 1e9).toFixed(1)}B` : `${(v / 1e6).toFixed(0)}M`);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Natural-Language Stock Screener — Powered by AI" description="Describe what you want in plain English. AI translates your query into filters and screens stocks across global markets in seconds." path="/screener" />
-      <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2"><Sparkles className="h-7 w-7 text-primary" /> AI Stock Screener</h1>
-          <p className="text-muted-foreground mt-1">Describe what you're looking for. AI translates it into filters and ranks the results.</p>
-        </div>
+      <PageHeader
+        icon={Filter}
+        title="AI Stock Screener"
+        description="Describe what you're looking for in plain English. AI translates it into filters and ranks the results."
+      />
+      <AiDisclaimerStrip />
 
         <Card>
           <CardHeader className="pb-3">
@@ -194,7 +195,6 @@ const Screener = () => {
             </CardContent>
           </Card>
         )}
-      </main>
     </div>
   );
 };

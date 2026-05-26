@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -137,22 +137,17 @@ const Risk = () => {
   const fmtPct = (v: number, d = 2) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO
         title="Portfolio Risk Engine — VaR, Stress Tests, Factor Exposure"
         description="Pro-grade risk analytics for your portfolio: VaR, CVaR, Monte Carlo stress, factor exposure, concentration, and beta."
         path="/risk"
       />
-      <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <ShieldAlert className="h-7 w-7 text-primary" /> Portfolio Risk Engine
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Value-at-Risk, stress tests, factor exposure, and concentration analysis for your live portfolio.
-          </p>
-        </div>
+      <PageHeader
+        icon={ShieldAlert}
+        title="Portfolio Risk Engine"
+        description="Value-at-Risk, stress tests, factor exposure, and concentration analysis for your live portfolio."
+      />
 
         {holdings.length === 0 ? (
           <Card>
@@ -320,7 +315,6 @@ const Risk = () => {
             </Card>
           </>
         )}
-      </main>
     </div>
   );
 };

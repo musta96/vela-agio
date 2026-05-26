@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,11 +79,14 @@ export default function TaxHarvest() {
   const sym = jur.currency === "EUR" ? "€" : jur.currency === "GBP" ? "£" : jur.currency === "USD" ? "$" : jur.currency + " ";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Tax-Loss Harvesting | Vela.ai" description="Realise losses to offset capital gains" path="/tax-harvest" />
-      <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Receipt className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.taxHarvest.title")}</h1></div>
+      <PageHeader
+        icon={Receipt}
+        title={t("pages.taxHarvest.title")}
+        description="Realise losses to offset capital gains, jurisdiction-aware."
+      />
+      <AiDisclaimerStrip variant="tax" />
 
         <Card>
           <CardHeader>
@@ -127,7 +131,6 @@ export default function TaxHarvest() {
           {!losers.length && <p className="text-muted-foreground">{t("pages.taxHarvest.none")}</p>}
         </CardContent></Card>
         <p className="text-xs text-muted-foreground">{t("pages.taxHarvest.footer")} {t("common.notFinancialAdvice")}</p>
-      </main>
     </div>
   );
 }

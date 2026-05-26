@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
-import { TopNav } from "@/components/TopNav";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
@@ -512,35 +511,38 @@ const Portfolio = () => {
   const gainBase = portfolio.reduce((s, p) => s + toBase(p.shares * (p.currentPrice - p.avgPrice), p.currency), 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       {/* Navigation */}
       <SEO title="Portfolio Tracker — Live P/L, Allocation & Risk Insights" description="Track your stock portfolio with live prices, P/L, allocation breakdown, sector exposure, and AI-driven risk insights." path="/portfolio" />
-      <TopNav />
       <main>
 
       {/* Portfolio Header */}
-      <section className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <section className="p-6 sm:p-8">
         <div className="mb-6"><BrokerSyncCard /></div>
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <div className="min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
-              <Briefcase className="h-8 w-8 text-primary" />
-              {active?.name || "My Portfolio"}
-              {active?.id && active.id === primaryId && (
-                <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10"><Star className="h-3 w-3 fill-current" /> Main</Badge>
-              )}
-              {active?.is_simulation && (
-                <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
-              )}
-            </h1>
-            <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm sm:text-base">
+          <div className="min-w-0 flex items-start gap-4">
+            <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold tracking-tight leading-tight flex flex-wrap items-center gap-2">
+                {active?.name || "My Portfolio"}
+                {active?.id && active.id === primaryId && (
+                  <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10"><Star className="h-3 w-3 fill-current" /> Main</Badge>
+                )}
+                {active?.is_simulation && (
+                  <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
+                )}
+              </h1>
+              <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm mt-1">
               {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "—"}
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
               ) : (
                 <Badge variant="outline" className="gap-1 text-muted-foreground">Local only · <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to sync</Badge>
               )}
-            </p>
+              </p>
+            </div>
           </div>
 
           {/* Portfolio switcher + actions */}

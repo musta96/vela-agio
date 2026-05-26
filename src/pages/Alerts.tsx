@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -155,17 +154,15 @@ const Alerts = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6">
       <SEO
         title="Alerts & Notifications"
         description="Configure server-side alerts on price moves, technical signals, AI picks, and portfolio risk. Get a daily morning digest by email."
         path="/alerts"
       />
-      <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
         <PageHeader
           icon={Bell}
-          title="Alerts & Automation"
+          title="Signals & Alerts"
           description="Server-side rules evaluated every 5 minutes. Daily digest sent every morning by email."
         />
 
@@ -311,7 +308,6 @@ const Alerts = () => {
             </ul>
           )}
         </Card>
-      </main>
     </div>
   );
 };

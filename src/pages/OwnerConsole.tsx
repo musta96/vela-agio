@@ -826,9 +826,11 @@ function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: s
   );
 }
 
-function KillSwitchCard({ label, description, enabled, reason, updatedAt, onToggle }: { label: string; description: string; enabled: boolean; reason: string; updatedAt?: string; onToggle: (enabled: boolean, reason: string) => void }) {
+function KillSwitchCard({ label, description, enabled, reason, updatedAt, expiresAt, onToggle }: { label: string; description: string; enabled: boolean; reason: string; updatedAt?: string; expiresAt?: string | null; onToggle: (enabled: boolean, reason: string, expires_at: string | null) => void | Promise<unknown> }) {
   const [open, setOpen] = useState(false);
   const [draftReason, setDraftReason] = useState(reason);
+  const [confirmPhrase, setConfirmPhrase] = useState("");
+  const [autoExpiryHours, setAutoExpiryHours] = useState("");
   const tone = enabled ? "border-destructive/40 bg-destructive/5" : "";
   return (
     <Card className={`p-4 ${tone}`}>
@@ -839,6 +841,7 @@ function KillSwitchCard({ label, description, enabled, reason, updatedAt, onTogg
           </div>
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
           {updatedAt && <p className="text-[10px] text-muted-foreground mt-2">Last change {new Date(updatedAt).toLocaleString()}{reason ? ` — “${reason}”` : ""}</p>}
+          {expiresAt && <p className="text-[10px] text-amber-500 mt-1">Auto-lifts at {new Date(expiresAt).toLocaleString()}</p>}
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -848,9 +851,19 @@ function KillSwitchCard({ label, description, enabled, reason, updatedAt, onTogg
             <DialogHeader><DialogTitle>{enabled ? "Disable" : "Enable"} — {label}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{description}</p>
             <Textarea placeholder="Reason (recorded in incident log)" value={draftReason} onChange={(e) => setDraftReason(e.target.value)} />
+            {!enabled && (
+              <>
+                <Input placeholder="Auto-lift after N hours (optional)" value={autoExpiryHours} onChange={(e) => setAutoExpiryHours(e.target.value)} />
+                <Input placeholder={`Type "ACTIVATE" to confirm`} value={confirmPhrase} onChange={(e) => setConfirmPhrase(e.target.value)} />
+              </>
+            )}
             <DialogFooter>
               <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button variant={enabled ? "outline" : "destructive"} onClick={() => { onToggle(!enabled, draftReason); setOpen(false); }}>
+              <Button variant={enabled ? "outline" : "destructive"} disabled={!enabled && confirmPhrase !== "ACTIVATE"} onClick={() => {
+                const expires_at = (!enabled && autoExpiryHours) ? new Date(Date.now() + Number(autoExpiryHours) * 3600_000).toISOString() : null;
+                onToggle(!enabled, draftReason, expires_at);
+                setOpen(false); setConfirmPhrase(""); setAutoExpiryHours("");
+              }}>
                 {enabled ? "Turn off" : "Activate now"}
               </Button>
             </DialogFooter>
@@ -861,18 +874,20 @@ function KillSwitchCard({ label, description, enabled, reason, updatedAt, onTogg
   );
 }
 
-function RetractDialog({ onConfirm }: { onConfirm: (reason: string) => void }) {
+function RetractDialog({ onConfirm }: { onConfirm: (reason: string, notify: boolean) => void | Promise<unknown> }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [notify, setNotify] = useState(true);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button size="sm" variant="outline" className="text-destructive">Retract</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Retract AI signal</DialogTitle></DialogHeader>
         <Textarea placeholder="Why is this being retracted?" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <label className="flex items-center gap-2 text-xs"><Switch checked={notify} onCheckedChange={setNotify} /> Notify the user who received it</label>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="destructive" onClick={() => { onConfirm(reason); setOpen(false); }}>Retract</Button>
+          <Button variant="destructive" onClick={() => { onConfirm(reason, notify); setOpen(false); }}>Retract</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -18,12 +18,23 @@ import { useState, useEffect } from "react";
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 
-const OVERVIEW: Item[] = [
+const MARKETS: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Portfolio", url: "/portfolio", icon: Briefcase },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
-  { title: "Orders", url: "/orders", icon: History },
+  { title: "Screener", url: "/screener", icon: Filter },
   { title: "Macro", url: "/macro", icon: Globe2 },
+  { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+];
+
+const MY_WEALTH_TOP: Item[] = [
+  { title: "Portfolio", url: "/portfolio", icon: Briefcase },
+  { title: "Orders", url: "/orders", icon: History },
+];
+
+const MY_WEALTH_BOTTOM: Item[] = [
+  { title: "Goals", url: "/goals", icon: Target },
+  { title: "Risk engine", url: "/risk", icon: ShieldAlert },
+  { title: "Tax harvest", url: "/tax-harvest", icon: Wallet },
 ];
 
 const NET_WORTH_SUB: Item[] = [
@@ -40,21 +51,13 @@ const NET_WORTH_SUB: Item[] = [
   { title: "Liabilities", url: "/net-worth/liabilities", icon: CreditCard },
 ];
 
-const ANALYSIS: Item[] = [
-  { title: "Screener", url: "/screener", icon: Filter },
-  { title: "Backtesting", url: "/backtest", icon: Repeat },
-  { title: "Risk engine", url: "/risk", icon: ShieldAlert },
-  { title: "Tax harvest", url: "/tax-harvest", icon: Wallet },
-  { title: "Goals", url: "/goals", icon: Target },
-];
-
-const INTELLIGENCE: Item[] = [
+const LAB: Item[] = [
   { title: "Idea Lab", url: "/picks", icon: Sparkles },
+  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
   { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
   { title: "Research Copilot", url: "/copilot", icon: Bot },
-  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
+  { title: "Backtesting", url: "/backtest", icon: Repeat },
   { title: "Related Graph", url: "/related", icon: Network, badge: "new" },
-  { title: "Sentiment", url: "/sentiment", icon: Newspaper },
   { title: "Deal flow", url: "/dealflow", icon: Handshake, badge: "new" },
   { title: "Alerts", url: "/alerts", icon: Bell },
 ];
@@ -114,6 +117,43 @@ function NavGroup({ label, items }: { label: string; items: Item[] }) {
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
+  );
+}
+
+function InlineItems({ items }: { items: Item[] }) {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const { pathname } = useLocation();
+  const isActive = (url: string) => url === "/" ? pathname === "/" : pathname.startsWith(url);
+  return (
+    <SidebarMenu>
+      {items.map((it) => {
+        const active = isActive(it.url);
+        return (
+          <SidebarMenuItem key={it.url}>
+            <SidebarMenuButton asChild tooltip={it.title}>
+              <NavLink
+                to={it.url}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-none border-l-2 border-transparent px-4 py-2.5 text-[13px] transition-colors",
+                  active
+                    ? "border-l-[hsl(var(--sidebar-ring))] bg-[hsl(var(--sidebar-accent))] text-sidebar-foreground"
+                    : "text-sidebar-foreground/55 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                )}
+              >
+                <it.icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="flex-1 truncate">{it.title}</span>}
+                {!collapsed && it.badge && (
+                  <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                    {it.badge}
+                  </span>
+                )}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
   );
 }
 
@@ -211,14 +251,20 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
       <SidebarContent className="py-3">
-        <NavGroup label="Overview" items={OVERVIEW} />
+        <NavGroup label="Markets" items={MARKETS} />
         <SidebarGroup>
+          {!collapsed && (
+            <SidebarGroupLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 px-4">
+              My Wealth
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
+            <InlineItems items={MY_WEALTH_TOP} />
             <NetWorthCollapsible />
+            <InlineItems items={MY_WEALTH_BOTTOM} />
           </SidebarGroupContent>
         </SidebarGroup>
-        <NavGroup label="Analysis" items={ANALYSIS} />
-        <NavGroup label="Intelligence" items={INTELLIGENCE} />
+        <NavGroup label="Lab" items={LAB} />
         <NavGroup label="More" items={MORE} />
         {isOwner && (
           <NavGroup label="Founder" items={[{ title: "Owner Console", url: "/owner", icon: Crown, badge: "you" }]} />

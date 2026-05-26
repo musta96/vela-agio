@@ -2,9 +2,10 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, BellRing, Trash2 } from "lucide-react";
+import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, BellRing, Trash2, Eye } from "lucide-react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useToast } from "@/hooks/use-toast";
@@ -33,29 +34,31 @@ const Watchlist = () => {
       <main>
 
       <section className="container mx-auto px-6 py-12">
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">My Watchlist</h1>
+        <PageHeader
+          icon={Eye}
+          title={
+            <span className="flex items-center gap-3">
+              My Watchlist
               {items.length > 0 && symbols.some((s) => quotes[s]) && (
                 <Badge className="bg-success/10 text-success gap-1">
                   <Radio className="h-3 w-3 animate-pulse" />
                   LIVE
                 </Badge>
               )}
-            </div>
-            <p className="text-muted-foreground">
-              {items.length} stock{items.length === 1 ? "" : "s"} tracked
-              {lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleTimeString()}` : ""}
-            </p>
-          </div>
-          {items.length > 0 && (
-            <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          )}
-        </div>
+            </span>
+          }
+          description={`${items.length} stock${items.length === 1 ? "" : "s"} tracked${
+            lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleTimeString()}` : ""
+          }`}
+          actions={
+            items.length > 0 ? (
+              <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            ) : null
+          }
+        />
 
         {items.length > 0 && (
           <Card className="p-4 mb-6 card-gradient border-border">

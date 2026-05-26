@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,15 +163,11 @@ const Alerts = () => {
       />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <header className="flex items-center gap-3">
-          <Bell className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold text-gradient">Alerts & Automation</h1>
-            <p className="text-sm text-muted-foreground">
-              Server-side rules evaluated every 5 minutes. Daily digest sent every morning by email.
-            </p>
-          </div>
-        </header>
+        <PageHeader
+          icon={Bell}
+          title="Alerts & Automation"
+          description="Server-side rules evaluated every 5 minutes. Daily digest sent every morning by email."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-xl font-semibold">Email preferences</h2>

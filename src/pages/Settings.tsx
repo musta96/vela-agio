@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, type ApiKeySpec, type StoredKeyMeta } from "@/lib/userApiKeys";
 import { supabase } from "@/integrations/supabase/client";
@@ -261,16 +262,16 @@ const Settings = () => {
       <main>
 
       <div className="container mx-auto px-6 py-8 max-w-5xl">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <KeyRound className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Settings & Connectors</h1>
-          </div>
-          <p className="text-muted-foreground">
-            Plug your own AI providers, market-data vendors and social/news APIs. Keys are AES-GCM encrypted server-side; only the last 4 characters are visible to your browser.
-            {savedCount > 0 && <> · <span className="text-success">{savedCount} key{savedCount === 1 ? "" : "s"} saved</span></>}
-          </p>
-        </div>
+        <PageHeader
+          icon={KeyRound}
+          title="Settings & Connectors"
+          description={
+            <>
+              Plug your own AI providers, market-data vendors and social/news APIs. Keys are AES-GCM encrypted server-side; only the last 4 characters are visible to your browser.
+              {savedCount > 0 && <> · <span className="text-success">{savedCount} key{savedCount === 1 ? "" : "s"} saved</span></>}
+            </>
+          }
+        />
 
         <Alert className="mb-6 border-primary/30 bg-primary/5">
           <ShieldCheck className="h-4 w-4 text-primary" />

@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -205,13 +207,12 @@ const BacktestingModule = () => {
       <main>
 
       <div className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Strategy Backtesting</h1>
-          </div>
-          <p className="text-muted-foreground">Test trading strategies on a single stock or your portfolio with real historical data.</p>
-        </div>
+        <PageHeader
+          icon={Target}
+          title="Strategy Backtesting"
+          description="Test trading strategies on a single stock or your portfolio with real historical data."
+        />
+        <AiDisclaimerStrip variant="data" />
 
         <div className="grid lg:grid-cols-3 gap-6 mb-8">
           {/* Config */}

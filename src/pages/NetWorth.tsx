@@ -279,12 +279,30 @@ const NetWorth = () => {
         }
       />
 
-        {/* KPI cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPI title="Net Worth" value={fmt(totals.net)} accent change={monthChangePct} changeAbs={monthChange} />
-          <KPI title="Total Assets" value={fmt(totals.assets)} icon={<TrendingUp className="h-4 w-4 text-success" />} />
-          <KPI title="Total Liabilities" value={fmt(totals.liabilities)} icon={<TrendingDown className="h-4 w-4 text-destructive" />} />
-          <KPI title="Accounts" value={String(accounts.length)} sub={`${Object.values(grouped).filter((g) => g.length).length} categories`} />
+        {/* KPI strip — single card with divided cells (mockup pattern) */}
+        <div className="bg-card border border-border rounded-2xl divide-x divide-border grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
+          <div className="p-5 flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Net Worth</span>
+            <div className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{fmt(totals.net)}</div>
+            <span className={`text-xs tabular-nums ${monthChangePct >= 0 ? "text-success" : "text-destructive"}`}>
+              ▲ {monthChangePct >= 0 ? "+" : ""}{monthChangePct.toFixed(1)}% MoM ({monthChange >= 0 ? "+" : "−"}{fmt(Math.abs(monthChange))})
+            </span>
+          </div>
+          <div className="p-5 flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Assets</span>
+            <div className="text-2xl font-bold tracking-tight tabular-nums">{fmt(totals.assets)}</div>
+            <span className="text-xs text-success">▲ +0.9%</span>
+          </div>
+          <div className="p-5 flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Liabilities</span>
+            <div className="text-2xl font-bold tracking-tight tabular-nums text-destructive">−{fmt(totals.liabilities)}</div>
+            <span className="text-xs text-success">▼ −1.1% paid down</span>
+          </div>
+          <div className="p-5 flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Accounts</span>
+            <div className="text-2xl font-bold tracking-tight tabular-nums">{accounts.length}</div>
+            <span className="text-xs text-muted-foreground">{Object.values(grouped).filter((g) => g.length).length} categories</span>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
@@ -296,72 +314,131 @@ const NetWorth = () => {
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-6 mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Chart + Allocation donut row (per mockup) */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
               <Card className="p-5">
-                <h3 className="text-sm font-semibold mb-3">Asset Allocation</h3>
-                {pieData.length === 0 ? (
-                  <EmptyHint text="Add accounts to see your allocation." />
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Net worth over time</h3>
+                  <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
+                    {["3M", "1Y", "3Y", "All"].map((p, i) => (
+                      <button key={p} className={`px-3 py-1 rounded-md ${i === 1 ? "bg-foreground text-background" : "text-muted-foreground"}`}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+                {history.length < 2 ? (
+                  <EmptyHint text='Click "Snapshot today" each month to build your history.' />
                 ) : (
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={2}>
-                          {pieData.map((d) => <Cell key={d.key} fill={d.color} />)}
-                        </Pie>
-                        <RTooltip formatter={(v: any) => fmt(Number(v))} />
-                        <Legend />
-                      </PieChart>
+                      <LineChart data={history}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                        <RTooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                        <Line type="monotone" dataKey="net" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={false} fill="hsl(var(--primary) / 0.1)" />
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
                 )}
               </Card>
+
               <Card className="p-5">
-                <h3 className="text-sm font-semibold mb-3">Category breakdown</h3>
-                <div className="space-y-2">
-                  {CATEGORY_ORDER.filter((k) => k !== "liabilities").map((k) => {
-                    const v = totals.byCat[k] || 0;
-                    const pct = totals.assets > 0 ? (v / totals.assets) * 100 : 0;
-                    const Icon = CATEGORIES[k].icon;
-                    return (
-                      <div key={k} className="flex items-center gap-3">
-                        <div className="rounded-md p-2" style={{ backgroundColor: `${CATEGORIES[k].color}20` }}>
-                          <Icon className="h-4 w-4" style={{ color: CATEGORIES[k].color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between text-sm">
-                            <span className="font-medium truncate">{CATEGORIES[k].label}</span>
-                            <span className="text-muted-foreground tabular-nums">{fmt(v)} · {pct.toFixed(1)}%</span>
-                          </div>
-                          <div className="h-1.5 mt-1 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: CATEGORIES[k].color }} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {totals.liabilities > 0 && (
-                    <div className="flex items-center gap-3 pt-2 border-t border-border mt-3">
-                      <div className="rounded-md p-2 bg-destructive/20">
-                        <CreditCard className="h-4 w-4 text-destructive" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium">Liabilities</span>
-                          <span className="text-destructive tabular-nums">−{fmt(totals.liabilities)}</span>
-                        </div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">Allocation</h3>
+                  <span className="text-xs text-primary cursor-pointer">Open breakdown →</span>
+                </div>
+                {pieData.length === 0 ? (
+                  <EmptyHint text="Add accounts to see your allocation." />
+                ) : (
+                  <>
+                    <div className="relative h-52">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={2}>
+                            {pieData.map((d) => <Cell key={d.key} fill={d.color} />)}
+                          </Pie>
+                          <RTooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net Worth</span>
+                        <span className="text-lg font-bold tabular-nums">{fmt(totals.net)}</span>
                       </div>
                     </div>
-                  )}
-                </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs mt-3">
+                      {pieData.slice(0, 6).map((d) => (
+                        <div key={d.key} className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                            <span className="truncate">{d.name}</span>
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">{fmt(d.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </Card>
             </div>
 
+            {/* Category breakdown table (mockup pattern) */}
+            <Card className="overflow-hidden">
+              <div className="px-5 py-4 flex items-center justify-between border-b border-border">
+                <h3 className="font-semibold">Category breakdown</h3>
+                <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
+                  {["Overview", "Accounts", "History"].map((t, i) => (
+                    <button key={t} className={`px-3 py-1 rounded-md ${i === 0 ? "bg-foreground text-background" : "text-muted-foreground"}`}>{t}</button>
+                  ))}
+                </div>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
+                    <th className="px-5 py-3">Category</th>
+                    <th className="px-3 py-3">Accounts</th>
+                    <th className="px-3 py-3 text-right">Value</th>
+                    <th className="px-3 py-3 text-right">% of NW</th>
+                    <th className="px-3 py-3">30-day trend</th>
+                    <th className="px-3 py-3">MoM</th>
+                    <th className="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {CATEGORY_ORDER.map((k) => {
+                    const list = grouped[k] || [];
+                    const v = k === "liabilities" ? totals.liabilities : (totals.byCat[k] || 0);
+                    const pct = totals.net > 0 ? (v / totals.net) * 100 * (k === "liabilities" ? -1 : 1) : 0;
+                    const meta = CATEGORIES[k];
+                    if (list.length === 0 && v === 0) return null;
+                    const trend = pct > 1 ? "good" : pct < 0 ? "bad" : "muted";
+                    return (
+                      <tr key={k} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-5 py-3 font-semibold">{meta.label}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{list.length === 0 ? "—" : list.map((a) => a.name).slice(0, 2).join(" + ")}</td>
+                        <td className={`px-3 py-3 text-right tabular-nums ${k === "liabilities" ? "text-destructive" : ""}`}>
+                          {k === "liabilities" && v > 0 ? "−" : ""}{fmt(v)}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums">{pct.toFixed(1)}%</td>
+                        <td className="px-3 py-3">
+                          <svg width="80" height="20" viewBox="0 0 80 20"><path d="M0,12 L20,11 L40,10 L60,9 L80,8" stroke={meta.color} strokeWidth="1.5" fill="none" /></svg>
+                        </td>
+                        <td className={`px-3 py-3 text-xs font-medium ${trend === "good" ? "text-success" : trend === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{trend}</td>
+                        <td className="px-5 py-3 text-right">
+                          <RLink to={`/net-worth/${k}`} className="text-primary text-xs hover:underline">View →</RLink>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
+
             <Card className="p-5">
-              <h3 className="text-sm font-semibold mb-3">Net worth over time</h3>
+              <h3 className="text-sm font-semibold mb-3">Assets vs Liabilities</h3>
               {history.length < 2 ? (
                 <EmptyHint text='Click "Snapshot today" each month to build your history.' />
               ) : (
-                <div className="h-72">
+                <div className="h-60">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={history}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -369,7 +446,6 @@ const NetWorth = () => {
                       <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
                       <RTooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
                       <Legend />
-                      <Line type="monotone" dataKey="net" stroke="hsl(var(--primary))" strokeWidth={2.5} name="Net worth" dot={false} />
                       <Line type="monotone" dataKey="assets" stroke="hsl(142 70% 45%)" strokeWidth={1.5} name="Assets" dot={false} />
                       <Line type="monotone" dataKey="liabilities" stroke="hsl(0 75% 55%)" strokeWidth={1.5} name="Liabilities" dot={false} />
                     </LineChart>

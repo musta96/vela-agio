@@ -331,18 +331,16 @@ export default function Index() {
                 const ccy = q?.currency || (w.sym.endsWith(".MI") ? "EUR" : "USD");
                 const indicatorCls = !q ? "bg-muted" : trend === "up" ? "bg-success" : trend === "down" ? "bg-destructive" : "bg-warning";
                 return (
-                  <button key={w.sym} onClick={() => navigate(`/stock/${encodeURIComponent(w.sym)}`)} className="flex w-full items-center justify-between text-left py-1.5 rounded-lg hover:bg-muted/40 -mx-2 px-2 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-1 h-7 rounded-full ${indicatorCls}`} />
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground truncate">{w.sym}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
-                      </div>
+                  <button key={w.sym} onClick={() => navigate(`/stock/${encodeURIComponent(w.sym)}`)} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 w-full text-left py-1.5 rounded-lg hover:bg-muted/40 -mx-2 px-2 transition-colors">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-foreground truncate">{w.sym}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right">
                       <div className="text-sm font-semibold tabular-nums text-foreground">{price != null ? fmtMoney(price, ccy) : "—"}</div>
                       {q ? <div className={`text-[11px] font-semibold tabular-nums ${chg >= 0 ? "text-success" : "text-destructive"}`}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</div> : <span className="text-[11px] text-muted-foreground">—</span>}
                     </div>
+                    <MiniSparkline trend={trend} width={64} height={22} />
                   </button>
                 );
               })}
@@ -350,7 +348,7 @@ export default function Index() {
           </div>
 
           {/* Sector performance */}
-          <div className="col-span-12 lg:col-span-6 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">Sector performance</h3>
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">vs index today</span>
@@ -378,7 +376,7 @@ export default function Index() {
           </div>
 
           {/* AI signals */}
-          <div className="col-span-12 lg:col-span-6 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">AI signals</h3>
               <span className="text-[10px] font-semibold px-2 py-0.5 bg-primary/10 text-primary rounded-full uppercase tracking-wider">3 new</span>
@@ -402,6 +400,55 @@ export default function Index() {
                 );
               })}
             </div>
+          </div>
+
+          {/* Net worth allocation donut */}
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-foreground">Net worth allocation</h3>
+              <button onClick={() => navigate("/net-worth")} className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">View detail <ChevronRight className="h-3 w-3" /></button>
+            </div>
+            {(() => {
+              const slices = [
+                { label: "Investments", pct: 42, color: "hsl(var(--primary))" },
+                { label: "Real Estate", pct: 30, color: "hsl(262 83% 58%)" },
+                { label: "Cash", pct: 14, color: "hsl(var(--success))" },
+                { label: "Retirement", pct: 8, color: "hsl(38 92% 50%)" },
+                { label: "Crypto", pct: 4, color: "hsl(var(--destructive))" },
+                { label: "Other", pct: 2, color: "hsl(var(--muted-foreground))" },
+              ];
+              const total = slices.reduce((s, x) => s + x.pct, 0);
+              const C = 2 * Math.PI * 44;
+              let offset = 0;
+              return (
+                <div className="flex items-center gap-5">
+                  <div className="relative shrink-0">
+                    <svg width="128" height="128" viewBox="0 0 128 128" className="-rotate-90">
+                      {slices.map((s) => {
+                        const len = (s.pct / total) * C;
+                        const el = (
+                          <circle key={s.label} cx="64" cy="64" r="44" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} />
+                        );
+                        offset += len;
+                        return el;
+                      })}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net worth</span>
+                      <span className="text-sm font-bold tabular-nums text-foreground">€186,420</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 text-xs min-w-0 flex-1">
+                    {slices.map((s) => (
+                      <div key={s.label} className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} /><span className="truncate">{s.label}</span></span>
+                        <span className="font-semibold tabular-nums">{s.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 

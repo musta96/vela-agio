@@ -1,22 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Activity, Eye, EyeOff, Save, Trash2, ExternalLink, ShieldCheck, KeyRound, Brain, LineChart, MessageSquare, CheckCircle2, Loader2, LogOut, Sparkles } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SEO } from "@/components/SEO";
-import { PageHeader } from "@/components/PageHeader";
-import { useToast } from "@/hooks/use-toast";
-import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, type ApiKeySpec, type StoredKeyMeta } from "@/lib/userApiKeys";
-import { supabase } from "@/integrations/supabase/client";
-import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/hooks/useAuth";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cpu } from "lucide-react";
 
 type ProviderId = "lovable" | "openai" | "groq" | "mistral" | "perplexity" | "anthropic" | "gemini";
 

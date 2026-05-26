@@ -102,11 +102,18 @@ export default function OrderHistory() {
         }
       />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Total</div><div className="text-2xl font-semibold">{stats.total}</div></CardContent></Card>
-          <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Executed</div><div className="text-2xl font-semibold text-success">{stats.executed}</div></CardContent></Card>
-          <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Pending</div><div className="text-2xl font-semibold">{stats.pending}</div></CardContent></Card>
-          <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Failed</div><div className="text-2xl font-semibold text-destructive">{stats.failed}</div></CardContent></Card>
+        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-4">
+          {[
+            { label: "Total", value: stats.total, tone: "" },
+            { label: "Executed", value: stats.executed, tone: "text-success" },
+            { label: "Pending", value: stats.pending, tone: "" },
+            { label: "Failed", value: stats.failed, tone: "text-destructive" },
+          ].map((m) => (
+            <div key={m.label} className="p-5 flex flex-col gap-1.5">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.label}</span>
+              <span className={cn("text-2xl font-bold tracking-tight", m.tone)}>{m.value}</span>
+            </div>
+          ))}
         </div>
 
         <Card>

@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Sparkles } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const Q_EN = [
@@ -46,11 +45,13 @@ export default function Onboarding() {
   const profile = PORTFOLIOS[bucket as keyof typeof PORTFOLIOS];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 sm:p-8 space-y-6 max-w-2xl">
       <SEO title="Onboarding | Vela.ai" description="Risk profile and model portfolio" path="/onboarding" />
-      <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6 max-w-2xl">
-        <div className="flex items-center gap-3"><Sparkles className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.onboarding.title")}</h1></div>
+      <PageHeader
+        icon={GraduationCap}
+        title={t("pages.onboarding.title")}
+        description="Answer five quick questions and we'll propose a model portfolio aligned to your risk profile."
+      />
         {!done ? (
           <>
             {Q.map((q, i) => (
@@ -75,7 +76,6 @@ export default function Onboarding() {
             <Button onClick={() => setDone(false)} variant="outline">{t("pages.onboarding.retake")}</Button>
           </CardContent></Card>
         )}
-      </main>
     </div>
   );
 }

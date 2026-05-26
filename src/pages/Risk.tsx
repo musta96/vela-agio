@@ -171,12 +171,19 @@ const Risk = () => {
           </Card>
         ) : (
           <>
-            {/* Top metrics */}
-            <div className="grid md:grid-cols-4 gap-3">
-              <Metric label="Portfolio value" value={`€${totalVal.toFixed(0)}`} />
-              <Metric label="Ann. volatility" value={`${(risk.vol * 100).toFixed(1)}%`} />
-              <Metric label="Sharpe (1Y)" value={risk.sharpe.toFixed(2)} tone={risk.sharpe > 1 ? "good" : risk.sharpe < 0 ? "bad" : undefined} />
-              <Metric label="Max drawdown" value={`${(risk.maxDD * 100).toFixed(1)}%`} tone="bad" />
+            {/* Top metrics — v2 unified KPI strip */}
+            <div className="bg-card border border-border rounded-2xl divide-y md:divide-y-0 md:divide-x divide-border grid grid-cols-2 md:grid-cols-4">
+              {[
+                { l: "Portfolio value", v: `€${totalVal.toFixed(0)}`, t: "" },
+                { l: "Ann. volatility", v: `${(risk.vol * 100).toFixed(1)}%`, t: "" },
+                { l: "Sharpe (1Y)", v: risk.sharpe.toFixed(2), t: risk.sharpe > 1 ? "text-success" : risk.sharpe < 0 ? "text-destructive" : "" },
+                { l: "Max drawdown", v: `${(risk.maxDD * 100).toFixed(1)}%`, t: "text-destructive" },
+              ].map((m) => (
+                <div key={m.l} className="p-5 flex flex-col gap-1.5">
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.l}</span>
+                  <span className={`text-2xl font-bold tracking-tight ${m.t}`}>{m.v}</span>
+                </div>
+              ))}
             </div>
 
             {/* VaR */}

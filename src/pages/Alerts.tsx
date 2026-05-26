@@ -166,6 +166,20 @@ const Alerts = () => {
           description="Server-side rules evaluated every 5 minutes. Daily digest sent every morning by email."
         />
 
+        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-4">
+          {[
+            { label: "Active rules", value: rules.filter(r => r.enabled).length },
+            { label: "Total rules", value: rules.length },
+            { label: "Immediate email", value: rules.filter(r => r.notify_email_immediate).length },
+            { label: "Fired (7d)", value: rules.filter(r => r.last_fired_at && (Date.now() - new Date(r.last_fired_at).getTime()) < 7 * 86400 * 1000).length },
+          ].map((m) => (
+            <div key={m.label} className="p-5 flex flex-col gap-1.5">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.label}</span>
+              <span className="text-2xl font-bold tracking-tight">{m.value}</span>
+            </div>
+          ))}
+        </div>
+
         <Card className="p-6 space-y-4">
           <h2 className="text-xl font-semibold">Email preferences</h2>
           {prefs && (

@@ -144,7 +144,7 @@ export default function Index() {
   return (
     <>
       <SEO title="Dashboard · Vela.ai" description="Real-time market intelligence, AI signals, portfolio snapshot and macro briefing." path="/" />
-      <div className="p-6 sm:p-8 space-y-8 font-[Manrope] text-[#e8edf3] bg-[#0f1b3d] min-h-screen">
+      <div className="p-6 sm:p-8 space-y-8">
         {/* Greeting row */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

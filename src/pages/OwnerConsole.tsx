@@ -16,7 +16,7 @@ import {
   Users, Activity, ShieldCheck, Briefcase, Crown, Power, AlertTriangle, Megaphone, Bot,
   ScrollText, Scale, FileDown, Trash2, Ban, Shield, Flag, Database, Mail, TrendingUp,
   LayoutDashboard, KeyRound, CreditCard, Wallet, AlertCircle, Search, BellRing, Settings,
-  CircleDot, FileText, ChevronRight,
+  CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X,
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
@@ -28,6 +28,9 @@ type Flag = { key: string; label: string; description: string | null; category: 
 type Incident = { id: number; ts: string; actor_email: string | null; category: string; action: string; reason: string | null };
 type Consent = { id: string; user_id: string; tos_version: string; privacy_version: string; marketing_opt_in: boolean; accepted_at: string };
 type AuditEntry = { id: number; ts: string; actor_email: string | null; action: string; entity: string | null; entity_id: string | null; payload: any };
+type ErasureReq = { id: string; user_id: string; user_email: string | null; reason: string | null; status: string; scheduled_for: string; completed_at: string | null; certificate_url: string | null; created_at: string; requested_by_email: string | null };
+type AdminSession = { id: string; actor_email: string; target_email: string | null; purpose: string; created_at: string; expires_at: string };
+type HealthCheck = { service: string; status: string; latency_ms: number | null; detail: string | null; last_checked: string };
 type AiConfig = {
   min_confidence?: number;
   ticker_blacklist?: string[];
@@ -46,9 +49,13 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[] } | null>(null);
+  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[] } | null>(null);
   const [q, setQ] = useState("");
   const [section, setSection] = useState<string>("dashboard");
+  const [auditFilter, setAuditFilter] = useState("");
+  const [detailUser, setDetailUser] = useState<UserRow | null>(null);
+  const [detailData, setDetailData] = useState<any>(null);
+  const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,6 +65,25 @@ export default function OwnerConsole() {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Realtime audit stream
+  useEffect(() => {
+    const ch = supabase.channel(`owner-live-${Math.random().toString(36).slice(2)}`);
+    ch.on("postgres_changes" as any, { event: "INSERT", schema: "public", table: "audit_log" }, (p: any) => {
+      setLiveEvents((prev) => [p.new as AuditEntry, ...prev].slice(0, 200));
+    }).on("postgres_changes" as any, { event: "INSERT", schema: "public", table: "incident_log" }, (p: any) => {
+      const r = p.new as any;
+      setLiveEvents((prev) => [{ id: r.id, ts: r.ts, actor_email: r.actor_email, action: r.action, entity: r.category, entity_id: null, payload: r.payload } as AuditEntry, ...prev].slice(0, 200));
+    }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const openUserDetail = async (u: UserRow) => {
+    setDetailUser(u);
+    setDetailData(null);
+    const { data: res } = await supabase.functions.invoke("owner-console", { body: { action: "user_detail", user_id: u.id } });
+    setDetailData(res);
+  };
 
   const act = async (action: string, payload: Record<string, unknown> = {}) => {
     const { error } = await supabase.functions.invoke("owner-console", { body: { action, ...payload } });
@@ -72,10 +98,12 @@ export default function OwnerConsole() {
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading owner console…</div>
     );
   }
-  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [] } = data;
+  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [], erasure = [], sessions = [], health = [] } = data;
   const filteredUsers = users.filter((u) => !q || u.email?.toLowerCase().includes(q.toLowerCase()));
   const controlByKey = (k: string) => controls.find((c) => c.key === k);
   const aiConfig: AiConfig = ((controls.find((c) => c.key === "ai_config") as any)?.value) || {};
+  const filteredAudit = audit.filter(a => !auditFilter || JSON.stringify(a).toLowerCase().includes(auditFilter.toLowerCase()));
+  const anyKillActive = KILL_SWITCHES.some(s => controlByKey(s.key)?.enabled);
 
   const downloadAuditCsv = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -105,6 +133,7 @@ export default function OwnerConsole() {
   // ---------- Section content blocks (reused across sidebar nav) ----------
   const killSection = (
     <div className="space-y-3">
+            <PanicModeCard active={anyKillActive} onPanic={(reason) => act("panic_mode", { enabled: true, reason })} onLift={(reason) => act("panic_mode", { enabled: false, reason })} />
             <Card className="p-4 border-destructive/40 bg-destructive/5">
               <div className="flex items-center gap-2 text-destructive font-semibold">
                 <AlertTriangle className="h-4 w-4" /> Critical controls — changes take effect instantly for every user.
@@ -121,7 +150,8 @@ export default function OwnerConsole() {
                     enabled={!!c?.enabled}
                     reason={c?.reason || ""}
                     updatedAt={c?.updated_at}
-                    onToggle={(enabled, reason) => act("toggle_control", { key: s.key, enabled, reason })}
+                    expiresAt={(c as any)?.expires_at}
+                    onToggle={(enabled, reason, expires_at) => act("toggle_control_expiry", { key: s.key, enabled, reason, expires_at })}
                   />
                 );
               })}
@@ -131,6 +161,7 @@ export default function OwnerConsole() {
   const aiSection = (
     <div className="space-y-3">
             <AiGovernanceConfig config={aiConfig} onSave={(value) => act("set_ai_config", { value })} />
+            <BulkRetractCard onSubmit={(symbol, since, reason) => act("bulk_retract_by_symbol", { symbol, since, reason })} />
             <Card className="p-4">
               <h3 className="font-semibold flex items-center gap-2"><Bot className="h-4 w-4" /> AI signal log</h3>
               <p className="text-xs text-muted-foreground">Every AI output served to a user. Retract anything that shouldn't be live.</p>
@@ -153,7 +184,7 @@ export default function OwnerConsole() {
                       </TableCell>
                       <TableCell className="text-right">
                         {s.status !== "retracted" && (
-                          <RetractDialog onConfirm={(reason) => act("retract_signal", { id: s.id, reason })} />
+                          <RetractDialog onConfirm={(reason, notify) => act(notify ? "retract_signal_notify" : "retract_signal", { id: s.id, reason })} />
                         )}
                       </TableCell>
                     </TableRow>
@@ -178,7 +209,9 @@ export default function OwnerConsole() {
                 <TableBody>
                   {filteredUsers.map((u) => (
                     <TableRow key={u.id}>
-                      <TableCell className="font-medium text-sm">{u.email}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>{u.email}</button>
+                      </TableCell>
                       <TableCell className="text-xs space-x-1">
                         {(u.roles || []).map((r) => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
                         {!u.roles?.length && <span className="text-muted-foreground">viewer</span>}
@@ -191,7 +224,7 @@ export default function OwnerConsole() {
                           : <Badge variant="outline" className="text-[10px]">unverified</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <UserActionsMenu user={u} act={act} onExport={() => exportUserData(u.id, u.email)} />
+                        <UserActionsMenu user={u} act={act} onExport={() => exportUserData(u.id, u.email)} onView={() => openUserDetail(u)} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -253,12 +286,33 @@ export default function OwnerConsole() {
   );
   const auditSection = (
     <div className="space-y-3">
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-primary animate-pulse" />
+                <h3 className="font-semibold text-sm">Live event stream</h3>
+                <Badge variant="outline" className="text-[10px]">{liveEvents.length} since open</Badge>
+              </div>
+              <div className="max-h-[200px] overflow-auto space-y-1">
+                {liveEvents.length === 0 && <p className="text-xs text-muted-foreground py-2">Waiting for events…</p>}
+                {liveEvents.map((e) => (
+                  <div key={`${e.id}-${e.ts}`} className="flex items-center gap-2 text-[11px] py-1 border-b border-border/40 last:border-0">
+                    <span className="text-muted-foreground tabular-nums">{new Date(e.ts).toLocaleTimeString()}</span>
+                    <span className="truncate max-w-[160px]">{e.actor_email}</span>
+                    <Badge variant="outline" className="text-[9px]">{e.action}</Badge>
+                    <span className="text-muted-foreground truncate">{e.entity}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
             <Card className="p-4 flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h3 className="font-semibold mb-1 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" /> Incident & audit logs</h3>
                 <p className="text-xs text-muted-foreground">Immutable record of every admin action. Export for CONSOB / FCA / SEC inquiries.</p>
               </div>
-              <Button size="sm" variant="outline" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Export audit log (CSV)</Button>
+              <div className="flex gap-2 items-center">
+                <Input placeholder="Filter audit…" value={auditFilter} onChange={(e) => setAuditFilter(e.target.value)} className="h-8 w-56" />
+                <Button size="sm" variant="outline" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Export CSV</Button>
+              </div>
             </Card>
             <Card>
               <Table>
@@ -280,9 +334,9 @@ export default function OwnerConsole() {
               </Table>
             </Card>
             <Card className="p-4">
-              <h3 className="font-semibold mb-2 text-sm">Audit log ({audit.length})</h3>
+              <h3 className="font-semibold mb-2 text-sm">Audit log ({filteredAudit.length}/{audit.length})</h3>
               <div className="space-y-1 max-h-[480px] overflow-auto">
-                {audit.map((a) => (
+                {filteredAudit.map((a) => (
                   <div key={a.id} className="flex items-center gap-2 text-xs border-b border-border/40 py-1.5">
                     <span className="text-muted-foreground tabular-nums">{new Date(a.ts).toLocaleString()}</span>
                     <span className="truncate max-w-[160px]">{a.actor_email}</span>
@@ -290,7 +344,22 @@ export default function OwnerConsole() {
                     <span className="text-muted-foreground truncate">{a.entity}{a.entity_id ? `/${a.entity_id.slice(0,8)}` : ""}</span>
                   </div>
                 ))}
-                {audit.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No audit entries yet.</p>}
+                {filteredAudit.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No matching audit entries.</p>}
+              </div>
+            </Card>
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-2 flex items-center gap-2"><Eye className="h-4 w-4" /> Admin / impersonation sessions ({sessions.length})</h3>
+              <div className="space-y-1 max-h-[240px] overflow-auto">
+                {sessions.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 text-[11px] py-1 border-b border-border/40 last:border-0">
+                    <span className="text-muted-foreground tabular-nums">{new Date(s.created_at).toLocaleString()}</span>
+                    <span className="truncate">{s.actor_email}</span>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    <span className="truncate">{s.target_email || "—"}</span>
+                    <span className="text-muted-foreground truncate flex-1">{s.purpose}</span>
+                  </div>
+                ))}
+                {sessions.length === 0 && <p className="text-xs text-muted-foreground py-2">No admin sessions logged.</p>}
               </div>
             </Card>
     </div>
@@ -304,6 +373,33 @@ export default function OwnerConsole() {
                 <Button variant="outline" size="sm" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Audit log CSV (regulator-ready)</Button>
                 <ForceReconsentDialog onConfirm={(version, reason) => act("force_reconsent", { version, reason })} />
               </div>
+            </Card>
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-2 flex items-center gap-2"><Clock className="h-4 w-4 text-amber-500" /> Erasure queue ({erasure.filter(e => e.status === "pending").length} pending)</h3>
+              <p className="text-[11px] text-muted-foreground mb-2">30-day grace period. Users can cancel via support. Executing produces an audit certificate.</p>
+              <Table>
+                <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Status</TableHead><TableHead>Requested</TableHead><TableHead>Scheduled</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {erasure.map((e) => {
+                    const due = new Date(e.scheduled_for).getTime() <= Date.now();
+                    return (
+                      <TableRow key={e.id}>
+                        <TableCell className="text-xs">{e.user_email || e.user_id.slice(0,8)}</TableCell>
+                        <TableCell><Badge variant={e.status === "completed" ? "secondary" : e.status === "cancelled" ? "outline" : due ? "destructive" : "outline"} className="text-[10px]">{e.status}{due && e.status === "pending" ? " · due" : ""}</Badge></TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground">{new Date(e.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground">{new Date(e.scheduled_for).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-xs">{e.reason}</TableCell>
+                        <TableCell className="text-right space-x-1">
+                          {e.status === "pending" && <Button size="sm" variant="ghost" onClick={() => act("cancel_erasure", { id: e.id, reason: "Admin cancelled" })}>Cancel</Button>}
+                          {e.status === "pending" && due && <Button size="sm" variant="destructive" onClick={() => { if (confirm("Execute permanent deletion?")) act("execute_erasure", { id: e.id }); }}>Execute now</Button>}
+                          {e.certificate_url && <span className="text-[10px] text-muted-foreground font-mono">{e.certificate_url}</span>}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {erasure.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6 text-xs">No erasure requests.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
             </Card>
             <Card>
               <div className="p-4 border-b border-border">
@@ -341,9 +437,40 @@ export default function OwnerConsole() {
     </Card>
   );
   const dataSection = (
-    <Card className="p-5 space-y-2">
-      <h3 className="font-semibold flex items-center gap-2"><Database className="h-4 w-4" /> Provider health</h3>
-      <p className="text-xs text-muted-foreground">Live market data is served by Yahoo Finance via the public CORS proxy and SnapTrade for broker positions. Use the <strong>Freeze data feeds</strong> kill switch in the dashboard to halt ingestion in an emergency.</p>
+    <div className="space-y-3">
+      <Card className="p-4 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold flex items-center gap-2"><Heart className="h-4 w-4 text-success" /> Provider health</h3>
+          <p className="text-xs text-muted-foreground">Yahoo via allorigins.win · Supabase REST · Database</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => act("run_healthchecks")} className="gap-2"><Zap className="h-3.5 w-3.5" />Run checks now</Button>
+      </Card>
+      <div className="grid md:grid-cols-3 gap-3">
+        {health.length === 0 && <Card className="p-4 col-span-full text-xs text-muted-foreground text-center">No checks run yet — click "Run checks now".</Card>}
+        {health.map((h) => (
+          <Card key={h.service} className={`p-4 ${h.status === "ok" ? "border-success/30" : h.status === "degraded" ? "border-amber-400/30" : "border-destructive/40"}`}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium text-sm">{h.service}</span>
+              <Badge variant={h.status === "ok" ? "secondary" : h.status === "degraded" ? "outline" : "destructive"} className="text-[10px]">{h.status}</Badge>
+            </div>
+            <div className="text-[11px] text-muted-foreground">{h.latency_ms != null ? `${h.latency_ms}ms` : "—"} · {h.detail || ""}</div>
+            <div className="text-[10px] text-muted-foreground mt-1">{new Date(h.last_checked).toLocaleString()}</div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+  const rolesSection = (
+    <Card className="p-5 space-y-3">
+      <h3 className="font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> Roles & access</h3>
+      <p className="text-xs text-muted-foreground">Available sub-roles: <code className="font-mono">admin</code>, <code className="font-mono">support</code>, <code className="font-mono">compliance</code>, <code className="font-mono">engineer</code>, <code className="font-mono">analyst</code>, <code className="font-mono">pm</code>, <code className="font-mono">viewer</code>. Manage per-user from the Users table.</p>
+      <div className="grid md:grid-cols-2 gap-2 text-xs">
+        <div><strong>admin</strong> — full owner powers, kill switches, GDPR execute.</div>
+        <div><strong>support</strong> — user detail, reset password, impersonate (audited).</div>
+        <div><strong>compliance</strong> — audit/consent/erasure queue, export.</div>
+        <div><strong>engineer</strong> — feature flags, health checks, retract signals.</div>
+      </div>
+      <p className="text-[10px] text-amber-500 mt-2">⚠️ 2FA enforcement for these roles must be enabled in Cloud → Users → Auth Settings.</p>
     </Card>
   );
   const stubSection = (label: string, blurb: string) => (
@@ -538,7 +665,7 @@ export default function OwnerConsole() {
     dashboard: dashboardSection,
     kill: killSection,
     users: usersSection,
-    roles: stubSection("Roles & access", "Granular roles, IP allowlisting, SSO/OAuth provider management and API key issuance."),
+    roles: rolesSection,
     apikeys: stubSection("API keys", "Per-user API key issuance, revocation, and rate-limit overrides."),
     plans: stubSection("Plans & pricing", "Tiers, entitlements, coupons and trial configuration land here once billing is connected."),
     revenue: billingSection,
@@ -581,6 +708,7 @@ export default function OwnerConsole() {
         </header>
         <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
       </div>
+      <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} />
     </div>
   );
 }

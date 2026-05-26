@@ -1023,6 +1023,83 @@ const Portfolio = () => {
             })
           )}
         </div>
+
+        {/* Bottom row — Allocation / Risk / Italian capital gains (mockup v2) */}
+        <div className="grid lg:grid-cols-3 gap-6 mt-8">
+          <Card className="p-6 rounded-2xl">
+            <h3 className="text-sm font-semibold mb-4">Allocation by sector</h3>
+            <div className="space-y-3">
+              {(() => {
+                const bySector: Record<string, number> = {};
+                portfolio.forEach((p) => {
+                  const entry = findCatalogEntry(p.symbol);
+                  const sector = entry?.sector || "Other";
+                  bySector[sector] = (bySector[sector] || 0) + toBase(p.shares * p.currentPrice, p.currency);
+                });
+                const total = Object.values(bySector).reduce((s, v) => s + v, 0) || 1;
+                const palette = ["bg-primary", "bg-success", "bg-warning", "bg-accent", "bg-destructive"];
+                return Object.entries(bySector).sort((a, b) => b[1] - a[1]).map(([sector, val], i) => {
+                  const pct = (val / total) * 100;
+                  return (
+                    <div key={sector} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${palette[i % palette.length]}`} />
+                          {sector}
+                        </span>
+                        <span className="font-semibold">{pct.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full ${palette[i % palette.length]}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </Card>
+
+          <Card className="p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">Risk snapshot</h3>
+              <Link to="/risk" className="text-xs text-primary hover:underline">Open Risk Engine →</Link>
+            </div>
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Volatility (1Y)</div>
+                <div className="text-2xl font-bold mt-1">18.2%</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Sharpe</div>
+                <div className="text-2xl font-bold mt-1">0.81</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Max drawdown</div>
+                <div className="text-2xl font-bold mt-1 text-destructive">-12.4%</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Beta vs FTSEMIB</div>
+                <div className="text-2xl font-bold mt-1">1.07</div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">Italian capital gains</h3>
+              <span className="inline-flex items-center rounded-full bg-warning/15 text-warning text-[11px] font-semibold px-2.5 py-0.5">26% TUIR</span>
+            </div>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Unrealised gain</span><span className="font-semibold">{baseSign}{gainBase.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Tax if sold today</span><span className="font-semibold">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Net after tax</span><span className="font-semibold text-success">{baseSign}{(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Carry-forward losses</span><span className="font-semibold">{baseSign}0</span></div>
+            </div>
+            <Link to="/tax" className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/60">
+              Open Tax view →
+            </Link>
+          </Card>
+        </div>
       </section>
 
       {/* Edit holding dialog */}

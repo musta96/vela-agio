@@ -412,6 +412,11 @@ Deno.serve(async (req) => {
       admin.from("user_consents").select("*").order("accepted_at", { ascending: false }).limit(500),
       admin.from("audit_log").select("*").order("ts", { ascending: false }).limit(500),
     ]);
+    const [{ data: erasure }, { data: sessions }, { data: health }] = await Promise.all([
+      admin.from("gdpr_erasure_requests").select("*").order("created_at", { ascending: false }).limit(100),
+      admin.from("admin_sessions").select("*").order("created_at", { ascending: false }).limit(50),
+      admin.from("health_checks").select("*"),
+    ]);
     const suspendedSet = new Set((suspensions || []).map((s: any) => s.user_id));
     const rolesMap: Record<string, string[]> = {};
     const { data: allRoles } = await admin.from("user_roles").select("user_id, role");
@@ -441,6 +446,9 @@ Deno.serve(async (req) => {
       flags: flags || [],
       consents: consents || [],
       audit: auditFull || [],
+      erasure: erasure || [],
+      sessions: sessions || [],
+      health: health || [],
     }), { headers: jsonHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

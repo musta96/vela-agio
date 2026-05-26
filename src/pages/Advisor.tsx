@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { useAuth } from "@/hooks/useAuth";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { supabase } from "@/integrations/supabase/client";

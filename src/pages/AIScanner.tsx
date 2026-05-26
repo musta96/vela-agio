@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sparkles, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 

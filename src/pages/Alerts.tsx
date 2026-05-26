@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

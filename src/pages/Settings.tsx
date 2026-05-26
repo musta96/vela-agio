@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type ApiKeyCategory, type ApiKeySpec, type StoredKeyMeta } from "@/lib/userApiKeys";
 import { supabase } from "@/integrations/supabase/client";

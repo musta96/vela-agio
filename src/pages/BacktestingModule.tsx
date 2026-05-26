@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Activity, Target, Play, Search, X, TrendingUp, TrendingDown, Shield, BarChart3, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Activity, MessageSquare, Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Sparkles, Building2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

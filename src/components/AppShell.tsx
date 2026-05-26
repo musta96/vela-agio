@@ -21,23 +21,23 @@ export default function AppShell() {
 
         <div className="flex-1 flex flex-col min-w-0">
           <PlatformBannerBar />
-          <header className="h-14 sticky top-0 z-30 flex items-center gap-3 px-4 bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))] text-sidebar-foreground">
-            <SidebarTrigger className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5" />
+          <header className="h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 bg-background border-b border-border">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground hover:bg-muted/60" />
 
             {/* Search */}
             <button
               onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex flex-1 max-w-md items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-left text-xs text-sidebar-foreground/50 hover:bg-white/10 hover:text-sidebar-foreground/80 transition-colors"
+              className="flex flex-1 max-w-2xl items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 transition-colors"
               aria-label="Search"
             >
-              <Search className="h-3.5 w-3.5" />
-              <span className="truncate">Search tickers, markets, news…</span>
-              <kbd className="ml-auto hidden md:inline-flex items-center text-[10px] bg-white/10 px-1.5 py-0.5 rounded">⌘K</kbd>
+              <Search className="h-4 w-4" />
+              <span className="truncate">Search tickers, markets, news, screeners…</span>
+              <kbd className="ml-auto hidden md:inline-flex items-center text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">⌘K</kbd>
             </button>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden sm:inline-flex items-center rounded-full border border-accent/30 bg-accent/15 px-2.5 py-1 text-[11px] font-medium text-accent">
-                Markets open
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-[11px] font-medium text-success">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Markets open · Milan
               </span>
               <NotificationBell />
               <LanguageSwitcher />

@@ -14,11 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bell, Plus, Trash2, Mail } from "lucide-react";
+import { Bell, Plus, Trash2, Mail, Sliders, TrendingUp, Landmark, Gem, AlertTriangle, Droplet, Newspaper, Star, Sparkles, VolumeX, LineChart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface Rule {
   id: string;
@@ -68,6 +69,17 @@ const Alerts = () => {
   const [symbol, setSymbol] = useState("");
   const [threshold, setThreshold] = useState("");
   const [immediateEmail, setImmediateEmail] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<"All" | "Momentum" | "Macro" | "Fundamental" | "Sentiment" | "Risk">("All");
+
+  const FEED: Array<{ icon: any; iconBg: string; title: string; tag: "Momentum"|"Macro"|"Fundamental"|"Sentiment"|"Risk"; meta: string; body: string }> = [
+    { icon: LineChart, iconBg: "bg-success/10 text-success", title: "ISP.MI · Breakout above 200-day MA", tag: "Momentum", meta: "Momentum · High confidence · 4 min ago", body: "Intesa Sanpaolo crossed €3.42 on 1.6× average volume. RSI 58 — still room to run. Banks sector +1.9% today." },
+    { icon: Landmark, iconBg: "bg-primary/10 text-primary", title: "ECB rate decision tomorrow 14:15 CET", tag: "Macro", meta: "Macro event · Medium impact · 18 min ago", body: "Consensus expects a hold. EUR/USD historically prints ±55 bps within 30 min of the press conference." },
+    { icon: Gem, iconBg: "bg-primary/10 text-primary", title: "LVMH earnings beat +12% EPS", tag: "Fundamental", meta: "Fundamental · Medium confidence · 1 hr ago", body: "Luxury sector showing relative strength. Possible rotation opportunity into FR0000121014." },
+    { icon: AlertTriangle, iconBg: "bg-amber-500/15 text-amber-600", title: "Concentration alert · your book", tag: "Risk", meta: "Risk · High · 3 hr ago", body: "Single-name UCG.MI now >55% of portfolio risk. Consider trimming 15-20%." },
+    { icon: Droplet, iconBg: "bg-destructive/10 text-destructive", title: "WTI breakdown below $80", tag: "Momentum", meta: "Momentum · Medium · 6 hr ago", body: "Energy ETF (XLE) testing 50-day. Watch ENI.MI for follow-through." },
+    { icon: Newspaper, iconBg: "bg-muted text-foreground", title: "Bloomberg: BTP Italia oversubscribed", tag: "Sentiment", meta: "Sentiment · Low · Yesterday", body: "Retail demand strong. Possible spread tightening into ECB." },
+  ];
+  const visibleFeed = FEED.filter((f) => feedFilter === "All" || f.tag === feedFilter);
 
   const currentKind = useMemo(() => KIND_OPTIONS.find((k) => k.value === kind)!, [kind]);
 
@@ -162,11 +174,69 @@ const Alerts = () => {
       />
         <PageHeader
           icon={Bell}
-          title="Signals & Alerts"
-          description="Server-side rules evaluated every 5 minutes. Daily digest sent every morning by email."
+          title="AI Signals"
+          description="Curated by Vela across your portfolio, watchlist and macro feed."
+          actions={
+            <Button variant="outline" size="sm" className="gap-2">
+              <Sliders className="h-4 w-4" /> Tune sources
+            </Button>
+          }
         />
 
-        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-4">
+      <Tabs defaultValue="feed" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="feed">Feed</TabsTrigger>
+          <TabsTrigger value="rules">My rules</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="feed" className="space-y-6 mt-0">
+          {/* Filter chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            {(["All", "Momentum", "Macro", "Fundamental", "Sentiment", "Risk"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFeedFilter(f)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${feedFilter === f ? "bg-sidebar-background text-sidebar-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          {/* Feed grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {visibleFeed.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className={`h-9 w-9 shrink-0 rounded-lg flex items-center justify-center ${s.iconBg}`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold leading-snug">{s.title}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">{s.meta}</div>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+                      <Star className="h-3.5 w-3.5" /> Save
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button variant="outline" size="sm" className="gap-1.5"><LineChart className="h-3.5 w-3.5" /> Open chart</Button>
+                    <Button variant="outline" size="sm" className="gap-1.5"><Sparkles className="h-3.5 w-3.5 text-primary" /> Ask AI</Button>
+                    <Button variant="outline" size="sm" className="gap-1.5"><VolumeX className="h-3.5 w-3.5" /> Mute source</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rules" className="space-y-6 mt-0">
+          <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-4">
           {[
             { label: "Active rules", value: rules.filter(r => r.enabled).length },
             { label: "Total rules", value: rules.length },
@@ -322,6 +392,8 @@ const Alerts = () => {
             </ul>
           )}
         </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

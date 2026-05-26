@@ -92,6 +92,28 @@ export default function Macro() {
           </div>
         </section>
       ))}
+      {/* Cross-asset correlation card */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold">Cross-asset correlation (60d)</h2>
+          <span className="text-xs text-muted-foreground">vs S&P 500</span>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+          {[
+            { label: "SPX vs US10Y", value: -0.42, dot: "hsl(var(--primary))" },
+            { label: "SPX vs Gold",  value:  0.18, dot: "hsl(262 83% 58%)" },
+            { label: "SPX vs DXY",   value: -0.31, dot: "hsl(174 60% 51%)" },
+            { label: "SPX vs BTC",   value:  0.55, dot: "hsl(38 92% 50%)" },
+            { label: "SPX vs WTI",   value:  0.12, dot: "hsl(var(--destructive))" },
+            { label: "SPX vs VIX",   value: -0.88, dot: "hsl(var(--success))" },
+          ].map((r) => (
+            <div key={r.label} className="flex items-center justify-between py-1.5 border-b border-border/60 last:border-0">
+              <span className="flex items-center gap-2 text-muted-foreground"><span className="h-2 w-2 rounded-full" style={{ background: r.dot }} /> {r.label}</span>
+              <span className={`font-semibold tabular-nums ${r.value > 0 ? "text-success" : "text-destructive"}`}>{r.value > 0 ? "+" : ""}{r.value.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

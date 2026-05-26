@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const action = String(body?.action || "");
-      if (!action) {
-        // No action → treat as data load (invoke() defaults to POST with empty body)
+      if (!action || ["load", "list", "get", "read"].includes(action)) {
+        // No/memoized load action → treat as data load (invoke() may default to POST)
       } else {
       const logIncident = (category: string, payload: any, reason?: string) =>
         admin.from("incident_log").insert({
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
             return ok({ ok: true });
           }
           default:
-            return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: jsonHeaders });
+            return new Response(JSON.stringify({ error: "Unknown action", action }), { status: 400, headers: jsonHeaders });
         }
       } catch (err: any) {
         return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 500, headers: jsonHeaders });

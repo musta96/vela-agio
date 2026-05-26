@@ -41,7 +41,7 @@ export default function OwnerConsole() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: res, error } = await supabase.functions.invoke("owner-console");
+    const { data: res, error } = await supabase.functions.invoke("owner-console", { method: "GET" });
     if (error || !res) toast.error("Failed to load owner console");
     else setData(res);
     setLoading(false);

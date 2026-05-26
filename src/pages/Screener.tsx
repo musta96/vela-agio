@@ -3,11 +3,9 @@ import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Search, Loader2, ExternalLink, Sparkles, Filter } from "lucide-react";
+import { Search, Loader2, ExternalLink, Filter, Save, FolderOpen, Download, Plus, Sparkles, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
@@ -22,11 +20,45 @@ const UNIVERSES = {
 } as const;
 
 const EXAMPLES = [
-  "FTSE MIB names with P/E below 12 and dividend yield above 5%",
-  "US megacaps with ROE above 20% and net margin above 15%",
-  "Stocks with PEG below 1 and revenue growth above 15%",
-  "European blue chips with debt-to-equity below 50 and operating margin above 20%",
+  "US megacaps with ROE > 20%",
+  "Stocks with PEG < 1 and growth > 15%",
+  "FTSE MIB banks with P/E < 12 and div yield > 5%",
 ];
+
+const PRESETS = [
+  { emoji: "📈", label: "Italian high-dividend banks", q: "FTSE MIB banks with dividend yield above 5% and P/E below 12" },
+  { emoji: "💎", label: "Luxury margin leaders", q: "European luxury names with operating margin above 25%" },
+  { emoji: "🛢️", label: "Energy with low debt", q: "Energy names with debt-to-equity below 40 and dividend yield above 4%" },
+  { emoji: "🚀", label: "EU small-cap momentum", q: "European small caps with revenue growth above 20%" },
+];
+
+function ScoreBadge({ score }: { score: string }) {
+  const tone = score.startsWith("A")
+    ? "bg-success/15 text-success"
+    : score.startsWith("B")
+    ? "bg-amber-500/15 text-amber-600"
+    : "bg-destructive/15 text-destructive";
+  return (
+    <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${tone}`}>
+      {score}
+    </span>
+  );
+}
+
+function scoreFor(r: { roe?: number; pe?: number; opMargin?: number }): string {
+  let s = 0;
+  if ((r.roe ?? 0) > 0.15) s += 2;
+  else if ((r.roe ?? 0) > 0.1) s += 1;
+  if ((r.pe ?? 0) > 0 && r.pe! < 15) s += 2;
+  else if ((r.pe ?? 0) > 0 && r.pe! < 25) s += 1;
+  if ((r.opMargin ?? 0) > 0.2) s += 2;
+  else if ((r.opMargin ?? 0) > 0.1) s += 1;
+  if (s >= 5) return "A";
+  if (s >= 4) return "A-";
+  if (s >= 3) return "B+";
+  if (s >= 2) return "B";
+  return "C";
+}
 
 interface Result {
   symbol: string;
@@ -88,113 +120,173 @@ const Screener = () => {
       <PageHeader
         icon={Filter}
         title="AI Stock Screener"
-        description="Describe what you're looking for in plain English. AI translates it into filters and ranks the results."
+        description="Describe what you want in plain English. We translate it into filters and rank the results."
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="gap-2">
+              <FolderOpen className="h-4 w-4" /> Saved screens (4)
+            </Button>
+            <Button size="sm" className="gap-2">
+              <Save className="h-4 w-4" /> Save this screen
+            </Button>
+          </>
+        }
       />
       <AiDisclaimerStrip />
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Your query</CardTitle>
-            <CardDescription>Plain English. Example: "Italian banks with dividend yield above 6%".</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. FTSE MIB stocks with P/E under 10 and ROE above 12%"
-              className="min-h-[80px]"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Universe:</span>
-              {(Object.keys(UNIVERSES) as Array<keyof typeof UNIVERSES>).map((u) => (
-                <Badge
-                  key={u}
-                  variant={universe === u ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setUniverse(u)}
-                >
-                  {u} ({UNIVERSES[u].length})
-                </Badge>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLES.map((e) => (
-                <Button key={e} variant="ghost" size="sm" className="text-xs h-7" onClick={() => setQuery(e)}>{e}</Button>
-              ))}
-            </div>
-            <Button onClick={run} disabled={loading || !query.trim()} className="gap-1.5">
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Screening…</> : <><Search className="h-4 w-4" /> Run screener</>}
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        {/* Query column */}
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Your query</h2>
+            <span className="text-[11px] font-medium rounded-full bg-primary/10 text-primary px-2.5 py-0.5">AI · GPT-style</span>
+          </div>
 
-        {spec && (
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Interpreted filters</CardTitle></CardHeader>
-            <CardContent className="text-sm space-y-2">
-              {Array.isArray(spec.filters) && spec.filters.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {spec.filters.map((f: any, i: number) => (
-                    <Badge key={i} variant="outline" className="font-mono">{f.metric} {f.op} {f.value}</Badge>
-                  ))}
-                </div>
-              )}
-              {spec.rankBy && <p className="text-xs text-muted-foreground">Ranked by <span className="font-mono">{spec.rankBy}</span> {spec.direction === "asc" ? "ascending" : "descending"}.</p>}
-              {spec.explanation && <p className="text-xs text-foreground/80 italic">"{spec.explanation}"</p>}
-            </CardContent>
-          </Card>
-        )}
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. FTSE MIB banks with P/E below 12, dividend yield above 5%, and ROE above 10% — rank by 12-month momentum."
+            className="min-h-[96px] bg-background border-border resize-none"
+          />
 
-        {results.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">{results.length} matches</CardTitle></CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left border-b border-border text-xs uppercase text-muted-foreground">
-                      <th className="py-2 pr-3">Symbol</th>
-                      <th className="py-2 pr-3">Name</th>
-                      <th className="py-2 pr-3">Sector</th>
-                      <th className="py-2 pr-3 text-right">Mkt cap</th>
-                      <th className="py-2 pr-3 text-right">P/E</th>
-                      <th className="py-2 pr-3 text-right">Fwd P/E</th>
-                      <th className="py-2 pr-3 text-right">Div Y</th>
-                      <th className="py-2 pr-3 text-right">ROE</th>
-                      <th className="py-2 pr-3 text-right">Op marg</th>
-                      <th className="py-2 pr-3 text-right">Rev gr</th>
-                      <th className="py-2 pr-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr key={r.symbol} className="border-b border-border/40">
-                        <td className="py-2 pr-3 font-mono font-semibold">{r.symbol}</td>
-                        <td className="py-2 pr-3 text-muted-foreground">{r.name}</td>
-                        <td className="py-2 pr-3 text-xs">{r.sector ?? "—"}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtCap(r.marketCap)}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtNum(r.pe)}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtNum(r.forwardPe)}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtPct(r.divYield)}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtPct(r.roe)}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtPct(r.opMargin)}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{fmtPct(r.revGrowth)}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex items-center gap-1 justify-end">
-                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => toggle(r.symbol, r.name)}>
-                              {isWatched(r.symbol) ? "★" : "☆"}
-                            </Button>
-                            <Link to={`/stock/${encodeURIComponent(r.symbol)}`} className="text-primary inline-flex items-center gap-1 hover:underline text-xs">Open <ExternalLink className="h-3 w-3" /></Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {spec && Array.isArray(spec.filters) && spec.filters.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Detected filters</p>
+              <div className="flex flex-wrap gap-2">
+                {spec.filters.map((f: any, i: number) => (
+                  <span key={i} className="rounded-full bg-muted px-3 py-1 text-xs font-medium font-mono">
+                    {f.metric} {f.op} {f.value}
+                  </span>
+                ))}
+                {spec.rankBy && (
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium font-mono">
+                    Rank: {spec.rankBy}
+                  </span>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Try:</span>
+            {EXAMPLES.map((e) => (
+              <button key={e} onClick={() => setQuery(e)} className="rounded-full border border-border bg-background px-3 py-1 text-xs hover:bg-muted transition-colors">
+                {e}
+              </button>
+            ))}
+            <div className="ml-auto flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Pencil className="h-3.5 w-3.5" /> Edit filters
+              </Button>
+              <Button size="sm" onClick={run} disabled={loading || !query.trim()} className="gap-1.5">
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Screening…</> : <><Sparkles className="h-4 w-4" /> Run screener</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Universe rail */}
+        <aside className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <h3 className="font-semibold">Universe</h3>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(UNIVERSES) as Array<keyof typeof UNIVERSES>).map((u) => {
+              const active = universe === u;
+              return (
+                <button
+                  key={u}
+                  onClick={() => setUniverse(u)}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active ? "bg-foreground text-background" : "border border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  {u} <span className={active ? "opacity-70" : "text-muted-foreground"}>{UNIVERSES[u].length}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="pt-2 border-t border-border space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Quick presets</p>
+            {PRESETS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setQuery(p.q)}
+                className="block w-full text-left text-sm hover:text-primary transition-colors"
+              >
+                <span className="mr-1.5">{p.emoji}</span>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
+
+      {results.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-border">
+            <h3 className="font-semibold">Results · {results.length} matches</h3>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Export
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Add all to watchlist
+              </Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/40">
+                  <th className="px-5 py-3">Symbol</th>
+                  <th className="px-3 py-3">Name</th>
+                  <th className="px-3 py-3">Sector</th>
+                  <th className="px-3 py-3 text-right">Price</th>
+                  <th className="px-3 py-3 text-right">Rev gr</th>
+                  <th className="px-3 py-3 text-right">P/E</th>
+                  <th className="px-3 py-3 text-right">Div %</th>
+                  <th className="px-3 py-3 text-right">ROE %</th>
+                  <th className="px-3 py-3 text-center">Vela Score</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {results.map((r) => (
+                  <tr key={r.symbol} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-5 py-3 font-bold tabular-nums">{r.symbol}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{r.name}</td>
+                    <td className="px-3 py-3">
+                      <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs">{r.sector ?? "—"}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">€{r.price != null ? r.price.toFixed(2) : "—"}</td>
+                    <td className={`px-3 py-3 text-right tabular-nums font-medium ${(r.revGrowth ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{fmtPct(r.revGrowth)}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{fmtNum(r.pe)}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{r.divYield != null ? (r.divYield * 100).toFixed(1) : "—"}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{r.roe != null ? (r.roe * 100).toFixed(1) : "—"}</td>
+                    <td className="px-3 py-3 text-center"><ScoreBadge score={scoreFor(r)} /></td>
+                    <td className="px-5 py-3 text-right">
+                      <div className="inline-flex gap-1">
+                        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => toggle(r.symbol, r.name)}>
+                          <span className="text-amber-500">{isWatched(r.symbol) ? "★" : "☆"}</span> Add
+                        </Button>
+                        <Button asChild size="sm" variant="ghost" className="h-7 px-2">
+                          <Link to={`/stock/${encodeURIComponent(r.symbol)}`}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs italic text-muted-foreground">
+        {spec?.explanation && `"${spec.explanation}"`}
+      </div>
     </div>
   );
 };

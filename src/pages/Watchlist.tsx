@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Activity, Star, X, TrendingUp, TrendingDown, Radio, RefreshCw, BellRing, Trash2, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Star, RefreshCw, BellRing, Bell, Plus, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
+import { MiniSparkline, ChangePill } from "@/components/ui/mini-sparkline";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useToast } from "@/hooks/use-toast";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AlertSettingsDialog } from "@/components/AlertSettingsDialog";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAlertMonitor } from "@/hooks/useAlertMonitor";
@@ -20,152 +20,157 @@ const Watchlist = () => {
   const { quotes, loading, lastUpdated, refresh } = useLiveQuotes(symbols, 30000);
   const { rules, history, clearHistory } = useAlerts();
   useAlertMonitor();
+  const [filter, setFilter] = useState("");
 
   const handleRemove = (symbol: string, name: string) => {
     remove(symbol);
     toast({ title: "Removed from watchlist", description: `${symbol} — ${name}` });
   };
 
+  const armed = rules.filter((r) => r.enabled).length;
+  const visible = items.filter((i) =>
+    !filter.trim() || i.symbol.toLowerCase().includes(filter.toLowerCase()) || i.name.toLowerCase().includes(filter.toLowerCase())
+  );
+
   return (
     <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Watchlist — Live Quotes & Price Alerts for Your Stocks" description="Monitor your favorite FTSE MIB, EU, and US stocks with live quotes, custom alerts, and one-click access to deep analysis." path="/watchlist" />
-        <PageHeader
-          icon={Eye}
-          title={
-            <span className="flex items-center gap-3">
-              My Watchlist
-              {items.length > 0 && symbols.some((s) => quotes[s]) && (
-                <Badge className="bg-success/10 text-success gap-1">
-                  <Radio className="h-3 w-3 animate-pulse" />
-                  LIVE
-                </Badge>
-              )}
-            </span>
-          }
-          description={`${items.length} stock${items.length === 1 ? "" : "s"} tracked${
-            lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleTimeString()}` : ""
-          }`}
-          actions={
-            items.length > 0 ? (
-              <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-            ) : null
-          }
-        />
-
-        {items.length > 0 && (
-          <Card className="p-4 mb-6 card-gradient border-border">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <BellRing className="h-4 w-4 text-primary" />
-                <h2 className="font-semibold">Triggered alerts</h2>
-                <Badge variant="outline" className="text-xs">{history.length}</Badge>
-              </div>
-              {history.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearHistory} className="gap-2 text-muted-foreground">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Clear
-                </Button>
-              )}
-            </div>
-            {history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No alerts have fired yet. Set price or sentiment conditions on any watched stock — you'll get a toast
-                {typeof Notification !== "undefined" ? " and a browser notification" : ""} when conditions match.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto">
-                {history.slice(0, 25).map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-3 p-2 rounded-md bg-muted/30 border border-border">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{e.symbol}</span>
-                        <Badge variant="outline" className="text-[10px]">{e.kind.replace(/-/g, " ")}</Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">{e.message}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(e.at).toLocaleTimeString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
-
-        {items.length === 0 ? (
-          <Card className="p-12 text-center card-gradient border-border">
-            <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No stocks on your watchlist yet</h2>
-            <p className="text-muted-foreground mb-6">
-              Browse the dashboard and tap the star icon on any stock to track it here.
-            </p>
-            <Button asChild>
-              <Link to="/dashboard">Browse stocks</Link>
+      <PageHeader
+        icon={Eye}
+        title="Watchlist"
+        description={`${items.length} stock${items.length === 1 ? "" : "s"} tracked · ${armed} alert${armed === 1 ? "" : "s"} armed · ${history.length} firing right now`}
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="gap-2" asChild>
+              <Link to="/dashboard"><Plus className="h-4 w-4" /> Add ticker</Link>
             </Button>
-          </Card>
-        ) : (
-          <div className="grid gap-3">
-            {items.map((item) => {
-              const q = quotes[item.symbol];
-              const change = q?.change ?? 0;
-              const isPositive = change >= 0;
-              const rule = rules.find((r) => r.symbol === item.symbol);
-              return (
-                <Card key={item.symbol} className="p-4 card-gradient border-border hover:border-primary/50 transition-all">
-                  <div className="flex items-center justify-between gap-4">
-                    <Link to={`/stock/${item.symbol}`} className="flex-1 flex items-center gap-4 group">
-                      <Star className="h-5 w-5 fill-primary text-primary" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold group-hover:text-primary transition-colors">{item.symbol}</div>
-                        <div className="text-sm text-muted-foreground truncate">{item.name}</div>
-                        {rule?.enabled && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {rule.priceAbove != null && <Badge variant="outline" className="text-[10px]">≥ {rule.priceAbove}</Badge>}
-                            {rule.priceBelow != null && <Badge variant="outline" className="text-[10px]">≤ {rule.priceBelow}</Badge>}
-                            {rule.changeUpPct != null && <Badge variant="outline" className="text-[10px]">+{rule.changeUpPct}%</Badge>}
-                            {rule.changeDownPct != null && <Badge variant="outline" className="text-[10px]">-{rule.changeDownPct}%</Badge>}
-                            {rule.sentimentAbove != null && <Badge variant="outline" className="text-[10px]">sent ≥ {rule.sentimentAbove}</Badge>}
-                            {rule.sentimentBelow != null && <Badge variant="outline" className="text-[10px]">sent ≤ {rule.sentimentBelow}</Badge>}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {q ? (
-                          <>
-                            <div className="text-lg font-bold">€{q.price.toFixed(2)}</div>
-                            <Badge
-                              variant={isPositive ? "default" : "destructive"}
-                              className={`gap-1 ${isPositive ? "bg-success/10 text-success hover:bg-success/20" : ""}`}
-                            >
-                              {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                              {isPositive ? "+" : ""}
-                              {change.toFixed(2)}%
-                            </Badge>
-                          </>
-                        ) : (
-                          <div className="text-sm text-muted-foreground">{loading ? "Loading…" : "—"}</div>
-                        )}
-                      </div>
-                    </Link>
-                    <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={q?.price} />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemove(item.symbol, item.name)}
-                      aria-label="Remove from watchlist"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
+            <Button variant="outline" size="sm" className="gap-2">
+              <Bell className="h-4 w-4" /> Manage alerts
+            </Button>
+            <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+        {/* Main list */}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 flex flex-wrap items-center gap-2 border-b border-border">
+            <Input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter ticker, sector, country…"
+              className="h-9 max-w-xs bg-background"
+            />
+            <span className="ml-auto text-xs text-muted-foreground">{visible.length} shown</span>
           </div>
-        )}
+
+          {visible.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <Star className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="font-semibold mb-1">No stocks on your watchlist yet</p>
+              <p className="text-sm text-muted-foreground mb-4">Tap the star on any stock to track it here.</p>
+              <Button asChild size="sm"><Link to="/dashboard">Browse stocks</Link></Button>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {visible.map((item) => {
+                const q = quotes[item.symbol];
+                const change = q?.change ?? 0;
+                const rule = rules.find((r) => r.symbol === item.symbol);
+                const alertCount = rule?.enabled
+                  ? [rule.priceAbove, rule.priceBelow, rule.changeUpPct, rule.changeDownPct, rule.sentimentAbove, rule.sentimentBelow].filter((v) => v != null).length
+                  : 0;
+                const trend: "up" | "down" | "flat" = change > 0.05 ? "up" : change < -0.05 ? "down" : "flat";
+                return (
+                  <li key={item.symbol} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <Link to={`/stock/${item.symbol}`} className="min-w-0">
+                      <div className="font-bold text-sm">{item.symbol}</div>
+                      <div className="text-xs text-muted-foreground truncate">{item.name}</div>
+                    </Link>
+                    <div className="text-right tabular-nums font-semibold text-sm w-20">
+                      {q ? `€${q.price.toFixed(2)}` : "—"}
+                    </div>
+                    <div className="w-16 text-right">
+                      {q && <ChangePill pct={change} />}
+                    </div>
+                    <MiniSparkline trend={trend} width={90} height={26} />
+                    <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[11px] font-medium w-20 text-center ${alertCount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {alertCount} alert{alertCount === 1 ? "" : "s"}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={q?.price} />
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
+                        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Right rail: Triggered alerts */}
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Triggered alerts</h2>
+              <span className="text-xs rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">{history.length} firing</span>
+            </div>
+
+            {history.length === 0 ? (
+              <div className="text-center py-6">
+                <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <BellRing className="h-6 w-6 text-primary" />
+                </div>
+                <p className="font-semibold mb-1.5">Nothing firing right now</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                  Set price, % move, RSI or sentiment conditions on any watched stock — you'll get a toast and a browser notification.
+                </p>
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Create alert
+                </Button>
+              </div>
+            ) : (
+              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                {history.slice(0, 12).map((e) => (
+                  <li key={e.id} className="flex items-start justify-between gap-2 text-xs border border-border rounded-lg p-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold">{e.symbol}</div>
+                      <div className="text-muted-foreground truncate">{e.message}</div>
+                    </div>
+                    <span className="text-muted-foreground whitespace-nowrap">{new Date(e.at).toLocaleTimeString()}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {history.length > 0 && (
+              <Button variant="ghost" size="sm" className="w-full mt-3 gap-1.5" onClick={clearHistory}>
+                <Trash2 className="h-3.5 w-3.5" /> Clear history
+              </Button>
+            )}
+          </div>
+
+          {history.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <h3 className="font-semibold text-sm mb-3">Recent alert history</h3>
+              <ul className="space-y-2 text-xs">
+                {history.slice(0, 5).map((e) => (
+                  <li key={`r-${e.id}`} className="flex items-center justify-between gap-2">
+                    <span className="truncate"><span className="font-semibold">{e.symbol}</span> · {e.message}</span>
+                    <span className="text-muted-foreground">{new Date(e.at).toLocaleDateString()}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 };

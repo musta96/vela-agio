@@ -315,7 +315,6 @@ const Risk = () => {
             </Card>
           </>
         )}
-      </main>
     </div>
   );
 };

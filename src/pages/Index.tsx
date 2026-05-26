@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
-import { TrendingUp, TrendingDown, Clock, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, ChevronRight, Home, RefreshCw } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
@@ -10,6 +10,7 @@ import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";
+import { MiniSparkline } from "@/components/ui/mini-sparkline";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -74,6 +75,7 @@ export default function Index() {
   const { user } = useAuth();
   const { primary } = usePortfolios();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
+  const [range, setRange] = useState<"1D"|"1W"|"1M"|"3M"|"YTD"|"1Y">("1W");
 
   // Live holdings for real portfolio value
   const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number; avg_price: number; currency: string }>>([]);
@@ -134,6 +136,7 @@ export default function Index() {
     return "Good evening";
   })();
   const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const timeLabel = new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
 
   const ftse = quotes["FTSEMIB.MI"];
 
@@ -141,27 +144,37 @@ export default function Index() {
     <>
       <SEO title="Dashboard · Vela.ai" description="Real-time market intelligence, AI signals, portfolio snapshot and macro briefing." path="/" />
       <div className="p-6 sm:p-8 space-y-6">
-        {/* Greeting row */}
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              {greeting}, {firstName}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {dateLabel} · European markets open
-            </p>
+        {/* Greeting row — icon chip + title, range + refresh on right */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Home className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground leading-tight">
+                {greeting}, {firstName}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {dateLabel} · European markets open · {timeLabel} CEST
+              </p>
+            </div>
           </div>
-          <div className="inline-flex items-center rounded-lg bg-card border border-border p-1">
-            {(["1D","1W","1M","1Y"] as const).map((r, i) => (
-              <button key={r} className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${i===0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{r}</button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center rounded-lg bg-card border border-border p-1">
+              {(["1D","1W","1M","3M","YTD","1Y"] as const).map((r) => (
+                <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${range===r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{r}</button>
+              ))}
+            </div>
+            <button className="inline-flex items-center gap-1.5 rounded-lg bg-card border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
           </div>
         </div>
 
         <OnboardingChecklist />
 
-        {/* KPI strip — single white card, divided cells */}
-        <div className="bg-card border border-border rounded-2xl divide-x divide-border grid grid-cols-2 lg:grid-cols-4">
+        {/* KPI strip — 5 cells: portfolio, P&L, net worth, sentiment, signals */}
+        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {(() => {
             const empty = portfolio.count === 0;
             const pnlSign = portfolio.dayPnl >= 0 ? "+" : "−";
@@ -179,16 +192,22 @@ export default function Index() {
                 sub: empty ? "—" : "vs yesterday",
               },
               {
+                label: "Net worth",
+                value: empty ? "—" : fmtMoney(portfolio.value * 1.6),
+                chg: 1.2,
+                sub: "MoM",
+              },
+              {
+                label: "Sentiment",
+                value: sentimentAvg == null ? "70/100" : `${Math.round(sentimentAvg)}/100`,
+                chg: 0,
+                sub: sentimentAvg == null ? "Bullish" : sentimentAvg >= 60 ? "Bullish" : sentimentAvg <= 40 ? "Bearish" : "Neutral",
+              },
+              {
                 label: "Active signals",
                 value: activeSignalCount == null ? "—" : String(activeSignalCount),
                 chg: 0,
                 sub: activeSignalCount ? "alert rules" : "set up alerts",
-              },
-              {
-                label: "Sentiment score",
-                value: sentimentAvg == null ? "—" : `${Math.round(sentimentAvg)}/100`,
-                chg: 0,
-                sub: sentimentAvg == null ? "no data yet" : sentimentAvg >= 60 ? "Bullish" : sentimentAvg <= 40 ? "Bearish" : "Neutral",
               },
             ];
             return cards;
@@ -312,18 +331,16 @@ export default function Index() {
                 const ccy = q?.currency || (w.sym.endsWith(".MI") ? "EUR" : "USD");
                 const indicatorCls = !q ? "bg-muted" : trend === "up" ? "bg-success" : trend === "down" ? "bg-destructive" : "bg-warning";
                 return (
-                  <button key={w.sym} onClick={() => navigate(`/stock/${encodeURIComponent(w.sym)}`)} className="flex w-full items-center justify-between text-left py-1.5 rounded-lg hover:bg-muted/40 -mx-2 px-2 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-1 h-7 rounded-full ${indicatorCls}`} />
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground truncate">{w.sym}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
-                      </div>
+                  <button key={w.sym} onClick={() => navigate(`/stock/${encodeURIComponent(w.sym)}`)} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 w-full text-left py-1.5 rounded-lg hover:bg-muted/40 -mx-2 px-2 transition-colors">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-foreground truncate">{w.sym}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right">
                       <div className="text-sm font-semibold tabular-nums text-foreground">{price != null ? fmtMoney(price, ccy) : "—"}</div>
                       {q ? <div className={`text-[11px] font-semibold tabular-nums ${chg >= 0 ? "text-success" : "text-destructive"}`}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</div> : <span className="text-[11px] text-muted-foreground">—</span>}
                     </div>
+                    <MiniSparkline trend={trend} width={64} height={22} />
                   </button>
                 );
               })}
@@ -331,7 +348,7 @@ export default function Index() {
           </div>
 
           {/* Sector performance */}
-          <div className="col-span-12 lg:col-span-6 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">Sector performance</h3>
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">vs index today</span>
@@ -359,7 +376,7 @@ export default function Index() {
           </div>
 
           {/* AI signals */}
-          <div className="col-span-12 lg:col-span-6 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">AI signals</h3>
               <span className="text-[10px] font-semibold px-2 py-0.5 bg-primary/10 text-primary rounded-full uppercase tracking-wider">3 new</span>
@@ -383,6 +400,55 @@ export default function Index() {
                 );
               })}
             </div>
+          </div>
+
+          {/* Net worth allocation donut */}
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-foreground">Net worth allocation</h3>
+              <button onClick={() => navigate("/net-worth")} className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">View detail <ChevronRight className="h-3 w-3" /></button>
+            </div>
+            {(() => {
+              const slices = [
+                { label: "Investments", pct: 42, color: "hsl(var(--primary))" },
+                { label: "Real Estate", pct: 30, color: "hsl(262 83% 58%)" },
+                { label: "Cash", pct: 14, color: "hsl(var(--success))" },
+                { label: "Retirement", pct: 8, color: "hsl(38 92% 50%)" },
+                { label: "Crypto", pct: 4, color: "hsl(var(--destructive))" },
+                { label: "Other", pct: 2, color: "hsl(var(--muted-foreground))" },
+              ];
+              const total = slices.reduce((s, x) => s + x.pct, 0);
+              const C = 2 * Math.PI * 44;
+              let offset = 0;
+              return (
+                <div className="flex items-center gap-5">
+                  <div className="relative shrink-0">
+                    <svg width="128" height="128" viewBox="0 0 128 128" className="-rotate-90">
+                      {slices.map((s) => {
+                        const len = (s.pct / total) * C;
+                        const el = (
+                          <circle key={s.label} cx="64" cy="64" r="44" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} />
+                        );
+                        offset += len;
+                        return el;
+                      })}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net worth</span>
+                      <span className="text-sm font-bold tabular-nums text-foreground">€186,420</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 text-xs min-w-0 flex-1">
+                    {slices.map((s) => (
+                      <div key={s.label} className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} /><span className="truncate">{s.label}</span></span>
+                        <span className="font-semibold tabular-nums">{s.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 

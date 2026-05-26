@@ -135,6 +135,140 @@ Deno.serve(async (req) => {
             await logIncident("ai_governance", { id }, reason);
             return ok({ ok: true });
           }
+          case "retract_signal_notify": {
+            const { id, reason } = body;
+            const { data: sig } = await admin.from("ai_signal_log").select("user_id, symbol, signal_type").eq("id", id).maybeSingle();
+            await admin.from("ai_signal_log").update({ status: "retracted", retracted_by: userRes.user.id, retracted_reason: reason || null, retracted_at: new Date().toISOString() }).eq("id", id);
+            if (sig?.user_id) {
+              await admin.from("notifications").insert({
+                user_id: sig.user_id, kind: "ai_retraction", severity: "warning",
+                title: `AI signal retracted${sig.symbol ? `: ${sig.symbol}` : ""}`,
+                body: reason || "An AI-generated signal you received has been retracted by the platform.",
+                symbol: sig.symbol || null,
+                payload: { signal_id: id, signal_type: sig.signal_type },
+              });
+            }
+            await logIncident("ai_governance", { id, notified: !!sig?.user_id }, reason);
+            return ok({ ok: true });
+          }
+          case "bulk_retract_by_symbol": {
+            const { symbol, since, reason } = body;
+            let q = admin.from("ai_signal_log").select("id, user_id, symbol, signal_type").eq("symbol", String(symbol || "").toUpperCase()).neq("status", "retracted");
+            if (since) q = q.gte("created_at", since);
+            const { data: rows } = await q;
+            const ids = (rows || []).map((r: any) => r.id);
+            if (ids.length) {
+              await admin.from("ai_signal_log").update({ status: "retracted", retracted_by: userRes.user.id, retracted_reason: reason || null, retracted_at: new Date().toISOString() }).in("id", ids);
+              const notifs = (rows || []).filter((r: any) => r.user_id).map((r: any) => ({
+                user_id: r.user_id, kind: "ai_retraction", severity: "warning",
+                title: `AI signal retracted: ${r.symbol}`,
+                body: reason || "An AI-generated signal you received has been retracted by the platform.",
+                symbol: r.symbol, payload: { signal_id: r.id, bulk: true },
+              }));
+              if (notifs.length) await admin.from("notifications").insert(notifs);
+            }
+            await logIncident("ai_governance", { symbol, count: ids.length, since }, reason);
+            return ok({ ok: true, retracted: ids.length });
+          }
+          case "panic_mode": {
+            const { enabled, reason } = body;
+            const keys = ["maintenance_mode", "ai_signals_halted", "live_trading_disabled", "emails_paused", "signups_disabled", "data_feeds_frozen"];
+            for (const key of keys) {
+              await admin.from("platform_controls").upsert({ key, enabled: !!enabled, reason: reason || "PANIC MODE", updated_by: userRes.user.id, updated_at: new Date().toISOString() });
+            }
+            await logIncident("panic_mode", { enabled, keys }, reason);
+            return ok({ ok: true });
+          }
+          case "toggle_control_expiry": {
+            const { key, enabled, reason, expires_at } = body;
+            await admin.from("platform_controls").upsert({ key, enabled: !!enabled, reason: reason ?? null, expires_at: expires_at || null, updated_by: userRes.user.id, updated_at: new Date().toISOString() });
+            await logIncident("kill_switch", { key, enabled, expires_at }, reason);
+            return ok({ ok: true });
+          }
+          case "user_detail": {
+            const { user_id } = body;
+            const [{ data: prof }, { data: ports }, { data: holds }, { data: nwa }, { data: bkr }, { data: cons }, { data: sigs }, { data: susp }, { data: roles }, { data: ord }] = await Promise.all([
+              admin.from("profiles").select("*").eq("user_id", user_id).maybeSingle(),
+              admin.from("portfolios").select("*").eq("user_id", user_id),
+              admin.from("portfolio_holdings").select("*").eq("user_id", user_id),
+              admin.from("net_worth_accounts").select("*").eq("user_id", user_id),
+              admin.from("broker_accounts").select("*").eq("user_id", user_id),
+              admin.from("user_consents").select("*").eq("user_id", user_id).order("accepted_at", { ascending: false }),
+              admin.from("ai_signal_log").select("*").eq("user_id", user_id).order("created_at", { ascending: false }).limit(20),
+              admin.from("user_suspensions").select("*").eq("user_id", user_id).maybeSingle(),
+              admin.from("user_roles").select("role").eq("user_id", user_id),
+              admin.from("live_order_intents").select("*").eq("user_id", user_id).order("created_at", { ascending: false }).limit(20),
+            ]);
+            const { data: au } = await admin.auth.admin.getUserById(user_id);
+            return ok({ profile: prof, auth: au?.user, portfolios: ports, holdings: holds, net_worth: nwa, brokers: bkr, consents: cons, signals: sigs, suspension: susp, roles: (roles || []).map((r: any) => r.role), orders: ord });
+          }
+          case "impersonate_log": {
+            const { user_id, purpose } = body;
+            const { data: u } = await admin.auth.admin.getUserById(user_id);
+            await admin.from("admin_sessions").insert({
+              actor_id: userRes.user.id, actor_email: userRes.user.email,
+              target_user_id: user_id, target_email: u?.user?.email || null,
+              purpose: purpose || "support read-only review",
+            });
+            await logIncident("impersonation", { user_id }, purpose);
+            return ok({ ok: true });
+          }
+          case "request_erasure": {
+            const { user_id, reason, days } = body;
+            const { data: u } = await admin.auth.admin.getUserById(user_id);
+            const scheduled = new Date(Date.now() + (Number(days) || 30) * 86400_000).toISOString();
+            const { data: req } = await admin.from("gdpr_erasure_requests").insert({
+              user_id, user_email: u?.user?.email || null,
+              requested_by: userRes.user.id, requested_by_email: userRes.user.email,
+              reason: reason || "Right to erasure (Art. 17)", scheduled_for: scheduled,
+            }).select().single();
+            await logIncident("gdpr_erasure_requested", { user_id, scheduled }, reason);
+            return ok({ request: req });
+          }
+          case "cancel_erasure": {
+            const { id, reason } = body;
+            await admin.from("gdpr_erasure_requests").update({ status: "cancelled", notes: reason || null, updated_at: new Date().toISOString() }).eq("id", id);
+            await logIncident("gdpr_erasure_cancelled", { id }, reason);
+            return ok({ ok: true });
+          }
+          case "execute_erasure": {
+            const { id } = body;
+            const { data: req } = await admin.from("gdpr_erasure_requests").select("*").eq("id", id).single();
+            if (!req) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: jsonHeaders });
+            const tables = ["portfolios","portfolio_holdings","portfolio_simulations","watchlist_items","alert_rules","alert_preferences","notifications","investor_profiles","broker_accounts","broker_positions","live_order_intents","feature_requests","user_consents","user_roles","user_api_keys","snaptrade_connections","net_worth_accounts","net_worth_snapshots","profiles"];
+            for (const t of tables) await admin.from(t).delete().eq("user_id", (req as any).user_id);
+            await admin.auth.admin.deleteUser((req as any).user_id);
+            const cert = `gdpr-erasure-${id}-${new Date().toISOString().slice(0,10)}`;
+            await admin.from("gdpr_erasure_requests").update({ status: "completed", completed_at: new Date().toISOString(), certificate_url: cert }).eq("id", id);
+            await logIncident("gdpr_erasure_completed", { id, user_id: (req as any).user_id }, "Scheduled erasure executed");
+            return ok({ ok: true, certificate: cert });
+          }
+          case "run_healthchecks": {
+            const checks: { service: string; status: string; latency_ms: number | null; detail: string | null }[] = [];
+            const check = async (service: string, url: string) => {
+              const t0 = Date.now();
+              try {
+                const r = await fetch(url, { method: "GET" });
+                const ms = Date.now() - t0;
+                checks.push({ service, status: r.ok ? "ok" : "degraded", latency_ms: ms, detail: `HTTP ${r.status}` });
+              } catch (e: any) {
+                checks.push({ service, status: "down", latency_ms: null, detail: String(e?.message || e) });
+              }
+            };
+            await check("yahoo_proxy", "https://api.allorigins.win/raw?url=https%3A%2F%2Fquery1.finance.yahoo.com%2Fv7%2Ffinance%2Fquote%3Fsymbols%3DAAPL");
+            await check("supabase_rest", `${supabaseUrl}/rest/v1/`);
+            try {
+              const t0 = Date.now();
+              const { error } = await admin.from("profiles").select("user_id", { head: true, count: "exact" }).limit(1);
+              checks.push({ service: "database", status: error ? "down" : "ok", latency_ms: Date.now() - t0, detail: error?.message || "ok" });
+            } catch (e: any) {
+              checks.push({ service: "database", status: "down", latency_ms: null, detail: String(e?.message || e) });
+            }
+            for (const c of checks) {
+              await admin.from("health_checks").upsert({ ...c, last_checked: new Date().toISOString() });
+            }
+            return ok({ checks });
+          }
           case "purge_user_data": {
             const { user_id, reason } = body;
             // GDPR Article 17: anonymize + delete records across user-owned tables, then delete the auth user.
@@ -278,6 +412,11 @@ Deno.serve(async (req) => {
       admin.from("user_consents").select("*").order("accepted_at", { ascending: false }).limit(500),
       admin.from("audit_log").select("*").order("ts", { ascending: false }).limit(500),
     ]);
+    const [{ data: erasure }, { data: sessions }, { data: health }] = await Promise.all([
+      admin.from("gdpr_erasure_requests").select("*").order("created_at", { ascending: false }).limit(100),
+      admin.from("admin_sessions").select("*").order("created_at", { ascending: false }).limit(50),
+      admin.from("health_checks").select("*"),
+    ]);
     const suspendedSet = new Set((suspensions || []).map((s: any) => s.user_id));
     const rolesMap: Record<string, string[]> = {};
     const { data: allRoles } = await admin.from("user_roles").select("user_id, role");
@@ -307,6 +446,9 @@ Deno.serve(async (req) => {
       flags: flags || [],
       consents: consents || [],
       audit: auditFull || [],
+      erasure: erasure || [],
+      sessions: sessions || [],
+      health: health || [],
     }), { headers: jsonHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

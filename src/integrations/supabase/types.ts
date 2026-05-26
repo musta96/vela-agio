@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_sessions: {
+        Row: {
+          actor_email: string | null
+          actor_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          purpose: string
+          target_email: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_id: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          purpose: string
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          actor_email?: string | null
+          actor_id?: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          purpose?: string
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_signal_log: {
         Row: {
           confidence: number | null
@@ -364,6 +400,78 @@ export type Database = {
           user_id?: string
           user_quote?: string | null
           votes?: number
+        }
+        Relationships: []
+      }
+      gdpr_erasure_requests: {
+        Row: {
+          certificate_url: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          reason: string | null
+          requested_by: string | null
+          requested_by_email: string | null
+          scheduled_for: string
+          status: string
+          updated_at: string
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          certificate_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          requested_by?: string | null
+          requested_by_email?: string | null
+          scheduled_for?: string
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          certificate_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          requested_by?: string | null
+          requested_by_email?: string | null
+          scheduled_for?: string
+          status?: string
+          updated_at?: string
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      health_checks: {
+        Row: {
+          detail: string | null
+          last_checked: string
+          latency_ms: number | null
+          service: string
+          status: string
+        }
+        Insert: {
+          detail?: string | null
+          last_checked?: string
+          latency_ms?: number | null
+          service: string
+          status?: string
+        }
+        Update: {
+          detail?: string | null
+          last_checked?: string
+          latency_ms?: number | null
+          service?: string
+          status?: string
         }
         Relationships: []
       }
@@ -740,6 +848,7 @@ export type Database = {
       platform_controls: {
         Row: {
           enabled: boolean
+          expires_at: string | null
           key: string
           reason: string | null
           updated_at: string
@@ -748,6 +857,7 @@ export type Database = {
         }
         Insert: {
           enabled?: boolean
+          expires_at?: string | null
           key: string
           reason?: string | null
           updated_at?: string
@@ -756,6 +866,7 @@ export type Database = {
         }
         Update: {
           enabled?: boolean
+          expires_at?: string | null
           key?: string
           reason?: string | null
           updated_at?: string
@@ -1175,7 +1286,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "viewer" | "analyst" | "pm" | "admin"
+      app_role:
+        | "viewer"
+        | "analyst"
+        | "pm"
+        | "admin"
+        | "support"
+        | "compliance"
+        | "engineer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1303,7 +1421,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["viewer", "analyst", "pm", "admin"],
+      app_role: [
+        "viewer",
+        "analyst",
+        "pm",
+        "admin",
+        "support",
+        "compliance",
+        "engineer",
+      ],
     },
   },
 } as const

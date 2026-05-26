@@ -212,7 +212,7 @@ const Alerts = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className={`h-9 w-9 shrink-0 rounded-lg flex items-center justify-center ${s.iconBg}`}>
-                        <Icon className="h-4.5 w-4.5" />
+                        <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
                         <div className="font-semibold leading-snug">{s.title}</div>

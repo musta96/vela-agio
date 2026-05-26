@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import {
   Users, Activity, ShieldCheck, Briefcase, Crown, Power, AlertTriangle, Megaphone, Bot,
   ScrollText, Scale, FileDown, Trash2, Ban, Shield, Flag, Database, Mail, TrendingUp,
+  LayoutDashboard, KeyRound, CreditCard, Wallet, AlertCircle, Search, BellRing, Settings,
+  CircleDot, FileText, ChevronRight,
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
@@ -99,42 +101,9 @@ export default function OwnerConsole() {
     toast.success("Export ready");
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <SEO title="Owner Console — Vela.ai" description="Internal admin" path="/owner" />
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Crown className="h-7 w-7 text-amber-400" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Owner Console</h1>
-            <p className="text-sm text-muted-foreground">Founder control plane. Kill switches, users, governance, compliance.</p>
-          </div>
-          <Badge variant="outline" className="ml-auto border-amber-400/40 text-amber-400">Confidential</Badge>
-          <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={<Users className="h-4 w-4" />} label="Total users" value={stats.total} sub={`${stats.confirmed} confirmed`} />
-          <StatCard icon={<Activity className="h-4 w-4" />} label="Active 24h" value={stats.signedInLast24h} sub={`${stats.signedInLast7d} in 7d`} />
-          <StatCard icon={<ShieldCheck className="h-4 w-4" />} label="New (7d)" value={stats.newLast7d} sub="signups" />
-          <StatCard icon={<Briefcase className="h-4 w-4" />} label="Portfolios" value={stats.portfolios} sub={`${stats.holdings} holdings`} />
-        </div>
-
-        <Tabs defaultValue="kill">
-          <TabsList className="flex-wrap h-auto">
-            <TabsTrigger value="kill"><Power className="h-3.5 w-3.5 mr-1.5" />Kill switches</TabsTrigger>
-            <TabsTrigger value="ai"><Bot className="h-3.5 w-3.5 mr-1.5" />AI governance</TabsTrigger>
-            <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1.5" />Users</TabsTrigger>
-            <TabsTrigger value="flags"><Flag className="h-3.5 w-3.5 mr-1.5" />Feature flags</TabsTrigger>
-            <TabsTrigger value="comms"><Megaphone className="h-3.5 w-3.5 mr-1.5" />Comms</TabsTrigger>
-            <TabsTrigger value="audit"><ScrollText className="h-3.5 w-3.5 mr-1.5" />Audit & incidents</TabsTrigger>
-            <TabsTrigger value="compliance"><Scale className="h-3.5 w-3.5 mr-1.5" />Compliance</TabsTrigger>
-            <TabsTrigger value="billing"><TrendingUp className="h-3.5 w-3.5 mr-1.5" />Billing</TabsTrigger>
-            <TabsTrigger value="data"><Database className="h-3.5 w-3.5 mr-1.5" />Data sources</TabsTrigger>
-          </TabsList>
-
-          {/* ---------- Kill switches ---------- */}
-          <TabsContent value="kill" className="mt-4 space-y-3">
+  // ---------- Section content blocks (reused across sidebar nav) ----------
+  const killSection = (
+    <div className="space-y-3">
             <Card className="p-4 border-destructive/40 bg-destructive/5">
               <div className="flex items-center gap-2 text-destructive font-semibold">
                 <AlertTriangle className="h-4 w-4" /> Critical controls — changes take effect instantly for every user.
@@ -156,10 +125,10 @@ export default function OwnerConsole() {
                 );
               })}
             </div>
-          </TabsContent>
-
-          {/* ---------- AI governance ---------- */}
-          <TabsContent value="ai" className="mt-4 space-y-3">
+    </div>
+  );
+  const aiSection = (
+    <div className="space-y-3">
             <AiGovernanceConfig config={aiConfig} onSave={(value) => act("set_ai_config", { value })} />
             <Card className="p-4">
               <h3 className="font-semibold flex items-center gap-2"><Bot className="h-4 w-4" /> AI signal log</h3>
@@ -194,10 +163,10 @@ export default function OwnerConsole() {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-
-          {/* ---------- Users ---------- */}
-          <TabsContent value="users" className="mt-4 space-y-3">
+    </div>
+  );
+  const usersSection = (
+    <div className="space-y-3">
             <Input placeholder="Search by email…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
             <Card>
               <Table>
@@ -228,10 +197,10 @@ export default function OwnerConsole() {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-
-          {/* ---------- Feature flags ---------- */}
-          <TabsContent value="flags" className="mt-4 space-y-3">
+    </div>
+  );
+  const flagsSection = (
+    <div className="space-y-3">
             <Card>
               <Table>
                 <TableHeader><TableRow>
@@ -252,10 +221,10 @@ export default function OwnerConsole() {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-
-          {/* ---------- Comms / banners ---------- */}
-          <TabsContent value="comms" className="mt-4 space-y-3">
+    </div>
+  );
+  const commsSection = (
+    <div className="space-y-3">
             <Card className="p-4 space-y-3">
               <h3 className="font-semibold flex items-center gap-2"><Megaphone className="h-4 w-4" /> Push announcement banner</h3>
               <BannerComposer onCreate={(message, severity) => act("create_banner", { message, severity })} />
@@ -279,10 +248,10 @@ export default function OwnerConsole() {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-
-          {/* ---------- Audit & incidents ---------- */}
-          <TabsContent value="audit" className="mt-4 space-y-3">
+    </div>
+  );
+  const auditSection = (
+    <div className="space-y-3">
             <Card className="p-4 flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h3 className="font-semibold mb-1 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" /> Incident & audit logs</h3>
@@ -323,10 +292,10 @@ export default function OwnerConsole() {
                 {audit.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No audit entries yet.</p>}
               </div>
             </Card>
-          </TabsContent>
-
-          {/* ---------- Compliance ---------- */}
-          <TabsContent value="compliance" className="mt-4 space-y-3">
+    </div>
+  );
+  const complianceSection = (
+    <div className="space-y-3">
             <Card className="p-5 space-y-2">
               <h3 className="font-semibold flex items-center gap-2"><Scale className="h-4 w-4" /> GDPR & regulatory tools</h3>
               <p className="text-xs text-muted-foreground">Access (Art. 15) & portability (Art. 20) via per-user export. Erasure (Art. 17) via the Users tab. All actions are written to the immutable incident log.</p>
@@ -362,26 +331,356 @@ export default function OwnerConsole() {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-
-          {/* ---------- Billing ---------- */}
-          <TabsContent value="billing" className="mt-4">
-            <Card className="p-10 text-center">
-              <h3 className="font-semibold mb-1">Connect a payment provider</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">Once Stripe or Paddle is enabled, MRR / ARR, churn, failed payments, refunds and per-user invoice history will land here automatically.</p>
-            </Card>
-          </TabsContent>
-
-          {/* ---------- Data sources ---------- */}
-          <TabsContent value="data" className="mt-4 space-y-3">
-            <Card className="p-5 space-y-2">
-              <h3 className="font-semibold flex items-center gap-2"><Database className="h-4 w-4" /> Provider health</h3>
-              <p className="text-xs text-muted-foreground">Live market data is served by Yahoo Finance via the public CORS proxy and SnapTrade for broker positions. Use the <strong>Freeze data feeds</strong> kill switch in the Kill switches tab to halt ingestion in an emergency.</p>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
     </div>
+  );
+  const billingSection = (
+    <Card className="p-10 text-center">
+      <h3 className="font-semibold mb-1">Connect a payment provider</h3>
+      <p className="text-sm text-muted-foreground max-w-md mx-auto">Once Stripe or Paddle is enabled, MRR / ARR, churn, failed payments, refunds and per-user invoice history will land here automatically.</p>
+    </Card>
+  );
+  const dataSection = (
+    <Card className="p-5 space-y-2">
+      <h3 className="font-semibold flex items-center gap-2"><Database className="h-4 w-4" /> Provider health</h3>
+      <p className="text-xs text-muted-foreground">Live market data is served by Yahoo Finance via the public CORS proxy and SnapTrade for broker positions. Use the <strong>Freeze data feeds</strong> kill switch in the dashboard to halt ingestion in an emergency.</p>
+    </Card>
+  );
+  const stubSection = (label: string, blurb: string) => (
+    <Card className="p-10 text-center">
+      <h3 className="font-semibold mb-1">{label}</h3>
+      <p className="text-sm text-muted-foreground max-w-md mx-auto">{blurb}</p>
+    </Card>
+  );
+
+  // ---------- Dashboard (mockup) ----------
+  const platformAlerts = [
+    ...(signals.filter(s => (s.confidence ?? 1) < 0.4 || s.status === "flagged").slice(0, 3).map(s => ({
+      icon: <Bot className="h-4 w-4 text-amber-500" />, kind: "Signal governance",
+      title: `AI signal flagged — Low confidence (${s.confidence != null ? s.confidence.toFixed(2) : "—"}) on ${s.symbol || "?"}.`,
+      cta: "Review", section: "ai" as const, when: s.created_at,
+    })),
+    ...incidents.slice(0, 2).map(i => ({
+      icon: <AlertCircle className="h-4 w-4 text-amber-500" />, kind: i.category,
+      title: `${i.action}${i.reason ? ` — ${i.reason}` : ""}`, cta: "View", section: "audit" as const, when: i.ts,
+    })),
+  ].slice(0, 5);
+  const activeAlerts = platformAlerts.length;
+  const flagsOff = flags.filter(f => !f.enabled).length;
+  const liveSignalsToday = signals.filter(s => Date.now() - new Date(s.created_at).getTime() < 86400_000).length;
+  const flaggedSignals = signals.filter(s => s.status === "flagged" || (s.confidence ?? 1) < (aiConfig.min_confidence ?? 0.6)).length;
+  const openIncidents = controls.filter(c => c.enabled && c.key !== "ai_config" && c.key !== "required_consent_version").length;
+  const pendingGdpr = 0; // wire to gdpr_requests when available
+
+  const dashboardSection = (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Owner dashboard</h1>
+          <p className="text-xs text-muted-foreground">{new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · Last sync just now</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Export report</Button>
+          <Button variant="outline" size="sm" onClick={() => setSection("comms")} className="gap-2"><Megaphone className="h-3.5 w-3.5" />Broadcast message</Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <KpiTile label="Total users" value={stats.total.toLocaleString()} delta={`+${stats.newLast7d} this week`} deltaTone="up" />
+        <KpiTile label="Active 24h" value={stats.signedInLast24h.toLocaleString()} delta={`${stats.signedInLast7d} in 7d`} />
+        <KpiTile label="Active signals today" value={liveSignalsToday.toLocaleString()} delta={`${flaggedSignals} flagged`} deltaTone={flaggedSignals ? "warn" : undefined} />
+        <KpiTile label="Portfolios" value={stats.portfolios.toLocaleString()} delta={`${stats.holdings} holdings`} />
+        <KpiTile label="Open incidents" value={String(openIncidents)} delta={openIncidents ? "Investigate" : "All clear"} deltaTone={openIncidents ? "warn" : "up"} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* User management — spans 2 cols */}
+        <Card className="lg:col-span-2 p-0 overflow-hidden">
+          <div className="p-4 flex items-center justify-between flex-wrap gap-2 border-b border-border">
+            <h3 className="font-semibold">User management</h3>
+            <span className="text-xs text-muted-foreground">{filteredUsers.length.toLocaleString()} users</span>
+          </div>
+          <div className="p-4 pt-3">
+            <Input placeholder="Search by email…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md mb-3" />
+            <div className="max-h-[420px] overflow-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-[10px] uppercase tracking-wider">User</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Joined</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Last active</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {filteredUsers.slice(0, 12).map((u) => (
+                    <TableRow key={u.id} className="cursor-pointer" onClick={() => setSection("users")}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center">{(u.email || "?").slice(0,2).toUpperCase()}</div>
+                          <div>
+                            <div className="text-sm font-medium leading-tight">{u.email}</div>
+                            <div className="text-[10px] text-muted-foreground">{(u.roles || ["viewer"])[0]}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {u.suspended
+                          ? <span className="inline-flex items-center gap-1 text-xs text-destructive"><CircleDot className="h-2.5 w-2.5 fill-destructive" />Suspended</span>
+                          : u.email_confirmed_at
+                            ? <span className="inline-flex items-center gap-1 text-xs text-success"><CircleDot className="h-2.5 w-2.5 fill-success" />Active</span>
+                            : <span className="inline-flex items-center gap-1 text-xs text-amber-500"><CircleDot className="h-2.5 w-2.5 fill-amber-500" />Trial</span>}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? relTime(u.last_sign_in_at) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredUsers.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6 text-xs">No users.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </Card>
+
+        {/* Right column */}
+        <div className="space-y-4">
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm">Platform alerts</h3>
+              <Badge variant="outline" className="text-[10px]">{activeAlerts} active</Badge>
+            </div>
+            <div className="space-y-3">
+              {platformAlerts.length === 0 && <p className="text-xs text-muted-foreground">No active alerts. All systems nominal.</p>}
+              {platformAlerts.map((a, i) => (
+                <div key={i} className="flex items-start gap-2 pb-3 border-b border-border/40 last:border-0 last:pb-0">
+                  <div className="mt-0.5">{a.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs leading-snug">{a.title}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{a.kind} · {relTime(a.when)}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setSection(a.section)}>{a.cta}</Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm">Feature flags</h3>
+              <button className="text-[10px] text-primary hover:underline" onClick={() => setSection("flags")}>Manage all ›</button>
+            </div>
+            <div className="space-y-3">
+              {flags.slice(0, 5).map((f) => (
+                <div key={f.key} className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium truncate">{f.label}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{f.category}</div>
+                  </div>
+                  <Switch checked={f.enabled} onCheckedChange={(v) => act("set_feature_flag", { key: f.key, label: f.label, enabled: v, category: f.category, description: f.description })} />
+                </div>
+              ))}
+              {flags.length === 0 && <p className="text-xs text-muted-foreground">No flags configured yet.</p>}
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">Revenue · MRR</h3>
+            <Badge variant="outline" className="text-[10px]">soon</Badge>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-xs">
+            <div><div className="text-[10px] text-muted-foreground uppercase">ARR</div><div className="font-semibold tabular-nums">—</div></div>
+            <div><div className="text-[10px] text-muted-foreground uppercase">Churn $</div><div className="font-semibold tabular-nums">—</div></div>
+            <div><div className="text-[10px] text-muted-foreground uppercase">New MRR</div><div className="font-semibold tabular-nums">—</div></div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-3">Wire Stripe / Paddle to populate revenue charts.</p>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">AI signal governance</h3>
+            <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSection("ai")}>Configure</Button>
+          </div>
+          <div className="space-y-2 text-xs">
+            <DashRow label="Confidence threshold" value={`≥ ${(aiConfig.min_confidence ?? 0.6).toFixed(2)}`} />
+            <DashRow label="Signals generated today" value={liveSignalsToday.toLocaleString()} />
+            <DashRow label="Suppressed (low confidence)" value={String(flaggedSignals)} tone="warn" />
+            <DashRow label="Blacklisted instruments" value={String((aiConfig.ticker_blacklist || []).length)} />
+            <DashRow label="Disclaimer types" value={String(Object.keys(aiConfig.mandatory_disclaimers || {}).length)} />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">Audit log</h3>
+            <button className="text-[10px] text-primary hover:underline" onClick={() => setSection("audit")}>Full log ›</button>
+          </div>
+          <div className="space-y-2">
+            {audit.slice(0, 5).map((a) => (
+              <div key={a.id} className="flex items-center justify-between text-[11px] py-1 border-b border-border/40 last:border-0">
+                <div className="min-w-0 truncate">
+                  <span className="text-muted-foreground tabular-nums mr-2">{relTime(a.ts)}</span>
+                  <span className="truncate">{a.actor_email?.split("@")[0] || "system"}</span>
+                  <span className="text-muted-foreground"> · {a.action}</span>
+                </div>
+                <Badge variant="outline" className="text-[9px] ml-2">{(a.entity || "").slice(0, 12)}</Badge>
+              </div>
+            ))}
+            {audit.length === 0 && <p className="text-[11px] text-muted-foreground">No actions yet.</p>}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const SECTIONS: Record<string, React.ReactNode> = {
+    dashboard: dashboardSection,
+    kill: killSection,
+    users: usersSection,
+    roles: stubSection("Roles & access", "Granular roles, IP allowlisting, SSO/OAuth provider management and API key issuance."),
+    apikeys: stubSection("API keys", "Per-user API key issuance, revocation, and rate-limit overrides."),
+    plans: stubSection("Plans & pricing", "Tiers, entitlements, coupons and trial configuration land here once billing is connected."),
+    revenue: billingSection,
+    failed: stubSection("Failed payments", "Dunning queue and manual retry triggers appear once a payment provider is connected."),
+    flags: flagsSection,
+    audit: auditSection,
+    comms: commsSection,
+    ai: aiSection,
+    data: dataSection,
+    gdpr: complianceSection,
+    legal: stubSection("Legal documents", "Maintain T&C / privacy / risk-disclosure versions. Use Compliance › Force re-consent to require acceptance."),
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      <SEO title="Owner Console — Vela.ai" description="Internal admin" path="/owner" />
+      <OwnerSidebar
+        section={section}
+        setSection={setSection}
+        flagsOff={flagsOff}
+        signalAlerts={flaggedSignals}
+        gdprPending={pendingGdpr}
+        onKill={() => setSection("kill")}
+      />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="h-14 border-b border-border flex items-center px-4 gap-3 sticky top-0 bg-background/95 backdrop-blur z-10">
+          <div className="relative flex-1 max-w-xl">
+            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users, logs, signals…" className="pl-9 h-9" />
+          </div>
+          <Badge variant="outline" className={`gap-1.5 ${openIncidents ? "border-amber-400/40 text-amber-500" : "border-success/40 text-success"}`}>
+            <CircleDot className={`h-2 w-2 fill-current`} />
+            {openIncidents ? `${openIncidents} kill switch${openIncidents === 1 ? "" : "es"} active` : "All systems operational"}
+          </Badge>
+          <Button variant="ghost" size="icon" className="relative" onClick={() => setSection("comms")}>
+            <BellRing className="h-4 w-4" />
+            {activeAlerts > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[9px] rounded-full bg-amber-500 text-background font-bold flex items-center justify-center">{activeAlerts}</span>}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={load}><Settings className="h-4 w-4" /></Button>
+        </header>
+        <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
+      </div>
+    </div>
+  );
+}
+
+// ----- Dashboard helpers -----
+function KpiTile({ label, value, delta, deltaTone }: { label: string; value: string; delta?: string; deltaTone?: "up" | "warn" }) {
+  const tone = deltaTone === "up" ? "text-success" : deltaTone === "warn" ? "text-amber-500" : "text-muted-foreground";
+  return (
+    <Card className="p-4">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-2xl font-bold tabular-nums mt-1">{value}</div>
+      {delta && <div className={`text-[10px] mt-1 ${tone}`}>{delta}</div>}
+    </Card>
+  );
+}
+function DashRow({ label, value, tone }: { label: string; value: string; tone?: "warn" }) {
+  return (
+    <div className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-medium tabular-nums ${tone === "warn" ? "text-amber-500" : ""}`}>{value}</span>
+    </div>
+  );
+}
+function relTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+}
+
+function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; onKill: () => void }) {
+  const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number }[] }[] = [
+    { label: "Overview", items: [
+      { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
+      { key: "audit", label: "Live activity", icon: <Activity className="h-3.5 w-3.5" /> },
+    ]},
+    { label: "Users", items: [
+      { key: "users", label: "All users", icon: <Users className="h-3.5 w-3.5" /> },
+      { key: "roles", label: "Roles & access", icon: <Shield className="h-3.5 w-3.5" /> },
+      { key: "apikeys", label: "API keys", icon: <KeyRound className="h-3.5 w-3.5" /> },
+    ]},
+    { label: "Billing", items: [
+      { key: "plans", label: "Plans & pricing", icon: <CreditCard className="h-3.5 w-3.5" /> },
+      { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
+      { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
+    ]},
+    { label: "Platform", items: [
+      { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },
+      { key: "audit", label: "Audit logs", icon: <ScrollText className="h-3.5 w-3.5" /> },
+      { key: "comms", label: "Comms & CRM", icon: <Mail className="h-3.5 w-3.5" /> },
+    ]},
+    { label: "AI & data", items: [
+      { key: "ai", label: "Signal governance", icon: <Bot className="h-3.5 w-3.5" />, badge: signalAlerts || undefined },
+      { key: "data", label: "Data feeds", icon: <Database className="h-3.5 w-3.5" /> },
+    ]},
+    { label: "Compliance", items: [
+      { key: "gdpr", label: "GDPR requests", icon: <Scale className="h-3.5 w-3.5" />, badge: gdprPending || undefined },
+      { key: "legal", label: "Legal documents", icon: <FileText className="h-3.5 w-3.5" /> },
+    ]},
+  ];
+  return (
+    <aside className="w-60 shrink-0 border-r border-border bg-card/30 flex flex-col">
+      <div className="h-14 border-b border-border flex items-center gap-2 px-4">
+        <Crown className="h-5 w-5 text-amber-400" />
+        <span className="font-semibold tracking-tight">Vela<span className="text-muted-foreground">.ai</span></span>
+        <Badge variant="outline" className="ml-1 text-[9px] border-amber-400/40 text-amber-500">OWNER</Badge>
+      </div>
+      <div className="p-3">
+        <button onClick={onKill} className="w-full h-10 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold text-xs flex items-center justify-center gap-2 transition border border-destructive/30">
+          <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+          Global kill switch
+        </button>
+      </div>
+      <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-4">
+        {groups.map(g => (
+          <div key={g.label}>
+            <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground px-2 py-1.5">{g.label}</div>
+            <div className="space-y-0.5">
+              {g.items.map(it => {
+                const active = section === it.key;
+                return (
+                  <button key={it.key + g.label} onClick={() => setSection(it.key)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition ${active ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 hover:bg-muted/50"}`}>
+                    {it.icon}
+                    <span className="flex-1 text-left">{it.label}</span>
+                    {it.badge != null && <Badge variant="outline" className="text-[9px] h-4 px-1.5">{it.badge}</Badge>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-border text-[10px] text-muted-foreground">
+        <div className="font-medium text-foreground">Owner access</div>
+        <div>All permissions · 2FA active</div>
+      </div>
+    </aside>
   );
 }
 

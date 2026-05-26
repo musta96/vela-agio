@@ -18,12 +18,23 @@ import { useState, useEffect } from "react";
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 
-const OVERVIEW: Item[] = [
+const MARKETS: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Portfolio", url: "/portfolio", icon: Briefcase },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
-  { title: "Orders", url: "/orders", icon: History },
+  { title: "Screener", url: "/screener", icon: Filter },
   { title: "Macro", url: "/macro", icon: Globe2 },
+  { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+];
+
+const MY_WEALTH_TOP: Item[] = [
+  { title: "Portfolio", url: "/portfolio", icon: Briefcase },
+  { title: "Orders", url: "/orders", icon: History },
+];
+
+const MY_WEALTH_BOTTOM: Item[] = [
+  { title: "Goals", url: "/goals", icon: Target },
+  { title: "Risk engine", url: "/risk", icon: ShieldAlert },
+  { title: "Tax harvest", url: "/tax-harvest", icon: Wallet },
 ];
 
 const NET_WORTH_SUB: Item[] = [
@@ -40,21 +51,13 @@ const NET_WORTH_SUB: Item[] = [
   { title: "Liabilities", url: "/net-worth/liabilities", icon: CreditCard },
 ];
 
-const ANALYSIS: Item[] = [
-  { title: "Screener", url: "/screener", icon: Filter },
-  { title: "Backtesting", url: "/backtest", icon: Repeat },
-  { title: "Risk engine", url: "/risk", icon: ShieldAlert },
-  { title: "Tax harvest", url: "/tax-harvest", icon: Wallet },
-  { title: "Goals", url: "/goals", icon: Target },
-];
-
-const INTELLIGENCE: Item[] = [
+const LAB: Item[] = [
   { title: "Idea Lab", url: "/picks", icon: Sparkles },
+  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
   { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
   { title: "Research Copilot", url: "/copilot", icon: Bot },
-  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
+  { title: "Backtesting", url: "/backtest", icon: Repeat },
   { title: "Related Graph", url: "/related", icon: Network, badge: "new" },
-  { title: "Sentiment", url: "/sentiment", icon: Newspaper },
   { title: "Deal flow", url: "/dealflow", icon: Handshake, badge: "new" },
   { title: "Alerts", url: "/alerts", icon: Bell },
 ];
@@ -211,14 +214,15 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
       <SidebarContent className="py-3">
-        <NavGroup label="Overview" items={OVERVIEW} />
+        <NavGroup label="Markets" items={MARKETS} />
+        <NavGroup label="My Wealth" items={MY_WEALTH_TOP} />
         <SidebarGroup>
           <SidebarGroupContent>
             <NetWorthCollapsible />
           </SidebarGroupContent>
         </SidebarGroup>
-        <NavGroup label="Analysis" items={ANALYSIS} />
-        <NavGroup label="Intelligence" items={INTELLIGENCE} />
+        <NavGroup label=" " items={MY_WEALTH_BOTTOM} />
+        <NavGroup label="Lab" items={LAB} />
         <NavGroup label="More" items={MORE} />
         {isOwner && (
           <NavGroup label="Founder" items={[{ title: "Owner Console", url: "/owner", icon: Crown, badge: "you" }]} />

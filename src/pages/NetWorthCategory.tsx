@@ -333,10 +333,18 @@ export default function NetWorthCategory() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Subtotal</p>
-              <p className="text-xl font-bold tabular-nums">{category === "liabilities" ? "−" : ""}{fmt(subtotal)}</p>
+              <p className="text-xl font-bold tabular-nums">
+                {subtotal === 0 ? fmt(0) : (category === "liabilities" ? "−" : "") + fmt(subtotal)}
+              </p>
             </div>
             <Button onClick={() => setEditing(blank())}>
-              <Plus className="h-4 w-4" /> Add {meta.label.toLowerCase().replace(/s$/, "")}
+              <Plus className="h-4 w-4" /> Add {
+                category === "liabilities" ? "liability"
+                : category === "collectibles" ? "collectible"
+                : category === "vehicles" ? "vehicle"
+                : category === "other_assets" ? "asset"
+                : meta.label.toLowerCase().replace(/ies$/, "y").replace(/s$/, "")
+              }
             </Button>
           </div>
         </div>

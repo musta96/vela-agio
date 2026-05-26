@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import StockDetails from "./pages/StockDetails";
 import SentimentDashboard from "./pages/SentimentDashboard";
@@ -90,6 +90,7 @@ const App = () => (
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />
             <Route path="/backtest" element={<BacktestingModule />} />
+            <Route path="/backtesting" element={<Navigate to="/backtest" replace />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
@@ -112,6 +113,10 @@ const App = () => (
             <Route path="/goals" element={<Goals />} />
             <Route path="/event-study" element={<EventStudy />} />
             <Route path="/tax-harvest" element={<TaxHarvest />} />
+            <Route path="/tax" element={<Navigate to="/tax-harvest" replace />} />
+            <Route path="/net-worth/watches" element={<Navigate to="/net-worth/collectibles" replace />} />
+            <Route path="/net-worth/watches_collectibles" element={<Navigate to="/net-worth/collectibles" replace />} />
+            <Route path="/net-worth/other" element={<Navigate to="/net-worth/other_assets" replace />} />
             <Route path="/methodology" element={<Methodology />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/learn" element={<Education />} />

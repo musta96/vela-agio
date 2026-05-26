@@ -544,7 +544,6 @@ const NetWorth = () => {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
 
       {/* Edit / Add account dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

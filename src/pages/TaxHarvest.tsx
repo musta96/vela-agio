@@ -112,11 +112,20 @@ export default function TaxHarvest() {
           </CardContent>
         </Card>
 
-        <Card><CardContent className="p-6 grid md:grid-cols-3 gap-4">
-          <div><div className="text-sm text-muted-foreground">{t("pages.taxHarvest.unrealised")}</div><div className="text-2xl font-mono text-bear">{sym}{totalLoss.toFixed(0)}</div></div>
-          <div><div className="text-sm text-muted-foreground">{t("pages.taxHarvest.benefit")} ({(jur.capitalGainsRate * 100).toFixed(1)}%)</div><div className="text-2xl font-mono text-bull">{sym}{taxBenefit.toFixed(0)}</div></div>
-          <div><div className="text-sm text-muted-foreground">{t("pages.taxHarvest.eligible")}</div><div className="text-2xl font-mono">{losers.length}</div></div>
-        </CardContent></Card>
+        <div className="bg-card border border-border rounded-2xl divide-y md:divide-y-0 md:divide-x divide-border grid md:grid-cols-3">
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("pages.taxHarvest.unrealised")}</span>
+            <span className="text-2xl font-bold tracking-tight text-destructive">{sym}{totalLoss.toFixed(0)}</span>
+          </div>
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("pages.taxHarvest.benefit")} ({(jur.capitalGainsRate * 100).toFixed(1)}%)</span>
+            <span className="text-2xl font-bold tracking-tight text-success">{sym}{taxBenefit.toFixed(0)}</span>
+          </div>
+          <div className="p-5 flex flex-col gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("pages.taxHarvest.eligible")}</span>
+            <span className="text-2xl font-bold tracking-tight">{losers.length}</span>
+          </div>
+        </div>
         <Card><CardHeader><CardTitle>{t("pages.taxHarvest.candidates")}</CardTitle></CardHeader><CardContent className="space-y-2">
           {losers.map((x: any) => (
             <div key={x.symbol} className="flex items-center justify-between border-b pb-2">

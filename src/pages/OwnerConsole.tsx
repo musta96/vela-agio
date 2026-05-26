@@ -898,12 +898,13 @@ function BannerComposer({ onCreate }: { onCreate: (message: string, severity: "i
   );
 }
 
-function UserActionsMenu({ user, act, onExport }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onExport: () => void }) {
+function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onExport: () => void; onView?: () => void }) {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [reason, setReason] = useState("");
   const isAdmin = user.roles?.includes("admin");
   return (
     <div className="flex items-center gap-1 justify-end">
+      {onView && <Button size="sm" variant="ghost" className="gap-1" onClick={onView}><Eye className="h-3.5 w-3.5" /> View</Button>}
       {user.suspended
         ? <Button size="sm" variant="outline" onClick={() => act("unsuspend_user", { user_id: user.id })}>Unsuspend</Button>
         : <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("suspend_user", { user_id: user.id, reason: "Owner action" })}><Ban className="h-3.5 w-3.5" /> Suspend</Button>}

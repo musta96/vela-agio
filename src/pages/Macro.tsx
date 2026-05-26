@@ -1,8 +1,10 @@
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { MiniSparkline, ChangePill } from "@/components/ui/mini-sparkline";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
-import { Globe2 } from "lucide-react";
+import { Globe2, RefreshCw } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const GROUPS: { title: string; symbols: { s: string; label: string }[] }[] = [
@@ -26,7 +28,8 @@ const GROUPS: { title: string; symbols: { s: string; label: string }[] }[] = [
 export default function Macro() {
   const { t } = useTranslation();
   const allSyms = GROUPS.flatMap(g => g.symbols.map(x => x.s));
-  const { quotes } = useLiveQuotes(allSyms, 30_000);
+  const { quotes, refresh, loading } = useLiveQuotes(allSyms, 30_000);
+  const [view, setView] = useState<"tiles" | "list" | "heatmap">("tiles");
 
   return (
     <div className="p-6 sm:p-8 space-y-6">
@@ -35,27 +38,60 @@ export default function Macro() {
         icon={Globe2}
         title={t("pages.macro.title")}
         description="Rates, FX, commodities and volatility across global markets."
-      />
-      {GROUPS.map(g => (
-          <div key={g.title}>
-            <h2 className="text-lg font-semibold mb-2">{t(`pages.macro.groups.${g.title}`, g.title)}</h2>
-            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-              {g.symbols.map(({ s, label }) => {
-                const q = quotes[s];
-                const chg = q?.change ?? 0;
+        actions={
+          <>
+            <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
+              {(["List", "Tiles", "Heatmap"] as const).map((v) => {
+                const k = v.toLowerCase() as typeof view;
+                const active = view === k;
                 return (
-                  <Card key={s}>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm">{label}</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-mono">{q?.price?.toFixed(2) ?? "—"}</div>
-                      <div className={`text-sm font-mono ${chg >= 0 ? "text-bull" : "text-bear"}`}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</div>
-                    </CardContent>
-                  </Card>
+                  <button
+                    key={v}
+                    onClick={() => setView(k)}
+                    className={`px-3 py-1.5 rounded-md transition ${active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {v}
+                  </button>
                 );
               })}
             </div>
+            <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+          </>
+        }
+      />
+      {GROUPS.map((g) => (
+        <section key={g.title} className="space-y-3">
+          <h2 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+            {t(`pages.macro.groups.${g.title}`, g.title)}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {g.symbols.map(({ s, label }) => {
+              const q = quotes[s];
+              const chg = q?.change ?? 0;
+              const trend: "up" | "down" | "flat" = chg > 0.05 ? "up" : chg < -0.05 ? "down" : "flat";
+              return (
+                <div
+                  key={s}
+                  className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">{label}</span>
+                    <ChangePill pct={chg} className="text-xs" />
+                  </div>
+                  <div className="text-2xl font-bold tracking-tight tabular-nums">
+                    {q?.price != null
+                      ? (g.title === "Rates" ? `${q.price.toFixed(2)}%` : q.price.toFixed(g.title === "FX" ? 4 : 2))
+                      : "—"}
+                  </div>
+                  <MiniSparkline trend={trend} width={220} height={32} className="w-full" />
+                </div>
+              );
+            })}
           </div>
-        ))}
+        </section>
+      ))}
     </div>
   );
 }

@@ -37,10 +37,10 @@ export function usePlatformControls() {
       setLoading(false);
     };
     load();
-    const channel = supabase
-      .channel("platform-controls")
-      .on("postgres_changes", { event: "*", schema: "public", table: "platform_controls" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "platform_banners" }, load)
+    const channel = supabase.channel(`platform-controls-${Math.random().toString(36).slice(2)}`);
+    channel
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "platform_controls" }, load)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "platform_banners" }, load)
       .subscribe();
     return () => { alive = false; supabase.removeChannel(channel); };
   }, []);

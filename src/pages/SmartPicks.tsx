@@ -11,6 +11,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Activity, Sparkles, TrendingUp, AlertTriangle, RefreshCw, ExternalLink, Star, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
+import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG, type Market } from "@/data/stockCatalog";
@@ -98,13 +100,12 @@ const SmartPicks = () => {
       <main>
 
       <div className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">AI-Powered Picks</h1>
-          </div>
-          <p className="text-muted-foreground">Ranked opportunities combining momentum, trend, RSI, volatility and AI judgement.</p>
-        </div>
+        <PageHeader
+          icon={Sparkles}
+          title="AI-Powered Picks"
+          description="Ranked opportunities combining momentum, trend, RSI, volatility and AI judgement."
+        />
+        <AiDisclaimerStrip variant="ai" />
 
         <Card className="mb-8 card-gradient border-border">
           <CardHeader>

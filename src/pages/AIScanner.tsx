@@ -37,10 +37,12 @@ export default function AIScanner() {
     <div className="min-h-screen bg-background">
       <SEO title="AI Opportunity Scanner · Vela" description="Scan markets and rank trading opportunities with AI." path="/ai-scanner" />
       <main className="container mx-auto px-4 py-6 space-y-5 max-w-6xl">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold"><Sparkles className="h-6 w-6 text-primary" /> AI Opportunity Scanner</h1>
-          <p className="text-sm text-muted-foreground">Describe what you're looking for. Vela ranks the universe using technicals + AI reasoning.</p>
-        </div>
+        <PageHeader
+          icon={Sparkles}
+          title="AI Opportunity Scanner"
+          description="Describe what you're looking for. Vela ranks the universe using technicals + AI reasoning."
+        />
+        <AiDisclaimerStrip variant="ai" />
 
         <Card>
           <CardHeader><CardTitle className="text-base">Scan parameters</CardTitle></CardHeader>

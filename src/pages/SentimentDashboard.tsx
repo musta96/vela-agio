@@ -103,13 +103,12 @@ const SentimentDashboard = () => {
       <main>
 
       <div className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Sentiment Analysis</h1>
-          </div>
-          <p className="text-muted-foreground">AI-powered analysis of real news headlines for any stock or ETF</p>
-        </div>
+        <PageHeader
+          icon={MessageSquare}
+          title="Sentiment Analysis"
+          description="AI-powered analysis of real news headlines for any stock or ETF."
+        />
+        <AiDisclaimerStrip variant="ai" />
 
         {/* Selector */}
         <Card className="mb-8 card-gradient border-border">

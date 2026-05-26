@@ -98,15 +98,12 @@ export default function Advisor() {
       <SEO title="Portfolio Coach — Educational Research" description="Educational analysis of your portfolio: concentration, valuation, news, and ideas to research further. Not investment advice." path="/advisor" />
       <TopNav />
       <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-6xl">
-        <header>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" /> Portfolio Coach
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Educational research on your portfolio: ideas to consider around concentration, valuation, news,
-            regulation, and optional weather signals. Educational only — not investment advice.
-          </p>
-        </header>
+        <PageHeader
+          icon={Sparkles}
+          title="Portfolio Coach"
+          description="Educational research on your portfolio: ideas to consider around concentration, valuation, news, regulation, and optional weather signals."
+        />
+        <AiDisclaimerStrip variant="ai" />
 
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Your context</CardTitle>

@@ -150,6 +150,70 @@ Deno.serve(async (req) => {
             await logIncident("gdpr_erasure", { user_id }, reason || "Right to erasure");
             return ok({ ok: true });
           }
+          case "export_user_data": {
+            // GDPR Article 20 — data portability. Returns a JSON bundle of every row this user owns.
+            const { user_id } = body;
+            const tables = [
+              "profiles", "user_roles", "user_consents", "investor_profiles",
+              "portfolios", "portfolio_holdings", "portfolio_simulations",
+              "watchlist_items", "alert_rules", "alert_preferences", "notifications",
+              "broker_accounts", "broker_positions", "live_order_intents",
+              "net_worth_accounts", "net_worth_snapshots", "feature_requests",
+              "ai_signal_log",
+            ];
+            const bundle: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id };
+            for (const t of tables) {
+              const { data } = await admin.from(t).select("*").eq("user_id", user_id);
+              bundle[t] = data || [];
+            }
+            const { data: u } = await admin.auth.admin.getUserById(user_id);
+            bundle["auth_user"] = u?.user || null;
+            await logAudit("gdpr_export", user_id, { tables: tables.length });
+            return ok({ bundle });
+          }
+          case "export_audit_csv": {
+            const { from, to } = body;
+            let q = admin.from("audit_log").select("ts, actor_email, action, entity, entity_id, payload, ip").order("ts", { ascending: false }).limit(5000);
+            if (from) q = q.gte("ts", from);
+            if (to) q = q.lte("ts", to);
+            const { data } = await q;
+            const rows = data || [];
+            const header = "ts,actor_email,action,entity,entity_id,ip,payload\n";
+            const esc = (v: unknown) => {
+              if (v == null) return "";
+              const s = typeof v === "string" ? v : JSON.stringify(v);
+              return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            };
+            const csv = header + rows.map((r: any) => [r.ts, r.actor_email, r.action, r.entity, r.entity_id, r.ip, r.payload].map(esc).join(",")).join("\n");
+            return new Response(csv, { headers: { ...corsHeaders, "Content-Type": "text/csv" } });
+          }
+          case "set_ai_config": {
+            // Stores all AI governance knobs in platform_controls under key "ai_config".
+            const { value } = body;
+            await admin.from("platform_controls").upsert({
+              key: "ai_config",
+              enabled: true,
+              value: value || {},
+              updated_by: userRes.user.id,
+              updated_at: new Date().toISOString(),
+            });
+            await logAudit("ai_config", null, value);
+            return ok({ ok: true });
+          }
+          case "force_reconsent": {
+            // Bumps a control flag the client reads to force re-acceptance of T&C.
+            const { version, reason } = body;
+            await admin.from("platform_controls").upsert({
+              key: "required_consent_version",
+              enabled: true,
+              value: { version: version || new Date().toISOString().slice(0, 10) },
+              reason: reason || null,
+              updated_by: userRes.user.id,
+              updated_at: new Date().toISOString(),
+            });
+            await logIncident("gdpr", { version }, reason);
+            return ok({ ok: true });
+          }
           default:
             return new Response(JSON.stringify({ error: "Unknown action", action }), { status: 400, headers: jsonHeaders });
         }

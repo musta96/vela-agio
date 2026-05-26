@@ -354,7 +354,7 @@ export default function OwnerConsole() {
 
   // ---------- Dashboard (mockup) ----------
   const platformAlerts = [
-    ...(signals.filter(s => (s.confidence ?? 1) < 0.4 || s.status === "flagged").slice(0, 3).map(s => ({
+    ...signals.filter(s => (s.confidence ?? 1) < 0.4 || s.status === "flagged").slice(0, 3).map(s => ({
       icon: <Bot className="h-4 w-4 text-amber-500" />, kind: "Signal governance",
       title: `AI signal flagged — Low confidence (${s.confidence != null ? s.confidence.toFixed(2) : "—"}) on ${s.symbol || "?"}.`,
       cta: "Review", section: "ai" as const, when: s.created_at,

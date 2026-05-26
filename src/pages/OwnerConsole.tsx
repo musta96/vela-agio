@@ -470,7 +470,7 @@ function BannerComposer({ onCreate }: { onCreate: (message: string, severity: "i
   );
 }
 
-function UserActionsMenu({ user, act }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean> }) {
+function UserActionsMenu({ user, act, onExport }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onExport: () => void }) {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [reason, setReason] = useState("");
   const isAdmin = user.roles?.includes("admin");
@@ -480,6 +480,7 @@ function UserActionsMenu({ user, act }: { user: UserRow; act: (a: string, p?: Re
         ? <Button size="sm" variant="outline" onClick={() => act("unsuspend_user", { user_id: user.id })}>Unsuspend</Button>
         : <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("suspend_user", { user_id: user.id, reason: "Owner action" })}><Ban className="h-3.5 w-3.5" /> Suspend</Button>}
       <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("force_password_reset", { email: user.email })}><Shield className="h-3.5 w-3.5" /> Reset pw</Button>
+      <Button size="sm" variant="ghost" className="gap-1" onClick={onExport}><FileDown className="h-3.5 w-3.5" /> Export</Button>
       {isAdmin
         ? <Button size="sm" variant="ghost" onClick={() => act("revoke_role", { user_id: user.id, role: "admin" })}>Revoke admin</Button>
         : <Button size="sm" variant="ghost" onClick={() => act("grant_role", { user_id: user.id, role: "admin" })}>Make admin</Button>}
@@ -496,5 +497,85 @@ function UserActionsMenu({ user, act }: { user: UserRow; act: (a: string, p?: Re
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function AiGovernanceConfig({ config, onSave }: { config: AiConfig; onSave: (value: AiConfig) => void }) {
+  const [minConf, setMinConf] = useState<string>(String(config.min_confidence ?? 0.6));
+  const [blacklist, setBlacklist] = useState<string>((config.ticker_blacklist || []).join(", "));
+  const [disclaimers, setDisclaimers] = useState<string>(JSON.stringify(config.mandatory_disclaimers || { briefing: "Not investment advice.", trade_signal: "Not investment advice. Do your own research." }, null, 2));
+  const [rateFree, setRateFree] = useState<string>(String(config.rate_limits?.free ?? 5));
+  const [ratePro, setRatePro] = useState<string>(String(config.rate_limits?.pro ?? 50));
+  const [rateTeam, setRateTeam] = useState<string>(String(config.rate_limits?.team ?? 500));
+  const save = () => {
+    let parsedDisclaimers: Record<string, string> = {};
+    try { parsedDisclaimers = JSON.parse(disclaimers); } catch { toast.error("Disclaimers must be valid JSON"); return; }
+    onSave({
+      min_confidence: Number(minConf) || 0,
+      ticker_blacklist: blacklist.split(",").map(t => t.trim().toUpperCase()).filter(Boolean),
+      mandatory_disclaimers: parsedDisclaimers,
+      rate_limits: { free: Number(rateFree) || 0, pro: Number(ratePro) || 0, team: Number(rateTeam) || 0 },
+    });
+  };
+  return (
+    <Card className="p-5 space-y-4">
+      <div>
+        <h3 className="font-semibold flex items-center gap-2"><Bot className="h-4 w-4" /> AI signal governance</h3>
+        <p className="text-xs text-muted-foreground">Liability surface. Every knob is read by the AI gateway on each request.</p>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Minimum confidence (0–1)</label>
+          <Input value={minConf} onChange={(e) => setMinConf(e.target.value)} placeholder="0.6" />
+          <p className="text-[10px] text-muted-foreground">Signals below this are suppressed before reaching users.</p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Ticker blacklist (comma-separated)</label>
+          <Input value={blacklist} onChange={(e) => setBlacklist(e.target.value)} placeholder="GME, AMC, ..." />
+          <p className="text-[10px] text-muted-foreground">No AI signals will be generated for these instruments.</p>
+        </div>
+        <div className="space-y-1.5 md:col-span-2">
+          <label className="text-xs font-medium">Mandatory disclaimers per signal type (JSON)</label>
+          <Textarea value={disclaimers} onChange={(e) => setDisclaimers(e.target.value)} className="font-mono text-xs min-h-[120px]" />
+          <p className="text-[10px] text-muted-foreground">Keys are signal_type names; values are appended to every output of that type.</p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Rate limit / user / day — Free</label>
+          <Input value={rateFree} onChange={(e) => setRateFree(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Rate limit — Pro</label>
+          <Input value={ratePro} onChange={(e) => setRatePro(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Rate limit — Team</label>
+          <Input value={rateTeam} onChange={(e) => setRateTeam(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={save}>Save AI config</Button>
+      </div>
+    </Card>
+  );
+}
+
+function ForceReconsentDialog({ onConfirm }: { onConfirm: (version: string, reason: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [version, setVersion] = useState(new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button size="sm" variant="outline" className="gap-2"><Scale className="h-3.5 w-3.5" />Force re-consent</Button></DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Force all users to re-accept legal terms</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Bumps the required consent version. On next visit, every user will see the consent banner again until they accept.</p>
+        <Input placeholder="Version (e.g. 2026-05-26)" value={version} onChange={(e) => setVersion(e.target.value)} />
+        <Textarea placeholder="Reason (recorded in incident log)" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => { onConfirm(version, reason); setOpen(false); }}>Publish</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

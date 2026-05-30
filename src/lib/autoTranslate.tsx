@@ -47,16 +47,128 @@ function isInsideSkipped(node: Node): boolean {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// Cache strategy
+// ---------------------------------------------------------------------------
+// Bump CACHE_VERSION whenever the translation prompt, model, or any string
+// post-processing changes — that invalidates all previously cached
+// translations app-wide. Entries also expire after TTL_MS so long-lived
+// installs eventually refresh.
+//
+// Per-entry shape (JSON): { v: number, t: string, ts: number, h: number }
+//   v  = cache schema version
+//   t  = translated text
+//   ts = epoch ms when written
+//   h  = 32-bit FNV-1a hash of the SOURCE text, used to detect collisions /
+//        truncation when the source is replaced
+//
+// On startup we sweep stale entries (different version / expired) so the
+// localStorage budget doesn't bloat forever.
+
+const CACHE_VERSION = 2;
+const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const KEY_PREFIX = "i18n-auto:";
+
+function hash32(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h;
+}
+
 function cacheKey(lang: string, text: string) {
-  return `i18n-auto:${lang}:${text}`;
+  // Include source hash in the key so when the source text changes the lookup
+  // misses naturally (the old entry becomes orphaned and is swept later).
+  return `${KEY_PREFIX}${lang}:${hash32(text).toString(36)}`;
 }
 
 function readCache(lang: string, text: string): string | null {
-  try { return localStorage.getItem(cacheKey(lang, text)); } catch { return null; }
+  try {
+    const raw = localStorage.getItem(cacheKey(lang, text));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { v?: number; t?: string; ts?: number; h?: number };
+    if (parsed.v !== CACHE_VERSION) return null;
+    if (parsed.h !== hash32(text)) return null;
+    if (typeof parsed.ts === "number" && Date.now() - parsed.ts > TTL_MS) return null;
+    return typeof parsed.t === "string" ? parsed.t : null;
+  } catch { return null; }
 }
 
 function writeCache(lang: string, text: string, value: string) {
-  try { localStorage.setItem(cacheKey(lang, text), value); } catch { /* quota */ }
+  try {
+    const payload = JSON.stringify({ v: CACHE_VERSION, t: value, ts: Date.now(), h: hash32(text) });
+    localStorage.setItem(cacheKey(lang, text), payload);
+  } catch {
+    // Quota exceeded — evict ~25% of our entries (oldest first) and retry once.
+    try { evictOldest(0.25); } catch { /* ignore */ }
+    try {
+      const payload = JSON.stringify({ v: CACHE_VERSION, t: value, ts: Date.now(), h: hash32(text) });
+      localStorage.setItem(cacheKey(lang, text), payload);
+    } catch { /* still full, give up silently */ }
+  }
+}
+
+function listOwnKeys(): string[] {
+  const out: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(KEY_PREFIX)) out.push(k);
+    }
+  } catch { /* private mode */ }
+  return out;
+}
+
+// Drop stale-version and expired entries. Called once on startup.
+function sweepStale() {
+  const now = Date.now();
+  for (const k of listOwnKeys()) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const p = JSON.parse(raw);
+      const expired = typeof p?.ts === "number" && now - p.ts > TTL_MS;
+      if (p?.v !== CACHE_VERSION || expired) localStorage.removeItem(k);
+    } catch {
+      // Pre-v2 entries were stored as plain strings — wipe them.
+      try { localStorage.removeItem(k); } catch { /* ignore */ }
+    }
+  }
+}
+
+function evictOldest(fraction: number) {
+  const entries: Array<{ k: string; ts: number }> = [];
+  for (const k of listOwnKeys()) {
+    try {
+      const p = JSON.parse(localStorage.getItem(k) ?? "{}");
+      entries.push({ k, ts: typeof p?.ts === "number" ? p.ts : 0 });
+    } catch {
+      entries.push({ k, ts: 0 });
+    }
+  }
+  entries.sort((a, b) => a.ts - b.ts);
+  const drop = Math.max(1, Math.floor(entries.length * fraction));
+  for (let i = 0; i < drop; i++) localStorage.removeItem(entries[i].k);
+}
+
+// Public helpers for debugging + manual invalidation (e.g. an admin "rebuild
+// translations" button or QA flows). Exposed on window so they're reachable
+// from the console without an import.
+export function clearTranslationCache(lang?: string) {
+  const prefix = lang ? `${KEY_PREFIX}${lang}:` : KEY_PREFIX;
+  for (const k of listOwnKeys()) {
+    if (k.startsWith(prefix)) {
+      try { localStorage.removeItem(k); } catch { /* ignore */ }
+    }
+  }
+}
+
+if (typeof window !== "undefined") {
+  (window as any).__clearTranslationCache = clearTranslationCache;
+  // Sweep once per page load.
+  try { sweepStale(); } catch { /* ignore */ }
 }
 
 type NodeRecord = { node: Text; original: string };

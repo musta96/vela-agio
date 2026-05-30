@@ -118,6 +118,7 @@ async function translateBatch(targetLang: string, texts: string[]): Promise<stri
 }
 
 let runId = 0;
+let suppressObserver = 0;
 
 async function applyLanguage(targetLang: string) {
   const myRun = ++runId;
@@ -164,6 +165,7 @@ async function applyLanguage(targetLang: string) {
 
   // 4) Apply cached translations immediately for snappy UX
   const applyMap = () => {
+    suppressObserver++;
     for (const r of textRecords) {
       const v = map[r.original.trim()];
       if (v && r.node.nodeValue !== v) r.node.nodeValue = v;
@@ -172,6 +174,8 @@ async function applyLanguage(targetLang: string) {
       const v = map[r.original.trim()];
       if (v && r.el.getAttribute(r.attr) !== v) r.el.setAttribute(r.attr, v);
     }
+    // Release on next microtask after the mutation batch has flushed.
+    queueMicrotask(() => { suppressObserver = Math.max(0, suppressObserver - 1); });
   };
   applyMap();
 
@@ -212,6 +216,7 @@ export function AutoTranslate() {
     if (lang === "en") return;
     let pending = false;
     const obs = new MutationObserver(() => {
+      if (suppressObserver > 0) return;
       if (pending) return;
       pending = true;
       window.setTimeout(() => { pending = false; applyLanguage(lang); }, 600);

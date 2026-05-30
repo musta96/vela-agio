@@ -408,7 +408,10 @@ const NetWorth = () => {
                   {CATEGORY_ORDER.map((k) => {
                     const list = grouped[k] || [];
                     const v = k === "liabilities" ? totals.liabilities : (totals.byCat[k] || 0);
-                    const pct = totals.net > 0 ? (v / totals.net) * 100 * (k === "liabilities" ? -1 : 1) : 0;
+                    // Asset categories show share of total assets; liabilities show
+                    // share of total liabilities (rendered negative for clarity).
+                    const denom = k === "liabilities" ? totals.liabilities : totals.assets;
+                    const pct = denom > 0 ? (v / denom) * 100 * (k === "liabilities" ? -1 : 1) : 0;
                     const meta = CATEGORIES[k];
                     if (list.length === 0 && v === 0) return null;
                     const trend = pct > 1 ? "good" : pct < 0 ? "bad" : "muted";

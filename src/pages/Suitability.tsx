@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle2, RefreshCw, AlertTriangle } from "lucide-react";
+import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -313,6 +313,176 @@ export default function Suitability() {
     setUsPerson(false); setCrsResidencies(""); setDependents(0); setLiquidityNeedMonths(6);
     setMaxSinglePositionPct(10); setLeverageAllowed(false); setSfdrSustainableMinPct(0);
     setSfdrTaxonomyMinPct(0); setSfdrPaiConsidered(false); setAttestation(false); setClientCategory("retail");
+  };
+
+  const buildAuditPayload = () => {
+    const labelFor = (qKey: string, score: number): string => {
+      for (const s of SECTIONS) {
+        const q = s.questions.find((x) => x.key === qKey);
+        if (q) return q.opts.find((o) => o.score === score)?.label ?? String(score);
+      }
+      return String(score);
+    };
+    return {
+      generated_at: new Date().toISOString(),
+      user_id: user?.id ?? null,
+      user_email: user?.email ?? null,
+      saved_at: savedAt,
+      profile: { name: profile.name, score, max_score: 30, sri: profile.risk, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
+      horizon_years: horizonYears,
+      core_answers: SECTIONS.flatMap((s) =>
+        s.questions.map((q) => ({
+          section: s.title, key: q.key, question: q.q,
+          score: ans[q.key] ?? null,
+          answer: ans[q.key] != null ? labelFor(q.key, ans[q.key]) : null,
+        }))
+      ),
+      mifid: {
+        client_category: clientCategory,
+        product_knowledge: productKnowledge,
+        source_of_funds: sourceOfFunds,
+        source_of_wealth: sourceOfWealth,
+        is_pep: isPep, pep_details: pepDetails,
+        us_person: usPerson, crs_residencies: crsResidencies,
+        dependents, liquidity_need_months: liquidityNeedMonths,
+        max_single_position_pct: maxSinglePositionPct,
+        leverage_allowed: leverageAllowed,
+      },
+      sfdr: {
+        esg_preference: esg,
+        sustainable_min_pct: sfdrSustainableMinPct,
+        taxonomy_min_pct: sfdrTaxonomyMinPct,
+        pai_considered: sfdrPaiConsidered,
+      },
+      objectives, excluded_sectors: excluded,
+      loss_tolerance_pct: lossTolerancePct,
+      notes,
+      consistency_warnings: warnings,
+      attestation: attestation,
+      version: 2,
+    };
+  };
+
+  const handleExportJson = () => {
+    const payload = buildAuditPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `suitability-audit-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success("JSON audit exported");
+  };
+
+  const handleExportPdf = async () => {
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+    const p = buildAuditPayload();
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(16); doc.text("MiFID II Suitability — Audit Record", 40, 50);
+    doc.setFontSize(9); doc.setTextColor(120);
+    doc.text(`Generated ${new Date(p.generated_at).toLocaleString()}`, 40, 66);
+    doc.text(`User: ${p.user_email ?? p.user_id ?? "—"}`, 40, 78);
+    if (p.saved_at) doc.text(`Profile last saved: ${new Date(p.saved_at).toLocaleString()}`, 40, 90);
+    doc.setTextColor(0);
+
+    autoTable(doc, {
+      startY: 110, theme: "plain",
+      head: [["Profile summary", ""]],
+      body: [
+        ["Risk profile", p.profile.name],
+        ["Score", `${p.profile.score} / ${p.profile.max_score}`],
+        ["SRI", `${p.profile.sri} / 7`],
+        ["Horizon", `${p.horizon_years} years`],
+        ["Suggested allocation", p.profile.allocation],
+        ["Loss tolerance", `${p.loss_tolerance_pct}%`],
+        ["ESG preference", p.sfdr.esg_preference],
+        ["Client category", p.mifid.client_category],
+        ["Leverage allowed", p.mifid.leverage_allowed ? "Yes" : "No"],
+      ],
+      styles: { fontSize: 9 }, headStyles: { fontStyle: "bold", fillColor: [240, 240, 240] },
+      columnStyles: { 0: { cellWidth: 160, fontStyle: "bold" } },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 14,
+      head: [["Section", "Question", "Answer", "Score"]],
+      body: p.core_answers.map((a) => [a.section.replace(/^\d+\.\s*/, ""), a.question, a.answer ?? "—", a.score ?? "—"]),
+      styles: { fontSize: 8, cellPadding: 4 }, headStyles: { fillColor: [30, 41, 59] },
+    });
+
+    const pk = Object.entries(p.mifid.product_knowledge);
+    if (pk.length) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 14,
+        head: [["Instrument knowledge", "Level"]],
+        body: pk.map(([k, v]) => [k, KNOWLEDGE_LEVELS[v as number]?.label ?? String(v)]),
+        styles: { fontSize: 8 }, headStyles: { fillColor: [30, 41, 59] },
+      });
+    }
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 14,
+      head: [["KYC / AML", ""]],
+      body: [
+        ["Source of funds", p.mifid.source_of_funds.join(", ") || "—"],
+        ["Source of wealth", p.mifid.source_of_wealth.join(", ") || "—"],
+        ["PEP", p.mifid.is_pep ? `Yes — ${p.mifid.pep_details || "no detail"}` : "No"],
+        ["US person (FATCA)", p.mifid.us_person ? "Yes" : "No"],
+        ["CRS tax residencies", p.mifid.crs_residencies || "—"],
+        ["Dependents", String(p.mifid.dependents)],
+        ["Liquidity need (months)", String(p.mifid.liquidity_need_months)],
+        ["Max single position", `${p.mifid.max_single_position_pct}%`],
+      ],
+      styles: { fontSize: 8 }, headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+      columnStyles: { 0: { cellWidth: 160, fontStyle: "bold" } },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 14,
+      head: [["SFDR sustainability", ""]],
+      body: [
+        ["Preference", p.sfdr.esg_preference],
+        ["Min. sustainable (%)", String(p.sfdr.sustainable_min_pct)],
+        ["Min. EU taxonomy (%)", String(p.sfdr.taxonomy_min_pct)],
+        ["PAI considered", p.sfdr.pai_considered ? "Yes" : "No"],
+        ["Objectives", p.objectives.join(", ") || "—"],
+        ["Excluded sectors", p.excluded_sectors.join(", ") || "—"],
+      ],
+      styles: { fontSize: 8 }, headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+      columnStyles: { 0: { cellWidth: 160, fontStyle: "bold" } },
+    });
+
+    if (p.consistency_warnings.length) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 14,
+        head: [["Consistency warnings (ESMA Guideline 5)"]],
+        body: p.consistency_warnings.map((w) => [w]),
+        styles: { fontSize: 8, textColor: 120 }, headStyles: { fillColor: [254, 243, 199], textColor: 120 },
+      });
+    }
+
+    if (p.notes) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 14,
+        head: [["Notes"]], body: [[p.notes]], styles: { fontSize: 8 },
+        headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+      });
+    }
+
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i); doc.setFontSize(7); doc.setTextColor(150);
+      doc.text(
+        `Vela.ai — MiFID II suitability audit · Page ${i}/${pages} · ${p.attestation ? "Attested by user" : "Draft (not attested)"}`,
+        40, doc.internal.pageSize.getHeight() - 20,
+      );
+      doc.text("Informational only — not investment advice.", pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: "right" });
+    }
+
+    doc.save(`suitability-audit-${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success("PDF audit downloaded");
   };
 
   return (
@@ -640,6 +810,12 @@ export default function Suitability() {
                 {saving ? "Saving…" : "Save profile"}
               </Button>
               <Button variant="outline" onClick={handleReset}><RefreshCw className="h-4 w-4 mr-2" />Reset</Button>
+              <Button variant="outline" onClick={handleExportPdf} disabled={completed === 0}>
+                <FileText className="h-4 w-4 mr-2" />Download PDF audit
+              </Button>
+              <Button variant="ghost" onClick={handleExportJson} disabled={completed === 0}>
+                <Download className="h-4 w-4 mr-2" />JSON
+              </Button>
               {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
               {complete && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
             </div>

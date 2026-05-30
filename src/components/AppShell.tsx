@@ -11,6 +11,26 @@ import { CopilotFab } from "@/components/CopilotFab";
 import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
 import { PlatformBannerBar } from "@/components/PlatformBannerBar";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { useMarketClock } from "@/hooks/useMarketClock";
+
+function MarketStatusPill() {
+  const { status, short, market, label } = useMarketClock();
+  const tone =
+    status === "open"
+      ? "bg-success/10 text-success [&_.dot]:bg-success"
+      : status === "pre" || status === "post"
+      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 [&_.dot]:bg-amber-500"
+      : "bg-muted text-muted-foreground [&_.dot]:bg-muted-foreground/60";
+  return (
+    <span
+      className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium ${tone}`}
+      title={label}
+      data-no-translate
+    >
+      <span className="dot h-1.5 w-1.5 rounded-full" /> {short} · {market.label}
+    </span>
+  );
+}
 
 export default function AppShell() {
   return (
@@ -36,9 +56,7 @@ export default function AppShell() {
             </button>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-[11px] font-medium text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Markets open · Milan
-              </span>
+              <MarketStatusPill />
               <NotificationBell />
               <LanguageSwitcher />
               <AuthButton />

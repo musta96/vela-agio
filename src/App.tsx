@@ -48,6 +48,7 @@ import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
+import CheckoutReturn from "./pages/CheckoutReturn";
 import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
 import Home from "./pages/Home";
@@ -147,6 +148,7 @@ const App = () => (
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/checkout/return" element={<CheckoutReturn />} />
             <Route path="/dealflow" element={<DealFlow />} />
             <Route path="/privacy-settings" element={<PrivacySettings />} />
             <Route path="/admin/audit" element={<AdminAuditLog />} />

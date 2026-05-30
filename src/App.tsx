@@ -78,6 +78,7 @@ import Terms from "./pages/legal/Terms";
 import Disclaimer from "./pages/legal/Disclaimer";
 import Cookies from "./pages/legal/Cookies";
 import { ConsentBanner } from "./components/ConsentBanner";
+import { AutoTranslate } from "./lib/autoTranslate";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
         <FeatureFlagsProvider>
         <PortfoliosProvider>
         <ConsentBanner />
+        <AutoTranslate />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />

@@ -82,11 +82,9 @@ export const STOCK_CATALOG: CatalogEntry[] = [
   { symbol: "DLG.MI", name: "De'Longhi", market: "Europe", currency: "EUR" },
   { symbol: "GVS.MI", name: "GVS", market: "Europe", currency: "EUR" },
   { symbol: "TPRO.MI", name: "Technoprobe", market: "Europe", currency: "EUR" },
-  { symbol: "REVG.MI", name: "Reply", market: "Europe", currency: "EUR" },
   { symbol: "REY.MI", name: "Reply", market: "Europe", currency: "EUR" },
   { symbol: "ZV.MI", name: "Zignago Vetro", market: "Europe", currency: "EUR" },
   { symbol: "MARR.MI", name: "MARR", market: "Europe", currency: "EUR" },
-  { symbol: "DAL.MI", name: "DiaSorin (alt listing)", market: "Europe", currency: "EUR" },
 
   // --- European blue chips ---
   { symbol: "ASML.AS", name: "ASML Holding", market: "Europe", currency: "EUR" },

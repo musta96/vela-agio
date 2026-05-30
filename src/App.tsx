@@ -54,6 +54,17 @@ import Home from "./pages/Home";
 import NetWorth from "./pages/NetWorth";
 import NetWorthCategory from "./pages/NetWorthCategory";
 import OwnerConsole from "./pages/OwnerConsole";
+import OwnerLayout from "./components/owner/OwnerLayout";
+import OwnerDashboard from "./pages/owner/Dashboard";
+import OwnerActivity from "./pages/owner/Activity";
+import OwnerUsers from "./pages/owner/Users";
+import OwnerUserProfile from "./pages/owner/UserProfile";
+import OwnerRoles from "./pages/owner/Roles";
+import OwnerPlans from "./pages/owner/Plans";
+import OwnerRevenue from "./pages/owner/Revenue";
+import OwnerFeatureFlags from "./pages/owner/FeatureFlags";
+import OwnerAuditLog from "./pages/owner/AuditLog";
+import OwnerAISignals from "./pages/owner/AISignals";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -143,6 +154,18 @@ const App = () => (
             <Route path="/advisor" element={<Advisor />} />
             <Route path="/owner" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
             <Route path="*" element={<NotFound />} />
+          </Route>
+          <Route element={<OwnerRoute><OwnerLayout /></OwnerRoute>}>
+            <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+            <Route path="/owner/activity" element={<OwnerActivity />} />
+            <Route path="/owner/users" element={<OwnerUsers />} />
+            <Route path="/owner/users/:id" element={<OwnerUserProfile />} />
+            <Route path="/owner/roles" element={<OwnerRoles />} />
+            <Route path="/owner/plans" element={<OwnerPlans />} />
+            <Route path="/owner/revenue" element={<OwnerRevenue />} />
+            <Route path="/owner/feature-flags" element={<OwnerFeatureFlags />} />
+            <Route path="/owner/audit" element={<OwnerAuditLog />} />
+            <Route path="/owner/signals" element={<OwnerAISignals />} />
           </Route>
         </Routes>
         </PortfoliosProvider>

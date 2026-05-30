@@ -69,7 +69,6 @@ Deno.serve(async (req) => {
         metadata: { userId },
         ...(isRecurring && { subscription_data: { metadata: { userId } } }),
       }),
-      automatic_tax: { enabled: true },
     });
 
     return new Response(JSON.stringify({ clientSecret: session.client_secret }), {

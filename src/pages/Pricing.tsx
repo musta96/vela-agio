@@ -7,6 +7,7 @@ import { useFlag } from "@/hooks/useFeatureFlags";
 import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { useAuth } from "@/hooks/useAuth";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
@@ -95,6 +96,12 @@ export default function Pricing() {
           ))}
         </div>
         <p className="text-center text-xs text-muted-foreground">All plans include GDPR DPA. SOC 2 Type II and ISO 27001 on enterprise roadmap.</p>
+        {user && (
+          <div className="text-center pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground mb-3">Already subscribed?</p>
+            <ManageSubscriptionButton variant="outline" size="sm" />
+          </div>
+        )}
       </main>
       <Dialog open={isOpen} onOpenChange={(o) => !o && closeCheckout()}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden">

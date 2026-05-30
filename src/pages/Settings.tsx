@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
+import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
+import { useNavigate } from "react-router-dom";
 
 type Tab = "Profile" | "Fiscal residency" | "Currencies" | "Broker connections" | "Notifications" | "Privacy & data" | "Billing";
 const TABS: Tab[] = ["Profile", "Fiscal residency", "Currencies", "Broker connections", "Notifications", "Privacy & data", "Billing"];
@@ -37,6 +39,7 @@ function StatusPill({ s }: { s: string }) {
 const Settings = () => {
   const [tab, setTab] = useState<Tab>("Fiscal residency");
   const [baseCcy, setBaseCcy] = useState("EUR");
+  const navigate = useNavigate();
 
   return (
     <div className="p-6 sm:p-8 space-y-6">
@@ -73,6 +76,23 @@ const Settings = () => {
 
         {/* Right column */}
         <div className="space-y-6">
+          {tab === "Billing" && (
+            <Card className="p-6 rounded-2xl">
+              <h2 className="text-base font-semibold mb-2">Subscription & billing</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Update your payment method, download invoices, or cancel your plan in the secure billing portal.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <ManageSubscriptionButton size="sm" />
+                <Button variant="outline" size="sm" onClick={() => navigate("/pricing")}>View plans</Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                Opens in a new tab. Changes sync back to your account within seconds.
+              </p>
+            </Card>
+          )}
+          {tab !== "Billing" && (
+          <>
           <Card className="p-6 rounded-2xl">
             <div className="flex items-start justify-between gap-3 mb-5">
               <h2 className="text-base font-semibold">Fiscal residency</h2>
@@ -149,6 +169,8 @@ const Settings = () => {
               Read-only access. Vela never sees passwords. <a className="text-primary hover:underline" href="#">Permissions →</a>
             </p>
           </Card>
+          </>
+          )}
         </div>
       </div>
     </div>

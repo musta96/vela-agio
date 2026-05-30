@@ -11,6 +11,7 @@ import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
+import { useMarketClock } from "@/hooks/useMarketClock";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -136,7 +137,8 @@ export default function Index() {
     return "Good evening";
   })();
   const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const timeLabel = new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
+  const mc = useMarketClock();
+  const timeLabel = new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: mc.market.timezone });
 
   const ftse = quotes["FTSEMIB.MI"];
 
@@ -155,7 +157,7 @@ export default function Index() {
                 {greeting}, {firstName}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {dateLabel} · European markets open · {timeLabel} CEST
+                {dateLabel} · {mc.market.label} markets {mc.short.toLowerCase()} · {timeLabel}
               </p>
             </div>
           </div>

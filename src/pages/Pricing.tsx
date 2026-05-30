@@ -4,16 +4,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Sparkles, Gift } from "lucide-react";
 import { useFlag } from "@/hooks/useFeatureFlags";
+import { useStripeCheckout } from "@/hooks/useStripeCheckout";
+import { useAuth } from "@/hooks/useAuth";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 
-const TIERS = [
+type Tier = {
+  name: string;
+  price: string;
+  note: string;
+  highlight?: boolean;
+  features: string[];
+  cta: string;
+  priceId?: string;
+};
+const TIERS: Tier[] = [
   { name: "Free", price: "€0", note: "Forever", features: ["Live quotes (delayed)", "Watchlist (5 symbols)", "Basic charts & news", "AI sentiment on top names", "Community"], cta: "Start free" },
-  { name: "Pro", price: "€29", note: "/ month", highlight: true, features: ["Unlimited watchlists & portfolios", "Real-time intraday & VWAP", "Full AI Copilot & deep research", "Backtesting & optimizer", "Tax-loss harvesting", "Email & push alerts", "PDF reports"], cta: "Upgrade to Pro" },
-  { name: "Advisor", price: "€199", note: "/ seat / month", features: ["Everything in Pro", "MiFID II suitability + KIDs", "Client portal (white-label)", "Model portfolios", "Compliance audit log", "Priority support"], cta: "Contact sales" },
-  { name: "Enterprise", price: "Custom", note: "+ API & SSO", features: ["REST API + webhooks", "SSO (SAML / OIDC)", "SOC 2 / ISO 27001 docs", "Dedicated SLA", "On-prem option", "Custom data feeds"], cta: "Talk to us" },
+  { name: "Pro", price: "€19", note: "/ month", highlight: true, priceId: "pro_monthly", features: ["Unlimited watchlists & portfolios", "Real-time intraday & VWAP", "AI Copilot & deep research", "Email & push alerts", "PDF reports"], cta: "Upgrade to Pro" },
+  { name: "Elite", price: "€49", note: "/ month", priceId: "elite_monthly", features: ["Everything in Pro", "AI portfolio coach", "Backtesting & optimizer", "Tax-loss harvesting", "Priority data feeds"], cta: "Upgrade to Elite" },
+  { name: "Family", price: "€79", note: "/ month", priceId: "family_monthly", features: ["Elite for up to 4 members", "Shared watchlists & portfolios", "Family billing", "Premium support"], cta: "Get Family" },
 ];
 
 export default function Pricing() {
   const pricingEnabled = useFlag("pricing", false);
+  const { openCheckout, closeCheckout, isOpen, checkoutElement } = useStripeCheckout();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleCta = (tier: Tier) => {
+    if (!tier.priceId) {
+      navigate("/auth");
+      return;
+    }
+    if (!user) { navigate("/auth"); return; }
+    openCheckout({
+      priceId: tier.priceId,
+      customerEmail: user.email,
+      userId: user.id,
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+  };
+
   if (!pricingEnabled) {
     return (
       <div className="min-h-screen bg-background">
@@ -34,6 +66,7 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background">
       <SEO title="Pricing | Vela.ai" description="Tiered plans from free to enterprise" path="/pricing" />
+      <PaymentTestModeBanner />
       <TopNav />
       <main className="container mx-auto px-6 py-10 space-y-8">
         <div className="text-center">
@@ -56,13 +89,18 @@ export default function Pricing() {
                     <li key={f} className="flex gap-2"><Check className="h-4 w-4 text-bull mt-0.5 shrink-0" /><span>{f}</span></li>
                   ))}
                 </ul>
-                <Button className="w-full" variant={t.highlight ? "default" : "outline"}>{t.cta}</Button>
+                <Button className="w-full" variant={t.highlight ? "default" : "outline"} onClick={() => handleCta(t)}>{t.cta}</Button>
               </CardContent>
             </Card>
           ))}
         </div>
         <p className="text-center text-xs text-muted-foreground">All plans include GDPR DPA. SOC 2 Type II and ISO 27001 on enterprise roadmap.</p>
       </main>
+      <Dialog open={isOpen} onOpenChange={(o) => !o && closeCheckout()}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <div className="max-h-[85vh] overflow-y-auto">{checkoutElement}</div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

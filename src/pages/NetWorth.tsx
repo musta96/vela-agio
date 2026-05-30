@@ -361,8 +361,9 @@ const NetWorth = () => {
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net Worth</span>
-                        <span className="text-lg font-bold tabular-nums">{fmt(totals.net)}</span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total assets</span>
+                        <span className="text-lg font-bold tabular-nums">{fmt(totals.assets)}</span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5">Net {fmt(totals.net)}</span>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs mt-3">

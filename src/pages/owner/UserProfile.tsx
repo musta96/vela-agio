@@ -3,14 +3,18 @@ import { Link, useParams } from "react-router-dom";
 import { OwnerPageHeader, KpiStrip } from "@/components/owner/OwnerLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Eye, Key, ArrowUp, Ban, Download, Trash2 } from "lucide-react";
+import { Eye, Key, ArrowUp, Ban, Download, Trash2, Lock, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function OwnerUserProfile() {
   const { id } = useParams<{ id: string }>();
+  const { user: admin } = useAuth();
   const [p, setP] = useState<any>(null);
   const [audit, setAudit] = useState<any[]>([]);
   const [suspended, setSuspended] = useState(false);
+  const [consent, setConsent] = useState<{ scope: string; granted_at: string; mandate_ref: string | null } | null>(null);
+  const [advisoryData, setAdvisoryData] = useState<{ portfolios: number; holdings: number; nw_accounts: number } | null>(null);
 
   useEffect(() => { if (!id) return; (async () => {
     const [{ data: prof }, { data: ax }, { data: sus }] = await Promise.all([
@@ -20,6 +24,36 @@ export default function OwnerUserProfile() {
     ]);
     setP(prof); setAudit(ax || []); setSuspended(!!sus);
   })(); }, [id]);
+
+  useEffect(() => {
+    if (!id || !admin) return;
+    (async () => {
+      const { data } = await supabase
+        .from("advisory_consents")
+        .select("scope, granted_at, mandate_ref")
+        .eq("user_id", id)
+        .eq("granted_to", admin.id)
+        .is("revoked_at", null)
+        .order("granted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setConsent(data ?? null);
+      if (data) {
+        // Only count, never expose symbols/amounts to UI without the user opening detail views with their own consent flow.
+        const [{ count: portfolios }, { count: holdings }, { count: nw }] = await Promise.all([
+          supabase.from("portfolios").select("*", { count: "exact", head: true }).eq("user_id", id),
+          supabase.from("portfolio_holdings").select("*", { count: "exact", head: true }).eq("user_id", id),
+          supabase.from("net_worth_accounts").select("*", { count: "exact", head: true }).eq("user_id", id),
+        ]);
+        setAdvisoryData({ portfolios: portfolios ?? 0, holdings: holdings ?? 0, nw_accounts: nw ?? 0 });
+      }
+    })();
+  }, [id, admin?.id]);
+
+  const requestMandate = async () => {
+    // Future: trigger a notification / email to the client asking them to sign a mandate.
+    alert("A mandate request would be sent to the user. Until they grant advisory access from their Settings → Privacy page, their portfolio is not visible to admins.");
+  };
 
   const initials = (p?.display_name || "??").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
 
@@ -76,6 +110,48 @@ export default function OwnerUserProfile() {
             ))}
             {!audit.length && <li className="text-xs text-muted-foreground">No recorded activity.</li>}
           </ul>
+        </div>
+
+        {/* Advisory data — gated by user consent (MiFID-aligned) */}
+        <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {consent ? <ShieldCheck className="h-4 w-4 text-success" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+              <h3 className="text-sm font-semibold">Portfolio & net-worth data</h3>
+            </div>
+            {consent ? (
+              <span className="text-[11px] rounded-full bg-success/10 text-success border border-success/30 px-2 py-0.5">
+                Mandate active · {consent.scope}
+              </span>
+            ) : (
+              <span className="text-[11px] rounded-full bg-muted text-muted-foreground border border-border px-2 py-0.5">
+                Locked — no advisory mandate
+              </span>
+            )}
+          </div>
+          {consent ? (
+            <>
+              <p className="text-xs text-muted-foreground mb-3">
+                Access granted by user on {format(new Date(consent.granted_at), "d MMM yyyy")}
+                {consent.mandate_ref ? ` · Mandate ref: ${consent.mandate_ref}` : ""}. All views are audited.
+              </p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Portfolios</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.portfolios ?? "—"}</dd></div>
+                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Holdings</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.holdings ?? "—"}</dd></div>
+                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Net-worth accounts</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.nw_accounts ?? "—"}</dd></div>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-4">
+              <p className="text-sm text-muted-foreground mb-3">
+                Without a signed advisory mandate from this user, admins cannot view their portfolio, holdings, or net-worth details.
+                This protects the platform and complies with EU MiFID II rules around personalised advice.
+              </p>
+              <Button size="sm" variant="outline" onClick={requestMandate}>
+                <ShieldCheck className="h-4 w-4 mr-1.5" /> Request advisory mandate
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6">

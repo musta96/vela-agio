@@ -50,6 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      advisory_consents: {
+        Row: {
+          granted_at: string
+          granted_to: string
+          id: string
+          mandate_ref: string | null
+          revoked_at: string | null
+          scope: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_to: string
+          id?: string
+          mandate_ref?: string | null
+          revoked_at?: string | null
+          scope: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_to?: string
+          id?: string
+          mandate_ref?: string | null
+          revoked_at?: string | null
+          scope?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_signal_log: {
         Row: {
           confidence: number | null
@@ -999,6 +1029,7 @@ export type Database = {
           ai_model: string | null
           ai_provider: string
           avatar_url: string | null
+          base_currency: string | null
           bio: string | null
           briefing_focus: string | null
           country_residence: string | null
@@ -1009,6 +1040,7 @@ export type Database = {
           id: string
           onboarding_dismissed: boolean
           phone: string | null
+          preferred_market: string | null
           secondary_tax_residences: string[] | null
           updated_at: string
           user_id: string
@@ -1017,6 +1049,7 @@ export type Database = {
           ai_model?: string | null
           ai_provider?: string
           avatar_url?: string | null
+          base_currency?: string | null
           bio?: string | null
           briefing_focus?: string | null
           country_residence?: string | null
@@ -1027,6 +1060,7 @@ export type Database = {
           id?: string
           onboarding_dismissed?: boolean
           phone?: string | null
+          preferred_market?: string | null
           secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id: string
@@ -1035,6 +1069,7 @@ export type Database = {
           ai_model?: string | null
           ai_provider?: string
           avatar_url?: string | null
+          base_currency?: string | null
           bio?: string | null
           briefing_focus?: string | null
           country_residence?: string | null
@@ -1045,6 +1080,7 @@ export type Database = {
           id?: string
           onboarding_dismissed?: boolean
           phone?: string | null
+          preferred_market?: string | null
           secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id?: string
@@ -1327,6 +1363,10 @@ export type Database = {
     Functions: {
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
+        Returns: boolean
+      }
+      has_advisory_consent: {
+        Args: { _admin: string; _client: string; _scope: string }
         Returns: boolean
       }
       has_role: {

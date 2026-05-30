@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.translate-batch]
 verify_jwt = false
+
+[functions.manage-plans]
+verify_jwt = false

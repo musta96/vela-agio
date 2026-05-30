@@ -1,88 +1,204 @@
+import { useEffect, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerLayout";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Plus, Check, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Archive, RefreshCw, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-const PLANS = [
-  { name: "Free", price: "€0", sub: "8,087 users", badge: "ACTIVE", badgeClass: "bg-success/15 text-success",
-    items: [["5 watchlist items", true], ["Basic market data", true], ["3 AI signals/day", true], ["Backtesting", false], ["API access", false]] },
-  { name: "Pro", price: "€49", sub: "3,210 users · €157k ARR", badge: "BEST SELLER", badgeClass: "bg-primary/15 text-primary", highlight: true,
-    items: [["Unlimited watchlist", true], ["Full market data", true], ["Unlimited AI signals", true], ["Backtesting", true], ["API access (1k/mo)", true]] },
-  { name: "Team", price: "€199", sub: "184 accounts · €44k ARR", badge: "ACTIVE", badgeClass: "bg-success/15 text-success",
-    items: [["Everything in Pro", true], ["Up to 10 seats", true], ["API access (10k/mo)", true], ["Shared watchlists", true], ["Priority support", true]] },
-  { name: "Enterprise", price: "Custom", sub: "12 accounts · custom pricing", badge: "CUSTOM", badgeClass: "bg-foreground/10 text-foreground", dark: true,
-    items: [["Unlimited seats", true], ["Dedicated support", true], ["SLA agreement", true], ["Custom data feeds", true], ["White-label option", true]] },
-];
+type Env = "sandbox" | "live";
+type StripeProduct = { id: string; name: string; description?: string | null; active: boolean; metadata?: Record<string,string> };
+type StripePrice = { id: string; product: string; unit_amount: number; currency: string; active: boolean; recurring?: { interval: string } | null };
 
-const COUPONS = [
-  { code: "VELA20", off: "20% off", valid: "Pro, first 3 months", uses: "84 / 200", exp: "31 Dec 2025" },
-  { code: "PRESS50", off: "50% off", valid: "Pro, 1 month", uses: "12 / 20", exp: "30 Jun 2025" },
-  { code: "BETA100", off: "100% off", valid: "Pro, 6 months", uses: "8 / 10", exp: "01 Aug 2025" },
-];
+async function call(action: string, body: Record<string, unknown> = {}, env: Env = "sandbox") {
+  const { data, error } = await supabase.functions.invoke("manage-plans", { body: { action, env, ...body } });
+  if (error) throw new Error(error.message || "Request failed");
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return data as any;
+}
 
 export default function OwnerPlans() {
+  const [env, setEnv] = useState<Env>("sandbox");
+  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<StripeProduct[]>([]);
+  const [prices, setPrices] = useState<StripePrice[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await call("list", {}, env);
+      setProducts(r.products || []);
+      setPrices(r.prices || []);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [env]);
+
+  const createProduct = async () => {
+    if (!newName.trim()) return;
+    try {
+      await call("create_product", { name: newName.trim(), description: newDesc.trim() || undefined }, env);
+      toast.success("Product created");
+      setNewName(""); setNewDesc(""); setCreating(false);
+      load();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const archiveProduct = async (id: string) => {
+    if (!confirm("Archive this plan? Existing subscribers keep access; new sign-ups won't see it.")) return;
+    try { await call("update_product", { product_id: id, active: false }, env); toast.success("Archived"); load(); }
+    catch (e: any) { toast.error(e.message); }
+  };
+
+  const reactivate = async (id: string) => {
+    try { await call("update_product", { product_id: id, active: true }, env); toast.success("Reactivated"); load(); }
+    catch (e: any) { toast.error(e.message); }
+  };
+
   return (
     <>
-      <OwnerPageHeader title="Plans & pricing" subtitle="Manage tiers, features, and pricing"
-        actions={<><Button variant="outline" size="sm"><Plus className="h-4 w-4 mr-1.5" />Add coupon</Button><Button size="sm"><Plus className="h-4 w-4 mr-1.5" />New plan</Button></>}
-      />
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {PLANS.map((p: any) => (
-          <div key={p.name} className={cn(
-            "rounded-2xl border p-5 flex flex-col",
-            p.highlight && "border-primary ring-1 ring-primary",
-            p.dark ? "bg-foreground text-background border-foreground" : "bg-card border-border",
-          )}>
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="text-lg font-semibold">{p.name}</h3>
-              <span className={cn("text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded", p.dark ? "bg-background/15 text-background" : p.badgeClass)}>{p.badge}</span>
+      <OwnerPageHeader
+        title="Plans & pricing"
+        subtitle="Live data from billing provider — create products, add prices, archive plans"
+        actions={
+          <>
+            <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
+              <button onClick={() => setEnv("sandbox")} className={`px-3 h-9 ${env === "sandbox" ? "bg-foreground text-background" : "bg-card"}`}>Test</button>
+              <button onClick={() => setEnv("live")} className={`px-3 h-9 ${env === "live" ? "bg-foreground text-background" : "bg-card"}`}>Live</button>
             </div>
-            <div className="text-3xl font-bold tracking-tight">{p.price}{p.price !== "Custom" && <span className="text-sm font-normal text-muted-foreground">/mo</span>}</div>
-            <div className={cn("text-xs mt-1", p.dark ? "text-background/70" : "text-muted-foreground")}>{p.sub}</div>
-            <ul className={cn("text-sm space-y-1.5 my-5 pt-4 border-t", p.dark ? "border-background/20" : "border-border")}>
-              {p.items.map(([label, ok]: any) => (
-                <li key={label} className="flex items-center gap-2">
-                  {ok ? <Check className="h-4 w-4 text-success shrink-0" /> : <X className="h-4 w-4 text-muted-foreground shrink-0" />}
-                  <span className={!ok ? "text-muted-foreground line-through" : ""}>{label}</span>
-                </li>
-              ))}
-            </ul>
-            <Button variant={p.highlight ? "default" : p.dark ? "secondary" : "outline"} className="mt-auto">{p.dark ? "Manage" : "Edit plan"}</Button>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </Button>
+            <Button size="sm" onClick={() => setCreating((v) => !v)}>
+              <Plus className="h-4 w-4 mr-1.5" />New plan
+            </Button>
+          </>
+        }
+      />
+
+      {creating && (
+        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
+          <h3 className="text-sm font-semibold mb-3">New plan</h3>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div><Label className="text-xs">Name</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Pro" /></div>
+            <div><Label className="text-xs">Description</Label><Input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Full access" /></div>
           </div>
-        ))}
+          <div className="mt-3 flex gap-2"><Button size="sm" onClick={createProduct}>Create</Button><Button size="sm" variant="outline" onClick={() => setCreating(false)}>Cancel</Button></div>
+          <p className="text-[11px] text-muted-foreground mt-2">After creating the plan, add a price below.</p>
+        </div>
+      )}
+
+      {loading && products.length === 0 ? (
+        <div className="text-sm text-muted-foreground">Loading plans…</div>
+      ) : products.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground">
+          No products yet in {env}. Create one above.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {products.map((p) => {
+            const pricesFor = prices.filter((pr) => pr.product === p.id);
+            return (
+              <PlanRow key={p.id} env={env} product={p} prices={pricesFor} onArchive={() => archiveProduct(p.id)} onReactivate={() => reactivate(p.id)} onChange={load} />
+            );
+          })}
+        </div>
+      )}
+
+      <p className="text-[11px] text-muted-foreground mt-6">
+        Prices are immutable in the billing provider — to change an amount, add a new price and archive the old one.
+      </p>
+    </>
+  );
+}
+
+function PlanRow({ env, product, prices, onArchive, onReactivate, onChange }: {
+  env: Env; product: StripeProduct; prices: StripePrice[];
+  onArchive: () => void; onReactivate: () => void; onChange: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("eur");
+  const [interval, setInterval] = useState<"month" | "year" | "">("month");
+
+  const addPrice = async () => {
+    const cents = Math.round(Number(amount) * 100);
+    if (!cents || cents < 0) { toast.error("Invalid amount"); return; }
+    try {
+      await call("create_price", { product_id: product.id, amount: cents, currency, interval: interval || undefined }, env);
+      toast.success("Price added"); setAdding(false); setAmount(""); onChange();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const archivePrice = async (id: string) => {
+    try { await call("archive_price", { price_id: id }, env); toast.success("Price archived"); onChange(); }
+    catch (e: any) { toast.error(e.message); }
+  };
+
+  return (
+    <div className={`rounded-2xl border bg-card p-5 ${product.active ? "border-border" : "border-dashed opacity-70"}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold">{product.name}</h3>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${product.active ? "bg-success/15 text-success" : "bg-foreground/10 text-muted-foreground"}`}>
+              {product.active ? "ACTIVE" : "ARCHIVED"}
+            </span>
+          </div>
+          {product.description && <p className="text-xs text-muted-foreground mt-1">{product.description}</p>}
+          <p className="text-[10px] font-mono text-muted-foreground mt-1">{product.id}</p>
+        </div>
+        <div className="flex gap-2">
+          {product.active
+            ? <Button size="sm" variant="outline" onClick={onArchive}><Archive className="h-3.5 w-3.5 mr-1" />Archive</Button>
+            : <Button size="sm" variant="outline" onClick={onReactivate}>Reactivate</Button>}
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 mt-6">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">Active coupons</h3><Button size="sm" variant="outline"><Plus className="h-3.5 w-3.5 mr-1" />New coupon</Button></div>
-          <table className="w-full text-sm">
-            <thead className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold"><tr><th className="text-left py-2">Code</th><th className="text-left">Discount</th><th className="text-left">Valid for</th><th className="text-left">Uses</th><th className="text-left">Expires</th></tr></thead>
-            <tbody>{COUPONS.map((c) => (
-              <tr key={c.code} className="border-t border-border">
-                <td className="py-2.5 font-mono">{c.code}</td>
-                <td><span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warning/15 text-warning">{c.off}</span></td>
-                <td className="text-xs">{c.valid}</td>
-                <td className="text-xs">{c.uses}</td>
-                <td className="text-xs text-muted-foreground">{c.exp}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+      <div className="mt-4 border-t border-border pt-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Prices</span>
+          <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}><Plus className="h-3.5 w-3.5 mr-1" />Add price</Button>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">Trial configuration</h3><Button size="sm" variant="outline">Save changes</Button></div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <label className="block"><span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Trial length</span><select className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background"><option>14 days</option><option>7 days</option><option>30 days</option></select></label>
-            <label className="block"><span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Trial plan</span><select className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background"><option>Pro</option><option>Team</option></select></label>
-            <label className="block"><span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Grace period</span><select className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background"><option>3 days</option><option>7 days</option></select></label>
-            <label className="block"><span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Dunning emails</span><select className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background"><option>3 attempts</option><option>5 attempts</option></select></label>
-          </div>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between"><span>Require credit card for trial</span><Switch /></div>
-            <div className="flex items-center justify-between"><span>Auto-downgrade on expiry</span><Switch defaultChecked /></div>
-          </div>
+        {prices.length === 0 && !adding && <p className="text-xs text-muted-foreground">No prices yet — add one to make this plan purchasable.</p>}
+        <div className="space-y-1.5">
+          {prices.map((pr) => (
+            <div key={pr.id} className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2">
+              <div>
+                <span className="font-medium">{(pr.unit_amount / 100).toLocaleString(undefined, { style: "currency", currency: pr.currency.toUpperCase() })}</span>
+                {pr.recurring ? <span className="text-muted-foreground"> / {pr.recurring.interval}</span> : <span className="text-muted-foreground"> · one-time</span>}
+                {!pr.active && <span className="ml-2 text-[10px] uppercase text-muted-foreground">archived</span>}
+                <span className="ml-2 font-mono text-[10px] text-muted-foreground">{pr.id}</span>
+              </div>
+              {pr.active && <Button size="sm" variant="ghost" onClick={() => archivePrice(pr.id)}>Archive</Button>}
+            </div>
+          ))}
         </div>
+        {adding && (
+          <div className="mt-3 grid sm:grid-cols-4 gap-2 items-end">
+            <div><Label className="text-xs">Amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="49.00" /></div>
+            <div><Label className="text-xs">Currency</Label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm">
+                <option value="eur">EUR</option><option value="usd">USD</option><option value="gbp">GBP</option>
+              </select>
+            </div>
+            <div><Label className="text-xs">Billing</Label>
+              <select value={interval} onChange={(e) => setInterval(e.target.value as any)} className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm">
+                <option value="month">Monthly</option><option value="year">Yearly</option><option value="">One-time</option>
+              </select>
+            </div>
+            <Button size="sm" onClick={addPrice}>Add</Button>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

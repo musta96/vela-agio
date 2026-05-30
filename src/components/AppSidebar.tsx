@@ -10,6 +10,7 @@ import {
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
   ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -66,6 +67,7 @@ const MORE: Item[] = [
   { title: "Learn", url: "/learn", icon: BookOpen },
   { title: "Methodology", url: "/methodology", icon: ScrollText },
   { title: "Profile", url: "/profile", icon: User },
+  { title: "Suitability (MIFID)", url: "/suitability", icon: ClipboardCheck },
   { title: "Security", url: "/security", icon: ShieldCheck },
   { title: "Privacy & data", url: "/privacy-settings", icon: ShieldCheck },
   { title: "Settings", url: "/settings", icon: SettingsIcon },

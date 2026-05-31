@@ -845,6 +845,87 @@ export type Database = {
           },
         ]
       }
+      paper_cash: {
+        Row: {
+          cash: number
+          created_at: string
+          currency: string
+          id: string
+          portfolio_id: string
+          starting_cash: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cash?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          portfolio_id: string
+          starting_cash?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cash?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          portfolio_id?: string
+          starting_cash?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paper_trades: {
+        Row: {
+          created_at: string
+          currency: string
+          executed_at: string
+          fees: number
+          id: string
+          name: string | null
+          notes: string | null
+          portfolio_id: string
+          price: number
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          executed_at?: string
+          fees?: number
+          id?: string
+          name?: string | null
+          notes?: string | null
+          portfolio_id: string
+          price: number
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          executed_at?: string
+          fees?: number
+          id?: string
+          name?: string | null
+          notes?: string | null
+          portfolio_id?: string
+          price?: number
+          quantity?: number
+          side?: string
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_banners: {
         Row: {
           active: boolean

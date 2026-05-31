@@ -16,7 +16,7 @@ import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
-import { PortfolioInsights } from "@/components/PortfolioInsights";
+import { PortfolioInsights, type PortfolioAnalytics } from "@/components/PortfolioInsights";
 import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";

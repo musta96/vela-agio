@@ -29,7 +29,7 @@ export const AuthButton = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 max-w-[160px] bg-white/5 text-sidebar-foreground/80 border border-white/10 hover:bg-white/10 hover:text-sidebar-foreground">
+        <Button variant="ghost" size="sm" className="gap-2 max-w-[160px] bg-card text-foreground border border-border hover:bg-muted hover:text-foreground">
           <UserIcon className="h-4 w-4" />
           <span className="truncate">{label}</span>
         </Button>

@@ -223,7 +223,7 @@ export default function Landing() {
             <p className="mt-4 text-muted-foreground">Start free. Upgrade only when you need more depth or seats. EU VAT applied where required.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {TIERS.map((t) => (
+            {tiers.map((t) => (
               <Card
                 key={t.name}
                 className={`relative flex flex-col ${t.highlight ? "border-primary ring-1 ring-primary/40 bg-background" : "bg-background border-border"}`}
@@ -248,7 +248,7 @@ export default function Landing() {
                     ))}
                   </ul>
                   <Button asChild variant={t.highlight ? "default" : "outline"} className="mt-6 w-full">
-                    <Link to="/auth">{t.cta}</Link>
+                    <Link to={t.cta_href || "/auth"}>{t.cta}</Link>
                   </Button>
                 </CardContent>
               </Card>

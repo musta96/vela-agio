@@ -109,7 +109,7 @@ const NetWorth = () => {
   const { quotes, refresh: refreshQuotes, loading: quotesLoading } = useLiveQuotes(allLiveSymbols, 60000);
 
   // FX-aware totals (shared with Dashboard so the two numbers always agree)
-  const fxTotals = useNetWorthTotal("EUR");
+  const fxTotals = useNetWorthTotal();
 
   const computedAccountValue = (acc: NWAccount): number => {
     if (acc.linked_portfolio_ids && acc.linked_portfolio_ids.length > 0) {

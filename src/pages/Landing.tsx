@@ -10,38 +10,21 @@ import {
   TrendingUp, Globe, Lock, Check, ArrowRight, Building2, Users, FileText,
   Bell, PieChart, Activity, Star
 } from "lucide-react";
+import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 
-const FEATURES = [
-  { icon: Brain, title: "AI Research Copilot", desc: "Ask anything about a stock, sector or your portfolio. Get cited, jargon-free answers powered by the latest LLMs." },
-  { icon: LineChart, title: "Live Markets & Charts", desc: "FTSE MIB, pan-European, US stocks, ETFs and crypto. Real-time quotes, intraday, VWAP and 50+ technical indicators." },
-  { icon: PieChart, title: "Portfolio Coach", desc: "Track multiple portfolios. Get continuous, plain-English suggestions on rebalancing, risk and diversification." },
-  { icon: Target, title: "Optimizer & Backtesting", desc: "Mean-variance, risk-parity, factor tilts. Stress-test any strategy across 20+ years of history." },
-  { icon: Activity, title: "Sentiment & News", desc: "AI-summarised filings, earnings calls and social sentiment so you spot signals before the crowd." },
-  { icon: Bell, title: "Smart Alerts", desc: "Price, technical, fundamental and news alerts via email, push or webhook. Never miss what matters." },
-  { icon: Shield, title: "Risk & Compliance", desc: "VaR, drawdown, factor exposures. MiFID II suitability and KIDs for advisors. Built for European rules." },
-  { icon: FileText, title: "Reports & Tax Tools", desc: "One-click PDF reports, tax-loss harvesting, corporate actions and a full audit log." },
-];
-
-const AUDIENCES = [
-  { icon: Users, tag: "For investors", title: "Make smarter decisions, without the noise", points: ["See your full portfolio in one place", "Plain-English AI explanations, no finance degree required", "Educational research, not high-pressure tips"] },
-  { icon: Building2, tag: "For professionals", title: "Institutional-grade tools at a fraction of the cost", points: ["Multi-portfolio modelling & rebalancing", "Compliance-ready audit trail & client reports", "API, SSO and white-label client portal"] },
-];
+const Icon = ({ name, className }: { name?: string; className?: string }) => {
+  const C = (name && ICONS[name]) || Sparkles;
+  return <C className={className} />;
+};
 
 type Tier = { name: string; price: string; note: string; features: string[]; cta: string; cta_href: string; highlight: boolean };
 const FALLBACK_TIERS: Tier[] = [
   { name: "Free", price: "€0", note: "Forever", features: ["Live quotes (delayed)"], cta: "Get started", cta_href: "/auth", highlight: false },
 ];
 
-const FAQ = [
-  { q: "Is Vela.ai an investment advisor?", a: "No. Vela.ai is an educational research and personal-research platform. We do not provide personalised investment advice, recommendations to buy or sell, or portfolio management services. All outputs are for information and educational purposes only." },
-  { q: "Where does the market data come from?", a: "We aggregate public market data, regulatory filings (e.g. SEC EDGAR, CONSOB) and reputable news sources. Real-time depth is available on paid tiers; delayed quotes are free." },
-  { q: "Is my data safe?", a: "Yes. Data is encrypted in transit and at rest, hosted in the EU, and protected with row-level security. You can export or delete all of your data at any time (GDPR Art. 17 & 20)." },
-  { q: "Do I need to connect a brokerage?", a: "No. You can manually track portfolios, import CSV, or — on Pro and above — connect supported brokers in read-only mode." },
-  { q: "Which markets are covered?", a: "FTSE MIB and pan-European equities, US stocks and ETFs, major crypto, FX and key macro indicators." },
-];
-
 export default function Landing() {
   const [tiers, setTiers] = useState<Tier[]>(FALLBACK_TIERS);
+  const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   useEffect(() => {
     supabase
       .from("subscription_plans")
@@ -61,7 +44,240 @@ export default function Landing() {
           })));
         }
       });
+    (supabase as any)
+      .from("landing_sections")
+      .select("key, kind, sort_order, enabled, content")
+      .then(({ data }: any) => {
+        if (data) setSections(mergeWithDefaults(data));
+      });
   }, []);
+
+  const get = (key: string) => sections.find(s => s.key === key) ?? DEFAULT_SECTIONS.find(s => s.key === key)!;
+  const hero = get("hero").content;
+  const stats = get("stats").content;
+  const features = get("features").content;
+  const audiences = get("audiences").content;
+  const how = get("how").content;
+  const pricing = get("pricing").content;
+  const trust = get("trust").content;
+  const faq = get("faq").content;
+  const ctaBlock = get("cta").content;
+
+  const orderedKeys = sections.map(s => s.key);
+  const renderBlock = (key: string) => {
+    switch (key) {
+      case "hero": return (
+        <section key="hero" className="relative overflow-hidden">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_55%)]" />
+          <div className="container mx-auto px-6 pt-20 pb-24 text-center max-w-4xl">
+            {hero.eyebrow && (
+              <Badge variant="outline" className="mb-5 border-primary/30 text-primary">
+                <Sparkles className="h-3 w-3 mr-1.5" /> {hero.eyebrow}
+              </Badge>
+            )}
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-[1.05]">
+              {hero.title}
+              {hero.titleAccent && <span className="block text-primary mt-2">{hero.titleAccent}</span>}
+            </h1>
+            {hero.subtitle && <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">{hero.subtitle}</p>}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              {hero.primaryCta && (
+                <Button asChild size="lg" className="text-base">
+                  <Link to={hero.primaryCta.href || "/auth"}>{hero.primaryCta.label} <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
+                </Button>
+              )}
+              {hero.secondaryCta && (
+                <Button asChild variant="outline" size="lg" className="text-base">
+                  <a href={hero.secondaryCta.href || "#features"}>{hero.secondaryCta.label}</a>
+                </Button>
+              )}
+            </div>
+            {hero.note && <p className="mt-4 text-xs text-muted-foreground">{hero.note}</p>}
+            {Array.isArray(hero.trust) && (
+              <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-muted-foreground">
+                {hero.trust.map((t: any, i: number) => (
+                  <span key={i} className="flex items-center gap-1.5"><Icon name={t.icon} className="h-3.5 w-3.5" /> {t.label}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      );
+      case "stats": return (
+        <section key="stats" className="border-y border-border bg-card/40">
+          <div className="container mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {(stats.items || []).map((s: any, i: number) => (
+              <div key={i}>
+                <div className="text-2xl md:text-3xl font-bold text-primary">{s.k}</div>
+                <div className="text-xs md:text-sm text-muted-foreground mt-1">{s.v}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+      case "features": return (
+        <section key="features" id="features" className="container mx-auto px-6 py-20">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{features.title}</h2>
+            {features.subtitle && <p className="mt-4 text-muted-foreground">{features.subtitle}</p>}
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(features.items || []).map((f: any, i: number) => (
+              <Card key={i} className="bg-card/50 border-border hover:border-primary/40 transition-colors">
+                <CardContent className="p-6">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
+                    <Icon name={f.icon} className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-semibold">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{f.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      );
+      case "audiences": return (
+        <section key="audiences" id="audiences" className="bg-card/30 border-y border-border">
+          <div className="container mx-auto px-6 py-20 grid md:grid-cols-2 gap-8">
+            {(audiences.items || []).map((a: any, i: number) => (
+              <Card key={i} className="bg-background border-border">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-2 text-primary text-xs font-medium uppercase tracking-wider mb-3">
+                    <Icon name={a.icon} className="h-4 w-4" /> {a.tag}
+                  </div>
+                  <h3 className="text-2xl font-bold">{a.title}</h3>
+                  <ul className="mt-5 space-y-2.5">
+                    {(a.points || []).map((p: string, j: number) => (
+                      <li key={j} className="flex items-start gap-2.5 text-sm">
+                        <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      );
+      case "how": return (
+        <section key="how" className="container mx-auto px-6 py-20">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{how.title}</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {(how.items || []).map((s: any, i: number) => (
+              <div key={i} className="relative">
+                <div className="absolute -top-3 -left-3 h-8 w-8 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">{i + 1}</div>
+                <Card className="bg-card/50 border-border h-full">
+                  <CardContent className="p-6">
+                    <Icon name={s.icon} className="h-6 w-6 text-primary mb-3" />
+                    <h3 className="font-semibold">{s.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-2">{s.desc}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+      case "pricing": return (
+        <section key="pricing" id="pricing" className="bg-card/30 border-y border-border">
+          <div className="container mx-auto px-6 py-20">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{pricing.title}</h2>
+              {pricing.subtitle && <p className="mt-4 text-muted-foreground">{pricing.subtitle}</p>}
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {tiers.map((t) => (
+                <Card key={t.name} className={`relative flex flex-col ${t.highlight ? "border-primary ring-1 ring-primary/40 bg-background" : "bg-background border-border"}`}>
+                  {t.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-primary text-primary-foreground">Most popular</Badge>
+                    </div>
+                  )}
+                  <CardContent className="p-6 flex flex-col flex-1">
+                    <h3 className="font-semibold">{t.name}</h3>
+                    <div className="mt-3 flex items-baseline gap-1">
+                      <span className="text-3xl font-bold">{t.price}</span>
+                      <span className="text-xs text-muted-foreground">{t.note}</span>
+                    </div>
+                    <ul className="mt-5 space-y-2 text-sm flex-1">
+                      {t.features.map((f) => (
+                        <li key={f} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <span className="text-muted-foreground">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button asChild variant={t.highlight ? "default" : "outline"} className="mt-6 w-full">
+                      <Link to={t.cta_href || "/auth"}>{t.cta}</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {pricing.footnote && <p className="text-center text-xs text-muted-foreground mt-6">{pricing.footnote}</p>}
+          </div>
+        </section>
+      );
+      case "trust": return (
+        <section key="trust" className="container mx-auto px-6 py-20">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{trust.title}</h2>
+            {trust.subtitle && <p className="mt-4 text-muted-foreground">{trust.subtitle}</p>}
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {(trust.items || []).map((x: any, i: number) => (
+              <Card key={i} className="bg-card/50 border-border">
+                <CardContent className="p-6">
+                  <Icon name={x.icon} className="h-6 w-6 text-primary mb-3" />
+                  <h3 className="font-semibold">{x.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-2">{x.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      );
+      case "faq": return (
+        <section key="faq" id="faq" className="bg-card/30 border-y border-border">
+          <div className="container mx-auto px-6 py-20 max-w-3xl">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-center">{faq.title}</h2>
+            <div className="mt-10 space-y-4">
+              {(faq.items || []).map((f: any, i: number) => (
+                <Card key={i} className="bg-background border-border">
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold">{f.q}</h3>
+                    <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{f.a}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+      case "cta": return (
+        <section key="cta" className="container mx-auto px-6 py-20 text-center">
+          <div className="max-w-2xl mx-auto">
+            <TrendingUp className="h-10 w-10 text-primary mx-auto mb-4" />
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{ctaBlock.title}</h2>
+            {ctaBlock.subtitle && <p className="mt-4 text-muted-foreground">{ctaBlock.subtitle}</p>}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              {ctaBlock.primaryCta && (
+                <Button asChild size="lg"><Link to={ctaBlock.primaryCta.href || "/auth"}>{ctaBlock.primaryCta.label} <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>
+              )}
+              {ctaBlock.secondaryCta && (
+                <Button asChild variant="outline" size="lg"><a href={ctaBlock.secondaryCta.href || "#pricing"}>{ctaBlock.secondaryCta.label}</a></Button>
+              )}
+            </div>
+          </div>
+        </section>
+      );
+      default: return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
@@ -91,8 +307,6 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_55%)]" />
         <div className="container mx-auto px-6 pt-20 pb-24 text-center max-w-4xl">
           <Badge variant="outline" className="mb-5 border-primary/30 text-primary">

@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { supabase } from "@/integrations/supabase/client";
+import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import {
   ArrowLeft, Plus, Pencil, Trash2, Banknote, Briefcase, PiggyBank, Bitcoin,
   Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard, Search, Calculator, Info,

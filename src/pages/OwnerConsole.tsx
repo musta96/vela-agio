@@ -425,6 +425,7 @@ export default function OwnerConsole() {
   );
   const complianceSection = (
     <div className="space-y-3">
+            <NewErasureCard users={users} onCreate={(user_id, reason, days) => act("request_erasure", { user_id, reason, days })} />
             <Card className="p-5 space-y-2">
               <h3 className="font-semibold flex items-center gap-2"><Scale className="h-4 w-4" /> GDPR & regulatory tools</h3>
               <p className="text-xs text-muted-foreground">Access (Art. 15) & portability (Art. 20) via per-user export. Erasure (Art. 17) via the Users tab. All actions are written to the immutable incident log.</p>

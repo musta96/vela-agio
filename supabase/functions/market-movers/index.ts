@@ -62,54 +62,44 @@ Deno.serve(async (req) => {
 // Yahoo v7 quote, with allorigins.win fallback (Yahoo increasingly blocks direct
 // server-to-server calls without a crumb cookie).
 async function fetchQuotes(symbols: string[]) {
-  const target = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(","))}`;
-  const sources = [
-    target,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
-    `https://corsproxy.io/?${encodeURIComponent(target)}`,
-  ];
-  for (const url of sources) {
-    try {
-      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36" } });
-      if (!r.ok) continue;
-      const j = await r.json();
-      const rows = (j?.quoteResponse?.result as any[]) || [];
-      if (!rows.length) continue;
-      return rows
-        .filter((q) => typeof q.regularMarketChangePercent === "number")
-        .map((q) => ({
-          symbol: q.symbol,
-          name: q.shortName || q.longName || q.symbol,
-          price: q.regularMarketPrice,
-          change: q.regularMarketChange,
-          changePercent: q.regularMarketChangePercent,
-          volume: q.regularMarketVolume,
-          marketCap: q.marketCap,
-          currency: q.currency,
-          exchange: q.fullExchangeName || q.exchange,
-        }));
-    } catch (_e) { /* try next */ }
+  // Yahoo v7 quote now returns 401 for unauthenticated server calls. Use the
+  // public chart endpoint in parallel — works for every symbol, no crumb needed.
+  const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
+  async function one(s: string) {
+    const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=5d&interval=1d`;
+    const urls = [direct, `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`];
+    for (const url of urls) {
+      try {
+        const r = await fetch(url, { headers: { "User-Agent": UA } });
+        if (!r.ok) continue;
+        const j = await r.json();
+        const m = j?.chart?.result?.[0]?.meta;
+        if (!m) continue;
+        const price = m.regularMarketPrice ?? m.previousClose;
+        const prev = m.chartPreviousClose ?? m.previousClose;
+        if (price == null || prev == null) continue;
+        const change = price - prev;
+        return {
+          symbol: s,
+          name: m.shortName || m.longName || s,
+          price,
+          change,
+          changePercent: prev ? (change / prev) * 100 : 0,
+          volume: m.regularMarketVolume,
+          currency: m.currency,
+          exchange: m.fullExchangeName || m.exchangeName,
+        };
+      } catch (_e) { /* try next */ }
+    }
+    return null;
   }
-  // last-ditch per-symbol chart fallback (slower, may be empty)
+  const capped = symbols.slice(0, 80);
+  // Run in batches of 20 to avoid overwhelming the runtime / Yahoo.
   const out: any[] = [];
-  for (const s of symbols.slice(0, 30)) {
-    try {
-      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=2d&interval=1d`);
-      if (!r.ok) continue;
-      const j = await r.json();
-      const m = j?.chart?.result?.[0]?.meta;
-      if (!m) continue;
-      const price = m.regularMarketPrice ?? m.previousClose;
-      const prev = m.chartPreviousClose ?? m.previousClose;
-      if (price == null || prev == null) continue;
-      const change = price - prev;
-      out.push({
-        symbol: s, name: m.shortName || s,
-        price, change, changePercent: (change / prev) * 100,
-        volume: m.regularMarketVolume, currency: m.currency,
-        exchange: m.fullExchangeName || m.exchangeName,
-      });
-    } catch (_e) { /* skip */ }
+  for (let i = 0; i < capped.length; i += 20) {
+    const batch = capped.slice(i, i + 20);
+    const results = await Promise.all(batch.map(one));
+    for (const r of results) if (r) out.push(r);
   }
   return out;
 }

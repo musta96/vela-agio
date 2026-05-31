@@ -79,6 +79,9 @@ export default function Index() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
   const [range, setRange] = useState<"1D"|"1W"|"1M"|"3M"|"YTD"|"1Y">("1W");
 
+  // Real net worth (FX-converted, shared with /net-worth page)
+  const netWorth = useNetWorthTotal("EUR");
+
   // Live holdings for real portfolio value
   const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number; avg_price: number; currency: string }>>([]);
   const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);

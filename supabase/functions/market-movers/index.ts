@@ -27,23 +27,7 @@ Deno.serve(async (req) => {
     if (body.scope === "index") {
       const symbols = (body.symbols || []).filter(Boolean).slice(0, 100);
       if (!symbols.length) return json({ movers: [] });
-      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(","))}`;
-      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-      if (!r.ok) return json({ movers: [], error: `yahoo ${r.status}` });
-      const j = await r.json();
-      const movers = ((j?.quoteResponse?.result as any[]) || [])
-        .filter((q) => typeof q.regularMarketChangePercent === "number")
-        .map((q) => ({
-          symbol: q.symbol,
-          name: q.shortName || q.longName || q.symbol,
-          price: q.regularMarketPrice,
-          change: q.regularMarketChange,
-          changePercent: q.regularMarketChangePercent,
-          volume: q.regularMarketVolume,
-          marketCap: q.marketCap,
-          currency: q.currency,
-          exchange: q.fullExchangeName || q.exchange,
-        }));
+      const movers = await fetchQuotes(symbols);
       return json({ movers });
     }
 
@@ -74,6 +58,61 @@ Deno.serve(async (req) => {
     return json({ error: String(e) }, 500);
   }
 });
+
+// Yahoo v7 quote, with allorigins.win fallback (Yahoo increasingly blocks direct
+// server-to-server calls without a crumb cookie).
+async function fetchQuotes(symbols: string[]) {
+  const target = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(","))}`;
+  const sources = [
+    target,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
+    `https://corsproxy.io/?${encodeURIComponent(target)}`,
+  ];
+  for (const url of sources) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36" } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const rows = (j?.quoteResponse?.result as any[]) || [];
+      if (!rows.length) continue;
+      return rows
+        .filter((q) => typeof q.regularMarketChangePercent === "number")
+        .map((q) => ({
+          symbol: q.symbol,
+          name: q.shortName || q.longName || q.symbol,
+          price: q.regularMarketPrice,
+          change: q.regularMarketChange,
+          changePercent: q.regularMarketChangePercent,
+          volume: q.regularMarketVolume,
+          marketCap: q.marketCap,
+          currency: q.currency,
+          exchange: q.fullExchangeName || q.exchange,
+        }));
+    } catch (_e) { /* try next */ }
+  }
+  // last-ditch per-symbol chart fallback (slower, may be empty)
+  const out: any[] = [];
+  for (const s of symbols.slice(0, 30)) {
+    try {
+      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=2d&interval=1d`);
+      if (!r.ok) continue;
+      const j = await r.json();
+      const m = j?.chart?.result?.[0]?.meta;
+      if (!m) continue;
+      const price = m.regularMarketPrice ?? m.previousClose;
+      const prev = m.chartPreviousClose ?? m.previousClose;
+      if (price == null || prev == null) continue;
+      const change = price - prev;
+      out.push({
+        symbol: s, name: m.shortName || s,
+        price, change, changePercent: (change / prev) * 100,
+        volume: m.regularMarketVolume, currency: m.currency,
+        exchange: m.fullExchangeName || m.exchangeName,
+      });
+    } catch (_e) { /* skip */ }
+  }
+  return out;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

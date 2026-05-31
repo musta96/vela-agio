@@ -4,7 +4,7 @@ import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
-function aiAccessDeniedBody(access: Awaited<ReturnType<typeof resolveAiAccess>>, reason?: string) {
+function aiAccessDeniedBody(access: Awaited<ReturnType<typeof resolveAiAccess>>, correlationId: string, reason?: string) {
   return {
     error: 'ai_access_denied',
     reason: reason ?? access.reason ?? 'AI is a paid feature. Upgrade or add your own API key in Settings.',
@@ -14,7 +14,15 @@ function aiAccessDeniedBody(access: Awaited<ReturnType<typeof resolveAiAccess>>,
     upgrade_url: '/pricing',
     byo_url: '/settings#ai',
     fallback: true,
+    correlationId,
   };
+}
+
+function getCorrelationId(req: Request): string {
+  const header = req.headers.get('x-correlation-id');
+  if (header && header.length <= 64) return header;
+  // Fall back to a server-side id so the response is always traceable.
+  return `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 async function yahooQuote(symbol: string) {
@@ -41,11 +49,13 @@ async function yahooNews(symbol: string) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const correlationId = getCorrelationId(req);
   try {
     const auth = req.headers.get('Authorization');
     const access = await resolveAiAccess(auth);
     if (!access.allowed) {
       console.warn('[market-briefing] ai_access_denied', JSON.stringify({
+        correlationId,
         stage: 'resolveAiAccess',
         userId: access.userId ?? null,
         source: access.source,
@@ -57,8 +67,8 @@ Deno.serve(async (req) => {
         hasAuthHeader: !!auth,
       }));
       return new Response(
-        JSON.stringify(aiAccessDeniedBody(access)),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        JSON.stringify(aiAccessDeniedBody(access, correlationId)),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
       );
     }
 
@@ -126,9 +136,10 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
         response_format: { type: 'json_object' },
       }),
     });
-    if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited', correlationId }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
     if (r.status === 402) {
       console.warn('[market-briefing] ai_access_denied', JSON.stringify({
+        correlationId,
         stage: 'gateway_402',
         userId: access.userId ?? null,
         source: access.source,
@@ -136,17 +147,18 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
         model,
       }));
       return new Response(
-        JSON.stringify(aiAccessDeniedBody(access, 'AI credits are unavailable. Upgrade or add your own API key in Settings.')),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        JSON.stringify(aiAccessDeniedBody(access, correlationId, 'AI credits are unavailable. Upgrade or add your own API key in Settings.')),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
       );
     }
     const j = await r.json();
     logAiUsage({ userId: access.userId, feature: 'briefing', model, provider: 'lovable', success: r.ok });
     let out: any = { headline: '', body: '', highlights: [] };
     try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    out._meta = { symbols: symbols.length, hasFocus: !!focus, generatedAt: new Date().toISOString() };
-    return new Response(JSON.stringify(out), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    out._meta = { symbols: symbols.length, hasFocus: !!focus, generatedAt: new Date().toISOString(), correlationId };
+    return new Response(JSON.stringify(out), { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    console.error('[market-briefing] unhandled', JSON.stringify({ correlationId, error: String(e) }));
+    return new Response(JSON.stringify({ error: String(e), correlationId }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
   }
 });

@@ -889,16 +889,52 @@ export default function Suitability() {
               </CardContent>
             </Card>
 
-            {warnings.length > 0 && (
-              <Card className="border-warning/40 bg-warning/5">
+            {issues.length > 0 && (
+              <Card className={errors.length ? "border-destructive/50 bg-destructive/5" : warns.length ? "border-warning/40 bg-warning/5" : "border-primary/30 bg-primary/5"}>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Consistency checks</CardTitle>
-                  <CardDescription>ESMA Suitability Guideline 5 — we flag contradictions before saving.</CardDescription>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {errors.length
+                      ? <AlertCircle className="h-5 w-5 text-destructive" />
+                      : warns.length
+                        ? <AlertTriangle className="h-5 w-5 text-warning" />
+                        : <Info className="h-5 w-5 text-primary" />}
+                    Validation &amp; consistency
+                  </CardTitle>
+                  <CardDescription>
+                    Real-time checks across MiFID II appropriateness, AML/KYC, SFDR and ESMA Guideline 5.
+                    {" "}
+                    <span className="font-medium text-foreground">
+                      {errors.length} error{errors.length === 1 ? "" : "s"} · {warns.length} warning{warns.length === 1 ? "" : "s"} · {infos.length} note{infos.length === 1 ? "" : "s"}
+                    </span>
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
-                    {warnings.map((w, i) => <li key={i}>{w}</li>)}
-                  </ul>
+                <CardContent className="space-y-3">
+                  {issues.map((iss) => {
+                    const tone = iss.severity === "error"
+                      ? { border: "border-destructive/40", bg: "bg-destructive/5", text: "text-destructive", icon: <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />, badge: "Error" }
+                      : iss.severity === "warn"
+                        ? { border: "border-warning/40", bg: "bg-warning/5", text: "text-warning", icon: <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />, badge: "Warning" }
+                        : { border: "border-primary/30", bg: "bg-primary/5", text: "text-primary", icon: <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />, badge: "Note" };
+                    return (
+                      <div key={iss.id} className={`rounded-md border ${tone.border} ${tone.bg} p-3 flex items-start gap-3`}>
+                        {tone.icon}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${tone.text}`}>{tone.badge}</Badge>
+                            <span className="text-sm font-medium">{iss.message}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">Next action:</span> {iss.suggestion}
+                          </p>
+                          {iss.fix && (
+                            <Button size="sm" variant="outline" className="h-7 mt-1" onClick={iss.fix.run}>
+                              <Wand2 className="h-3 w-3 mr-1.5" />{iss.fix.label}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -919,7 +955,7 @@ export default function Suitability() {
             </Card>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <Button onClick={handleSave} disabled={!complete || saving || !attestation}>
+              <Button onClick={handleSave} disabled={!complete || saving || !attestation || errors.length > 0}>
                 {saving ? "Saving…" : "Save profile"}
               </Button>
               <Button variant="outline" onClick={handleReset}><RefreshCw className="h-4 w-4 mr-2" />Reset</Button>
@@ -930,7 +966,10 @@ export default function Suitability() {
                 <Download className="h-4 w-4 mr-2" />JSON
               </Button>
               {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
-              {complete && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
+              {complete && errors.length > 0 && (
+                <span className="text-xs text-destructive font-medium">Fix {errors.length} blocking error{errors.length === 1 ? "" : "s"} above before saving.</span>
+              )}
+              {complete && !errors.length && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
             </div>
 
             <p className="text-xs text-muted-foreground">

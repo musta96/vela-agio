@@ -233,18 +233,42 @@ export default function OwnerConsole() {
   );
   const usersSection = (
     <div className="space-y-3">
-            <Input placeholder="Search by email…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
+            <Card className="p-3 flex flex-wrap items-center gap-2">
+              <Input placeholder="Search by name or email…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs h-9" />
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Role" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  {ALL_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={lastSignInFilter} onValueChange={setLastSignInFilter}>
+                <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Last sign-in" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any time</SelectItem>
+                  <SelectItem value="24h">Last 24h</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="30d_plus">Inactive 30d+</SelectItem>
+                  <SelectItem value="never">Never signed in</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground ml-auto">{filteredUsers.length} of {users.length}</span>
+            </Card>
             <Card>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Email</TableHead><TableHead>Roles</TableHead><TableHead>Joined</TableHead>
+                  <TableHead>User</TableHead><TableHead>Roles</TableHead><TableHead>Joined</TableHead>
                   <TableHead>Last sign-in</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {filteredUsers.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell className="font-medium text-sm">
-                        <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>{u.email}</button>
+                        <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>
+                          <div>{u.display_name || u.email}</div>
+                          {u.display_name && <div className="text-[10px] text-muted-foreground font-normal">{u.email}</div>}
+                        </button>
                       </TableCell>
                       <TableCell className="text-xs space-x-1">
                         {(u.roles || []).map((r) => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
@@ -262,6 +286,7 @@ export default function OwnerConsole() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {filteredUsers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10 text-sm">No users match those filters.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </Card>

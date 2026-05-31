@@ -620,6 +620,7 @@ const Portfolio = () => {
                   avgPrice: p.avgPrice,
                   currentPrice: p.currentPrice,
                 })),
+                analytics,
               });
               toast({ title: "PDF report generated" });
             }}
@@ -669,7 +670,7 @@ const Portfolio = () => {
           onRangeChange={setRange}
         />
 
-        <PortfolioInsights holdings={portfolio} />
+        <PortfolioInsights holdings={portfolio} onAnalytics={setAnalytics} />
 
         <PortfolioSuggestions
           portfolioId={activeId}

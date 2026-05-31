@@ -38,7 +38,7 @@ function fmt(n: number, ccy = "EUR") {
 
 export default function PaperTrading() {
   const { user } = useAuth();
-  const { portfolios, createPortfolio } = usePortfolios();
+  const { portfolios, create: createPortfolio } = usePortfolios();
   const { toast } = useToast();
 
   const sims = useMemo(() => portfolios.filter((p) => p.is_simulation), [portfolios]);

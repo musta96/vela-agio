@@ -8,6 +8,7 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 
 interface Highlight { symbol: string; note: string; tone: "positive" | "negative" | "neutral" }
 interface Briefing { headline: string; body: string; highlights?: Highlight[]; _meta?: { hasFocus?: boolean } }
+interface AccessDenial { reason: string; upgrade_url?: string; byo_url?: string }
 
 // Render minimal **bold** markdown without bringing in a dep.
 function renderInline(text: string) {
@@ -27,6 +28,7 @@ export function AIBriefing() {
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState<AccessDenial | null>(null);
   const [focus, setFocus] = useState<string>("");
 
   // Load user's saved focus
@@ -42,6 +44,7 @@ export function AIBriefing() {
     if (!user || !active) return;
     setLoading(true);
     setError(null);
+    setDenied(null);
     try {
       const { data: holdingsData } = await (supabase as any)
         .from("portfolio_holdings")
@@ -56,7 +59,20 @@ export function AIBriefing() {
           lang: "en",
         },
       });
-      if (error) throw error;
+      // Edge function returns 402 with a JSON body when AI access is denied.
+      if (error) {
+        let body: any = null;
+        try { body = await (error as any)?.context?.json?.(); } catch { /* ignore */ }
+        if (body?.error === "ai_access_denied") {
+          setDenied({ reason: body.reason, upgrade_url: body.upgrade_url, byo_url: body.byo_url });
+          return;
+        }
+        throw error;
+      }
+      if (data?.error === "ai_access_denied") {
+        setDenied({ reason: data.reason, upgrade_url: data.upgrade_url, byo_url: data.byo_url });
+        return;
+      }
       if (data?.error) throw new Error(data.error);
       setBriefing(data as Briefing);
     } catch (e: any) {
@@ -117,6 +133,22 @@ export function AIBriefing() {
 
           {error && (
             <p className="mt-2 text-[13px] text-destructive-foreground/90">{error}</p>
+          )}
+
+          {denied && (
+            <div className="mt-2">
+              <p className="text-[13px] text-[hsl(var(--sidebar-foreground))]/80">{denied.reason}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => navigate(denied.upgrade_url || "/pricing")}
+                  className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90"
+                >Upgrade plan</button>
+                <button
+                  onClick={() => navigate(denied.byo_url || "/settings#ai")}
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15"
+                >Use my own API key</button>
+              </div>
+            </div>
           )}
 
           {briefing && (

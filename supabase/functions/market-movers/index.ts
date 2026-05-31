@@ -66,7 +66,11 @@ async function fetchQuotes(symbols: string[]) {
   // public chart endpoint in parallel — works for every symbol, no crumb needed.
   const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
   async function one(s: string) {
-    const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=5d&interval=1d`;
+    // range=2d so the chart's first bar is yesterday and `previousClose` from
+    // meta is the correct prior-session official close. Using a longer range
+    // (5d) makes Yahoo populate `chartPreviousClose` with a value from ~6 days
+    // ago, which would skew the "change" / "changePercent" we compute below.
+    const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=2d&interval=1d`;
     const urls = [direct, `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`];
     for (const url of urls) {
       try {
@@ -76,7 +80,9 @@ async function fetchQuotes(symbols: string[]) {
         const m = j?.chart?.result?.[0]?.meta;
         if (!m) continue;
         const price = m.regularMarketPrice ?? m.previousClose;
-        const prev = m.chartPreviousClose ?? m.previousClose;
+        // Prefer the OFFICIAL prior-session close (`previousClose`). Fall back
+        // to `chartPreviousClose` only if the official one is missing.
+        const prev = m.previousClose ?? m.chartPreviousClose;
         if (price == null || prev == null) continue;
         const change = price - prev;
         return {

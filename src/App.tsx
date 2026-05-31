@@ -54,6 +54,9 @@ import PrivacySettings from "./pages/PrivacySettings";
 import Home from "./pages/Home";
 import NetWorth from "./pages/NetWorth";
 import NetWorthCategory from "./pages/NetWorthCategory";
+import Explore from "./pages/Explore";
+import Movers from "./pages/Movers";
+import PaperTrading from "./pages/PaperTrading";
 import OwnerConsole from "./pages/OwnerConsole";
 import OwnerLayout from "./components/owner/OwnerLayout";
 import OwnerDashboard from "./pages/owner/Dashboard";
@@ -109,6 +112,9 @@ const App = () => (
             <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
             <Route path="/watchlist" element={<Watchlist />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/movers" element={<Movers />} />
+            <Route path="/paper-trading" element={<PaperTrading />} />
             <Route path="/picks" element={<SmartPicks />} />
             <Route path="/technical" element={<TechnicalAnalysis />} />
             <Route path="/compare" element={<Compare />} />

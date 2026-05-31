@@ -13,6 +13,7 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
+import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -415,42 +416,56 @@ export default function Index() {
               <button onClick={() => navigate("/net-worth")} className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">View detail <ChevronRight className="h-3 w-3" /></button>
             </div>
             {(() => {
-              const slices = [
-                { label: "Investments", pct: 42, color: "hsl(var(--primary))" },
-                { label: "Real Estate", pct: 30, color: "hsl(262 83% 58%)" },
-                { label: "Cash", pct: 14, color: "hsl(var(--success))" },
-                { label: "Retirement", pct: 8, color: "hsl(38 92% 50%)" },
-                { label: "Crypto", pct: 4, color: "hsl(var(--destructive))" },
-                { label: "Other", pct: 2, color: "hsl(var(--muted-foreground))" },
-              ];
-              const total = slices.reduce((s, x) => s + x.pct, 0);
+              // Single source of truth: useNetWorthTotal() byCategory, same as
+              // /net-worth. Skip the liabilities bucket — it's already netted
+              // out of the total but should not appear as a positive slice.
+              const byCat = netWorth.byCategory || {};
+              const slices = CATEGORY_ORDER
+                .filter((k) => k !== "liabilities")
+                .map((k) => ({ key: k as CategoryKey, label: CATEGORY_META[k].label, value: Math.max(0, byCat[k] || 0), color: CATEGORY_META[k].color }))
+                .filter((s) => s.value > 0);
+              const assetTotal = slices.reduce((s, x) => s + x.value, 0);
+              const isEmpty = assetTotal <= 0;
               const C = 2 * Math.PI * 44;
               let offset = 0;
               return (
                 <div className="flex items-center gap-5">
                   <div className="relative shrink-0">
                     <svg width="128" height="128" viewBox="0 0 128 128" className="-rotate-90">
-                      {slices.map((s) => {
-                        const len = (s.pct / total) * C;
-                        const el = (
-                          <circle key={s.label} cx="64" cy="64" r="44" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} />
-                        );
-                        offset += len;
-                        return el;
-                      })}
+                      {isEmpty ? (
+                        <circle cx="64" cy="64" r="44" fill="none" stroke="hsl(var(--muted))" strokeWidth="16" />
+                      ) : (
+                        slices.map((s) => {
+                          const len = (s.value / assetTotal) * C;
+                          const el = (
+                            <circle key={s.key} cx="64" cy="64" r="44" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} />
+                          );
+                          offset += len;
+                          return el;
+                        })
+                      )}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net worth</span>
-                      <span className="text-sm font-bold tabular-nums text-foreground">€186,420</span>
+                      <span className="text-sm font-bold tabular-nums text-foreground">
+                        {netWorth.accountCount === 0 ? "—" : fmtMoney(netWorth.total, netWorth.currency)}
+                      </span>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-1.5 text-xs min-w-0 flex-1">
-                    {slices.map((s) => (
-                      <div key={s.label} className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} /><span className="truncate">{s.label}</span></span>
-                        <span className="font-semibold tabular-nums">{s.pct}%</span>
+                    {isEmpty ? (
+                      <div className="text-muted-foreground text-[11px] leading-snug">
+                        Add accounts in <button onClick={() => navigate("/net-worth")} className="text-primary hover:underline">Net Worth</button> to see your allocation.
                       </div>
-                    ))}
+                    ) : slices.map((s) => {
+                      const pct = (s.value / assetTotal) * 100;
+                      return (
+                        <div key={s.key} className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} /><span className="truncate">{s.label}</span></span>
+                          <span className="font-semibold tabular-nums">{pct.toFixed(pct < 10 ? 1 : 0)}%</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

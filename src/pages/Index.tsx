@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useMarketClock } from "@/hooks/useMarketClock";
+import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },

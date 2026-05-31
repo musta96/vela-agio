@@ -1,5 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
+import { resolveAiAccess, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
@@ -30,7 +30,20 @@ Deno.serve(async (req) => {
   try {
     const auth = req.headers.get('Authorization');
     const access = await resolveAiAccess(auth);
-    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+    if (!access.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'ai_access_denied',
+          reason: access.reason ?? 'AI is a paid feature.',
+          tier: access.tier,
+          quotaUsed: access.quotaUsed,
+          quotaLimit: access.quotaLimit,
+          upgrade_url: '/pricing',
+          byo_url: '/settings#ai',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const { holdings = [], watchlist = [], focus = '', lang = 'en' } = await req.json() as {
       holdings: { symbol: string; name?: string; shares?: number; avg_price?: number }[];

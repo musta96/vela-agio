@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,11 +27,9 @@ const AUDIENCES = [
   { icon: Building2, tag: "For professionals", title: "Institutional-grade tools at a fraction of the cost", points: ["Multi-portfolio modelling & rebalancing", "Compliance-ready audit trail & client reports", "API, SSO and white-label client portal"] },
 ];
 
-const TIERS = [
-  { name: "Free", price: "€0", note: "Forever", features: ["Live quotes (delayed)", "Watchlist of 5 symbols", "Basic charts & news", "AI sentiment on top names"], cta: "Get started", highlight: false },
-  { name: "Pro", price: "€29", note: "/ month", features: ["Unlimited watchlists & portfolios", "Real-time intraday & VWAP", "Full AI Copilot & deep research", "Backtesting & optimizer", "Tax-loss harvesting", "PDF reports"], cta: "Start 14-day trial", highlight: true },
-  { name: "Advisor", price: "€199", note: "/ seat / month", features: ["Everything in Pro", "MiFID II suitability + KIDs", "White-label client portal", "Model portfolios", "Compliance audit log"], cta: "Talk to sales", highlight: false },
-  { name: "Enterprise", price: "Custom", note: "API & SSO", features: ["REST API + webhooks", "SSO (SAML / OIDC)", "SOC 2 / ISO 27001 docs", "Dedicated SLA & on-prem"], cta: "Contact us", highlight: false },
+type Tier = { name: string; price: string; note: string; features: string[]; cta: string; cta_href: string; highlight: boolean };
+const FALLBACK_TIERS: Tier[] = [
+  { name: "Free", price: "€0", note: "Forever", features: ["Live quotes (delayed)"], cta: "Get started", cta_href: "/auth", highlight: false },
 ];
 
 const FAQ = [

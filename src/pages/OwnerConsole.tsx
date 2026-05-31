@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
+import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
+import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +23,7 @@ import {
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
-type UserRow = { id: string; email: string; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null; provider?: string; portfolios: number; suspended?: boolean; roles?: string[] };
+type UserRow = { id: string; email: string; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null; provider?: string; portfolios: number; suspended?: boolean; roles?: string[]; display_name?: string | null; avatar_url?: string | null };
 type Control = { key: string; enabled: boolean; reason: string | null; updated_at: string };
 type Banner = { id: string; message: string; severity: "info"|"warning"|"critical"; active: boolean; created_at: string; expires_at: string | null };
 type Signal = { id: string; user_id: string | null; signal_type: string; symbol: string | null; status: string; confidence: number | null; created_at: string; disclaimer: string | null; retracted_reason: string | null };
@@ -32,6 +34,11 @@ type AuditEntry = { id: number; ts: string; actor_email: string | null; action: 
 type ErasureReq = { id: string; user_id: string; user_email: string | null; reason: string | null; status: string; scheduled_for: string; completed_at: string | null; certificate_url: string | null; created_at: string; requested_by_email: string | null };
 type AdminSession = { id: string; actor_email: string; target_email: string | null; purpose: string; created_at: string; expires_at: string };
 type HealthCheck = { service: string; status: string; latency_ms: number | null; detail: string | null; last_checked: string };
+type LegalDoc = { id: string; kind: string; version: string; title: string; body: string; status: "draft" | "published" | "archived"; published_at: string | null; created_at: string; updated_at: string };
+type ApiKey = { id: string; user_id: string; provider: string; hint: string | null; created_at: string; updated_at: string };
+
+const ALL_ROLES = ["admin", "support", "compliance", "engineer", "analyst", "pm", "viewer"] as const;
+type Role = typeof ALL_ROLES[number];
 type AiConfig = {
   min_confidence?: number;
   ticker_blacklist?: string[];
@@ -50,8 +57,10 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[] } | null>(null);
+  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[]; legal?: LegalDoc[]; apiKeys?: ApiKey[] } | null>(null);
   const [q, setQ] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [lastSignInFilter, setLastSignInFilter] = useState<string>("any");
   const [section, setSection] = useState<string>("dashboard");
   const [auditFilter, setAuditFilter] = useState("");
   const [detailUser, setDetailUser] = useState<UserRow | null>(null);
@@ -99,8 +108,32 @@ export default function OwnerConsole() {
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading owner console…</div>
     );
   }
-  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [], erasure = [], sessions = [], health = [] } = data;
-  const filteredUsers = users.filter((u) => !q || u.email?.toLowerCase().includes(q.toLowerCase()));
+  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [], erasure = [], sessions = [], health = [], legal = [], apiKeys = [] } = data;
+  const filteredUsers = users.filter((u) => {
+    if (q) {
+      const needle = q.toLowerCase();
+      const hay = `${u.email || ""} ${u.display_name || ""}`.toLowerCase();
+      if (!hay.includes(needle)) return false;
+    }
+    if (roleFilter !== "all") {
+      const has = (u.roles || []).includes(roleFilter);
+      if (roleFilter === "viewer") {
+        // Treat empty roles as viewer (default)
+        if (!has && (u.roles || []).length > 0) return false;
+      } else if (!has) return false;
+    }
+    if (lastSignInFilter !== "any") {
+      const ts = u.last_sign_in_at ? new Date(u.last_sign_in_at).getTime() : 0;
+      const now = Date.now();
+      const day = 86400_000;
+      if (lastSignInFilter === "never" && ts) return false;
+      if (lastSignInFilter === "24h" && (!ts || now - ts > day)) return false;
+      if (lastSignInFilter === "7d" && (!ts || now - ts > 7 * day)) return false;
+      if (lastSignInFilter === "30d" && (!ts || now - ts > 30 * day)) return false;
+      if (lastSignInFilter === "30d_plus" && (!ts || now - ts <= 30 * day)) return false;
+    }
+    return true;
+  });
   const controlByKey = (k: string) => controls.find((c) => c.key === k);
   const aiConfig: AiConfig = ((controls.find((c) => c.key === "ai_config") as any)?.value) || {};
   const filteredAudit = audit.filter(a => !auditFilter || JSON.stringify(a).toLowerCase().includes(auditFilter.toLowerCase()));

@@ -40,8 +40,11 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "u1" }, session: null, loading: false, signOut: async () => {} }),
 }));
 
+// Stable refs so the convert-effect doesn't re-run every render → infinite loop.
+const STABLE_QUOTES = Object.freeze({});
+const NOOP = () => {};
 vi.mock("@/hooks/useLiveQuotes", () => ({
-  useLiveQuotes: () => ({ quotes: {}, refresh: () => {}, loading: false }),
+  useLiveQuotes: () => ({ quotes: STABLE_QUOTES, refresh: NOOP, loading: false }),
 }));
 
 vi.mock("@/hooks/useBaseCurrency", () => ({

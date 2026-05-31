@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Download, Plus, User, FileText, Coins, Briefcase, Bell, ShieldCheck, CreditCard, ExternalLink, Loader2, Plug } from "lucide-react";
+import { Settings as SettingsIcon, Download, Plus, User, FileText, Coins, Briefcase, Bell, ShieldCheck, CreditCard, ExternalLink, Loader2, Plug, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -12,11 +12,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { AdvisoryAccessCard } from "@/components/settings/AdvisoryAccessCard";
 import { ConnectionsCard } from "@/components/settings/ConnectionsCard";
+import { AIAccessCard } from "@/components/settings/AIAccessCard";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-type Tab = "Profile" | "Fiscal residency" | "Currencies" | "Broker connections" | "Notifications" | "Connections" | "Privacy & data" | "Billing";
+type Tab = "Profile" | "Fiscal residency" | "Currencies" | "Broker connections" | "Notifications" | "Connections" | "AI" | "Privacy & data" | "Billing";
 const TABS: { id: Tab; icon: typeof User }[] = [
   { id: "Profile", icon: User },
   { id: "Fiscal residency", icon: FileText },
@@ -24,6 +25,7 @@ const TABS: { id: Tab; icon: typeof User }[] = [
   { id: "Broker connections", icon: Briefcase },
   { id: "Notifications", icon: Bell },
   { id: "Connections", icon: Plug },
+  { id: "AI", icon: Sparkles },
   { id: "Privacy & data", icon: ShieldCheck },
   { id: "Billing", icon: CreditCard },
 ];
@@ -307,6 +309,7 @@ const Settings = () => {
           {tab === "Broker connections" && <BrokersTab />}
           {tab === "Notifications" && <NotificationsTab />}
           {tab === "Connections" && <ConnectionsCard />}
+          {tab === "AI" && <AIAccessCard />}
           {tab === "Privacy & data" && <PrivacyTab />}
           {tab === "Billing" && <BillingTab navigate={navigate} />}
         </div>

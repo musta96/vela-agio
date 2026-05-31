@@ -78,7 +78,7 @@ export default function Explore() {
 
   return (
     <>
-      <SEO title="Explore Instruments — Vela" description="Search 150,000+ stocks, ETFs, funds, bonds, crypto, FX and indices across global exchanges." />
+      <SEO title="Explore Instruments — Vela" description="Search 150,000+ stocks, ETFs, funds, bonds, crypto, FX and indices across global exchanges." path="/explore" />
       <div className="px-6 sm:px-8 py-6 max-w-7xl mx-auto">
         <PageHeader icon={Compass} title="Explore Instruments" description="Search across ~150,000 instruments worldwide — stocks, ETFs, mutual funds, bonds, crypto, FX, futures and indices." />
 

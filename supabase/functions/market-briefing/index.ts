@@ -45,6 +45,17 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization');
     const access = await resolveAiAccess(auth);
     if (!access.allowed) {
+      console.warn('[market-briefing] ai_access_denied', JSON.stringify({
+        stage: 'resolveAiAccess',
+        userId: access.userId ?? null,
+        source: access.source,
+        tier: access.tier,
+        modelCap: access.modelCap,
+        quotaUsed: access.quotaUsed ?? null,
+        quotaLimit: access.quotaLimit ?? null,
+        reason: access.reason ?? null,
+        hasAuthHeader: !!auth,
+      }));
       return new Response(
         JSON.stringify(aiAccessDeniedBody(access)),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -117,6 +128,13 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
     });
     if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (r.status === 402) {
+      console.warn('[market-briefing] ai_access_denied', JSON.stringify({
+        stage: 'gateway_402',
+        userId: access.userId ?? null,
+        source: access.source,
+        tier: access.tier,
+        model,
+      }));
       return new Response(
         JSON.stringify(aiAccessDeniedBody(access, 'AI credits are unavailable. Upgrade or add your own API key in Settings.')),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

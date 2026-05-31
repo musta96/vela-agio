@@ -5,19 +5,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { trackAIEvent } from "@/lib/aiAnalytics";
 
 interface Highlight { symbol: string; note: string; tone: "positive" | "negative" | "neutral" }
 interface Briefing { headline: string; body: string; highlights?: Highlight[]; _meta?: { hasFocus?: boolean } }
 interface AccessDenial { reason: string; upgrade_url?: string; byo_url?: string }
+interface AccessDenialFull extends AccessDenial { tier?: string; quotaUsed?: number; quotaLimit?: number }
 
-function parseAccessDenial(error: unknown): AccessDenial | null {
+function parseAccessDenial(error: unknown): AccessDenialFull | null {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const maybeJson = message.match(/\{[\s\S]*\}$/)?.[0];
   if (!maybeJson) return null;
   try {
     const body = JSON.parse(maybeJson);
     if (body?.error === "ai_access_denied") {
-      return { reason: body.reason, upgrade_url: body.upgrade_url, byo_url: body.byo_url };
+      return { reason: body.reason, upgrade_url: body.upgrade_url, byo_url: body.byo_url, tier: body.tier, quotaUsed: body.quotaUsed, quotaLimit: body.quotaLimit };
     }
   } catch { /* ignore */ }
   return null;
@@ -41,7 +43,15 @@ export function AIBriefing() {
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [denied, setDenied] = useState<AccessDenial | null>(null);
+  const [denied, setDenied] = useState<AccessDenialFull | null>(null);
+
+  // Centralise denial state + analytics so every code path logs identically.
+  const handleDenial = useCallback((d: AccessDenialFull, origin: string) => {
+    // eslint-disable-next-line no-console
+    console.warn("[ai-briefing] ai_access_denied", { origin, ...d });
+    setDenied(d);
+    trackAIEvent("ai_access_denied_shown", { origin, tier: d.tier, quotaUsed: d.quotaUsed, quotaLimit: d.quotaLimit, reason: d.reason });
+  }, []);
   const [focus, setFocus] = useState<string>("");
 
   // Load user's saved focus
@@ -58,6 +68,7 @@ export function AIBriefing() {
     setLoading(true);
     setError(null);
     setDenied(null);
+    trackAIEvent("ai_briefing_request", { hasFocus: !!focus });
     try {
       const { data: holdingsData } = await (supabase as any)
         .from("portfolio_holdings")
@@ -76,19 +87,19 @@ export function AIBriefing() {
       if (error) {
         const denialFromMessage = parseAccessDenial(error);
         if (denialFromMessage) {
-          setDenied(denialFromMessage);
+          handleDenial(denialFromMessage, "error.message");
           return;
         }
         let body: any = null;
         try { body = await (error as any)?.context?.json?.(); } catch { /* ignore */ }
         if (body?.error === "ai_access_denied") {
-          setDenied({ reason: body.reason, upgrade_url: body.upgrade_url, byo_url: body.byo_url });
+          handleDenial({ reason: body.reason, upgrade_url: body.upgrade_url, byo_url: body.byo_url, tier: body.tier, quotaUsed: body.quotaUsed, quotaLimit: body.quotaLimit }, "error.context");
           return;
         }
         throw error;
       }
       if (data?.error === "ai_access_denied") {
-        setDenied({ reason: data.reason, upgrade_url: data.upgrade_url, byo_url: data.byo_url });
+        handleDenial({ reason: data.reason, upgrade_url: data.upgrade_url, byo_url: data.byo_url, tier: data.tier, quotaUsed: data.quotaUsed, quotaLimit: data.quotaLimit }, "200_body");
         return;
       }
       if (data?.error) throw new Error(data.error);
@@ -96,14 +107,17 @@ export function AIBriefing() {
     } catch (e: any) {
       const denial = parseAccessDenial(e);
       if (denial) {
-        setDenied(denial);
+        handleDenial(denial, "catch");
         return;
       }
+      // eslint-disable-next-line no-console
+      console.error("[ai-briefing] generate failed", e);
+      trackAIEvent("ai_briefing_error", { message: e?.message ?? String(e) });
       setError(e?.message || "Couldn't generate briefing");
     } finally {
       setLoading(false);
     }
-  }, [user, active, watchlist, focus]);
+  }, [user, active, watchlist, focus, handleDenial]);
 
   // Auto-generate once when we have an active portfolio
   useEffect(() => {
@@ -163,11 +177,17 @@ export function AIBriefing() {
               <p className="text-[13px] text-[hsl(var(--sidebar-foreground))]/80">{denied.reason}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
-                  onClick={() => navigate(denied.upgrade_url || "/pricing")}
+                  onClick={() => {
+                    trackAIEvent("ai_upgrade_cta_clicked", { url: denied.upgrade_url || "/pricing", tier: denied.tier });
+                    navigate(denied.upgrade_url || "/pricing");
+                  }}
                   className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90"
                 >Upgrade plan</button>
                 <button
-                  onClick={() => navigate(denied.byo_url || "/settings#ai")}
+                  onClick={() => {
+                    trackAIEvent("ai_byo_cta_clicked", { url: denied.byo_url || "/settings#ai", tier: denied.tier });
+                    navigate(denied.byo_url || "/settings#ai");
+                  }}
                   className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15"
                 >Use my own API key</button>
               </div>

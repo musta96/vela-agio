@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { supabase } from "@/integrations/supabase/client";
+import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import {
   Wallet, Banknote, Briefcase, Home as HomeIcon, Car, Watch, Building2, Bitcoin,
   PiggyBank, Boxes, CreditCard, Plus, Pencil, Trash2, TrendingUp, TrendingDown,
@@ -127,6 +128,9 @@ const NetWorth = () => {
   }, [holdingsByPortfolio]);
   const { quotes, refresh: refreshQuotes, loading: quotesLoading } = useLiveQuotes(allLiveSymbols, 60000);
 
+  // FX-aware totals (shared with Dashboard so the two numbers always agree)
+  const fxTotals = useNetWorthTotal("EUR");
+
   const computedAccountValue = (acc: NWAccount): number => {
     if (acc.linked_portfolio_ids && acc.linked_portfolio_ids.length > 0) {
       let total = 0;
@@ -144,17 +148,11 @@ const NetWorth = () => {
 
   // ------- Totals -------
   const totals = useMemo(() => {
-    let assets = 0, liabilities = 0;
     const byCat: Record<CategoryKey, number> = Object.fromEntries(CATEGORY_ORDER.map((k) => [k, 0])) as any;
-    for (const a of accounts) {
-      if (!a.include_in_total) continue;
-      const v = computedAccountValue(a);
-      if (a.is_liability || a.category === "liabilities") liabilities += Math.abs(v);
-      else { assets += v; byCat[a.category] = (byCat[a.category] || 0) + v; }
-    }
-    return { assets, liabilities, net: assets - liabilities, byCat };
+    for (const k of CATEGORY_ORDER) byCat[k] = fxTotals.byCategory[k] || 0;
+    return { assets: fxTotals.assets, liabilities: fxTotals.liabilities, net: fxTotals.total, byCat };
     // eslint-disable-next-line
-  }, [accounts, quotes, holdingsByPortfolio]);
+  }, [fxTotals.assets, fxTotals.liabilities, fxTotals.total, fxTotals.byCategory]);
 
   // ------- History -------
   const history = useMemo(() => {

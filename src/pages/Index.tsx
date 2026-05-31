@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useMarketClock } from "@/hooks/useMarketClock";
+import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -77,6 +78,9 @@ export default function Index() {
   const { primary } = usePortfolios();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
   const [range, setRange] = useState<"1D"|"1W"|"1M"|"3M"|"YTD"|"1Y">("1W");
+
+  // Real net worth (FX-converted, shared with /net-worth page)
+  const netWorth = useNetWorthTotal("EUR");
 
   // Live holdings for real portfolio value
   const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number; avg_price: number; currency: string }>>([]);
@@ -195,9 +199,9 @@ export default function Index() {
               },
               {
                 label: "Net worth",
-                value: empty ? "—" : fmtMoney(portfolio.value * 1.6),
-                chg: 1.2,
-                sub: "MoM",
+                value: netWorth.accountCount === 0 ? "—" : fmtMoney(netWorth.total),
+                chg: 0,
+                sub: netWorth.accountCount === 0 ? "Add accounts in Net Worth" : `${netWorth.accountCount} accounts · FX-adjusted`,
               },
               {
                 label: "Sentiment",

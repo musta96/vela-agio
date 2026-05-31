@@ -14,13 +14,17 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "icons/apple-touch-icon.png"],
-      workbox: {
-        // Never cache OAuth callback — must always hit the network.
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api/, /^\/functions/],
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      registerType: "prompt",
+      injectRegister: false,
+      includeAssets: ["favicon.svg", "icons/apple-touch-icon.png", "offline.html"],
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Make the offline shell part of the precache.
+        additionalManifestEntries: [{ url: "/offline.html", revision: Date.now().toString() }],
       },
       manifest: {
         name: "Vela.ai — Navigate every market",

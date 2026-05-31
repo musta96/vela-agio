@@ -61,11 +61,27 @@ Deno.serve(async (req) => {
 
 // Yahoo v7 quote, with allorigins.win fallback (Yahoo increasingly blocks direct
 // server-to-server calls without a crumb cookie).
+const QUOTE_CACHE = new Map<string, { at: number; value: any }>();
+const CACHE_TTL_MS = 60_000;
+const PER_FETCH_TIMEOUT_MS = 3500;
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function fetchQuotes(symbols: string[]) {
   // Yahoo v7 quote now returns 401 for unauthenticated server calls. Use the
   // public chart endpoint in parallel — works for every symbol, no crumb needed.
   const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
   async function one(s: string) {
+    const cached = QUOTE_CACHE.get(s);
+    if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.value;
     // range=2d so the chart's first bar is yesterday and `previousClose` from
     // meta is the correct prior-session official close. Using a longer range
     // (5d) makes Yahoo populate `chartPreviousClose` with a value from ~6 days
@@ -74,7 +90,7 @@ async function fetchQuotes(symbols: string[]) {
     const urls = [direct, `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`];
     for (const url of urls) {
       try {
-        const r = await fetch(url, { headers: { "User-Agent": UA } });
+        const r = await fetchWithTimeout(url, { headers: { "User-Agent": UA } }, PER_FETCH_TIMEOUT_MS);
         if (!r.ok) continue;
         const j = await r.json();
         const m = j?.chart?.result?.[0]?.meta;
@@ -85,7 +101,7 @@ async function fetchQuotes(symbols: string[]) {
         const prev = m.previousClose ?? m.chartPreviousClose;
         if (price == null || prev == null) continue;
         const change = price - prev;
-        return {
+        const value = {
           symbol: s,
           name: m.shortName || m.longName || s,
           price,
@@ -95,19 +111,17 @@ async function fetchQuotes(symbols: string[]) {
           currency: m.currency,
           exchange: m.fullExchangeName || m.exchangeName,
         };
+        QUOTE_CACHE.set(s, { at: Date.now(), value });
+        return value;
       } catch (_e) { /* try next */ }
     }
     return null;
   }
-  const capped = symbols.slice(0, 80);
-  // Run in batches of 20 to avoid overwhelming the runtime / Yahoo.
-  const out: any[] = [];
-  for (let i = 0; i < capped.length; i += 20) {
-    const batch = capped.slice(i, i + 20);
-    const results = await Promise.all(batch.map(one));
-    for (const r of results) if (r) out.push(r);
-  }
-  return out;
+  // Fire all requests concurrently — the per-fetch timeout caps total latency
+  // at ~3.5s + slowest fallback, and the in-memory cache makes repeats instant.
+  const capped = symbols.slice(0, 120);
+  const results = await Promise.all(capped.map(one));
+  return results.filter(Boolean);
 }
 
 function json(body: unknown, status = 200) {

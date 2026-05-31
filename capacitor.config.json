@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.e14264c2a9714672b2f55f9cca015f55",
+  "appName": "vela-agio",
+  "webDir": "dist",
+  "server": {
+    "url": "https://e14264c2-a971-4672-b2f5-5f9cca015f55.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}

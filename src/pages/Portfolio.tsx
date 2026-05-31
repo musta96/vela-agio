@@ -16,7 +16,7 @@ import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
 import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
-import { PortfolioInsights } from "@/components/PortfolioInsights";
+import { PortfolioInsights, type PortfolioAnalytics } from "@/components/PortfolioInsights";
 import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -380,6 +380,7 @@ const Portfolio = () => {
   const [txnSide, setTxnSide] = useState<"buy" | "sell">("buy");
   const [txnShares, setTxnShares] = useState("");
   const [txnPrice, setTxnPrice] = useState("");
+  const [analytics, setAnalytics] = useState<PortfolioAnalytics | null>(null);
 
   const openEdit = (stock: PortfolioStock) => {
     setEditing(stock);
@@ -619,6 +620,7 @@ const Portfolio = () => {
                   avgPrice: p.avgPrice,
                   currentPrice: p.currentPrice,
                 })),
+                analytics,
               });
               toast({ title: "PDF report generated" });
             }}
@@ -668,7 +670,7 @@ const Portfolio = () => {
           onRangeChange={setRange}
         />
 
-        <PortfolioInsights holdings={portfolio} />
+        <PortfolioInsights holdings={portfolio} onAnalytics={setAnalytics} />
 
         <PortfolioSuggestions
           portfolioId={activeId}

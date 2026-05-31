@@ -11,6 +11,7 @@ import { CopilotFab } from "@/components/CopilotFab";
 import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
 import { PlatformBannerBar } from "@/components/PlatformBannerBar";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { useMarketClock } from "@/hooks/useMarketClock";
 
 function MarketStatusPill() {
@@ -72,6 +73,7 @@ export default function AppShell() {
       <CommandPalette />
       <CopilotFab />
       <LiveOrderConfirmModal />
+      <UpdatePrompt />
     </SidebarProvider>
     </MaintenanceGate>
   );

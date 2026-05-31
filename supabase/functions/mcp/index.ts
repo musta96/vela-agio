@@ -1,12 +1,22 @@
-// Vela MCP server (read-only). Exposes Vela's market & portfolio tools to any
-// MCP-compatible client (Claude Desktop, Cursor, etc.) via Streamable HTTP.
-// Auth: clients must send a Supabase user JWT in the Authorization header.
-import { Hono } from 'npm:hono@4';
-import { McpServer, StreamableHttpTransport } from 'npm:mcp-lite@0.10.0';
+// Vela MCP server. Exposes Vela's market, strategy, and account tools to any
+// MCP-compatible client (Claude Desktop, ChatGPT, Cursor…) via Streamable HTTP.
+// Hand-rolled JSON-RPC 2.0 — no third-party MCP SDK so the transport stays
+// stable across upstream API churn.
+//
+// Tool phases:
+//   Phase 1 (public, no auth):  get_quote · search_strategies · get_briefing
+//   Phase 2 (Bearer JWT):       get_watchlist · get_portfolio · get_news_sentiment ·
+//                               scan_opportunities · related_instruments
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+};
 
 function svcClient(authHeader: string | null) {
   return createClient(SUPABASE_URL, ANON_KEY, { global: { headers: authHeader ? { Authorization: authHeader } : {} } });
@@ -142,112 +152,168 @@ async function getBriefing(region: string) {
   return { region: key, generated_at: new Date().toISOString(), headline, items };
 }
 
-const app = new Hono();
-const server = new McpServer({ name: 'vela', version: '1.0.0' });
+// ── Tool registry ──────────────────────────────────────────────────────
+type ToolDef = {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  handler: (args: any, ctx: { authHeader: string | null }) => Promise<unknown>;
+};
 
-server.tool({
-  name: 'get_quote',
-  description: '[Phase 1 · public] Latest price + daily change for a Yahoo-style ticker (AAPL, ENI.MI, ASML.AS). No auth required.',
-  inputSchema: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] },
-  handler: async ({ symbol }: any) => {
-    const data = await getQuote(String(symbol).toUpperCase());
-    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+const tools: ToolDef[] = [
+  {
+    name: 'get_quote',
+    description: '[Phase 1 · public] Latest price + daily change for a Yahoo-style ticker (AAPL, ENI.MI, ASML.AS). No auth required.',
+    inputSchema: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] },
+    handler: async ({ symbol }) => getQuote(String(symbol).toUpperCase()),
   },
-});
-
-server.tool({
-  name: 'search_strategies',
-  description: "[Phase 1 · public] Search Vela's strategy library by free-text query (name, category, risk, horizon). No auth required.",
-  inputSchema: {
-    type: 'object',
-    properties: {
-      query: { type: 'string', description: 'Free-text query, e.g. "momentum", "mean reversion", "low risk"' },
-      limit: { type: 'number', description: 'Max results (1–50, default 10)' },
+  {
+    name: 'search_strategies',
+    description: "[Phase 1 · public] Search Vela's strategy library by free-text query (name, category, risk, horizon). No auth required.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Free-text query, e.g. "momentum", "mean reversion", "low risk"' },
+        limit: { type: 'number', description: 'Max results (1–50, default 10)' },
+      },
+    },
+    handler: async ({ query = '', limit = 10 }) => searchStrategies(String(query), Number(limit) || 10),
+  },
+  {
+    name: 'get_briefing',
+    description: '[Phase 1 · public] Deterministic market briefing for a region (us | eu | it | global). Snapshot of major indices and FX — no AI commentary, no cost. No auth required.',
+    inputSchema: { type: 'object', properties: { region: { type: 'string', description: 'us | eu | it | global (default: global)' } } },
+    handler: async ({ region = 'global' }) => getBriefing(String(region)),
+  },
+  {
+    name: 'get_watchlist',
+    description: "[Phase 2 · auth] Return the authenticated user's watchlist.",
+    inputSchema: { type: 'object', properties: {} },
+    handler: async (_args, { authHeader }) => {
+      if (!authHeader) throw new Error('Missing Authorization header');
+      const sb = svcClient(authHeader);
+      const { data: u } = await sb.auth.getUser();
+      if (!u?.user) throw new Error('Invalid token');
+      const { data } = await sb.from('watchlist_items').select('symbol, name, created_at').eq('user_id', u.user.id);
+      return data ?? [];
     },
   },
-  handler: async ({ query = '', limit = 10 }: any) => {
-    const data = searchStrategies(String(query), Number(limit) || 10);
-    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+  {
+    name: 'get_portfolio',
+    description: "[Phase 2 · auth] Return the authenticated user's portfolio holdings.",
+    inputSchema: { type: 'object', properties: {} },
+    handler: async (_args, { authHeader }) => {
+      if (!authHeader) throw new Error('Missing Authorization header');
+      const sb = svcClient(authHeader);
+      const { data: u } = await sb.auth.getUser();
+      if (!u?.user) throw new Error('Invalid token');
+      const { data } = await sb.from('portfolio_holdings').select('symbol, name, shares, avg_price, currency').eq('user_id', u.user.id);
+      return data ?? [];
+    },
   },
+  {
+    name: 'get_news_sentiment',
+    description: '[Phase 2 · auth] AI sentiment analysis (news headlines + score) for a ticker. Counted against your Vela plan quota.',
+    inputSchema: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol'] },
+    handler: async ({ symbol, name }, { authHeader }) => callEdge(authHeader ?? `Bearer ${ANON_KEY}`, 'analyze-sentiment', { symbol, name }),
+  },
+  {
+    name: 'scan_opportunities',
+    description: '[Phase 2 · auth] Run the Vela AI scanner against a universe (ftse_mib | sp100 | eu_blue).',
+    inputSchema: { type: 'object', properties: { universe: { type: 'string' }, criteria: { type: 'string' }, limit: { type: 'number' } } },
+    handler: async ({ universe = 'ftse_mib', criteria = '', limit = 10 }, { authHeader }) =>
+      callEdge(authHeader ?? `Bearer ${ANON_KEY}`, 'ai-scanner', { universe, criteria, limit }),
+  },
+  {
+    name: 'related_instruments',
+    description: '[Phase 2 · auth] Peers, sector ETF and thematic neighbours for a symbol.',
+    inputSchema: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] },
+    handler: async ({ symbol }, { authHeader }) => callEdge(authHeader ?? `Bearer ${ANON_KEY}`, 'related-instruments', { symbol }),
+  },
+];
+
+// ── JSON-RPC 2.0 handler (MCP Streamable HTTP) ─────────────────────────
+function rpcResult(id: unknown, result: unknown) {
+  return { jsonrpc: '2.0', id, result };
+}
+function rpcError(id: unknown, code: number, message: string, data?: unknown) {
+  return { jsonrpc: '2.0', id, error: { code, message, ...(data ? { data } : {}) } };
+}
+
+async function handleRpc(msg: any, authHeader: string | null) {
+  const { id, method, params } = msg ?? {};
+  if (method === 'initialize') {
+    return rpcResult(id, {
+      protocolVersion: '2024-11-05',
+      capabilities: { tools: { listChanged: false } },
+      serverInfo: { name: 'vela', version: '1.0.0' },
+    });
+  }
+  if (method === 'tools/list') {
+    return rpcResult(id, { tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })) });
+  }
+  if (method === 'tools/call') {
+    const name = params?.name;
+    const args = params?.arguments ?? {};
+    const tool = tools.find((t) => t.name === name);
+    if (!tool) return rpcError(id, -32601, `Unknown tool: ${name}`);
+    try {
+      const out = await tool.handler(args, { authHeader });
+      const text = typeof out === 'string' ? out : JSON.stringify(out);
+      return rpcResult(id, { content: [{ type: 'text', text: text.slice(0, 100_000) }], isError: false });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return rpcResult(id, { content: [{ type: 'text', text: message }], isError: true });
+    }
+  }
+  if (method === 'ping') return rpcResult(id, {});
+  if (typeof method === 'string' && method.startsWith('notifications/')) return null; // no response
+  return rpcError(id, -32601, `Method not found: ${method}`);
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  // Simple GET responds with capability summary (helpful for sanity checks).
+  if (req.method === 'GET') {
+    return new Response(
+      JSON.stringify({
+        name: 'vela',
+        version: '1.0.0',
+        protocol: 'mcp',
+        transport: 'streamable-http',
+        tools: tools.map((t) => t.name),
+        usage: 'POST JSON-RPC 2.0 with Accept: application/json, text/event-stream',
+      }, null, 2),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify(rpcError(null, -32700, 'Parse error')), {
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const authHeader = req.headers.get('authorization');
+  const responses = Array.isArray(body)
+    ? (await Promise.all(body.map((m) => handleRpc(m, authHeader)))).filter((r) => r !== null)
+    : await handleRpc(body, authHeader);
+
+  // No content for notifications-only payloads.
+  if (responses === null || (Array.isArray(responses) && responses.length === 0)) {
+    return new Response(null, { status: 202, headers: corsHeaders });
+  }
+
+  return new Response(JSON.stringify(responses), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 });
-
-server.tool({
-  name: 'get_briefing',
-  description: '[Phase 1 · public] Deterministic market briefing for a region (us | eu | it | global). Returns a snapshot of major indices and FX — no AI commentary, no cost. No auth required.',
-  inputSchema: {
-    type: 'object',
-    properties: { region: { type: 'string', description: 'us | eu | it | global (default: global)' } },
-  },
-  handler: async ({ region = 'global' }: any) => {
-    const data = await getBriefing(String(region));
-    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
-  },
-});
-
-server.tool({
-  name: 'get_watchlist',
-  description: "Return the authenticated user's watchlist.",
-  inputSchema: { type: 'object', properties: {} },
-  handler: async (_args: any, ctx: any) => {
-    const auth = ctx?.request?.headers?.get?.('authorization');
-    if (!auth) return { content: [{ type: 'text', text: 'Missing Authorization header' }] };
-    const sb = svcClient(auth);
-    const { data: u } = await sb.auth.getUser();
-    if (!u?.user) return { content: [{ type: 'text', text: 'Invalid token' }] };
-    const { data } = await sb.from('watchlist_items').select('symbol, name, created_at').eq('user_id', u.user.id);
-    return { content: [{ type: 'text', text: JSON.stringify(data ?? []) }] };
-  },
-});
-
-server.tool({
-  name: 'get_portfolio',
-  description: "Return the authenticated user's portfolio holdings.",
-  inputSchema: { type: 'object', properties: {} },
-  handler: async (_args: any, ctx: any) => {
-    const auth = ctx?.request?.headers?.get?.('authorization');
-    if (!auth) return { content: [{ type: 'text', text: 'Missing Authorization header' }] };
-    const sb = svcClient(auth);
-    const { data: u } = await sb.auth.getUser();
-    if (!u?.user) return { content: [{ type: 'text', text: 'Invalid token' }] };
-    const { data } = await sb.from('portfolio_holdings').select('symbol, name, shares, avg_price, currency').eq('user_id', u.user.id);
-    return { content: [{ type: 'text', text: JSON.stringify(data ?? []) }] };
-  },
-});
-
-server.tool({
-  name: 'get_news_sentiment',
-  description: 'AI sentiment analysis (news headlines + score) for a ticker. Calls Vela analyze-sentiment.',
-  inputSchema: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol'] },
-  handler: async ({ symbol, name }: any, ctx: any) => {
-    const auth = ctx?.request?.headers?.get?.('authorization') ?? `Bearer ${ANON_KEY}`;
-    const data = await callEdge(auth, 'analyze-sentiment', { symbol, name });
-    return { content: [{ type: 'text', text: JSON.stringify(data).slice(0, 4000) }] };
-  },
-});
-
-server.tool({
-  name: 'scan_opportunities',
-  description: 'Run the Vela AI scanner against a universe (ftse_mib | sp100 | eu_blue).',
-  inputSchema: { type: 'object', properties: { universe: { type: 'string' }, criteria: { type: 'string' }, limit: { type: 'number' } } },
-  handler: async ({ universe = 'ftse_mib', criteria = '', limit = 10 }: any, ctx: any) => {
-    const auth = ctx?.request?.headers?.get?.('authorization') ?? `Bearer ${ANON_KEY}`;
-    const data = await callEdge(auth, 'ai-scanner', { universe, criteria, limit });
-    return { content: [{ type: 'text', text: JSON.stringify(data).slice(0, 6000) }] };
-  },
-});
-
-server.tool({
-  name: 'related_instruments',
-  description: 'Peers, sector ETF and thematic neighbours for a symbol.',
-  inputSchema: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] },
-  handler: async ({ symbol }: any, ctx: any) => {
-    const auth = ctx?.request?.headers?.get?.('authorization') ?? `Bearer ${ANON_KEY}`;
-    const data = await callEdge(auth, 'related-instruments', { symbol });
-    return { content: [{ type: 'text', text: JSON.stringify(data).slice(0, 4000) }] };
-  },
-});
-
-const transport = new StreamableHttpTransport();
-app.all('/*', async (c) => transport.handleRequest(c.req.raw, server));
-
-Deno.serve(app.fetch);

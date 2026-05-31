@@ -592,6 +592,27 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_globals: {
+        Row: {
+          key: string
+          label: string | null
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          label?: string | null
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          label?: string | null
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       landing_sections: {
         Row: {
           content: Json
@@ -602,6 +623,7 @@ export type Database = {
           kind: string
           sort_order: number
           updated_at: string
+          variant: string
         }
         Insert: {
           content?: Json
@@ -612,6 +634,7 @@ export type Database = {
           kind: string
           sort_order?: number
           updated_at?: string
+          variant?: string
         }
         Update: {
           content?: Json
@@ -622,6 +645,55 @@ export type Database = {
           kind?: string
           sort_order?: number
           updated_at?: string
+          variant?: string
+        }
+        Relationships: []
+      }
+      landing_settings: {
+        Row: {
+          ab: Json
+          id: number
+          seo: Json
+          updated_at: string
+        }
+        Insert: {
+          ab?: Json
+          id?: number
+          seo?: Json
+          updated_at?: string
+        }
+        Update: {
+          ab?: Json
+          id?: number
+          seo?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      landing_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          note: string | null
+          snapshot: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          note?: string | null
+          snapshot?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          note?: string | null
+          snapshot?: Json
         }
         Relationships: []
       }

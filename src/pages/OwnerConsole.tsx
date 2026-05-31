@@ -976,7 +976,8 @@ function BannerComposer({ onCreate }: { onCreate: (message: string, severity: "i
 function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onExport: () => void; onView?: () => void }) {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const isAdmin = user.roles?.includes("admin");
+  const [roleOpen, setRoleOpen] = useState(false);
+  const [roleToGrant, setRoleToGrant] = useState<Role>("support");
   return (
     <div className="flex items-center gap-1 justify-end">
       {onView && <Button size="sm" variant="ghost" className="gap-1" onClick={onView}><Eye className="h-3.5 w-3.5" /> View</Button>}
@@ -985,9 +986,33 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
         : <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("suspend_user", { user_id: user.id, reason: "Owner action" })}><Ban className="h-3.5 w-3.5" /> Suspend</Button>}
       <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("force_password_reset", { email: user.email })}><Shield className="h-3.5 w-3.5" /> Reset pw</Button>
       <Button size="sm" variant="ghost" className="gap-1" onClick={onExport}><FileDown className="h-3.5 w-3.5" /> Export</Button>
-      {isAdmin
-        ? <Button size="sm" variant="ghost" onClick={() => act("revoke_role", { user_id: user.id, role: "admin" })}>Revoke admin</Button>
-        : <Button size="sm" variant="ghost" onClick={() => act("grant_role", { user_id: user.id, role: "admin" })}>Make admin</Button>}
+      <Dialog open={roleOpen} onOpenChange={setRoleOpen}>
+        <DialogTrigger asChild><Button size="sm" variant="ghost" className="gap-1"><Shield className="h-3.5 w-3.5" /> Roles</Button></DialogTrigger>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Roles — {user.email}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Current roles:</p>
+            <div className="flex flex-wrap gap-1">
+              {(user.roles || []).length === 0 && <Badge variant="outline" className="text-[10px]">viewer (default)</Badge>}
+              {(user.roles || []).map(r => (
+                <Badge key={r} variant="outline" className="text-[10px] gap-1">
+                  {r}
+                  <button onClick={() => act("revoke_role", { user_id: user.id, role: r })} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Select value={roleToGrant} onValueChange={(v) => setRoleToGrant(v as Role)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ALL_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button onClick={() => act("grant_role", { user_id: user.id, role: roleToGrant })}>Grant</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={purgeOpen} onOpenChange={setPurgeOpen}>
         <DialogTrigger asChild><Button size="sm" variant="ghost" className="text-destructive gap-1"><Trash2 className="h-3.5 w-3.5" /> Erase</Button></DialogTrigger>
         <DialogContent>
@@ -1001,6 +1026,40 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function NewErasureCard({ users, onCreate }: { users: UserRow[]; onCreate: (user_id: string, reason: string, days: number) => Promise<unknown> }) {
+  const [userId, setUserId] = useState("");
+  const [reason, setReason] = useState("");
+  const [days, setDays] = useState("30");
+  const [q, setQ] = useState("");
+  const matches = q ? users.filter(u => (u.email + " " + (u.display_name || "")).toLowerCase().includes(q.toLowerCase())).slice(0, 5) : [];
+  return (
+    <Card className="p-4 space-y-2">
+      <h3 className="font-semibold text-sm flex items-center gap-2"><Scale className="h-4 w-4" /> Lodge a new erasure request</h3>
+      <p className="text-[11px] text-muted-foreground">Use this when a user emails support asking for Art. 17 erasure. Adds a row to the queue with a configurable grace period.</p>
+      <div className="grid md:grid-cols-4 gap-2">
+        <div className="md:col-span-2 relative">
+          <Input placeholder="Find user by name or email…" value={q} onChange={(e) => { setQ(e.target.value); setUserId(""); }} />
+          {matches.length > 0 && !userId && (
+            <div className="absolute z-10 mt-1 w-full bg-popover border border-border rounded-md shadow max-h-48 overflow-auto">
+              {matches.map(m => (
+                <button key={m.id} type="button" className="w-full text-left text-xs px-2 py-1.5 hover:bg-muted" onClick={() => { setUserId(m.id); setQ(m.email); }}>
+                  <span className="font-medium">{m.display_name || m.email}</span>
+                  {m.display_name && <span className="text-muted-foreground"> · {m.email}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <Input placeholder="Reason / ticket #" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <div className="flex gap-2">
+          <Input type="number" placeholder="Grace days" value={days} onChange={(e) => setDays(e.target.value)} />
+          <Button disabled={!userId} onClick={async () => { await onCreate(userId, reason, Number(days) || 30); setUserId(""); setQ(""); setReason(""); }}>Create</Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

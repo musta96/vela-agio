@@ -348,6 +348,67 @@ Deno.serve(async (req) => {
             await logIncident("gdpr", { version }, reason);
             return ok({ ok: true });
           }
+          case "legal_upsert": {
+            const { id, kind, version, title, body: docBody, status } = body;
+            const row: Record<string, unknown> = {
+              kind, version, title,
+              body: docBody ?? "",
+              status: status || "draft",
+              created_by: userRes.user.id,
+              updated_at: new Date().toISOString(),
+            };
+            if (id) (row as any).id = id;
+            const { data, error } = await admin.from("legal_documents").upsert(row).select().single();
+            if (error) throw error;
+            await logAudit("legal_documents", (data as any)?.id ?? null, { kind, version, status });
+            return ok({ document: data });
+          }
+          case "legal_publish": {
+            const { id } = body;
+            const { data } = await admin.from("legal_documents").update({
+              status: "published",
+              published_at: new Date().toISOString(),
+            }).eq("id", id).select().single();
+            await logAudit("legal_documents", id, { op: "publish" });
+            return ok({ document: data });
+          }
+          case "legal_unpublish": {
+            const { id } = body;
+            await admin.from("legal_documents").update({ status: "draft" }).eq("id", id);
+            await logAudit("legal_documents", id, { op: "unpublish" });
+            return ok({ ok: true });
+          }
+          case "legal_delete": {
+            const { id } = body;
+            await admin.from("legal_documents").delete().eq("id", id);
+            await logAudit("legal_documents", id, { op: "delete" });
+            return ok({ ok: true });
+          }
+          case "legal_notify_users": {
+            // Force a re-consent prompt and (optionally) drop an in-app notification for every user.
+            const { version, message } = body;
+            await admin.from("platform_controls").upsert({
+              key: "required_consent_version", enabled: true,
+              value: { version: version || new Date().toISOString().slice(0, 10) },
+              updated_by: userRes.user.id, updated_at: new Date().toISOString(),
+            });
+            if (message) {
+              const { data: us } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+              const rows = (us?.users || []).map((u) => ({
+                user_id: u.id, kind: "legal_update", severity: "info",
+                title: "Updated legal documents", body: message,
+              }));
+              if (rows.length) await admin.from("notifications").insert(rows);
+            }
+            await logIncident("gdpr", { version }, "legal_notify_users");
+            return ok({ ok: true });
+          }
+          case "apikey_revoke": {
+            const { id } = body;
+            await admin.from("user_api_keys").delete().eq("id", id);
+            await logAudit("user_api_keys", id, { op: "revoke" });
+            return ok({ ok: true });
+          }
           default:
             return new Response(JSON.stringify({ error: "Unknown action", action }), { status: 400, headers: jsonHeaders });
         }
@@ -417,6 +478,13 @@ Deno.serve(async (req) => {
       admin.from("admin_sessions").select("*").order("created_at", { ascending: false }).limit(50),
       admin.from("health_checks").select("*"),
     ]);
+    const [{ data: legalDocs }, { data: apiKeys }, { data: profilesList }] = await Promise.all([
+      admin.from("legal_documents").select("*").order("updated_at", { ascending: false }),
+      admin.from("user_api_keys").select("id, user_id, provider, hint, created_at, updated_at").order("created_at", { ascending: false }).limit(500),
+      admin.from("profiles").select("user_id, display_name, avatar_url"),
+    ]);
+    const profileByUser: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
+    for (const p of profilesList || []) profileByUser[(p as any).user_id] = { display_name: (p as any).display_name, avatar_url: (p as any).avatar_url };
     const suspendedSet = new Set((suspensions || []).map((s: any) => s.user_id));
     const rolesMap: Record<string, string[]> = {};
     const { data: allRoles } = await admin.from("user_roles").select("user_id, role");
@@ -437,7 +505,13 @@ Deno.serve(async (req) => {
         holdings: hCount || 0,
         netWorthAccounts: nwCount || 0,
       },
-      users: users.map((u) => ({ ...u, suspended: suspendedSet.has(u.id), roles: rolesMap[u.id] || [] })),
+      users: users.map((u) => ({
+        ...u,
+        suspended: suspendedSet.has(u.id),
+        roles: rolesMap[u.id] || [],
+        display_name: profileByUser[u.id]?.display_name || null,
+        avatar_url: profileByUser[u.id]?.avatar_url || null,
+      })),
       recentAudit: recentAudit || [],
       controls: controls || [],
       banners: banners || [],
@@ -449,6 +523,8 @@ Deno.serve(async (req) => {
       erasure: erasure || [],
       sessions: sessions || [],
       health: health || [],
+      legal: legalDocs || [],
+      apiKeys: apiKeys || [],
     }), { headers: jsonHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

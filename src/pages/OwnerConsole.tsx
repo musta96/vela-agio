@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
+import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
+import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +23,7 @@ import {
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
-type UserRow = { id: string; email: string; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null; provider?: string; portfolios: number; suspended?: boolean; roles?: string[] };
+type UserRow = { id: string; email: string; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null; provider?: string; portfolios: number; suspended?: boolean; roles?: string[]; display_name?: string | null; avatar_url?: string | null };
 type Control = { key: string; enabled: boolean; reason: string | null; updated_at: string };
 type Banner = { id: string; message: string; severity: "info"|"warning"|"critical"; active: boolean; created_at: string; expires_at: string | null };
 type Signal = { id: string; user_id: string | null; signal_type: string; symbol: string | null; status: string; confidence: number | null; created_at: string; disclaimer: string | null; retracted_reason: string | null };
@@ -32,6 +34,11 @@ type AuditEntry = { id: number; ts: string; actor_email: string | null; action: 
 type ErasureReq = { id: string; user_id: string; user_email: string | null; reason: string | null; status: string; scheduled_for: string; completed_at: string | null; certificate_url: string | null; created_at: string; requested_by_email: string | null };
 type AdminSession = { id: string; actor_email: string; target_email: string | null; purpose: string; created_at: string; expires_at: string };
 type HealthCheck = { service: string; status: string; latency_ms: number | null; detail: string | null; last_checked: string };
+type LegalDoc = { id: string; kind: string; version: string; title: string; body: string; status: "draft" | "published" | "archived"; published_at: string | null; created_at: string; updated_at: string };
+type ApiKey = { id: string; user_id: string; provider: string; hint: string | null; created_at: string; updated_at: string };
+
+const ALL_ROLES = ["admin", "support", "compliance", "engineer", "analyst", "pm", "viewer"] as const;
+type Role = typeof ALL_ROLES[number];
 type AiConfig = {
   min_confidence?: number;
   ticker_blacklist?: string[];
@@ -50,8 +57,10 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[] } | null>(null);
+  const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[]; legal?: LegalDoc[]; apiKeys?: ApiKey[] } | null>(null);
   const [q, setQ] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [lastSignInFilter, setLastSignInFilter] = useState<string>("any");
   const [section, setSection] = useState<string>("dashboard");
   const [auditFilter, setAuditFilter] = useState("");
   const [detailUser, setDetailUser] = useState<UserRow | null>(null);
@@ -99,8 +108,32 @@ export default function OwnerConsole() {
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading owner console…</div>
     );
   }
-  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [], erasure = [], sessions = [], health = [] } = data;
-  const filteredUsers = users.filter((u) => !q || u.email?.toLowerCase().includes(q.toLowerCase()));
+  const { stats, users, controls, banners, signals, incidents, flags, recentAudit, consents = [], audit = [], erasure = [], sessions = [], health = [], legal = [], apiKeys = [] } = data;
+  const filteredUsers = users.filter((u) => {
+    if (q) {
+      const needle = q.toLowerCase();
+      const hay = `${u.email || ""} ${u.display_name || ""}`.toLowerCase();
+      if (!hay.includes(needle)) return false;
+    }
+    if (roleFilter !== "all") {
+      const has = (u.roles || []).includes(roleFilter);
+      if (roleFilter === "viewer") {
+        // Treat empty roles as viewer (default)
+        if (!has && (u.roles || []).length > 0) return false;
+      } else if (!has) return false;
+    }
+    if (lastSignInFilter !== "any") {
+      const ts = u.last_sign_in_at ? new Date(u.last_sign_in_at).getTime() : 0;
+      const now = Date.now();
+      const day = 86400_000;
+      if (lastSignInFilter === "never" && ts) return false;
+      if (lastSignInFilter === "24h" && (!ts || now - ts > day)) return false;
+      if (lastSignInFilter === "7d" && (!ts || now - ts > 7 * day)) return false;
+      if (lastSignInFilter === "30d" && (!ts || now - ts > 30 * day)) return false;
+      if (lastSignInFilter === "30d_plus" && (!ts || now - ts <= 30 * day)) return false;
+    }
+    return true;
+  });
   const controlByKey = (k: string) => controls.find((c) => c.key === k);
   const aiConfig: AiConfig = ((controls.find((c) => c.key === "ai_config") as any)?.value) || {};
   const filteredAudit = audit.filter(a => !auditFilter || JSON.stringify(a).toLowerCase().includes(auditFilter.toLowerCase()));
@@ -200,18 +233,42 @@ export default function OwnerConsole() {
   );
   const usersSection = (
     <div className="space-y-3">
-            <Input placeholder="Search by email…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
+            <Card className="p-3 flex flex-wrap items-center gap-2">
+              <Input placeholder="Search by name or email…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs h-9" />
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Role" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  {ALL_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={lastSignInFilter} onValueChange={setLastSignInFilter}>
+                <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Last sign-in" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any time</SelectItem>
+                  <SelectItem value="24h">Last 24h</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="30d_plus">Inactive 30d+</SelectItem>
+                  <SelectItem value="never">Never signed in</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground ml-auto">{filteredUsers.length} of {users.length}</span>
+            </Card>
             <Card>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Email</TableHead><TableHead>Roles</TableHead><TableHead>Joined</TableHead>
+                  <TableHead>User</TableHead><TableHead>Roles</TableHead><TableHead>Joined</TableHead>
                   <TableHead>Last sign-in</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {filteredUsers.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell className="font-medium text-sm">
-                        <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>{u.email}</button>
+                        <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>
+                          <div>{u.display_name || u.email}</div>
+                          {u.display_name && <div className="text-[10px] text-muted-foreground font-normal">{u.email}</div>}
+                        </button>
                       </TableCell>
                       <TableCell className="text-xs space-x-1">
                         {(u.roles || []).map((r) => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
@@ -229,6 +286,7 @@ export default function OwnerConsole() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {filteredUsers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10 text-sm">No users match those filters.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </Card>
@@ -367,6 +425,7 @@ export default function OwnerConsole() {
   );
   const complianceSection = (
     <div className="space-y-3">
+            <NewErasureCard users={users} onCreate={(user_id, reason, days) => act("request_erasure", { user_id, reason, days })} />
             <Card className="p-5 space-y-2">
               <h3 className="font-semibold flex items-center gap-2"><Scale className="h-4 w-4" /> GDPR & regulatory tools</h3>
               <p className="text-xs text-muted-foreground">Access (Art. 15) & portability (Art. 20) via per-user export. Erasure (Art. 17) via the Users tab. All actions are written to the immutable incident log.</p>
@@ -667,7 +726,7 @@ export default function OwnerConsole() {
     kill: killSection,
     users: usersSection,
     roles: rolesSection,
-    apikeys: stubSection("API keys", "Per-user API key issuance, revocation, and rate-limit overrides."),
+    apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
     revenue: billingSection,
     failed: stubSection("Failed payments", "Dunning queue and manual retry triggers appear once a payment provider is connected."),
@@ -677,7 +736,7 @@ export default function OwnerConsole() {
     ai: aiSection,
     data: dataSection,
     gdpr: complianceSection,
-    legal: stubSection("Legal documents", "Maintain T&C / privacy / risk-disclosure versions. Use Compliance › Force re-consent to require acceptance."),
+    legal: <LegalDocsEditor docs={legal} reload={load} />,
   };
 
   return (
@@ -917,7 +976,8 @@ function BannerComposer({ onCreate }: { onCreate: (message: string, severity: "i
 function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onExport: () => void; onView?: () => void }) {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const isAdmin = user.roles?.includes("admin");
+  const [roleOpen, setRoleOpen] = useState(false);
+  const [roleToGrant, setRoleToGrant] = useState<Role>("support");
   return (
     <div className="flex items-center gap-1 justify-end">
       {onView && <Button size="sm" variant="ghost" className="gap-1" onClick={onView}><Eye className="h-3.5 w-3.5" /> View</Button>}
@@ -926,9 +986,33 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
         : <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("suspend_user", { user_id: user.id, reason: "Owner action" })}><Ban className="h-3.5 w-3.5" /> Suspend</Button>}
       <Button size="sm" variant="ghost" className="gap-1" onClick={() => act("force_password_reset", { email: user.email })}><Shield className="h-3.5 w-3.5" /> Reset pw</Button>
       <Button size="sm" variant="ghost" className="gap-1" onClick={onExport}><FileDown className="h-3.5 w-3.5" /> Export</Button>
-      {isAdmin
-        ? <Button size="sm" variant="ghost" onClick={() => act("revoke_role", { user_id: user.id, role: "admin" })}>Revoke admin</Button>
-        : <Button size="sm" variant="ghost" onClick={() => act("grant_role", { user_id: user.id, role: "admin" })}>Make admin</Button>}
+      <Dialog open={roleOpen} onOpenChange={setRoleOpen}>
+        <DialogTrigger asChild><Button size="sm" variant="ghost" className="gap-1"><Shield className="h-3.5 w-3.5" /> Roles</Button></DialogTrigger>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Roles — {user.email}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Current roles:</p>
+            <div className="flex flex-wrap gap-1">
+              {(user.roles || []).length === 0 && <Badge variant="outline" className="text-[10px]">viewer (default)</Badge>}
+              {(user.roles || []).map(r => (
+                <Badge key={r} variant="outline" className="text-[10px] gap-1">
+                  {r}
+                  <button onClick={() => act("revoke_role", { user_id: user.id, role: r })} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Select value={roleToGrant} onValueChange={(v) => setRoleToGrant(v as Role)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ALL_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button onClick={() => act("grant_role", { user_id: user.id, role: roleToGrant })}>Grant</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={purgeOpen} onOpenChange={setPurgeOpen}>
         <DialogTrigger asChild><Button size="sm" variant="ghost" className="text-destructive gap-1"><Trash2 className="h-3.5 w-3.5" /> Erase</Button></DialogTrigger>
         <DialogContent>
@@ -942,6 +1026,40 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function NewErasureCard({ users, onCreate }: { users: UserRow[]; onCreate: (user_id: string, reason: string, days: number) => Promise<unknown> }) {
+  const [userId, setUserId] = useState("");
+  const [reason, setReason] = useState("");
+  const [days, setDays] = useState("30");
+  const [q, setQ] = useState("");
+  const matches = q ? users.filter(u => (u.email + " " + (u.display_name || "")).toLowerCase().includes(q.toLowerCase())).slice(0, 5) : [];
+  return (
+    <Card className="p-4 space-y-2">
+      <h3 className="font-semibold text-sm flex items-center gap-2"><Scale className="h-4 w-4" /> Lodge a new erasure request</h3>
+      <p className="text-[11px] text-muted-foreground">Use this when a user emails support asking for Art. 17 erasure. Adds a row to the queue with a configurable grace period.</p>
+      <div className="grid md:grid-cols-4 gap-2">
+        <div className="md:col-span-2 relative">
+          <Input placeholder="Find user by name or email…" value={q} onChange={(e) => { setQ(e.target.value); setUserId(""); }} />
+          {matches.length > 0 && !userId && (
+            <div className="absolute z-10 mt-1 w-full bg-popover border border-border rounded-md shadow max-h-48 overflow-auto">
+              {matches.map(m => (
+                <button key={m.id} type="button" className="w-full text-left text-xs px-2 py-1.5 hover:bg-muted" onClick={() => { setUserId(m.id); setQ(m.email); }}>
+                  <span className="font-medium">{m.display_name || m.email}</span>
+                  {m.display_name && <span className="text-muted-foreground"> · {m.email}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <Input placeholder="Reason / ticket #" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <div className="flex gap-2">
+          <Input type="number" placeholder="Grace days" value={days} onChange={(e) => setDays(e.target.value)} />
+          <Button disabled={!userId} onClick={async () => { await onCreate(userId, reason, Number(days) || 30); setUserId(""); setQ(""); setReason(""); }}>Create</Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

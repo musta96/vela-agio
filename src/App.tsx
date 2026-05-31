@@ -48,6 +48,7 @@ import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
+import LegalDoc from "./pages/LegalDoc";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
@@ -156,6 +157,7 @@ const App = () => (
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/legal/:kind" element={<LegalDoc />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />
             <Route path="/dealflow" element={<DealFlow />} />
             <Route path="/privacy-settings" element={<PrivacySettings />} />

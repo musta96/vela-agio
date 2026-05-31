@@ -4,6 +4,7 @@ import { getInvestorProfileSummary } from '../_shared/investor-profile.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserDataKey } from '../_shared/data-provider.ts';
 import { PLATFORM_MAP } from '../_shared/platform-map.ts';
+import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
 
 // =====================================================================
 // AGENTIC COPILOT — tool-calling loop
@@ -251,6 +252,10 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization');
     if (!auth) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+    // ---- Gate AI access: free without BYO key → 402 with upgrade/byo links
+    const access = await resolveAiAccess(auth);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+
     const { messages, portfolio, watchlist, lang, attachments, pageContext } = await req.json();
     const langName = lang === 'it' ? 'Italian' : 'English';
     const investorProfile = await getInvestorProfileSummary(auth);
@@ -281,6 +286,17 @@ SUITABILITY (MiFID II): ${investorProfile ?? 'not completed — invite the user 
 ${PLATFORM_MAP}`;
 
     const cfg = await resolveAIConfig(auth);
+    // Honour the access tier's model cap when the user is on Lovable AI (paid/beta).
+    if (access.source !== "byo" && cfg.effectiveProvider === "lovable") {
+      cfg.model = modelForCap(access.modelCap, cfg.model);
+    }
+    // Best-effort usage logging (single increment per copilot turn)
+    logAiUsage({
+      userId: access.userId,
+      feature: "copilot",
+      model: cfg.model,
+      provider: access.source === "byo" ? "byo" : "lovable",
+    });
     // Inject attachments into the last user message as multimodal content parts (Gemini/OpenAI compatible).
     const incoming = [...(messages ?? [])];
     const atts: Array<{ name: string; mime: string; dataUrl: string }> = Array.isArray(attachments) ? attachments : [];

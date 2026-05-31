@@ -64,6 +64,14 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
     signupUrl: "https://console.groq.com/keys",
     serverOnly: true,
   },
+  {
+    id: "OPENROUTER_API_KEY",
+    label: "OpenRouter",
+    description: "One key for hundreds of models (OpenAI, Anthropic, Google, open-source). Great for free users.",
+    category: "ai",
+    signupUrl: "https://openrouter.ai/keys",
+    serverOnly: true,
+  },
 
   // --- Market data ---
   {

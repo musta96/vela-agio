@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
@@ -27,6 +28,10 @@ async function yahooNews(symbol: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
+    const auth = req.headers.get('Authorization');
+    const access = await resolveAiAccess(auth);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+
     const { holdings = [], watchlist = [], focus = '', lang = 'en' } = await req.json() as {
       holdings: { symbol: string; name?: string; shares?: number; avg_price?: number }[];
       watchlist: { symbol: string; name?: string }[];
@@ -65,11 +70,12 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
 
     const user = `LIVE QUOTES & HEADLINES:\n${JSON.stringify(enriched).slice(0, 8000)}\n\nUSER POSITIONS:\n${JSON.stringify(positions).slice(0, 4000)}\n\nUSER WATCHLIST: ${JSON.stringify(watchlist.map((w) => w.symbol))}`;
 
+    const model = modelForCap(access.modelCap, 'google/gemini-2.5-flash');
     const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model,
         messages: [
           { role: 'system', content: sys },
           { role: 'user', content: user },
@@ -80,6 +86,7 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
     if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (r.status === 402) return new Response(JSON.stringify({ error: 'credits_exhausted' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const j = await r.json();
+    logAiUsage({ userId: access.userId, feature: 'briefing', model, provider: 'lovable', success: r.ok });
     let out: any = { headline: '', body: '', highlights: [] };
     try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
     out._meta = { symbols: symbols.length, hasFocus: !!focus, generatedAt: new Date().toISOString() };

@@ -35,7 +35,13 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!sub?.stripe_customer_id) throw new Error("No subscription found");
+    if (!sub?.stripe_customer_id) {
+      // Expected case for users on the free/launch plan — return 200 with a
+      // typed flag so the client can route to /pricing without surfacing an error.
+      return new Response(JSON.stringify({ noSubscription: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const stripe = createStripeClient(env);
     const portal = await stripe.billingPortal.sessions.create({

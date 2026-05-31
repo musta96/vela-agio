@@ -17,6 +17,36 @@ const Icon = ({ name, className }: { name?: string; className?: string }) => {
   return <C className={className} />;
 };
 
+// Interpolate {{key}} tokens from globals into any string/object/array.
+function interpolate(value: any, globals: Record<string, any>): any {
+  if (typeof value === "string") {
+    return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, k) => {
+      const v = globals[k];
+      return v == null ? "" : typeof v === "string" ? v : JSON.stringify(v);
+    });
+  }
+  if (Array.isArray(value)) return value.map((v) => interpolate(v, globals));
+  if (value && typeof value === "object") {
+    const out: any = {};
+    for (const k of Object.keys(value)) out[k] = interpolate(value[k], globals);
+    return out;
+  }
+  return value;
+}
+
+function pickVariant(ab: any): "A" | "B" {
+  if (!ab?.enabled) return "A";
+  if (ab.winner === "A" || ab.winner === "B") return ab.winner;
+  const KEY = "vela_landing_variant";
+  try {
+    const cached = localStorage.getItem(KEY);
+    if (cached === "A" || cached === "B") return cached;
+    const v: "A" | "B" = Math.random() * 100 < (ab.split ?? 50) ? "A" : "B";
+    localStorage.setItem(KEY, v);
+    return v;
+  } catch { return "A"; }
+}
+
 type Tier = { name: string; price: string; note: string; features: string[]; cta: string; cta_href: string; highlight: boolean };
 const FALLBACK_TIERS: Tier[] = [
   { name: "Free", price: "€0", note: "Forever", features: ["Live quotes (delayed)"], cta: "Get started", cta_href: "/auth", highlight: false },
@@ -25,6 +55,7 @@ const FALLBACK_TIERS: Tier[] = [
 export default function Landing() {
   const [tiers, setTiers] = useState<Tier[]>(FALLBACK_TIERS);
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
+  const [seo, setSeo] = useState<any>({});
   useEffect(() => {
     supabase
       .from("subscription_plans")
@@ -44,12 +75,28 @@ export default function Landing() {
           })));
         }
       });
-    (supabase as any)
-      .from("landing_sections")
-      .select("key, kind, sort_order, enabled, content")
-      .then(({ data }: any) => {
-        if (data) setSections(mergeWithDefaults(data));
-      });
+    (async () => {
+      const [secsRes, globalsRes, settingsRes] = await Promise.all([
+        (supabase as any).from("landing_sections").select("key, kind, sort_order, enabled, content, variant"),
+        (supabase as any).from("landing_globals").select("key, value"),
+        (supabase as any).from("landing_settings").select("seo, ab").eq("id", 1).maybeSingle(),
+      ]);
+      const globals: Record<string, any> = {};
+      for (const g of globalsRes.data || []) globals[g.key] = g.value;
+      const ab = settingsRes.data?.ab || { enabled: false };
+      const chosen = pickVariant(ab);
+      const all = (secsRes.data || []) as any[];
+      // Prefer chosen variant; fall back to A if a section only exists in one variant.
+      const byKey = new Map<string, any>();
+      for (const r of all) {
+        const existing = byKey.get(r.key);
+        if (!existing) byKey.set(r.key, r);
+        else if (r.variant === chosen) byKey.set(r.key, r);
+      }
+      const picked = Array.from(byKey.values()).map((r) => ({ ...r, content: interpolate(r.content, globals) }));
+      setSections(mergeWithDefaults(picked).map((s) => ({ ...s, content: interpolate(s.content, globals) })));
+      if (settingsRes.data?.seo) setSeo(settingsRes.data.seo);
+    })();
   }, []);
 
   const get = (key: string) => sections.find(s => s.key === key) ?? DEFAULT_SECTIONS.find(s => s.key === key)!;
@@ -281,8 +328,8 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="Vela.ai — AI research for serious investors & advisors"
-        description="An educational research platform for FTSE MIB, European and US markets. AI copilot, portfolio coach, optimizer, backtesting and compliance tools — for individuals and professionals."
+        title={seo.title || "Vela.ai — AI research for serious investors & advisors"}
+        description={seo.description || "An educational research platform for FTSE MIB, European and US markets. AI copilot, portfolio coach, optimizer, backtesting and compliance tools — for individuals and professionals."}
         path="/"
       />
 

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Activity, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import VelaLogo from "@/components/VelaLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
@@ -102,9 +103,8 @@ const Auth = () => {
         path="/auth"
       />
       <main className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <Activity className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold text-gradient">Vela.ai</span>
+        <Link to="/" className="flex items-center justify-center mb-8">
+          <VelaLogo size={32} />
         </Link>
         <h1 className="text-2xl font-bold text-center mb-4">Sign in to Vela.ai</h1>
         <Card className="p-6 card-gradient border-border">

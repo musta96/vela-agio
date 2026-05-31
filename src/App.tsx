@@ -48,6 +48,7 @@ import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
+import LegalDoc from "./pages/LegalDoc";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { BrokerRequiredOverlay } from "@/components/BrokerRequiredOverlay";
 
 interface OrderRow {
   id: string;
@@ -89,6 +90,7 @@ export default function OrderHistory() {
   const clearFilters = () => { setSymbol(""); setStatus("all"); setBroker("all"); setFrom(undefined); setTo(undefined); };
 
   return (
+    <BrokerRequiredOverlay>
     <div className="p-6 sm:p-8 space-y-6">
       <SEO title="Order & Trade History — Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
       <PageHeader
@@ -206,5 +208,6 @@ export default function OrderHistory() {
           </CardContent>
         </Card>
     </div>
+    </BrokerRequiredOverlay>
   );
 }

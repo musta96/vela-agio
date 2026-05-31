@@ -246,6 +246,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Lazy import to keep top of file clean
+    const { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } = await import("../_shared/ai-access.ts");
+    const auth = req.headers.get("Authorization");
+    const access = await resolveAiAccess(auth);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+
     const { symbol, name } = await req.json();
     if (!symbol || typeof symbol !== "string") {
       return new Response(JSON.stringify({ error: "symbol required" }), {
@@ -291,7 +297,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: modelForCap(access.modelCap, "google/gemini-3-flash-preview"),
         messages: [
           {
             role: "system",

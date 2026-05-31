@@ -22,8 +22,8 @@ type Item = { title: string; url: string; icon: React.ComponentType<{ className?
 const MARKETS: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Macro", url: "/macro", icon: Globe2 },
-  { title: "Watchlist", url: "/watchlist", icon: Eye },
-  { title: "Screener", url: "/screener", icon: Filter },
+  { title: "My Watchlist", url: "/watchlist", icon: Eye },
+  { title: "Stock Screener", url: "/screener", icon: Filter },
   { title: "Signals", url: "/alerts", icon: Bell, badge: "3" },
 ];
 
@@ -58,7 +58,7 @@ const LAB: Item[] = [
 const MORE: Item[] = [
   { title: "Sentiment", url: "/sentiment", icon: Newspaper },
   { title: "Idea Lab", url: "/picks", icon: Sparkles },
-  { title: "AI Scanner", url: "/ai-scanner", icon: Radar, badge: "new" },
+  { title: "AI Radar (smart finder)", url: "/ai-scanner", icon: Radar, badge: "new" },
   { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
   { title: "Related Graph", url: "/related", icon: Network },
   { title: "Deal flow", url: "/dealflow", icon: Handshake },

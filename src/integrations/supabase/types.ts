@@ -80,6 +80,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_event_log: {
+        Row: {
+          created_at: string
+          event_type: string
+          feature: string | null
+          id: number
+          payload: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          feature?: string | null
+          id?: number
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          feature?: string | null
+          id?: number
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_signal_log: {
         Row: {
           confidence: number | null

@@ -55,7 +55,7 @@ export default function Install() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <SEO title="Install Vela.ai" description="Install Vela.ai as an app on your phone or desktop." />
+        <SEO title="Install Vela.ai" description="Install Vela.ai as an app on your phone or desktop." path="/install" />
       <Card className="max-w-lg w-full p-8 rounded-2xl">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-11 w-11 rounded-xl bg-accent/15 text-accent flex items-center justify-center">

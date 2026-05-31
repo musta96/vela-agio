@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { supabase } from "@/integrations/supabase/client";
+import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import {
   Wallet, Banknote, Briefcase, Home as HomeIcon, Car, Watch, Building2, Bitcoin,
   PiggyBank, Boxes, CreditCard, Plus, Pencil, Trash2, TrendingUp, TrendingDown,

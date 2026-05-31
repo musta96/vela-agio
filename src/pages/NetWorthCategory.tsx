@@ -210,6 +210,9 @@ export default function NetWorthCategory() {
   const [editing, setEditing] = useState<Partial<NWAccount> | null>(null);
   const [taxResidency, setTaxResidency] = useState<CountryCode>("OTHER");
 
+  // FX-aware category subtotal in base currency (EUR), shared with dashboard/overview
+  const fxTotals = useNetWorthTotal("EUR");
+
   // Symbol search (investments / crypto / retirement)
   const [symbolQuery, setSymbolQuery] = useState("");
   const [symbolResults, setSymbolResults] = useState<{ symbol: string; name: string; exchange: string; type: string; currency: string }[]>([]);
@@ -255,7 +258,9 @@ export default function NetWorthCategory() {
   if (!meta) return <div className="p-10">Unknown category. <Link to="/net-worth" className="text-primary underline">Back</Link></div>;
 
   const Icon = meta.icon;
-  const subtotal = accounts.reduce((s, a) => s + (a.include_in_total ? Number(a.manual_value || 0) : 0), 0);
+  const subtotal = category === "liabilities"
+    ? fxTotals.liabilities
+    : (fxTotals.byCategory[category!] || 0);
   const supportsSymbolSearch = category === "investments" || category === "crypto" || category === "retirement";
   const supportsAmortization = ["real_estate", "vehicles", "collectibles", "private_equity"].includes(category!);
 

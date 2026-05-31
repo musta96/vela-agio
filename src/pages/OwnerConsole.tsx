@@ -725,7 +725,7 @@ export default function OwnerConsole() {
     kill: killSection,
     users: usersSection,
     roles: rolesSection,
-    apikeys: stubSection("API keys", "Per-user API key issuance, revocation, and rate-limit overrides."),
+    apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
     revenue: billingSection,
     failed: stubSection("Failed payments", "Dunning queue and manual retry triggers appear once a payment provider is connected."),
@@ -735,7 +735,7 @@ export default function OwnerConsole() {
     ai: aiSection,
     data: dataSection,
     gdpr: complianceSection,
-    legal: stubSection("Legal documents", "Maintain T&C / privacy / risk-disclosure versions. Use Compliance › Force re-consent to require acceptance."),
+    legal: <LegalDocsEditor docs={legal} reload={load} />,
   };
 
   return (

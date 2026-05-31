@@ -199,9 +199,9 @@ export default function Index() {
               },
               {
                 label: "Net worth",
-                value: empty ? "—" : fmtMoney(portfolio.value * 1.6),
-                chg: 1.2,
-                sub: "MoM",
+                value: netWorth.accountCount === 0 ? "—" : fmtMoney(netWorth.total),
+                chg: 0,
+                sub: netWorth.accountCount === 0 ? "Add accounts in Net Worth" : `${netWorth.accountCount} accounts · FX-adjusted`,
               },
               {
                 label: "Sentiment",

@@ -41,6 +41,27 @@ const FAQ = [
 ];
 
 export default function Landing() {
+  const [tiers, setTiers] = useState<Tier[]>(FALLBACK_TIERS);
+  useEffect(() => {
+    supabase
+      .from("subscription_plans")
+      .select("name, price_label, price_period, features, cta_label, cta_href, highlighted, sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        if (data && data.length) {
+          setTiers(data.map((p: any) => ({
+            name: p.name,
+            price: p.price_label,
+            note: p.price_period ?? "",
+            features: Array.isArray(p.features) ? p.features : [],
+            cta: p.cta_label,
+            cta_href: p.cta_href || "/auth",
+            highlight: !!p.highlighted,
+          })));
+        }
+      });
+  }, []);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO

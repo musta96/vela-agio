@@ -58,8 +58,8 @@ export function PlansEditor() {
   };
 
   const add = async () => {
-    const slug = `plan-${Date.now()}`;
-    const { error } = await supabase.from("subscription_plans").insert({
+    const slug = `plan-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const { data, error } = await supabase.from("subscription_plans").insert({
       slug,
       name: "New plan",
       price_label: "€0",
@@ -70,8 +70,18 @@ export function PlansEditor() {
       highlighted: false,
       sort_order: (plans[plans.length - 1]?.sort_order ?? 0) + 1,
       is_active: true,
-    });
-    if (error) return toast({ title: "Create failed", description: error.message, variant: "destructive" });
+    }).select().single();
+    if (error) {
+      console.error("[PlansEditor] create failed", error);
+      return toast({
+        title: "Create failed",
+        description: error.message + (error.code === "42501"
+          ? " — your account is missing the 'admin' role required to manage plans."
+          : ""),
+        variant: "destructive",
+      });
+    }
+    toast({ title: "Plan created", description: data?.name ?? "New plan" });
     load();
   };
 

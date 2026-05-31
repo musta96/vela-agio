@@ -21,8 +21,11 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [acceptLegal, setAcceptLegal] = useState(false);
+  const [ackTerms, setAckTerms] = useState(false);
+  const [ackNotAdvice, setAckNotAdvice] = useState(false);
+  const [ackRisk, setAckRisk] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const acceptLegal = ackTerms && ackNotAdvice && ackRisk;
 
   useEffect(() => {
     if (!loading && user) navigate("/dashboard");
@@ -40,8 +43,8 @@ const Auth = () => {
   const signUp = async () => {
     if (!acceptLegal) {
       return toast({
-        title: "Please accept the Terms and Privacy Policy",
-        description: "You must agree before creating an account.",
+        title: "Please accept all required acknowledgements",
+        description: "All three legal checkboxes must be ticked before creating an account.",
         variant: "destructive",
       });
     }
@@ -54,6 +57,9 @@ const Auth = () => {
           tos_version: TOS_VERSION,
           privacy_version: PRIVACY_VERSION,
           marketing_opt_in: marketingOptIn,
+          ack_terms: ackTerms,
+          ack_not_advice: ackNotAdvice,
+          ack_risk: ackRisk,
           consented_at: new Date().toISOString(),
         },
       },
@@ -132,15 +138,30 @@ const Auth = () => {
                 <Input id="up" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
                 <p className="text-xs text-muted-foreground">At least 6 characters.</p>
               </div>
-              <div className="flex items-start gap-2 pt-1">
-                <Checkbox id="legal" checked={acceptLegal} onCheckedChange={(v) => setAcceptLegal(v === true)} className="mt-0.5" />
-                <Label htmlFor="legal" className="text-xs font-normal leading-relaxed text-muted-foreground">
-                  I agree to the{" "}
-                  <Link to="/terms" target="_blank" className="text-primary hover:underline">Terms of Service</Link>
-                  {" "}and{" "}
-                  <Link to="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</Link>.
-                  I understand Vela.ai is an educational research tool and not investment advice.
-                </Label>
+              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Required legal acknowledgements</p>
+                <div className="flex items-start gap-2">
+                  <Checkbox id="ack-terms" checked={ackTerms} onCheckedChange={(v) => setAckTerms(v === true)} className="mt-0.5" />
+                  <Label htmlFor="ack-terms" className="text-xs font-normal leading-relaxed text-muted-foreground">
+                    I have read and agree to the{" "}
+                    <Link to="/terms" target="_blank" className="text-primary hover:underline">Terms of Service</Link>,{" "}
+                    <Link to="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</Link>,{" "}
+                    <Link to="/cookies" target="_blank" className="text-primary hover:underline">Cookie Policy</Link> and{" "}
+                    <Link to="/disclaimer" target="_blank" className="text-primary hover:underline">Disclaimer</Link>.
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox id="ack-advice" checked={ackNotAdvice} onCheckedChange={(v) => setAckNotAdvice(v === true)} className="mt-0.5" />
+                  <Label htmlFor="ack-advice" className="text-xs font-normal leading-relaxed text-muted-foreground">
+                    I understand Vela.ai is an <strong>educational research platform only</strong>. Nothing on the platform — including AI outputs, scores, alerts, suggestions, optimizer results, backtests or copilot responses — constitutes investment, legal, accounting or tax advice.
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox id="ack-risk" checked={ackRisk} onCheckedChange={(v) => setAckRisk(v === true)} className="mt-0.5" />
+                  <Label htmlFor="ack-risk" className="text-xs font-normal leading-relaxed text-muted-foreground">
+                    I understand trading and investing carry the risk of partial or total loss; past performance is not indicative of future results; data may be delayed or inaccurate; and I accept <strong>full and sole responsibility</strong> for any decisions or actions I take using this platform. I release Vela.ai and its operators from any liability to the maximum extent permitted by law.
+                  </Label>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Checkbox id="mkt" checked={marketingOptIn} onCheckedChange={(v) => setMarketingOptIn(v === true)} className="mt-0.5" />

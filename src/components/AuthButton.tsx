@@ -85,7 +85,7 @@ export const AuthButton = () => {
           <SettingsIcon className="h-4 w-4" /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive focus:text-destructive">
+        <DropdownMenuItem onClick={async () => { await signOut(); navigate("/"); }} className="gap-2 text-destructive focus:text-destructive">
           <LogOut className="h-4 w-4" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { PlansEditor } from "@/components/owner/PlansEditor";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -667,7 +668,7 @@ export default function OwnerConsole() {
     users: usersSection,
     roles: rolesSection,
     apikeys: stubSection("API keys", "Per-user API key issuance, revocation, and rate-limit overrides."),
-    plans: stubSection("Plans & pricing", "Tiers, entitlements, coupons and trial configuration land here once billing is connected."),
+    plans: <PlansEditor />,
     revenue: billingSection,
     failed: stubSection("Failed payments", "Dunning queue and manual retry triggers appear once a payment provider is connected."),
     flags: flagsSection,

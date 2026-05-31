@@ -50,16 +50,31 @@ export default function Pricing() {
   if (!pricingEnabled) {
     return (
       <div className="min-h-screen bg-background">
-        <SEO title="Free for everyone | Vela.ai" description="The platform is currently free for everyone." path="/pricing" />
+        <SEO
+          title="Launch promotion | Vela.ai"
+          description="Early-access launch promotion — every Vela feature is unlocked while we finalise pricing."
+          path="/pricing"
+        />
         <TopNav />
         <main className="container mx-auto px-6 py-20 text-center max-w-2xl">
-          <Gift className="h-14 w-14 mx-auto text-primary mb-4" />
-          <h1 className="text-4xl font-bold">Free for everyone</h1>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
+            <Sparkles className="h-3 w-3" /> Launch promotion
+          </span>
+          <Gift className="h-14 w-14 mx-auto text-primary mt-6 mb-3" />
+          <h1 className="text-4xl font-bold">Free during early access</h1>
           <p className="text-muted-foreground mt-3">
-            Every feature — AI research, optimizer, intraday data, alerts, reports — is currently free
-            for all users. No paid tiers, no limits.
+            We're in launch mode. Every Vela feature — AI research, optimizer, intraday data,
+            alerts, PDF reports — is fully unlocked for early adopters at no cost while we finalise
+            our paid tiers. Founding members will keep preferred pricing when subscriptions go live.
           </p>
-          <Button asChild className="mt-6"><a href="/">Start exploring</a></Button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <Button asChild><a href="/">Start exploring</a></Button>
+            <Button asChild variant="outline"><a href="/auth">Create an account</a></Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-6">
+            No credit card required during the launch promotion. We'll give every active user 30 days'
+            notice before any plan starts billing.
+          </p>
         </main>
       </div>
     );

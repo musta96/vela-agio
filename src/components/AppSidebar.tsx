@@ -73,6 +73,7 @@ const MORE: Item[] = [
   { title: "Suitability (MIFID)", url: "/suitability", icon: ClipboardCheck },
   { title: "Security", url: "/security", icon: ShieldCheck },
   { title: "Privacy & data", url: "/privacy-settings", icon: ShieldCheck },
+  { title: "Plans & billing", url: "/pricing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
 

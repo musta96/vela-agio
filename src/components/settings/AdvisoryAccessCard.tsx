@@ -2,10 +2,15 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { ShieldCheck, ShieldOff, Loader2 } from "lucide-react";
+import { ShieldCheck, ShieldOff, Loader2, Plus, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface ConsentRow {
@@ -21,6 +26,11 @@ export function AdvisoryAccessCard() {
   const { user } = useAuth();
   const [rows, setRows] = useState<ConsentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [advisorId, setAdvisorId] = useState("");
+  const [scope, setScope] = useState<"portfolio_read" | "net_worth_read" | "full">("portfolio_read");
+  const [mandateRef, setMandateRef] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     if (!user) return;
@@ -45,6 +55,31 @@ export function AdvisoryAccessCard() {
     else { toast.success("Advisory access revoked"); load(); }
   };
 
+  const grant = async () => {
+    if (!user) return;
+    const id = advisorId.trim();
+    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+      toast.error("Invalid advisor ID", { description: "Paste the UUID your advisor shared with you." });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("advisory_consents").insert({
+      user_id: user.id,
+      granted_to: id,
+      scope,
+      mandate_ref: mandateRef.trim() || null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Could not grant access", { description: error.message });
+      return;
+    }
+    toast.success("Mandate active", { description: "Your advisor can now view the agreed scope. Revoke any time." });
+    setShowForm(false);
+    setAdvisorId(""); setMandateRef(""); setScope("portfolio_read");
+    load();
+  };
+
   const active = rows.filter((r) => !r.revoked_at);
   const history = rows.filter((r) => r.revoked_at);
 
@@ -62,8 +97,13 @@ export function AdvisoryAccessCard() {
       {loading ? (
         <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
       ) : active.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-          No active mandates. Your data is private.
+        <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground flex items-center justify-between gap-3">
+          <span>No active mandates. Your data is private.</span>
+          {!showForm && (
+            <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Grant access
+            </Button>
+          )}
         </div>
       ) : (
         <ul className="space-y-2">
@@ -85,6 +125,71 @@ export function AdvisoryAccessCard() {
             </li>
           ))}
         </ul>
+      )}
+
+      {!showForm && active.length > 0 && (
+        <div className="mt-3">
+          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Grant another mandate
+          </Button>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="mt-4 rounded-lg border border-border p-4 space-y-3 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Grant advisory access</h3>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setShowForm(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Ask your advisor for their <strong>Vela advisor ID</strong> (a UUID they can copy from their
+            Owner Console → Profile page) and the mandate reference your firm uses, then paste both below.
+            You can revoke access at any time from this card.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs">Advisor ID (UUID)</Label>
+              <Input
+                value={advisorId}
+                onChange={(e) => setAdvisorId(e.target.value)}
+                placeholder="00000000-0000-0000-0000-000000000000"
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Scope</Label>
+              <Select value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="portfolio_read">Portfolios (read)</SelectItem>
+                  <SelectItem value="net_worth_read">Net worth (read)</SelectItem>
+                  <SelectItem value="full">Full read access</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Mandate reference (optional)</Label>
+              <Input
+                value={mandateRef}
+                onChange={(e) => setMandateRef(e.target.value)}
+                placeholder="e.g. MIFID-2026-0421"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button size="sm" onClick={grant} disabled={saving || !advisorId}>
+              {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              <ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Grant mandate
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            By granting access you authorise the named advisor to view the selected data under MiFID II
+            Art. 25(2). Every advisor view is recorded in your audit log.
+          </p>
+        </div>
       )}
 
       {history.length > 0 && (

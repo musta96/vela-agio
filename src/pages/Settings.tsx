@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { AdvisoryAccessCard } from "@/components/settings/AdvisoryAccessCard";
 import { ConnectionsCard } from "@/components/settings/ConnectionsCard";
+import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -170,37 +171,17 @@ function CurrenciesTab({ baseCcy, setBaseCcy }: { baseCcy: string; setBaseCcy: (
 
 function BrokersTab() {
   return (
-    <Card className="p-6 rounded-2xl">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-semibold">Broker connections</h2>
-        <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Connect broker</Button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              <th className="text-left font-medium pb-3">Broker</th>
-              <th className="text-left font-medium pb-3">Status</th>
-              <th className="text-left font-medium pb-3">Last sync</th>
-              <th className="text-left font-medium pb-3">Accounts</th>
-              <th className="pb-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {BROKERS.map((b) => (
-              <tr key={b.name}>
-                <td className="py-3 font-medium">{b.name}</td>
-                <td className="py-3"><StatusPill s={b.status} /></td>
-                <td className="py-3 text-muted-foreground">{b.sync}</td>
-                <td className="py-3">{b.accounts}</td>
-                <td className="py-3 text-right"><Button variant="outline" size="sm">{b.action}</Button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-xs text-muted-foreground mt-4">Read-only access. Vela never sees passwords.</p>
-    </Card>
+    <div className="space-y-6">
+      <BrokerSyncCard />
+      <Card className="p-6 rounded-2xl">
+        <h2 className="text-base font-semibold mb-1">How broker sync works</h2>
+        <p className="text-sm text-muted-foreground">
+          Vela uses SnapTrade to securely link Interactive Brokers, Trade Republic,
+          Degiro, Schwab, Robinhood, Coinbase and 20+ more in <strong className="text-foreground">read-only</strong> mode.
+          We never see your password and we cannot place trades on your behalf.
+        </p>
+      </Card>
+    </div>
   );
 }
 

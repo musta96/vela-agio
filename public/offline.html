@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Offline · Vela.ai</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a1530" />
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: radial-gradient(1200px 600px at 20% -10%, #1b2a5a 0%, #0a1530 55%);
+        color: #e5ecff;
+        display: flex; align-items: center; justify-content: center; padding: 24px;
+      }
+      .card {
+        max-width: 460px; width: 100%; text-align: center;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px; padding: 36px 28px;
+        backdrop-filter: blur(8px);
+      }
+      .badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 56px; height: 56px; border-radius: 16px;
+        background: rgba(120, 160, 255, 0.15);
+        color: #9ab7ff; margin-bottom: 16px; font-size: 28px;
+      }
+      h1 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
+      p { margin: 0 0 24px; color: #b6c1dc; font-size: 14px; line-height: 1.55; }
+      button {
+        background: #3b6fff; color: white; border: 0; padding: 12px 22px;
+        border-radius: 12px; font-weight: 600; font-size: 14px; cursor: pointer;
+      }
+      button:hover { filter: brightness(1.08); }
+      small { display: block; margin-top: 16px; color: #6e7da3; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">⚡</div>
+      <h1>You're offline</h1>
+      <p>Vela.ai can't reach the network right now. Recently visited screens are still available — try going back, or retry when you're online.</p>
+      <button onclick="location.reload()">Retry</button>
+      <small>Cached data may be a few minutes old.</small>
+    </div>
+    <script>
+      window.addEventListener("online", () => location.reload());
+    </script>
+  </body>
+</html>

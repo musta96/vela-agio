@@ -478,6 +478,13 @@ Deno.serve(async (req) => {
       admin.from("admin_sessions").select("*").order("created_at", { ascending: false }).limit(50),
       admin.from("health_checks").select("*"),
     ]);
+    const [{ data: legalDocs }, { data: apiKeys }, { data: profilesList }] = await Promise.all([
+      admin.from("legal_documents").select("*").order("updated_at", { ascending: false }),
+      admin.from("user_api_keys").select("id, user_id, provider, hint, created_at, updated_at").order("created_at", { ascending: false }).limit(500),
+      admin.from("profiles").select("user_id, display_name, avatar_url"),
+    ]);
+    const profileByUser: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
+    for (const p of profilesList || []) profileByUser[(p as any).user_id] = { display_name: (p as any).display_name, avatar_url: (p as any).avatar_url };
     const suspendedSet = new Set((suspensions || []).map((s: any) => s.user_id));
     const rolesMap: Record<string, string[]> = {};
     const { data: allRoles } = await admin.from("user_roles").select("user_id, role");
@@ -498,7 +505,13 @@ Deno.serve(async (req) => {
         holdings: hCount || 0,
         netWorthAccounts: nwCount || 0,
       },
-      users: users.map((u) => ({ ...u, suspended: suspendedSet.has(u.id), roles: rolesMap[u.id] || [] })),
+      users: users.map((u) => ({
+        ...u,
+        suspended: suspendedSet.has(u.id),
+        roles: rolesMap[u.id] || [],
+        display_name: profileByUser[u.id]?.display_name || null,
+        avatar_url: profileByUser[u.id]?.avatar_url || null,
+      })),
       recentAudit: recentAudit || [],
       controls: controls || [],
       banners: banners || [],
@@ -510,6 +523,8 @@ Deno.serve(async (req) => {
       erasure: erasure || [],
       sessions: sessions || [],
       health: health || [],
+      legal: legalDocs || [],
+      apiKeys: apiKeys || [],
     }), { headers: jsonHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

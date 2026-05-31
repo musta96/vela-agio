@@ -27,10 +27,23 @@ type Mover = {
   exchange?: string;
 };
 
-type Scope = { kind: "index"; indexKey: IndexKey } | { kind: "global"; region: string };
+type Scope = { kind: "index"; indexKey: IndexKey } | { kind: "region"; region: string };
 
+// Each region maps to one or more index constituent buckets so we ALWAYS rank
+// against region-correct tickers (Yahoo's "most_actives" screener is US-only).
+const REGION_INDICES: Record<string, IndexKey[]> = {
+  us: ["sp500", "nasdaq100", "dow"],
+  it: ["ftse_mib"],
+  gb: ["ftse100"],
+  de: ["dax"],
+  fr: ["cac40"],
+  eu: ["stoxx50", "dax", "cac40", "ftse_mib"],
+  jp: ["nikkei"],
+  hk: ["hangseng"],
+};
 const REGION_OPTS = [
   { v: "us", label: "United States" },
+  { v: "eu", label: "Europe (broad)" },
   { v: "it", label: "Italy" },
   { v: "gb", label: "United Kingdom" },
   { v: "de", label: "Germany" },
@@ -53,19 +66,25 @@ export default function Movers() {
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
-  const scope: Scope = useMemo(() => scopeKind === "index" ? { kind: "index", indexKey } : { kind: "global", region }, [scopeKind, indexKey, region]);
+  const scope: Scope = useMemo(() => scopeKind === "index" ? { kind: "index", indexKey } : { kind: "region", region }, [scopeKind, indexKey, region]);
 
   async function load() {
     setLoading(true);
     try {
-      let body: any;
+      let symbols: string[];
       if (scope.kind === "index") {
-        body = { scope: "index", symbols: INDICES[scope.indexKey].constituents };
+        symbols = INDICES[scope.indexKey].constituents;
       } else {
-        body = { scope: "global", screener: "most_actives", region: scope.region, limit: 50 };
+        // Aggregate all major indices in the region for ranking.
+        const keys = REGION_INDICES[scope.region] || ["sp500"];
+        symbols = Array.from(new Set(keys.flatMap((k) => INDICES[k].constituents)));
       }
-      const { data, error } = await supabase.functions.invoke("market-movers", { body });
-      if (!error && data?.movers) setMovers(data.movers as Mover[]);
+      const { data, error } = await supabase.functions.invoke("market-movers", {
+        body: { scope: "index", symbols },
+      });
+      if (error) console.error("market-movers error", error);
+      if (data?.movers) setMovers(data.movers as Mover[]);
+      else setMovers([]);
       setLastUpdated(Date.now());
     } finally {
       setLoading(false);

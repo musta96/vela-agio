@@ -54,7 +54,7 @@ describe("header tokens", () => {
     // The interactive trigger (the chip the user sees on first paint) MUST
     // carry an explicit background + foreground + border token so it never
     // collapses to white-on-white (light) or transparent-on-navy (dark).
-    const triggerMatch = src.match(/<button[\s\S]*?aria-label=`Account:[\s\S]*?className="([^"]+)"/);
+    const triggerMatch = src.match(/<button[\s\S]*?aria-label=\{[\s\S]*?Account:[\s\S]*?className="([^"]+)"/);
     expect(triggerMatch, "AuthButton trigger button not found").not.toBeNull();
     const classes = triggerMatch![1];
     expect(classes, "missing bg-card on trigger").toMatch(/\bbg-card\b/);

@@ -1,7 +1,21 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAiAccess, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+
+function aiAccessDeniedBody(access: Awaited<ReturnType<typeof resolveAiAccess>>, reason?: string) {
+  return {
+    error: 'ai_access_denied',
+    reason: reason ?? access.reason ?? 'AI is a paid feature. Upgrade or add your own API key in Settings.',
+    tier: access.tier,
+    quotaUsed: access.quotaUsed,
+    quotaLimit: access.quotaLimit,
+    upgrade_url: '/pricing',
+    byo_url: '/settings#ai',
+    fallback: true,
+  };
+}
 
 async function yahooQuote(symbol: string) {
   try {
@@ -32,15 +46,7 @@ Deno.serve(async (req) => {
     const access = await resolveAiAccess(auth);
     if (!access.allowed) {
       return new Response(
-        JSON.stringify({
-          error: 'ai_access_denied',
-          reason: access.reason ?? 'AI is a paid feature.',
-          tier: access.tier,
-          quotaUsed: access.quotaUsed,
-          quotaLimit: access.quotaLimit,
-          upgrade_url: '/pricing',
-          byo_url: '/settings#ai',
-        }),
+        JSON.stringify(aiAccessDeniedBody(access)),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -83,10 +89,23 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
 
     const user = `LIVE QUOTES & HEADLINES:\n${JSON.stringify(enriched).slice(0, 8000)}\n\nUSER POSITIONS:\n${JSON.stringify(positions).slice(0, 4000)}\n\nUSER WATCHLIST: ${JSON.stringify(watchlist.map((w) => w.symbol))}`;
 
-    const model = modelForCap(access.modelCap, 'google/gemini-2.5-flash');
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const defaultModel = modelForCap(access.modelCap, 'google/gemini-2.5-flash');
+    const cfg = access.source === 'byo'
+      ? await resolveAIConfig(auth)
+      : {
+          model: defaultModel,
+          baseURL: 'https://ai.gateway.lovable.dev/v1',
+          headers: {
+            'Lovable-API-Key': LOVABLE_API_KEY,
+            'X-Lovable-AIG-SDK': 'vercel-ai-sdk',
+            'Content-Type': 'application/json',
+          },
+          source: 'default',
+        };
+    const model = cfg.model;
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: cfg.headers,
       body: JSON.stringify({
         model,
         messages: [
@@ -97,7 +116,12 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
       }),
     });
     if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (r.status === 402) return new Response(JSON.stringify({ error: 'credits_exhausted' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (r.status === 402) {
+      return new Response(
+        JSON.stringify(aiAccessDeniedBody(access, 'AI credits are unavailable. Upgrade or add your own API key in Settings.')),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
     const j = await r.json();
     logAiUsage({ userId: access.userId, feature: 'briefing', model, provider: 'lovable', success: r.ok });
     let out: any = { headline: '', body: '', highlights: [] };

@@ -10,6 +10,19 @@ interface Highlight { symbol: string; note: string; tone: "positive" | "negative
 interface Briefing { headline: string; body: string; highlights?: Highlight[]; _meta?: { hasFocus?: boolean } }
 interface AccessDenial { reason: string; upgrade_url?: string; byo_url?: string }
 
+function parseAccessDenial(error: unknown): AccessDenial | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const maybeJson = message.match(/\{[\s\S]*\}$/)?.[0];
+  if (!maybeJson) return null;
+  try {
+    const body = JSON.parse(maybeJson);
+    if (body?.error === "ai_access_denied") {
+      return { reason: body.reason, upgrade_url: body.upgrade_url, byo_url: body.byo_url };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 // Render minimal **bold** markdown without bringing in a dep.
 function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -61,6 +74,11 @@ export function AIBriefing() {
       });
       // Edge function returns 402 with a JSON body when AI access is denied.
       if (error) {
+        const denialFromMessage = parseAccessDenial(error);
+        if (denialFromMessage) {
+          setDenied(denialFromMessage);
+          return;
+        }
         let body: any = null;
         try { body = await (error as any)?.context?.json?.(); } catch { /* ignore */ }
         if (body?.error === "ai_access_denied") {
@@ -76,6 +94,11 @@ export function AIBriefing() {
       if (data?.error) throw new Error(data.error);
       setBriefing(data as Briefing);
     } catch (e: any) {
+      const denial = parseAccessDenial(e);
+      if (denial) {
+        setDenied(denial);
+        return;
+      }
       setError(e?.message || "Couldn't generate briefing");
     } finally {
       setLoading(false);

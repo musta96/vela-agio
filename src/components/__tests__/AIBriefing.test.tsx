@@ -76,9 +76,9 @@ describe("AIBriefing — ai_access_denied fallback", () => {
     invokeMock.mockResolvedValue({ data: deniedPayload, error: null });
     const AIBriefing = await importBriefing();
     renderBriefing(AIBriefing);
-    await waitFor(() => expect(screen.getByText("Upgrade plan")).toBeInTheDocument());
-    expect(screen.getByText("Use my own API key")).toBeInTheDocument();
-    expect(screen.getByText(deniedPayload.reason)).toBeInTheDocument();
+    expect(await screen.findByText("Upgrade plan")).toBeInTheDocument();
+    expect(await screen.findByText("Use my own API key")).toBeInTheDocument();
+    expect(await screen.findByText(deniedPayload.reason)).toBeInTheDocument();
     // Critical: no blank screen — the briefing container is rendered.
     expect(screen.getByText(/Vela AI · Market briefing/)).toBeInTheDocument();
   });
@@ -88,8 +88,8 @@ describe("AIBriefing — ai_access_denied fallback", () => {
     invokeMock.mockResolvedValue({ data: null, error: err });
     const AIBriefing = await importBriefing();
     renderBriefing(AIBriefing);
-    await waitFor(() => expect(screen.getByText("Upgrade plan")).toBeInTheDocument());
-    expect(screen.getByText("Use my own API key")).toBeInTheDocument();
+    expect(await screen.findByText("Upgrade plan")).toBeInTheDocument();
+    expect(await screen.findByText("Use my own API key")).toBeInTheDocument();
     expect(screen.queryByText(/Couldn't generate briefing/)).not.toBeInTheDocument();
   });
 
@@ -99,7 +99,7 @@ describe("AIBriefing — ai_access_denied fallback", () => {
     );
     const AIBriefing = await importBriefing();
     renderBriefing(AIBriefing);
-    await waitFor(() => expect(screen.getByText("Upgrade plan")).toBeInTheDocument());
-    expect(screen.getByText("Use my own API key")).toBeInTheDocument();
+    expect(await screen.findByText("Upgrade plan")).toBeInTheDocument();
+    expect(await screen.findByText("Use my own API key")).toBeInTheDocument();
   });
 });

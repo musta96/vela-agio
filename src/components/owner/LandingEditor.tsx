@@ -191,12 +191,12 @@ function SectionsEditor() {
       {/* Preview pane */}
       <Card className="overflow-hidden flex flex-col min-h-0">
         <div className="h-9 px-3 border-b border-border flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Live preview · /</span>
+          <span className="text-muted-foreground">Live preview · / (landing)</span>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setPreviewKey(k => k + 1)}>
               <RefreshCw className="h-3 w-3 mr-1" />Refresh
             </Button>
-            <a href="/" target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+            <a href="/?preview=landing" target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
               Open <ExternalLink className="h-3 w-3" />
             </a>
           </div>
@@ -204,7 +204,7 @@ function SectionsEditor() {
         <iframe
           key={previewKey}
           ref={iframeRef}
-          src="/"
+          src="/?preview=landing"
           title="Landing preview"
           className="flex-1 w-full bg-background"
         />

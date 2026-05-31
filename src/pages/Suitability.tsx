@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText } from "lucide-react";
+import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText, AlertCircle, Info, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -198,14 +198,126 @@ export default function Suitability() {
   const completed = Object.keys(ans).length;
   const complete = completed === totalQuestions;
 
-  // Consistency / coherence warnings (ESMA suitability guideline 5)
-  const warnings: string[] = [];
-  if ((ans["horizon"] ?? 0) <= 1 && (ans["goal"] ?? 0) >= 3) warnings.push("Aggressive growth goal with a < 3-year horizon is inconsistent — extend horizon or lower the goal.");
-  if ((ans["loss"] ?? 0) === 0 && (ans["volatility"] ?? 0) >= 2) warnings.push("You say you'd sell on a 20% drop yet accept medium/high volatility — these conflict.");
-  if (leverageAllowed && (ans["knowledge"] ?? 0) < 2) warnings.push("Leverage allowed but knowledge is basic — MiFID appropriateness would flag this.");
-  if ((productKnowledge["options"] ?? 0) >= 2 && (ans["experience"] ?? 0) === 0) warnings.push("Options experience declared without any trading history — please reconcile.");
-  if (esg.startsWith("Impact") && sfdrSustainableMinPct < 50) warnings.push("Article 9 / impact preference usually implies ≥ 50% sustainable investments.");
-  if (maxSinglePositionPct > 25) warnings.push("Concentration > 25% in a single position breaches UCITS-style diversification.");
+  // Structured real-time validation (ESMA suitability guideline 5 + numeric ranges).
+  // severity: "error" blocks save; "warn" allows save with attestation; "info" is advisory.
+  type Issue = {
+    id: string;
+    severity: "error" | "warn" | "info";
+    message: string;
+    suggestion: string;
+    fix?: { label: string; run: () => void };
+  };
+  const issues: Issue[] = [];
+
+  // --- Numeric range validation (errors block save) ---
+  if (lossTolerancePct < 1 || lossTolerancePct > 100) issues.push({
+    id: "loss-range", severity: "error",
+    message: `Max drawdown ${lossTolerancePct}% is outside the 1–100% range.`,
+    suggestion: "Set a realistic drawdown tolerance between 1% and 100%.",
+    fix: { label: "Set to 20%", run: () => setLossTolerancePct(20) },
+  });
+  if (maxSinglePositionPct < 1 || maxSinglePositionPct > 100) issues.push({
+    id: "pos-range", severity: "error",
+    message: `Max single position ${maxSinglePositionPct}% is outside 1–100%.`,
+    suggestion: "Pick a concentration cap between 1% and 100%.",
+    fix: { label: "Set to 10%", run: () => setMaxSinglePositionPct(10) },
+  });
+  if (dependents < 0 || dependents > 20) issues.push({
+    id: "dep-range", severity: "error",
+    message: "Dependents must be between 0 and 20.",
+    suggestion: "Enter how many people rely on your income.",
+    fix: { label: "Set to 0", run: () => setDependents(0) },
+  });
+  if (liquidityNeedMonths < 0 || liquidityNeedMonths > 120) issues.push({
+    id: "liq-range", severity: "error",
+    message: "Liquidity horizon must be 0–120 months.",
+    suggestion: "Enter the months within which you may need this capital.",
+    fix: { label: "Set to 6", run: () => setLiquidityNeedMonths(6) },
+  });
+  if (sfdrSustainableMinPct + sfdrTaxonomyMinPct > 100) issues.push({
+    id: "sfdr-sum", severity: "error",
+    message: "Taxonomy + Sustainable minimums exceed 100%.",
+    suggestion: "Lower one of the SFDR minimums so they sum to ≤ 100%.",
+    fix: { label: "Reset to 0/0", run: () => { setSfdrSustainableMinPct(0); setSfdrTaxonomyMinPct(0); } },
+  });
+
+  // --- KYC / AML completeness (errors) ---
+  if (complete && sourceOfFunds.length === 0) issues.push({
+    id: "sof-missing", severity: "error",
+    message: "AML requires at least one source of funds.",
+    suggestion: "Tick every source that contributed to the capital you plan to invest (Section 6).",
+  });
+  if (complete && sourceOfWealth.length === 0) issues.push({
+    id: "sow-missing", severity: "error",
+    message: "AML requires at least one source of overall wealth.",
+    suggestion: "Tick every applicable source in Section 6.",
+  });
+  if (isPep && pepDetails.trim().length < 3) issues.push({
+    id: "pep-details", severity: "error",
+    message: "PEP status flagged but role/jurisdiction missing.",
+    suggestion: "Describe your PEP role and country in Section 6.",
+  });
+
+  // --- Coherence (warnings) ---
+  if ((ans["horizon"] ?? 0) <= 1 && (ans["goal"] ?? 0) >= 3) issues.push({
+    id: "horizon-goal", severity: "warn",
+    message: "Aggressive growth with a < 3-year horizon is inconsistent.",
+    suggestion: "Either extend the horizon to 3+ years or step the goal down to Balanced growth.",
+    fix: { label: "Lower goal to Balanced", run: () => setAns(a => ({ ...a, goal: 2 })) },
+  });
+  if ((ans["loss"] ?? 0) === 0 && (ans["volatility"] ?? 0) >= 2) issues.push({
+    id: "loss-vol", severity: "warn",
+    message: "You'd sell everything on a 20% drop yet accept medium/high volatility.",
+    suggestion: "Align the two: pick a calmer loss reaction or lower acceptable volatility.",
+    fix: { label: "Lower volatility to 5–10%", run: () => setAns(a => ({ ...a, volatility: 1 })) },
+  });
+  if (leverageAllowed && (ans["knowledge"] ?? 0) < 2) issues.push({
+    id: "lev-know", severity: "warn",
+    message: "Leverage requested but investment knowledge is basic.",
+    suggestion: "MiFID appropriateness would reject this. Disable leverage or raise your knowledge level after demonstrable experience.",
+    fix: { label: "Disable leverage", run: () => setLeverageAllowed(false) },
+  });
+  if ((productKnowledge["options"] ?? 0) >= 2 && (ans["experience"] ?? 0) === 0) issues.push({
+    id: "opt-exp", severity: "warn",
+    message: "Options experience declared with zero trading history.",
+    suggestion: "Reconcile Section 5 with Section 1, or downgrade options knowledge to Aware.",
+    fix: { label: "Downgrade options to Aware", run: () => setProductKnowledge(p => ({ ...p, options: 1 })) },
+  });
+  if (esg.startsWith("Impact") && sfdrSustainableMinPct < 50) issues.push({
+    id: "art9-min", severity: "warn",
+    message: "Article 9 / impact preference usually implies ≥ 50% sustainable investments.",
+    suggestion: "Raise the SFDR sustainable minimum to 50%+ or switch to Article 8 (Strict).",
+    fix: { label: "Set sustainable min to 50%", run: () => setSfdrSustainableMinPct(50) },
+  });
+  if (maxSinglePositionPct > 25) issues.push({
+    id: "ucits-25", severity: "warn",
+    message: "Single-position cap > 25% breaches UCITS-style diversification.",
+    suggestion: "Tighten the cap to ≤ 25% unless you have a documented concentration mandate.",
+    fix: { label: "Cap at 25%", run: () => setMaxSinglePositionPct(25) },
+  });
+  if (liquidityNeedMonths <= 12 && profile.risk >= 5) issues.push({
+    id: "liq-risk", severity: "warn",
+    message: `${liquidityNeedMonths}-month liquidity need with a ${profile.name} (SRI ${profile.risk}) profile is risky.`,
+    suggestion: "Either extend the liquidity horizon or reduce risk by adjusting horizon/goal/loss reaction.",
+  });
+
+  // --- Informational ---
+  if (complete && clientCategory !== "retail") issues.push({
+    id: "non-retail", severity: "info",
+    message: `You selected ${clientCategory === "professional" ? "Professional" : "Eligible counterparty"} status.`,
+    suggestion: "We assume you meet the MiFID II Annex II tests. You waive certain retail protections.",
+  });
+  if (sfdrPaiConsidered && !esg.includes("Strict") && !esg.includes("Impact")) issues.push({
+    id: "pai-light", severity: "info",
+    message: "PAI indicators are considered but ESG preference is Light.",
+    suggestion: "Consider upgrading ESG preference to Strict (Art. 8) to reflect PAI consideration.",
+  });
+
+  const errors = issues.filter(i => i.severity === "error");
+  const warns  = issues.filter(i => i.severity === "warn");
+  const infos  = issues.filter(i => i.severity === "info");
+  // Backwards-compat string list for the audit payload
+  const warnings = [...errors, ...warns].map(i => i.message);
 
   // Re-assessment due
   const reassessmentDue = (() => {
@@ -264,6 +376,7 @@ export default function Suitability() {
   const handleSave = async () => {
     if (!user) { toast.error("Please sign in"); return; }
     if (!complete) { toast.error("Please answer all questions"); return; }
+    if (errors.length) { toast.error(`${errors.length} blocking error${errors.length > 1 ? "s" : ""} — fix them before saving`); return; }
     if (!attestation) { toast.error("Please confirm the accuracy attestation"); return; }
     setSaving(true);
     const extendedAnswers = {
@@ -518,16 +631,43 @@ export default function Suitability() {
       )}
 
         <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="pt-6 flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div className="text-xs uppercase text-muted-foreground">Current profile</div>
-              <div className="text-2xl font-bold">{profile.name}</div>
-              <div className="text-sm text-muted-foreground">{profile.desc}</div>
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Current profile</div>
+                <div className="text-2xl font-bold">{profile.name}</div>
+                <div className="text-sm text-muted-foreground">{profile.desc}</div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
+                <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
+                <div className="font-mono text-xs mt-1">{profile.allocation}</div>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
-              <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
-              <div className="font-mono text-xs mt-1">{profile.allocation}</div>
+            <div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                <span>Completion</span>
+                <span className="font-mono">{Math.round((completed / totalQuestions) * 100)}%</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${(completed / totalQuestions) * 100}%` }} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <Badge variant={errors.length ? "destructive" : "outline"} className="gap-1">
+                <AlertCircle className="h-3 w-3" />{errors.length} error{errors.length === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="outline" className={`gap-1 ${warns.length ? "border-warning/50 text-warning" : ""}`}>
+                <AlertTriangle className="h-3 w-3" />{warns.length} warning{warns.length === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Info className="h-3 w-3" />{infos.length} note{infos.length === 1 ? "" : "s"}
+              </Badge>
+              {complete && !errors.length && !warns.length && (
+                <Badge variant="outline" className="gap-1 border-success/50 text-success">
+                  <CheckCircle2 className="h-3 w-3" />All checks passed
+                </Badge>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -776,16 +916,52 @@ export default function Suitability() {
               </CardContent>
             </Card>
 
-            {warnings.length > 0 && (
-              <Card className="border-warning/40 bg-warning/5">
+            {issues.length > 0 && (
+              <Card className={errors.length ? "border-destructive/50 bg-destructive/5" : warns.length ? "border-warning/40 bg-warning/5" : "border-primary/30 bg-primary/5"}>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Consistency checks</CardTitle>
-                  <CardDescription>ESMA Suitability Guideline 5 — we flag contradictions before saving.</CardDescription>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {errors.length
+                      ? <AlertCircle className="h-5 w-5 text-destructive" />
+                      : warns.length
+                        ? <AlertTriangle className="h-5 w-5 text-warning" />
+                        : <Info className="h-5 w-5 text-primary" />}
+                    Validation &amp; consistency
+                  </CardTitle>
+                  <CardDescription>
+                    Real-time checks across MiFID II appropriateness, AML/KYC, SFDR and ESMA Guideline 5.
+                    {" "}
+                    <span className="font-medium text-foreground">
+                      {errors.length} error{errors.length === 1 ? "" : "s"} · {warns.length} warning{warns.length === 1 ? "" : "s"} · {infos.length} note{infos.length === 1 ? "" : "s"}
+                    </span>
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
-                    {warnings.map((w, i) => <li key={i}>{w}</li>)}
-                  </ul>
+                <CardContent className="space-y-3">
+                  {issues.map((iss) => {
+                    const tone = iss.severity === "error"
+                      ? { border: "border-destructive/40", bg: "bg-destructive/5", text: "text-destructive", icon: <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />, badge: "Error" }
+                      : iss.severity === "warn"
+                        ? { border: "border-warning/40", bg: "bg-warning/5", text: "text-warning", icon: <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />, badge: "Warning" }
+                        : { border: "border-primary/30", bg: "bg-primary/5", text: "text-primary", icon: <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />, badge: "Note" };
+                    return (
+                      <div key={iss.id} className={`rounded-md border ${tone.border} ${tone.bg} p-3 flex items-start gap-3`}>
+                        {tone.icon}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${tone.text}`}>{tone.badge}</Badge>
+                            <span className="text-sm font-medium">{iss.message}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">Next action:</span> {iss.suggestion}
+                          </p>
+                          {iss.fix && (
+                            <Button size="sm" variant="outline" className="h-7 mt-1" onClick={iss.fix.run}>
+                              <Wand2 className="h-3 w-3 mr-1.5" />{iss.fix.label}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -806,7 +982,7 @@ export default function Suitability() {
             </Card>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <Button onClick={handleSave} disabled={!complete || saving || !attestation}>
+              <Button onClick={handleSave} disabled={!complete || saving || !attestation || errors.length > 0}>
                 {saving ? "Saving…" : "Save profile"}
               </Button>
               <Button variant="outline" onClick={handleReset}><RefreshCw className="h-4 w-4 mr-2" />Reset</Button>
@@ -817,7 +993,10 @@ export default function Suitability() {
                 <Download className="h-4 w-4 mr-2" />JSON
               </Button>
               {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
-              {complete && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
+              {complete && errors.length > 0 && (
+                <span className="text-xs text-destructive font-medium">Fix {errors.length} blocking error{errors.length === 1 ? "" : "s"} above before saving.</span>
+              )}
+              {complete && !errors.length && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
             </div>
 
             <p className="text-xs text-muted-foreground">

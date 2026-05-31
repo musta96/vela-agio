@@ -50,8 +50,12 @@ export function ManageSubscriptionButton({ label = "Manage subscription", ...but
           returnUrl: `${window.location.origin}/settings`,
         },
       });
+      if ((data as any)?.noSubscription) {
+        navigate("/pricing");
+        return;
+      }
       if (error || !data?.url) {
-        const msg = error?.message || (data as any)?.error || "";
+        const msg = (data as any)?.error || error?.message || "";
         if (/no subscription/i.test(msg)) {
           navigate("/pricing");
           return;

@@ -380,6 +380,7 @@ const Portfolio = () => {
   const [txnSide, setTxnSide] = useState<"buy" | "sell">("buy");
   const [txnShares, setTxnShares] = useState("");
   const [txnPrice, setTxnPrice] = useState("");
+  const [analytics, setAnalytics] = useState<PortfolioAnalytics | null>(null);
 
   const openEdit = (stock: PortfolioStock) => {
     setEditing(stock);

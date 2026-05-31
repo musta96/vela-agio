@@ -631,16 +631,43 @@ export default function Suitability() {
       )}
 
         <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="pt-6 flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div className="text-xs uppercase text-muted-foreground">Current profile</div>
-              <div className="text-2xl font-bold">{profile.name}</div>
-              <div className="text-sm text-muted-foreground">{profile.desc}</div>
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Current profile</div>
+                <div className="text-2xl font-bold">{profile.name}</div>
+                <div className="text-sm text-muted-foreground">{profile.desc}</div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
+                <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
+                <div className="font-mono text-xs mt-1">{profile.allocation}</div>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
-              <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
-              <div className="font-mono text-xs mt-1">{profile.allocation}</div>
+            <div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                <span>Completion</span>
+                <span className="font-mono">{Math.round((completed / totalQuestions) * 100)}%</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${(completed / totalQuestions) * 100}%` }} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <Badge variant={errors.length ? "destructive" : "outline"} className="gap-1">
+                <AlertCircle className="h-3 w-3" />{errors.length} error{errors.length === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="outline" className={`gap-1 ${warns.length ? "border-warning/50 text-warning" : ""}`}>
+                <AlertTriangle className="h-3 w-3" />{warns.length} warning{warns.length === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Info className="h-3 w-3" />{infos.length} note{infos.length === 1 ? "" : "s"}
+              </Badge>
+              {complete && !errors.length && !warns.length && (
+                <Badge variant="outline" className="gap-1 border-success/50 text-success">
+                  <CheckCircle2 className="h-3 w-3" />All checks passed
+                </Badge>
+              )}
             </div>
           </CardContent>
         </Card>

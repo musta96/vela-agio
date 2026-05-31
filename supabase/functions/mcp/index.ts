@@ -21,12 +21,125 @@ async function callEdge(authHeader: string, fn: string, body: unknown) {
 }
 
 async function getQuote(symbol: string) {
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  const j = await r.json();
-  const q = j?.quoteResponse?.result?.[0];
-  if (!q) return { error: 'symbol not found' };
-  return { symbol: q.symbol, name: q.longName ?? q.shortName, price: q.regularMarketPrice, change_pct: q.regularMarketChangePercent, currency: q.currency, exchange: q.fullExchangeName };
+  // Yahoo v7 quote is auth-walled server-side; use the public chart endpoint
+  // with an allorigins fallback (same pattern as `market-movers`).
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36';
+  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2d&interval=1d`;
+  for (const url of [direct, `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`]) {
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': UA } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const m = j?.chart?.result?.[0]?.meta;
+      if (!m) continue;
+      const price = m.regularMarketPrice ?? m.previousClose;
+      const prev = m.previousClose ?? m.chartPreviousClose;
+      if (price == null) continue;
+      const change = prev != null ? price - prev : 0;
+      return {
+        symbol: m.symbol ?? symbol,
+        name: m.shortName ?? m.longName ?? symbol,
+        price,
+        change,
+        change_pct: prev ? (change / prev) * 100 : 0,
+        currency: m.currency,
+        exchange: m.fullExchangeName ?? m.exchangeName,
+        as_of: m.regularMarketTime ? new Date(m.regularMarketTime * 1000).toISOString() : null,
+      };
+    } catch { /* try next */ }
+  }
+  return { error: 'symbol not found or upstream unavailable' };
+}
+
+// ── Phase 1 catalog: Vela's strategy library (static, no auth) ─────────
+const STRATEGY_CATALOG = [
+  {
+    id: 'buy_hold',
+    name: 'Buy & Hold',
+    category: 'Passive',
+    summary: 'Buy the asset on day 1, hold for the entire window. The baseline every active strategy must beat.',
+    risk: 'low',
+    horizon: 'long',
+    inputs: ['symbol_or_portfolio', 'range'],
+  },
+  {
+    id: 'sma_cross',
+    name: 'SMA 20/50 Crossover',
+    category: 'Trend following',
+    summary: 'Long when the 20-day simple moving average crosses above the 50-day SMA, flat otherwise. Classic momentum filter.',
+    risk: 'medium',
+    horizon: 'medium',
+    inputs: ['symbol_or_portfolio', 'range'],
+  },
+  {
+    id: 'rsi',
+    name: 'RSI Mean Reversion (30/70)',
+    category: 'Mean reversion',
+    summary: 'Buy when 14-day RSI dips below 30 (oversold), sell when it rises above 70 (overbought). Works best on range-bound names.',
+    risk: 'medium',
+    horizon: 'short',
+    inputs: ['symbol_or_portfolio', 'range'],
+  },
+];
+
+function searchStrategies(query: string, limit = 10) {
+  const q = (query || '').toLowerCase().trim();
+  const rows = q
+    ? STRATEGY_CATALOG.filter((s) =>
+        `${s.name} ${s.category} ${s.summary} ${s.id} ${s.risk} ${s.horizon}`.toLowerCase().includes(q),
+      )
+    : STRATEGY_CATALOG;
+  return { count: rows.length, strategies: rows.slice(0, Math.max(1, Math.min(50, limit))) };
+}
+
+// ── Phase 1: deterministic market briefing (no AI, no cost) ────────────
+const BRIEFING_UNIVERSE: Record<string, Array<{ symbol: string; label: string }>> = {
+  us: [
+    { symbol: '^GSPC', label: 'S&P 500' },
+    { symbol: '^IXIC', label: 'Nasdaq Composite' },
+    { symbol: '^DJI', label: 'Dow Jones' },
+    { symbol: '^VIX', label: 'VIX (volatility)' },
+  ],
+  eu: [
+    { symbol: '^STOXX50E', label: 'Euro Stoxx 50' },
+    { symbol: '^GDAXI', label: 'DAX' },
+    { symbol: '^FCHI', label: 'CAC 40' },
+    { symbol: 'FTSEMIB.MI', label: 'FTSE MIB' },
+  ],
+  it: [
+    { symbol: 'FTSEMIB.MI', label: 'FTSE MIB' },
+    { symbol: '^STOXX50E', label: 'Euro Stoxx 50' },
+    { symbol: 'EURUSD=X', label: 'EUR / USD' },
+    { symbol: 'BTP10Y.MI', label: 'BTP 10Y' },
+  ],
+  global: [
+    { symbol: '^GSPC', label: 'S&P 500' },
+    { symbol: '^STOXX50E', label: 'Euro Stoxx 50' },
+    { symbol: '^N225', label: 'Nikkei 225' },
+    { symbol: 'EURUSD=X', label: 'EUR / USD' },
+    { symbol: 'GC=F', label: 'Gold' },
+    { symbol: 'CL=F', label: 'Crude oil (WTI)' },
+  ],
+};
+
+async function getBriefing(region: string) {
+  const key = (region || 'global').toLowerCase();
+  const universe = BRIEFING_UNIVERSE[key] ?? BRIEFING_UNIVERSE.global;
+  const quotes = await Promise.all(universe.map((u) => getQuote(u.symbol)));
+  const items = universe.map((u, i) => {
+    const q = quotes[i] as any;
+    return q && !q.error
+      ? { label: u.label, symbol: u.symbol, price: q.price, change_pct: q.change_pct, currency: q.currency }
+      : { label: u.label, symbol: u.symbol, error: q?.error ?? 'unavailable' };
+  });
+  const ok = items.filter((it: any) => typeof it.change_pct === 'number') as any[];
+  const advancers = ok.filter((it) => it.change_pct > 0).length;
+  const decliners = ok.filter((it) => it.change_pct < 0).length;
+  const headline =
+    `Vela market briefing — region "${key}" — ${new Date().toISOString().slice(0, 10)}. ` +
+    `${advancers} of ${ok.length} tracked instruments up, ${decliners} down. ` +
+    'Snapshot only; no AI commentary in Phase 1.';
+  return { region: key, generated_at: new Date().toISOString(), headline, items };
 }
 
 const app = new Hono();
@@ -34,10 +147,39 @@ const server = new McpServer({ name: 'vela', version: '1.0.0' });
 
 server.tool({
   name: 'get_quote',
-  description: 'Latest price and basic stats for a Yahoo-style ticker (AAPL, ENI.MI, ASML.AS).',
+  description: '[Phase 1 · public] Latest price + daily change for a Yahoo-style ticker (AAPL, ENI.MI, ASML.AS). No auth required.',
   inputSchema: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] },
   handler: async ({ symbol }: any) => {
     const data = await getQuote(String(symbol).toUpperCase());
+    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+  },
+});
+
+server.tool({
+  name: 'search_strategies',
+  description: "[Phase 1 · public] Search Vela's strategy library by free-text query (name, category, risk, horizon). No auth required.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'Free-text query, e.g. "momentum", "mean reversion", "low risk"' },
+      limit: { type: 'number', description: 'Max results (1–50, default 10)' },
+    },
+  },
+  handler: async ({ query = '', limit = 10 }: any) => {
+    const data = searchStrategies(String(query), Number(limit) || 10);
+    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+  },
+});
+
+server.tool({
+  name: 'get_briefing',
+  description: '[Phase 1 · public] Deterministic market briefing for a region (us | eu | it | global). Returns a snapshot of major indices and FX — no AI commentary, no cost. No auth required.',
+  inputSchema: {
+    type: 'object',
+    properties: { region: { type: 'string', description: 'us | eu | it | global (default: global)' } },
+  },
+  handler: async ({ region = 'global' }: any) => {
+    const data = await getBriefing(String(region));
     return { content: [{ type: 'text', text: JSON.stringify(data) }] };
   },
 });

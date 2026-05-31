@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText } from "lucide-react";
+import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText, AlertCircle, Info, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -198,14 +198,126 @@ export default function Suitability() {
   const completed = Object.keys(ans).length;
   const complete = completed === totalQuestions;
 
-  // Consistency / coherence warnings (ESMA suitability guideline 5)
-  const warnings: string[] = [];
-  if ((ans["horizon"] ?? 0) <= 1 && (ans["goal"] ?? 0) >= 3) warnings.push("Aggressive growth goal with a < 3-year horizon is inconsistent — extend horizon or lower the goal.");
-  if ((ans["loss"] ?? 0) === 0 && (ans["volatility"] ?? 0) >= 2) warnings.push("You say you'd sell on a 20% drop yet accept medium/high volatility — these conflict.");
-  if (leverageAllowed && (ans["knowledge"] ?? 0) < 2) warnings.push("Leverage allowed but knowledge is basic — MiFID appropriateness would flag this.");
-  if ((productKnowledge["options"] ?? 0) >= 2 && (ans["experience"] ?? 0) === 0) warnings.push("Options experience declared without any trading history — please reconcile.");
-  if (esg.startsWith("Impact") && sfdrSustainableMinPct < 50) warnings.push("Article 9 / impact preference usually implies ≥ 50% sustainable investments.");
-  if (maxSinglePositionPct > 25) warnings.push("Concentration > 25% in a single position breaches UCITS-style diversification.");
+  // Structured real-time validation (ESMA suitability guideline 5 + numeric ranges).
+  // severity: "error" blocks save; "warn" allows save with attestation; "info" is advisory.
+  type Issue = {
+    id: string;
+    severity: "error" | "warn" | "info";
+    message: string;
+    suggestion: string;
+    fix?: { label: string; run: () => void };
+  };
+  const issues: Issue[] = [];
+
+  // --- Numeric range validation (errors block save) ---
+  if (lossTolerancePct < 1 || lossTolerancePct > 100) issues.push({
+    id: "loss-range", severity: "error",
+    message: `Max drawdown ${lossTolerancePct}% is outside the 1–100% range.`,
+    suggestion: "Set a realistic drawdown tolerance between 1% and 100%.",
+    fix: { label: "Set to 20%", run: () => setLossTolerancePct(20) },
+  });
+  if (maxSinglePositionPct < 1 || maxSinglePositionPct > 100) issues.push({
+    id: "pos-range", severity: "error",
+    message: `Max single position ${maxSinglePositionPct}% is outside 1–100%.`,
+    suggestion: "Pick a concentration cap between 1% and 100%.",
+    fix: { label: "Set to 10%", run: () => setMaxSinglePositionPct(10) },
+  });
+  if (dependents < 0 || dependents > 20) issues.push({
+    id: "dep-range", severity: "error",
+    message: "Dependents must be between 0 and 20.",
+    suggestion: "Enter how many people rely on your income.",
+    fix: { label: "Set to 0", run: () => setDependents(0) },
+  });
+  if (liquidityNeedMonths < 0 || liquidityNeedMonths > 120) issues.push({
+    id: "liq-range", severity: "error",
+    message: "Liquidity horizon must be 0–120 months.",
+    suggestion: "Enter the months within which you may need this capital.",
+    fix: { label: "Set to 6", run: () => setLiquidityNeedMonths(6) },
+  });
+  if (sfdrSustainableMinPct + sfdrTaxonomyMinPct > 100) issues.push({
+    id: "sfdr-sum", severity: "error",
+    message: "Taxonomy + Sustainable minimums exceed 100%.",
+    suggestion: "Lower one of the SFDR minimums so they sum to ≤ 100%.",
+    fix: { label: "Reset to 0/0", run: () => { setSfdrSustainableMinPct(0); setSfdrTaxonomyMinPct(0); } },
+  });
+
+  // --- KYC / AML completeness (errors) ---
+  if (complete && sourceOfFunds.length === 0) issues.push({
+    id: "sof-missing", severity: "error",
+    message: "AML requires at least one source of funds.",
+    suggestion: "Tick every source that contributed to the capital you plan to invest (Section 6).",
+  });
+  if (complete && sourceOfWealth.length === 0) issues.push({
+    id: "sow-missing", severity: "error",
+    message: "AML requires at least one source of overall wealth.",
+    suggestion: "Tick every applicable source in Section 6.",
+  });
+  if (isPep && pepDetails.trim().length < 3) issues.push({
+    id: "pep-details", severity: "error",
+    message: "PEP status flagged but role/jurisdiction missing.",
+    suggestion: "Describe your PEP role and country in Section 6.",
+  });
+
+  // --- Coherence (warnings) ---
+  if ((ans["horizon"] ?? 0) <= 1 && (ans["goal"] ?? 0) >= 3) issues.push({
+    id: "horizon-goal", severity: "warn",
+    message: "Aggressive growth with a < 3-year horizon is inconsistent.",
+    suggestion: "Either extend the horizon to 3+ years or step the goal down to Balanced growth.",
+    fix: { label: "Lower goal to Balanced", run: () => setAns(a => ({ ...a, goal: 2 })) },
+  });
+  if ((ans["loss"] ?? 0) === 0 && (ans["volatility"] ?? 0) >= 2) issues.push({
+    id: "loss-vol", severity: "warn",
+    message: "You'd sell everything on a 20% drop yet accept medium/high volatility.",
+    suggestion: "Align the two: pick a calmer loss reaction or lower acceptable volatility.",
+    fix: { label: "Lower volatility to 5–10%", run: () => setAns(a => ({ ...a, volatility: 1 })) },
+  });
+  if (leverageAllowed && (ans["knowledge"] ?? 0) < 2) issues.push({
+    id: "lev-know", severity: "warn",
+    message: "Leverage requested but investment knowledge is basic.",
+    suggestion: "MiFID appropriateness would reject this. Disable leverage or raise your knowledge level after demonstrable experience.",
+    fix: { label: "Disable leverage", run: () => setLeverageAllowed(false) },
+  });
+  if ((productKnowledge["options"] ?? 0) >= 2 && (ans["experience"] ?? 0) === 0) issues.push({
+    id: "opt-exp", severity: "warn",
+    message: "Options experience declared with zero trading history.",
+    suggestion: "Reconcile Section 5 with Section 1, or downgrade options knowledge to Aware.",
+    fix: { label: "Downgrade options to Aware", run: () => setProductKnowledge(p => ({ ...p, options: 1 })) },
+  });
+  if (esg.startsWith("Impact") && sfdrSustainableMinPct < 50) issues.push({
+    id: "art9-min", severity: "warn",
+    message: "Article 9 / impact preference usually implies ≥ 50% sustainable investments.",
+    suggestion: "Raise the SFDR sustainable minimum to 50%+ or switch to Article 8 (Strict).",
+    fix: { label: "Set sustainable min to 50%", run: () => setSfdrSustainableMinPct(50) },
+  });
+  if (maxSinglePositionPct > 25) issues.push({
+    id: "ucits-25", severity: "warn",
+    message: "Single-position cap > 25% breaches UCITS-style diversification.",
+    suggestion: "Tighten the cap to ≤ 25% unless you have a documented concentration mandate.",
+    fix: { label: "Cap at 25%", run: () => setMaxSinglePositionPct(25) },
+  });
+  if (liquidityNeedMonths <= 12 && profile.risk >= 5) issues.push({
+    id: "liq-risk", severity: "warn",
+    message: `${liquidityNeedMonths}-month liquidity need with a ${profile.name} (SRI ${profile.risk}) profile is risky.`,
+    suggestion: "Either extend the liquidity horizon or reduce risk by adjusting horizon/goal/loss reaction.",
+  });
+
+  // --- Informational ---
+  if (complete && clientCategory !== "retail") issues.push({
+    id: "non-retail", severity: "info",
+    message: `You selected ${clientCategory === "professional" ? "Professional" : "Eligible counterparty"} status.`,
+    suggestion: "We assume you meet the MiFID II Annex II tests. You waive certain retail protections.",
+  });
+  if (sfdrPaiConsidered && !esg.includes("Strict") && !esg.includes("Impact")) issues.push({
+    id: "pai-light", severity: "info",
+    message: "PAI indicators are considered but ESG preference is Light.",
+    suggestion: "Consider upgrading ESG preference to Strict (Art. 8) to reflect PAI consideration.",
+  });
+
+  const errors = issues.filter(i => i.severity === "error");
+  const warns  = issues.filter(i => i.severity === "warn");
+  const infos  = issues.filter(i => i.severity === "info");
+  // Backwards-compat string list for the audit payload
+  const warnings = [...errors, ...warns].map(i => i.message);
 
   // Re-assessment due
   const reassessmentDue = (() => {
@@ -264,6 +376,7 @@ export default function Suitability() {
   const handleSave = async () => {
     if (!user) { toast.error("Please sign in"); return; }
     if (!complete) { toast.error("Please answer all questions"); return; }
+    if (errors.length) { toast.error(`${errors.length} blocking error${errors.length > 1 ? "s" : ""} — fix them before saving`); return; }
     if (!attestation) { toast.error("Please confirm the accuracy attestation"); return; }
     setSaving(true);
     const extendedAnswers = {

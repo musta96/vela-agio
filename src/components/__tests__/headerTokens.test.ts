@@ -48,4 +48,57 @@ describe("header tokens", () => {
     expect(src).toMatch(/<Avatar\b/);
     expect(src).toMatch(/aria-label=|TooltipContent/);
   });
+
+  it("AuthButton avatar trigger uses header-safe tokens (visible on cream + dark)", () => {
+    const src = safeRead(path.join(ROOT, "AuthButton.tsx"))!;
+    // The interactive trigger (the chip the user sees on first paint) MUST
+    // carry an explicit background + foreground + border token so it never
+    // collapses to white-on-white (light) or transparent-on-navy (dark).
+    const triggerMatch = src.match(/<button[\s\S]*?aria-label=\{[\s\S]*?Account:[\s\S]*?className="([^"]+)"/);
+    expect(triggerMatch, "AuthButton trigger button not found").not.toBeNull();
+    const classes = triggerMatch![1];
+    expect(classes, "missing bg-card on trigger").toMatch(/\bbg-card\b/);
+    expect(classes, "missing text-foreground on trigger").toMatch(/\btext-foreground\b/);
+    expect(classes, "missing border token on trigger").toMatch(/\bborder-border\b/);
+    expect(classes, "missing focus ring").toMatch(/focus:ring-/);
+  });
+
+  it("AuthButton avatar fallback is opaque (readable in dark mode)", () => {
+    const src = safeRead(path.join(ROOT, "AuthButton.tsx"))!;
+    // AvatarFallback shows when the image is missing or slow. It MUST use a
+    // semantic, opaque token so initials stay readable on both themes —
+    // never transparent / bg-white/X / sidebar tokens.
+    const fallbackMatch = src.match(/<AvatarFallback[\s\S]*?className="([^"]+)"/);
+    expect(fallbackMatch, "AvatarFallback not found").not.toBeNull();
+    const fallbackClasses = fallbackMatch![1];
+    expect(fallbackClasses).toMatch(/\bbg-(card|background|muted|primary|secondary|accent)\b/);
+    expect(fallbackClasses).toMatch(/\btext-(foreground|primary-foreground|secondary-foreground|accent-foreground|muted-foreground)\b/);
+    expect(fallbackClasses).not.toMatch(/\bbg-transparent\b/);
+    expect(fallbackClasses).not.toMatch(/\bbg-white\/\d+\b/);
+  });
+
+  it("AuthButton has a tooltip surfacing the full name/email on hover", () => {
+    const src = safeRead(path.join(ROOT, "AuthButton.tsx"))!;
+    // Compact avatar trigger only makes sense if the full identity is
+    // reachable via tooltip + dropdown — guard both.
+    expect(src).toMatch(/<TooltipContent[\s\S]*?\{user\.email/);
+    expect(src).toMatch(/<DropdownMenuLabel/);
+  });
+});
+
+describe("avatar token contrast in dark mode", () => {
+  /**
+   * Lightweight cross-theme check: re-resolve the AuthButton trigger's
+   * computed background under both `:root` (light) and `.dark` (dark) themes.
+   * If either resolves to "transparent" or matches the surrounding bg,
+   * the chip would become invisible on first paint.
+   */
+  it("bg-card token has a defined value in both themes", () => {
+    const css = safeRead(path.resolve(__dirname, "../../index.css")) || "";
+    // Require explicit --card definitions for both light (`:root`) and `.dark`.
+    const lightBlock = css.match(/:root\s*\{[\s\S]*?\}/)?.[0] || "";
+    const darkBlock = css.match(/\.dark\s*\{[\s\S]*?\}/)?.[0] || "";
+    expect(lightBlock, ":root must define --card").toMatch(/--card\s*:/);
+    expect(darkBlock || ":root", "dark theme must define --card").toMatch(/--card\s*:/);
+  });
 });

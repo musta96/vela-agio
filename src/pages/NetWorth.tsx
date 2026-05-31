@@ -109,7 +109,7 @@ const NetWorth = () => {
   const { quotes, refresh: refreshQuotes, loading: quotesLoading } = useLiveQuotes(allLiveSymbols, 60000);
 
   // FX-aware totals (shared with Dashboard so the two numbers always agree)
-  const fxTotals = useNetWorthTotal("EUR");
+  const fxTotals = useNetWorthTotal();
 
   const computedAccountValue = (acc: NWAccount): number => {
     if (acc.linked_portfolio_ids && acc.linked_portfolio_ids.length > 0) {
@@ -444,7 +444,9 @@ const NetWorth = () => {
               {CATEGORY_ORDER.map((k) => {
                 const Icon = CATEGORIES[k].icon;
                 const list = grouped[k] || [];
-                const subtotal = list.reduce((s, a) => s + (a.include_in_total ? computedAccountValue(a) : 0), 0);
+                // Use FX-converted single source of truth (same value as
+                // dashboard tile + donut). NEVER sum raw account currencies.
+                const subtotal = k === "liabilities" ? totals.liabilities : (totals.byCat[k] || 0);
                 return (
                   <RLink key={k} to={`/net-worth/${k}`}
                     className="group rounded-lg border border-border bg-card p-4 hover:border-primary/40 hover:shadow-md transition-all">
@@ -470,7 +472,7 @@ const NetWorth = () => {
               const list = grouped[k];
               if (!list || list.length === 0) return null;
               const Icon = CATEGORIES[k].icon;
-              const subtotal = list.reduce((s, a) => s + (a.include_in_total ? computedAccountValue(a) : 0), 0);
+              const subtotal = k === "liabilities" ? totals.liabilities : (totals.byCat[k] || 0);
               return (
                 <Card key={k} className="overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3 border-b border-border" style={{ background: `${CATEGORIES[k].color}10` }}>

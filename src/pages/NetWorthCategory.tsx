@@ -211,7 +211,7 @@ export default function NetWorthCategory() {
   const [taxResidency, setTaxResidency] = useState<CountryCode>("OTHER");
 
   // FX-aware category subtotal in base currency (EUR), shared with dashboard/overview
-  const fxTotals = useNetWorthTotal("EUR");
+  const fxTotals = useNetWorthTotal();
 
   // Symbol search (investments / crypto / retirement)
   const [symbolQuery, setSymbolQuery] = useState("");

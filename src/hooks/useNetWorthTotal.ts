@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { useBaseCurrency } from "@/hooks/useBaseCurrency";
 
 /**
  * Single source of truth for the user's net worth.
@@ -63,8 +64,15 @@ async function convert(amount: number, from: string, base: string): Promise<numb
   return amount; // fall back to raw — better than zero
 }
 
-export function useNetWorthTotal(baseCurrency = "EUR") {
+/**
+ * Pass `baseCurrencyOverride` only for tests or admin views looking at
+ * another user. Production surfaces should call `useNetWorthTotal()` with
+ * no argument so the user's stored base currency drives every number.
+ */
+export function useNetWorthTotal(baseCurrencyOverride?: string) {
   const { user } = useAuth();
+  const { baseCurrency: profileBase } = useBaseCurrency();
+  const baseCurrency = (baseCurrencyOverride || profileBase || "EUR").toUpperCase();
   const [accounts, setAccounts] = useState<NWAccountLite[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);

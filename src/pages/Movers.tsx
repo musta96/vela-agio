@@ -102,7 +102,7 @@ export default function Movers() {
 
   return (
     <>
-      <SEO title="Market Movers — Vela" description="Top gainers, losers and most-active stocks across global indices and regions, refreshed every minute." />
+      <SEO title="Market Movers — Vela" description="Top gainers, losers and most-active stocks across global indices and regions, refreshed every minute." path="/movers" />
       <div className="px-6 sm:px-8 py-6 max-w-7xl mx-auto">
         <PageHeader
           icon={Activity}

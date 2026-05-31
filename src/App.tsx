@@ -81,6 +81,7 @@ import Privacy from "./pages/legal/Privacy";
 import Terms from "./pages/legal/Terms";
 import Disclaimer from "./pages/legal/Disclaimer";
 import Cookies from "./pages/legal/Cookies";
+import Install from "./pages/Install";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { AutoTranslate } from "./lib/autoTranslate";
 
@@ -104,6 +105,7 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/disclaimer" element={<Disclaimer />} />
           <Route path="/cookies" element={<Cookies />} />
+          <Route path="/install" element={<Install />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

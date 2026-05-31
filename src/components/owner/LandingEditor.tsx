@@ -12,6 +12,8 @@ import {
   ExternalLink, ChevronDown, ChevronRight, RotateCcw,
 } from "lucide-react";
 import { DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TemplatesPanel, VersionsPanel, AbTestPanel, GlobalsPanel, SeoPanel } from "./LandingExtras";
 
 type Row = LandingSectionRow & { _dirty?: boolean };
 
@@ -22,7 +24,7 @@ const KIND_LABELS: Record<string, string> = {
   faq: "FAQ", cta: "Call to action",
 };
 
-export function LandingEditor() {
+function SectionsEditor() {
   const [rows, setRows] = useState<Row[]>([]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
@@ -208,6 +210,27 @@ export function LandingEditor() {
         />
       </Card>
     </div>
+  );
+}
+
+export function LandingEditor() {
+  return (
+    <Tabs defaultValue="sections" className="w-full">
+      <TabsList className="mb-3">
+        <TabsTrigger value="sections">Sections</TabsTrigger>
+        <TabsTrigger value="templates">Templates</TabsTrigger>
+        <TabsTrigger value="versions">Versions</TabsTrigger>
+        <TabsTrigger value="ab">A/B test</TabsTrigger>
+        <TabsTrigger value="globals">Reusable fields</TabsTrigger>
+        <TabsTrigger value="seo">SEO</TabsTrigger>
+      </TabsList>
+      <TabsContent value="sections"><SectionsEditor /></TabsContent>
+      <TabsContent value="templates"><TemplatesPanel onApplied={() => window.location.reload()} /></TabsContent>
+      <TabsContent value="versions"><VersionsPanel onRestored={() => window.location.reload()} /></TabsContent>
+      <TabsContent value="ab"><AbTestPanel /></TabsContent>
+      <TabsContent value="globals"><GlobalsPanel /></TabsContent>
+      <TabsContent value="seo"><SeoPanel /></TabsContent>
+    </Tabs>
   );
 }
 

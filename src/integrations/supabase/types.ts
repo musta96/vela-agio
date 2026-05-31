@@ -1231,6 +1231,54 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          cta_href: string
+          cta_label: string
+          features: Json
+          highlighted: boolean
+          id: string
+          is_active: boolean
+          name: string
+          price_label: string
+          price_period: string | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cta_href?: string
+          cta_label?: string
+          features?: Json
+          highlighted?: boolean
+          id?: string
+          is_active?: boolean
+          name: string
+          price_label: string
+          price_period?: string | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cta_href?: string
+          cta_label?: string
+          features?: Json
+          highlighted?: boolean
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_label?: string
+          price_period?: string | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null

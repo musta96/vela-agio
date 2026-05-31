@@ -71,9 +71,26 @@ export interface PortfolioReportInput {
     currentPrice: number;
     currency?: string;
   }>;
+  analytics?: {
+    vol: number;
+    var95: number;
+    sharpe: number;
+    sortino: number;
+    maxDD: number;
+    betaMib: number | null;
+    betaSpx: number | null;
+    hhi: number;
+    top3Weight: number;
+    diversification: string;
+    marketExposure: Array<[string, number]>;
+    currencyExposure: Array<[string, number]>;
+    topContributors: Array<{ symbol: string; pnl: number; pct: number }>;
+    riskContribution: Array<{ symbol: string; contribution: number }>;
+    correlation: { symbols: string[]; matrix: number[][] } | null;
+  } | null;
 }
 
-export function generatePortfolioReport({ holdings }: PortfolioReportInput) {
+export function generatePortfolioReport({ holdings, analytics }: PortfolioReportInput) {
   const doc = new jsPDF();
   header(doc, "Portfolio Report", `${holdings.length} holdings`);
 

@@ -161,6 +161,98 @@ export function generatePortfolioReport({ holdings, analytics }: PortfolioReport
     styles: { fontSize: 10 },
   });
 
+  // ── Advanced analytics page ──────────────────────────────────────────
+  if (analytics) {
+    doc.addPage();
+    header(doc, "Risk & Diversification", "1Y daily returns, weighted portfolio");
+    const pct = (v: number, d = 2) => `${(v * 100).toFixed(d)}%`;
+    autoTable(doc, {
+      startY: 56,
+      head: [["Metric", "Value"]],
+      body: [
+        ["Annualized volatility", pct(analytics.vol, 1)],
+        ["VaR 95% (1-day)", pct(analytics.var95)],
+        ["Sharpe ratio", analytics.sharpe.toFixed(2)],
+        ["Sortino ratio", analytics.sortino.toFixed(2)],
+        ["Max drawdown", pct(analytics.maxDD, 1)],
+        ["Beta vs FTSE MIB", analytics.betaMib != null ? analytics.betaMib.toFixed(2) : "—"],
+        ["Beta vs S&P 500", analytics.betaSpx != null ? analytics.betaSpx.toFixed(2) : "—"],
+        ["Concentration (HHI)", `${analytics.hhi.toFixed(2)} — ${analytics.diversification}`],
+        ["Top-3 weight", pct(analytics.top3Weight, 1)],
+      ],
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 10 },
+    });
+
+    // @ts-expect-error autotable adds finalY
+    let y = (doc.lastAutoTable?.finalY ?? 120) + 10;
+
+    if (analytics.marketExposure.length) {
+      autoTable(doc, {
+        startY: y,
+        head: [["Market exposure", "Weight"]],
+        body: analytics.marketExposure.map(([m, w]) => [m, pct(w, 1)]),
+        headStyles: { fillColor: BRAND.primary, textColor: 255 },
+        styles: { fontSize: 9 },
+      });
+      // @ts-expect-error autotable adds finalY
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
+    }
+    if (analytics.currencyExposure.length) {
+      autoTable(doc, {
+        startY: y,
+        head: [["Currency exposure", "Weight"]],
+        body: analytics.currencyExposure.map(([c, w]) => [c, pct(w, 1)]),
+        headStyles: { fillColor: BRAND.primary, textColor: 255 },
+        styles: { fontSize: 9 },
+      });
+      // @ts-expect-error autotable adds finalY
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
+    }
+    if (analytics.riskContribution.length) {
+      autoTable(doc, {
+        startY: y,
+        head: [["Risk contribution", "Share of vol"]],
+        body: analytics.riskContribution.map((r) => [r.symbol, pct(r.contribution, 1)]),
+        headStyles: { fillColor: BRAND.primary, textColor: 255 },
+        styles: { fontSize: 9 },
+      });
+    }
+
+    // Correlation matrix
+    if (analytics.correlation && analytics.correlation.symbols.length > 1) {
+      doc.addPage();
+      header(doc, "Correlation Matrix", "1Y daily returns");
+      const syms = analytics.correlation.symbols;
+      const body = analytics.correlation.matrix.map((row, i) => [
+        syms[i],
+        ...row.map((v) => v.toFixed(2)),
+      ]);
+      autoTable(doc, {
+        startY: 56,
+        head: [["", ...syms]],
+        body,
+        headStyles: { fillColor: BRAND.primary, textColor: 255, fontStyle: "bold" },
+        styles: { fontSize: 8, halign: "center" },
+        columnStyles: { 0: { fontStyle: "bold", halign: "left" } },
+        didParseCell: (data) => {
+          if (data.section !== "body" || data.column.index === 0) return;
+          const v = parseFloat(String(data.cell.raw));
+          if (!isFinite(v)) return;
+          if (v > 0.7) data.cell.styles.fillColor = [254, 226, 226];
+          else if (v > 0.4) data.cell.styles.fillColor = [254, 242, 242];
+          else if (v < -0.4) data.cell.styles.fillColor = [220, 252, 231];
+        },
+      });
+      doc.setFontSize(9);
+      doc.setTextColor(...BRAND.muted);
+      // @ts-expect-error autotable adds finalY
+      const yy = (doc.lastAutoTable?.finalY ?? 200) + 6;
+      doc.text("Red shading = highly correlated holdings (concentration risk). Green = diversifying.", 14, yy);
+      doc.setTextColor(0, 0, 0);
+    }
+  }
+
   footer(doc);
   doc.save(`portfolio-report-${new Date().toISOString().slice(0, 10)}.pdf`);
 }

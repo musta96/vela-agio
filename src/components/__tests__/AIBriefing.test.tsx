@@ -22,17 +22,25 @@ vi.mock("@/hooks/useWatchlist", () => ({ useWatchlist: () => ({ items: [{ symbol
 
 // Supabase client mock — we control what functions.invoke + from() return per test.
 const invokeMock = vi.fn();
+// Build a thenable that also exposes the same chain methods. Any await
+// resolves to { data: [], error: null } so the briefing's portfolio + profile
+// queries never block the generate() flow.
+function makeChain(): any {
+  const target: any = {
+    select: () => makeChain(),
+    eq: () => makeChain(),
+    order: () => makeChain(),
+    limit: () => makeChain(),
+    maybeSingle: async () => ({ data: { briefing_focus: "" }, error: null }),
+    insert: async () => ({ error: null }),
+    then: (resolve: (v: any) => void) => resolve({ data: [], error: null }),
+  };
+  return target;
+}
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     functions: { invoke: (...args: any[]) => invokeMock(...args) },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: { briefing_focus: "" }, error: null }),
-        }),
-      }),
-      insert: async () => ({ error: null }),
-    }),
+    from: () => makeChain(),
     auth: { getUser: async () => ({ data: { user: { id: "u-1" } } }) },
   },
 }));

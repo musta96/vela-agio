@@ -10,7 +10,7 @@ import {
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
   ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
-  ClipboardCheck,
+  ClipboardCheck, Compass, Activity, FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -22,6 +22,8 @@ type Item = { title: string; url: string; icon: React.ComponentType<{ className?
 const MARKETS: Item[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Macro", url: "/macro", icon: Globe2 },
+  { title: "Explore", url: "/explore", icon: Compass, badge: "new" },
+  { title: "Movers", url: "/movers", icon: Activity, badge: "new" },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
   { title: "Stock Screener", url: "/screener", icon: Filter },
   { title: "Signals", url: "/alerts", icon: Bell, badge: "3" },
@@ -50,6 +52,7 @@ const NET_WORTH_SUB: Item[] = [
 ];
 
 const LAB: Item[] = [
+  { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical, badge: "new" },
   { title: "Backtesting", url: "/backtest", icon: Repeat },
   { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
   { title: "AI Assistant", url: "/copilot", icon: Sparkles },

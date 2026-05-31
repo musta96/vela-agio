@@ -88,8 +88,6 @@ describe("AIBriefing — ai_access_denied fallback", () => {
     invokeMock.mockResolvedValue({ data: null, error: err });
     const AIBriefing = await importBriefing();
     renderBriefing(AIBriefing);
-    await new Promise(r => setTimeout(r, 50));
-    screen.debug(undefined, 30000);
     expect(await screen.findByText("Upgrade plan")).toBeInTheDocument();
     expect(await screen.findByText("Use my own API key")).toBeInTheDocument();
     expect(screen.queryByText(/Couldn't generate briefing/)).not.toBeInTheDocument();

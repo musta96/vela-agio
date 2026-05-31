@@ -131,7 +131,7 @@ export function AIBriefing() {
 
   // Auto-generate once when we have an active portfolio
   useEffect(() => {
-    if (user && active && !briefing && !loading) generate();
+    if (user && active && !briefing && !loading && !denied && !error) generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, active?.id]);
 

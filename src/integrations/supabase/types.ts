@@ -128,6 +128,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_log: {
+        Row: {
+          cost_cents: number | null
+          created_at: string
+          feature: string
+          id: number
+          model: string | null
+          provider: string
+          success: boolean
+          tokens_in: number | null
+          tokens_out: number | null
+          user_id: string
+        }
+        Insert: {
+          cost_cents?: number | null
+          created_at?: string
+          feature: string
+          id?: number
+          model?: string | null
+          provider?: string
+          success?: boolean
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id: string
+        }
+        Update: {
+          cost_cents?: number | null
+          created_at?: string
+          feature?: string
+          id?: number
+          model?: string | null
+          provider?: string
+          success?: boolean
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       alert_preferences: {
         Row: {
           daily_digest_enabled: boolean
@@ -1377,6 +1416,8 @@ export type Database = {
       }
       subscription_plans: {
         Row: {
+          ai_model_tier: string
+          ai_monthly_quota: number
           created_at: string
           cta_href: string
           cta_label: string
@@ -1384,14 +1425,21 @@ export type Database = {
           highlighted: boolean
           id: string
           is_active: boolean
+          monthly_price_cents: number | null
           name: string
           price_label: string
           price_period: string | null
           slug: string
           sort_order: number
+          stripe_monthly_price_id: string | null
+          stripe_yearly_price_id: string | null
+          tier: string
           updated_at: string
+          yearly_price_cents: number | null
         }
         Insert: {
+          ai_model_tier?: string
+          ai_monthly_quota?: number
           created_at?: string
           cta_href?: string
           cta_label?: string
@@ -1399,14 +1447,21 @@ export type Database = {
           highlighted?: boolean
           id?: string
           is_active?: boolean
+          monthly_price_cents?: number | null
           name: string
           price_label: string
           price_period?: string | null
           slug: string
           sort_order?: number
+          stripe_monthly_price_id?: string | null
+          stripe_yearly_price_id?: string | null
+          tier?: string
           updated_at?: string
+          yearly_price_cents?: number | null
         }
         Update: {
+          ai_model_tier?: string
+          ai_monthly_quota?: number
           created_at?: string
           cta_href?: string
           cta_label?: string
@@ -1414,12 +1469,17 @@ export type Database = {
           highlighted?: boolean
           id?: string
           is_active?: boolean
+          monthly_price_cents?: number | null
           name?: string
           price_label?: string
           price_period?: string | null
           slug?: string
           sort_order?: number
+          stripe_monthly_price_id?: string | null
+          stripe_yearly_price_id?: string | null
+          tier?: string
           updated_at?: string
+          yearly_price_cents?: number | null
         }
         Relationships: []
       }
@@ -1634,6 +1694,7 @@ export type Database = {
       }
     }
     Functions: {
+      ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean

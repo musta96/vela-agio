@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SEO } from "@/components/SEO";
+import VelaLogo from "@/components/VelaLogo";
 import {
   Sparkles, LineChart, Brain, Shield, Target, Zap, BarChart3, BookOpen,
   TrendingUp, Globe, Lock, Check, ArrowRight, Building2, Users, FileText,
@@ -336,9 +337,8 @@ export default function Landing() {
       {/* NAV */}
       <header className="sticky top-0 z-40 backdrop-blur bg-background/80 border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span>Vela.ai</span>
+          <Link to="/" className="flex items-center font-semibold tracking-tight">
+            <VelaLogo size={28} />
           </Link>
           <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground">Features</a>
@@ -359,9 +359,7 @@ export default function Landing() {
       <footer className="border-t border-border bg-card/40">
         <div className="container mx-auto px-6 py-10 grid md:grid-cols-4 gap-8 text-sm">
           <div>
-            <div className="flex items-center gap-2 font-semibold">
-              <Sparkles className="h-4 w-4 text-primary" /> Vela.ai
-            </div>
+            <VelaLogo size={24} />
             <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
               Educational research and personal research assistant. Not an investment advisor.
             </p>

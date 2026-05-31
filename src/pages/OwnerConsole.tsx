@@ -5,6 +5,7 @@ import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
+import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -737,6 +738,7 @@ export default function OwnerConsole() {
     comms: commsSection,
     ai: aiSection,
     ai_access: <AiAccessAdmin />,
+    ai_metrics: <AIMetricsAdmin />,
     data: dataSection,
     gdpr: complianceSection,
     legal: <LegalDocsEditor docs={legal} reload={load} />,
@@ -832,6 +834,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
     { label: "AI & data", items: [
       { key: "ai", label: "Signal governance", icon: <Bot className="h-3.5 w-3.5" />, badge: signalAlerts || undefined },
       { key: "ai_access", label: "AI access control", icon: <Sparkles className="h-3.5 w-3.5" /> },
+      { key: "ai_metrics", label: "AI funnel metrics", icon: <Sparkles className="h-3.5 w-3.5" /> },
       { key: "data", label: "Data feeds", icon: <Database className="h-3.5 w-3.5" /> },
     ]},
     { label: "Compliance", items: [

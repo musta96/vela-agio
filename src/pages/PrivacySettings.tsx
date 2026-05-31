@@ -84,7 +84,7 @@ const PrivacySettings = () => {
       if (error) throw error;
       await supabase.auth.signOut();
       toast({ title: "Account deleted", description: "All your data has been removed." });
-      navigate("/auth");
+      navigate("/");
     } catch (e) {
       toast({ title: "Deletion failed", description: String((e as Error)?.message ?? e), variant: "destructive" });
     } finally {

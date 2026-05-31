@@ -13,6 +13,7 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
+import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },

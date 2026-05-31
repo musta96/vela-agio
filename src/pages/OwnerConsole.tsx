@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
+import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -737,6 +738,7 @@ export default function OwnerConsole() {
     data: dataSection,
     gdpr: complianceSection,
     legal: <LegalDocsEditor docs={legal} reload={load} />,
+    landing: <LandingEditor />,
   };
 
   return (
@@ -823,6 +825,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },
       { key: "audit", label: "Audit logs", icon: <ScrollText className="h-3.5 w-3.5" /> },
       { key: "comms", label: "Comms & CRM", icon: <Mail className="h-3.5 w-3.5" /> },
+      { key: "landing", label: "Landing page", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
     ]},
     { label: "AI & data", items: [
       { key: "ai", label: "Signal governance", icon: <Bot className="h-3.5 w-3.5" />, badge: signalAlerts || undefined },

@@ -592,6 +592,39 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_sections: {
+        Row: {
+          content: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          key: string
+          kind: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          key: string
+          kind: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          key?: string
+          kind?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       legal_documents: {
         Row: {
           body: string

@@ -748,6 +748,7 @@ export default function OwnerConsole() {
   return (
     <div className="min-h-screen bg-background flex">
       <SEO title="Owner Console — Vela.ai" description="Internal admin" path="/owner" />
+      <EmailRevealProvider>
       <OwnerSidebar
         section={section}
         setSection={setSection}
@@ -762,6 +763,7 @@ export default function OwnerConsole() {
             <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users, logs, signals…" className="pl-9 h-9" />
           </div>
+          <EmailRevealToggle />
           <Badge variant="outline" className={`gap-1.5 ${openIncidents ? "border-amber-400/40 text-amber-500" : "border-success/40 text-success"}`}>
             <CircleDot className={`h-2 w-2 fill-current`} />
             {openIncidents ? `${openIncidents} kill switch${openIncidents === 1 ? "" : "es"} active` : "All systems operational"}
@@ -775,6 +777,7 @@ export default function OwnerConsole() {
         <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
       </div>
       <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} />
+      </EmailRevealProvider>
     </div>
   );
 }

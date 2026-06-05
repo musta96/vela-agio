@@ -17,6 +17,12 @@ export default function Reveal({ children, className = "", delay = 0, y = 40, st
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const reduced = typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      gsap.set(stagger ? el.children : el, { opacity: 1, y: 0, filter: "blur(0px)" });
+      return;
+    }
     const targets = stagger ? el.children : el;
     const ctx = gsap.context(() => {
       gsap.fromTo(

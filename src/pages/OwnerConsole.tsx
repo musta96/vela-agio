@@ -270,7 +270,7 @@ export default function OwnerConsole() {
                     <TableRow key={u.id}>
                       <TableCell className="font-medium text-sm">
                         <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>
-                          <div>{u.display_name || u.email}</div>
+                          <div>{u.display_name || <MaskedEmail email={u.email} />}</div>
                           {u.display_name && <div className="text-[10px] text-muted-foreground font-normal"><MaskedEmail email={u.email} /></div>}
                         </button>
                       </TableCell>
@@ -1059,7 +1059,7 @@ function NewErasureCard({ users, onCreate }: { users: UserRow[]; onCreate: (user
             <div className="absolute z-10 mt-1 w-full bg-popover border border-border rounded-md shadow max-h-48 overflow-auto">
               {matches.map(m => (
                 <button key={m.id} type="button" className="w-full text-left text-xs px-2 py-1.5 hover:bg-muted" onClick={() => { setUserId(m.id); setQ(m.email); }}>
-                  <span className="font-medium">{m.display_name || m.email}</span>
+                  <span className="font-medium">{m.display_name || <MaskedEmail email={m.email} />}</span>
                   {m.display_name && <span className="text-muted-foreground"> · <MaskedEmail email={m.email} /></span>}
                 </button>
               ))}

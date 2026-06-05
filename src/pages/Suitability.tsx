@@ -449,7 +449,7 @@ export default function Suitability() {
       user_id: user?.id ?? null,
       user_email: user?.email ?? null,
       saved_at: savedAt,
-      profile: { name: profile.name, score, max_score: 30, sri: profile.sri, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
+      profile: { name: profile.name, score, max_score: maxScore, sri: profile.sri, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
       horizon_years: horizonYears,
       core_answers: SECTIONS.flatMap((s) =>
         s.questions.map((q) => ({
@@ -647,7 +647,7 @@ export default function Suitability() {
                 <div className="text-sm text-muted-foreground">{profile.desc}</div>
               </div>
               <div className="text-right">
-                <div className="font-mono text-sm">Score {score}/30 · SRI {profile.sri}/7</div>
+                <div className="font-mono text-sm">Score {score}/{maxScore} · SRI {profile.sri}/7</div>
                 <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
                 <div className="font-mono text-xs mt-1">{profile.allocation}</div>
               </div>

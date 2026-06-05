@@ -9,10 +9,11 @@ import { resolve } from "node:path";
  * regressions where someone removes the focus ring or shrinks a CTA.
  */
 const SRC = readFileSync(resolve(__dirname, "../../../pages/Landing.tsx"), "utf8");
+const HEADER = SRC.slice(SRC.indexOf("{/* NAV */}"), SRC.indexOf("</header>"));
 
 describe("Landing nav — focus & tap-target contract", () => {
   it("every header nav anchor has a focus-visible ring", () => {
-    const navAnchors = SRC.match(/<a href="#[a-z]+"[^>]*>/g) || [];
+    const navAnchors = HEADER.match(/<a href="#[a-z]+"[^>]*>/g) || [];
     expect(navAnchors.length).toBeGreaterThanOrEqual(4);
     for (const a of navAnchors) {
       expect(a).toMatch(/focus-visible:ring/);
@@ -20,8 +21,7 @@ describe("Landing nav — focus & tap-target contract", () => {
   });
 
   it("auth CTAs enforce 44px minimum height on mobile", () => {
-    // Sign in + Get started buttons in the header.
-    const headerButtons = SRC.match(/<Button[^>]*size="sm"[^>]*>\s*<Link to="\/auth">/g) || [];
+    const headerButtons = HEADER.match(/<Button[^>]*size="sm"[^>]*>\s*<Link to="\/auth">/g) || [];
     expect(headerButtons.length).toBeGreaterThanOrEqual(2);
     for (const b of headerButtons) {
       expect(b).toMatch(/min-h-11/);

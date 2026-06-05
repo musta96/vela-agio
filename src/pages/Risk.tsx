@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { ShieldAlert, Loader2, AlertTriangle, Activity, Zap, FileDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import type { OHLCBar } from "@/lib/technicalIndicators";
 import {
@@ -51,7 +50,6 @@ async function fetchQuote(symbol: string): Promise<number | null> {
 }
 
 const Risk = () => {
-  const { user } = useAuth();
   const { holdings: pfHoldings, marketValue: pfMarketValue } = usePortfolio();
   const holdings = useMemo(
     () => pfHoldings.map((h) => ({ symbol: h.symbol, name: h.name ?? h.symbol, shares: h.shares })),

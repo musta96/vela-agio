@@ -165,8 +165,8 @@ const App = () => (
             <Route path="/checkout/return" element={<CheckoutReturn />} />
             <Route path="/dealflow" element={<DealFlow />} />
             <Route path="/privacy-settings" element={<PrivacySettings />} />
-            <Route path="/admin/audit" element={<AdminAuditLog />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/audit" element={<OwnerRoute><AdminAuditLog /></OwnerRoute>} />
+            <Route path="/admin/settings" element={<OwnerRoute><AdminSettings /></OwnerRoute>} />
             <Route path="/advisor" element={<Advisor />} />
             <Route path="/owner" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
             <Route path="*" element={<NotFound />} />

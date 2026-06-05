@@ -673,6 +673,7 @@ const Portfolio = () => {
           holdings={portfolio.map((p) => ({ symbol: p.symbol, shares: p.shares, avgPrice: p.avgPrice }))}
           range={range}
           onRangeChange={setRange}
+          liveValue={totalBase}
         />
 
         <PortfolioInsights holdings={portfolio} onAnalytics={setAnalytics} />

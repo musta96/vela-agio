@@ -303,9 +303,9 @@ export default function Suitability() {
     suggestion: "Tighten the cap to ≤ 25% unless you have a documented concentration mandate.",
     fix: { label: "Cap at 25%", run: () => setMaxSinglePositionPct(25) },
   });
-  if (liquidityNeedMonths <= 12 && profile.risk >= 5) issues.push({
+  if (liquidityNeedMonths <= 12 && profile.sri >= 5) issues.push({
     id: "liq-risk", severity: "warn",
-    message: `${liquidityNeedMonths}-month liquidity need with a ${profile.name} (SRI ${profile.risk}) profile is risky.`,
+    message: `${liquidityNeedMonths}-month liquidity need with a ${profile.name} (SRI ${profile.sri}) profile is risky.`,
     suggestion: "Either extend the liquidity horizon or reduce risk by adjusting horizon/goal/loss reaction.",
   });
 
@@ -412,7 +412,7 @@ export default function Suitability() {
       answers: extendedAnswers,
       score,
       profile_name: profile.name,
-      risk_level: profile.risk,
+      risk_level: profile.sri,
       horizon_years: horizonYears,
       esg_preference: esg,
       loss_tolerance_pct: lossTolerancePct,
@@ -425,7 +425,7 @@ export default function Suitability() {
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     setSavedAt(row.completed_at);
-    toast.success(`Profile saved: ${profile.name} (SRI ${profile.risk}/7)`);
+    toast.success(`Profile saved: ${profile.name} (SRI ${profile.sri}/7)`);
   };
 
   const handleReset = () => {
@@ -449,7 +449,7 @@ export default function Suitability() {
       user_id: user?.id ?? null,
       user_email: user?.email ?? null,
       saved_at: savedAt,
-      profile: { name: profile.name, score, max_score: 30, sri: profile.risk, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
+      profile: { name: profile.name, score, max_score: 30, sri: profile.sri, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
       horizon_years: horizonYears,
       core_answers: SECTIONS.flatMap((s) =>
         s.questions.map((q) => ({
@@ -647,7 +647,7 @@ export default function Suitability() {
                 <div className="text-sm text-muted-foreground">{profile.desc}</div>
               </div>
               <div className="text-right">
-                <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
+                <div className="font-mono text-sm">Score {score}/30 · SRI {profile.sri}/7</div>
                 <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
                 <div className="font-mono text-xs mt-1">{profile.allocation}</div>
               </div>

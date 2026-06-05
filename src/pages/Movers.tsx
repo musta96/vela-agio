@@ -161,21 +161,39 @@ export default function Movers() {
               <TrendingUp className="h-4 w-4 text-success" />
               <h3 className="text-sm font-semibold">Top gainers</h3>
             </div>
-            <div className="divide-y divide-border">{gainers.length ? gainers.map((m) => <Row key={m.symbol} m={m} side="up" />) : <div className="px-4 py-6 text-xs text-muted-foreground text-center">No data.</div>}</div>
+            <div className="divide-y divide-border">{
+              loading && gainers.length === 0
+                ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="px-4 py-3"><Skeleton className="h-4 w-full" /></div>)
+                : gainers.length
+                  ? gainers.map((m) => <Row key={m.symbol} m={m} side="up" />)
+                  : <div className="p-4"><FeedFallback label="gainers" onRetry={load} /></div>
+            }</div>
           </Card>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-destructive/5">
               <TrendingDown className="h-4 w-4 text-destructive" />
               <h3 className="text-sm font-semibold">Top losers</h3>
             </div>
-            <div className="divide-y divide-border">{losers.length ? losers.map((m) => <Row key={m.symbol} m={m} side="down" />) : <div className="px-4 py-6 text-xs text-muted-foreground text-center">No data.</div>}</div>
+            <div className="divide-y divide-border">{
+              loading && losers.length === 0
+                ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="px-4 py-3"><Skeleton className="h-4 w-full" /></div>)
+                : losers.length
+                  ? losers.map((m) => <Row key={m.symbol} m={m} side="down" />)
+                  : <div className="p-4"><FeedFallback label="losers" onRetry={load} /></div>
+            }</div>
           </Card>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-primary/5">
               <Activity className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">Most active</h3>
             </div>
-            <div className="divide-y divide-border">{actives.length ? actives.map((m) => <Row key={m.symbol} m={m} side="vol" />) : <div className="px-4 py-6 text-xs text-muted-foreground text-center">No data.</div>}</div>
+            <div className="divide-y divide-border">{
+              loading && actives.length === 0
+                ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="px-4 py-3"><Skeleton className="h-4 w-full" /></div>)
+                : actives.length
+                  ? actives.map((m) => <Row key={m.symbol} m={m} side="vol" />)
+                  : <div className="p-4"><FeedFallback label="most-active" onRetry={load} /></div>
+            }</div>
           </Card>
         </div>
 

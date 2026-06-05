@@ -655,10 +655,10 @@ export default function Suitability() {
             <div>
               <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
                 <span>Completion</span>
-                <span className="font-mono">{Math.round((completed / totalQuestions) * 100)}%</span>
+                <span className="font-mono">{completionPct}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${(completed / totalQuestions) * 100}%` }} />
+                <div className="h-full bg-primary transition-all" style={{ width: `${completionPct}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap text-xs">

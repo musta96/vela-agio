@@ -21,6 +21,71 @@ const AI_PROVIDERS = [
   { value: "groq", label: "Groq (your key)" },
 ];
 
+// Per-provider model catalogue. "auto" = the resolver picks the cheapest
+// model that fits the requested task (server-side). Add new models here when
+// providers ship them; the server falls back to its default if the picked
+// model is unsupported.
+const AI_MODELS: Record<string, { value: string; label: string }[]> = {
+  lovable: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite (fastest, cheapest)" },
+    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (balanced)" },
+    { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (preview)" },
+    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (strongest reasoning)" },
+    { value: "openai/gpt-5-nano", label: "GPT-5 Nano (fast, low cost)" },
+    { value: "openai/gpt-5-mini", label: "GPT-5 Mini (balanced)" },
+    { value: "openai/gpt-5", label: "GPT-5 (premium)" },
+  ],
+  openai: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "gpt-4o-mini", label: "gpt-4o-mini (cheapest)" },
+    { value: "gpt-4o", label: "gpt-4o (balanced)" },
+    { value: "gpt-5-mini", label: "gpt-5-mini" },
+    { value: "gpt-5", label: "gpt-5 (premium)" },
+  ],
+  anthropic: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 (cheapest)" },
+    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5 (balanced)" },
+    { value: "claude-opus-4-1", label: "Claude Opus 4.1 (premium)" },
+  ],
+  gemini: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+    { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  ],
+  perplexity: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "llama-3.1-sonar-small-128k-online", label: "Sonar Small (online)" },
+    { value: "llama-3.1-sonar-large-128k-online", label: "Sonar Large (online, default)" },
+    { value: "llama-3.1-sonar-huge-128k-online", label: "Sonar Huge (online)" },
+  ],
+  mistral: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "mistral-small-latest", label: "Mistral Small" },
+    { value: "mistral-large-latest", label: "Mistral Large" },
+    { value: "codestral-latest", label: "Codestral" },
+  ],
+  groq: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B (instant)" },
+    { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (versatile, default)" },
+    { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" },
+  ],
+};
+
+// Map provider → required key id (matches API_KEY_SPECS ids)
+const PROVIDER_KEY_ID: Record<string, string | null> = {
+  lovable: null,
+  openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  perplexity: "PERPLEXITY_API_KEY",
+  mistral: "MISTRAL_API_KEY",
+  groq: "GROQ_API_KEY",
+};
+
 export function ConnectionsCard() {
   const { user } = useAuth();
   const [stored, setStored] = useState<StoredKeyMeta[]>([]);
@@ -54,6 +119,17 @@ export function ConnectionsCard() {
     if (error) toast.error("Could not save", { description: error.message });
     else toast.success("AI provider updated");
   };
+
+  // Reset the model selection when the provider changes so the dropdown
+  // never shows a value that doesn't belong to the new provider's list.
+  useEffect(() => {
+    const allowed = (AI_MODELS[aiProvider] ?? []).some((m) => m.value === aiModel);
+    if (!allowed) setAiModel("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiProvider]);
+
+  const requiredKey = PROVIDER_KEY_ID[aiProvider];
+  const hasRequiredKey = !requiredKey || stored.some((k) => k.provider === requiredKey);
 
   const setKey = async (provider: string) => {
     const value = draft[provider]?.trim();
@@ -99,11 +175,23 @@ export function ConnectionsCard() {
             </Select>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Model (optional)</label>
-            <Input value={aiModel} onChange={(e) => setAiModel(e.target.value)} placeholder="e.g. gpt-5, claude-sonnet-4" />
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Default model</label>
+            <Select value={aiModel || "__auto__"} onValueChange={(v) => setAiModel(v === "__auto__" ? "" : v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(AI_MODELS[aiProvider] ?? AI_MODELS.lovable).map((m) => (
+                  <SelectItem key={m.value || "__auto__"} value={m.value || "__auto__"}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={saveProvider} disabled={loading}>Save</Button>
         </div>
+        {requiredKey && !hasRequiredKey && (
+          <p className="text-xs text-warning bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 mt-3">
+            No <span className="font-mono">{requiredKey}</span> saved. Add it under "AI" in the keys list below or AI calls will fall back to Lovable AI Gateway.
+          </p>
+        )}
       </Card>
 
       <Card className="p-6 rounded-2xl">

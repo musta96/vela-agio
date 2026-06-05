@@ -25,3 +25,32 @@ export const LEGAL_ENTITY = {
 } as const;
 
 export const LEGAL_ENTITY_DISPLAY = LEGAL_ENTITY.name ?? "Vela.ai";
+
+// "No PII shown publicly" mode. When true, public-facing legal pages strip
+// fields that are NOT strictly required to publish:
+//   • Codice Fiscale (not required under D.lgs. 70/2003 or GDPR Art. 13 for a
+//     P.IVA holder — P.IVA is the public tax identifier)
+//   • Personal contact email (PEC is sufficient as an official channel in IT)
+// The legally-required fields remain visible: name, form, P.IVA, sede legale, PEC.
+//
+// This default can be overridden at runtime by the `public_pii_redacted` row
+// in `platform_controls`. Default: redacted = true (privacy-preserving).
+export const PII_REDACTED_DEFAULT = true;
+
+export function getPublicLegalEntity(redacted: boolean) {
+  if (!redacted) return LEGAL_ENTITY;
+  return {
+    ...LEGAL_ENTITY,
+    taxCode: null,
+    contactEmail: LEGAL_ENTITY.pec ?? LEGAL_ENTITY.contactEmail,
+  };
+}
+
+// Generic placeholders used on Terms/Cookies/Disclaimer where no PII at all
+// should appear. These are stable, brand-only strings.
+export const GENERIC_CONTACT = {
+  support: "support@vela.ai",
+  privacy: "privacy@vela.ai",
+  security: "security@vela.ai",
+  legal: "legal@vela.ai",
+} as const;

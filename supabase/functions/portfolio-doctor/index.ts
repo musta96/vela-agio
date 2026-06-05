@@ -1,10 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { isAiOptedOut, aiOptOutResponse } from '../_shared/ai-opt-out.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
+    if (await isAiOptedOut(req.headers.get('Authorization'))) return aiOptOutResponse(corsHeaders);
     const { portfolio, risk, lang } = await req.json();
     const langName = lang === "it" ? "Italian" : "English";
     const prompt = `Act as a portfolio doctor. Respond in ${langName}. Review this portfolio and produce: (1) Top 3 concerns (concentration, factor tilts, liquidity, drawdown), (2) Top 3 strengths, (3) 3 concrete proposed trades (ticker, side, % of NAV, rationale, expected risk impact). Be quantitative. JSON keys: concerns[], strengths[], proposed_trades[]. Each item is a short string.

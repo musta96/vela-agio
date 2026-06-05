@@ -1,7 +1,21 @@
 import { LegalLayout } from "@/components/legal/LegalLayout";
-import { LEGAL_ENTITY, LEGAL_ENTITY_DISPLAY } from "@/lib/legal-entity";
+import { useEffect, useState } from "react";
+import { LEGAL_ENTITY_DISPLAY, PII_REDACTED_DEFAULT, getPublicLegalEntity } from "@/lib/legal-entity";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Privacy() {
+  const [redacted, setRedacted] = useState<boolean>(PII_REDACTED_DEFAULT);
+  useEffect(() => {
+    supabase
+      .from("platform_controls")
+      .select("enabled")
+      .eq("key", "public_pii_redacted")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && typeof data.enabled === "boolean") setRedacted(data.enabled);
+      });
+  }, []);
+  const entity = getPublicLegalEntity(redacted);
   return (
     <LegalLayout title="Privacy Policy" updated="May 2026">
       <p>
@@ -16,24 +30,24 @@ export default function Privacy() {
       <p>
         The data controller (titolare del trattamento) is{" "}
         <strong>{LEGAL_ENTITY_DISPLAY}</strong>
-        {LEGAL_ENTITY.form ? <> — {LEGAL_ENTITY.form}</> : null}
-        {LEGAL_ENTITY.registeredAddress ? <>, with registered address at {LEGAL_ENTITY.registeredAddress}</> : null}
-        {LEGAL_ENTITY.vatNumber ? <> (P. IVA {LEGAL_ENTITY.vatNumber}</> : null}
-        {LEGAL_ENTITY.taxCode ? <>, Codice Fiscale {LEGAL_ENTITY.taxCode})</> : LEGAL_ENTITY.vatNumber ? <>)</> : null}.
+        {entity.form ? <> — {entity.form}</> : null}
+        {entity.registeredAddress ? <>, with registered address at {entity.registeredAddress}</> : null}
+        {entity.vatNumber ? <> (P. IVA {entity.vatNumber}</> : null}
+        {entity.taxCode ? <>, Codice Fiscale {entity.taxCode})</> : entity.vatNumber ? <>)</> : null}.
       </p>
       <p>
         Contact for privacy enquiries and to exercise your GDPR rights:{" "}
-        <a href={`mailto:${LEGAL_ENTITY.contactEmail}`}>{LEGAL_ENTITY.contactEmail}</a>
-        {LEGAL_ENTITY.pec ? (
+        <a href={`mailto:${entity.contactEmail}`}>{entity.contactEmail}</a>
+        {entity.pec && entity.pec !== entity.contactEmail ? (
           <>
             {" "}· PEC (official certified channel, EU residents):{" "}
-            <a href={`mailto:${LEGAL_ENTITY.pec}`}>{LEGAL_ENTITY.pec}</a>
+            <a href={`mailto:${entity.pec}`}>{entity.pec}</a>
           </>
         ) : null}.
       </p>
       <p className="text-xs text-muted-foreground">
         <strong>Notice:</strong> Vela.ai is currently operated by a natural person under
-        Italian P.IVA. Once a limited-liability company (S.R.L.) is incorporated, the
+        Italian P.IVA. {redacted ? "Only the legally-required identifiers are published; additional details (Codice Fiscale, alternate contact channels) are available on written request via PEC." : null} Once a limited-liability company (S.R.L.) is incorporated, the
         controller will be updated and prior consents will be re-confirmed.
       </p>
 

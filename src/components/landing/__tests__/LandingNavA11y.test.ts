@@ -8,10 +8,16 @@ import { resolve } from "node:path";
  * tap-target contract by inspecting the JSX directly. This catches
  * regressions where someone removes the focus ring or shrinks a CTA.
  */
-const SRC = readFileSync(resolve(__dirname, "../../../pages/Landing.tsx"), "utf8");
-const HEADER = SRC.slice(SRC.indexOf("{/* NAV */}"), SRC.indexOf("</header>"));
+const SRC = readFileSync(resolve(process.cwd(), "src/pages/Landing.tsx"), "utf8");
+const navStart = SRC.indexOf("{/* NAV */}");
+const navEnd = SRC.indexOf("</header>");
+const HEADER = navStart >= 0 && navEnd > navStart ? SRC.slice(navStart, navEnd) : "";
 
 describe("Landing nav — focus & tap-target contract", () => {
+  it("locates the header block in source", () => {
+    expect(HEADER.length).toBeGreaterThan(0);
+  });
+
   it("every header nav anchor has a focus-visible ring", () => {
     const navAnchors = HEADER.match(/<a href="#[a-z]+"[^>]*>/g) || [];
     expect(navAnchors.length).toBeGreaterThanOrEqual(4);

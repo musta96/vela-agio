@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon } from "lucide-react";
+import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 
 type ToolEvent = { id: string; name: string; args?: any; result?: any; done: boolean };
 type Attachment = { name: string; mime: string; dataUrl: string };
@@ -33,6 +34,9 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
   const [ctx, setCtx] = useState<{ portfolio: any[]; watchlist: any[] }>({ portfolio: [], watchlist: [] });
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  const lastUser = [...messages].reverse().find(m => m.role === "user")?.content ?? "";
 
   useEffect(() => {
     if (!user) return;
@@ -188,9 +192,19 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
         <Button variant="ghost" size="icon" onClick={() => fileRef.current?.click()} disabled={busy} title="Attach screenshot or file">
           <Paperclip className="h-4 w-4" />
         </Button>
+        <Button variant="ghost" size="icon" onClick={() => setFeedbackOpen(true)} disabled={busy} title="Send feedback to the team" aria-label="Send feedback">
+          <MessageSquarePlus className="h-4 w-4" />
+        </Button>
         <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())} placeholder={t("pages.copilot.placeholder")} disabled={busy} />
         <Button onClick={send} disabled={busy} size="icon">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
       </div>
+      <FeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        source="helper_bot"
+        defaultCategory="feedback"
+        contextMessage={lastUser ? `From helper bot. Last user message:\n\n"${lastUser.slice(0, 500)}"\n\n— My feedback —\n` : ""}
+      />
     </div>
   );
 }

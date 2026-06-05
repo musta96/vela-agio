@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Activity, Users, ShieldCheck, KeyRound, CreditCard,
   DollarSign, AlertTriangle, Flag, ScrollText, MessageSquare, FileText,
   Bot, Database, Scale, FileWarning, Bell, Settings as Cog, Search,
-  Power, CircleDot,
+  Power, CircleDot, LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +36,7 @@ const SECTIONS: { label: string; items: Item[] }[] = [
     { title: "Audit log", url: "/owner/audit", icon: ScrollText },
     { title: "Comms & CRM", url: "/owner/comms", icon: MessageSquare },
     { title: "Content & copy", url: "/owner/content", icon: FileText },
+    { title: "Support tickets", url: "/owner/tickets", icon: LifeBuoy },
   ]},
   { label: "AI & data", items: [
     { title: "Signal governance", url: "/owner/signals", icon: Bot, badge: 2, tone: "warn" },

@@ -28,11 +28,17 @@ interface Props {
   holdings: PortfolioHolding[];
   range: HistoryRange;
   onRangeChange: (r: HistoryRange) => void;
+  /**
+   * Canonical live market value (Σ shares × live price, base currency).
+   * When provided, the chart's final "now" point is forced to this value
+   * so the line always reconciles with the Portfolio KPI header.
+   */
+  liveValue?: number;
 }
 
 const RANGES: HistoryRange[] = ["1W", "1M", "3M", "6M", "YTD", "1Y"];
 
-export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange }: Props) => {
+export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, liveValue }: Props) => {
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const { data, loading, error } = useHistoricalPrices(symbols, range);
 
@@ -60,7 +66,7 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange }: Pr
     const lastClose: Record<string, number | null> = {};
     holdings.forEach((h) => (lastClose[h.symbol] = null));
 
-    return sorted.map((t) => {
+    const series = sorted.map((t) => {
       let value = 0;
       holdings.forEach((h) => {
         const c = symbolBars[h.symbol].get(t);
@@ -74,7 +80,16 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange }: Pr
         cost: Math.round(costBasis * 100) / 100,
       };
     });
-  }, [data, holdings, costBasis]);
+    // Force the final "now" point to equal the canonical live market value
+    // so the chart line reconciles with the Portfolio KPI header.
+    if (typeof liveValue === "number" && series.length > 0) {
+      series[series.length - 1] = {
+        ...series[series.length - 1],
+        value: Math.round(liveValue * 100) / 100,
+      };
+    }
+    return series;
+  }, [data, holdings, costBasis, liveValue]);
 
   const first = chartData[0]?.value ?? costBasis;
   const last = chartData[chartData.length - 1]?.value ?? costBasis;
@@ -101,6 +116,9 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange }: Pr
             <LineChartIcon className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold">Portfolio Performance</h3>
           </div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+            Modelled history → current live
+          </p>
           <div className="flex items-baseline gap-3 flex-wrap">
             <p className="text-3xl font-bold">€{last.toFixed(2)}</p>
             <Badge

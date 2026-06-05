@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EmailRevealProvider, EmailRevealToggle } from "./MaskedEmail";
 
 type Item = { title: string; url: string; icon: any; badge?: string | number; tone?: "danger" | "warn" };
 
@@ -110,6 +111,7 @@ function TopBar() {
           <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
           All systems operational
         </span>
+        <EmailRevealToggle />
         <button className="relative h-9 w-9 grid place-items-center rounded-lg hover:bg-muted">
           <Bell className="h-4 w-4" />
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
@@ -172,12 +174,14 @@ function Sidebar() {
 
 export default function OwnerLayout() {
   return (
+    <EmailRevealProvider>
     <div className="min-h-screen flex bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
         <main className="flex-1 p-8 max-w-[1600px] w-full mx-auto"><Outlet /></main>
       </div>
+    </EmailRevealProvider>
     </div>
   );
 }

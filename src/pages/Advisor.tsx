@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { useAuth } from "@/hooks/useAuth";
 import { useFlag } from "@/hooks/useFeatureFlags";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,19 +61,15 @@ const URGENCY: Record<string, string> = {
 export default function Advisor() {
   const enabled = useFlag("advisor", true);
   const { user, loading: authLoading } = useAuth();
+  // Single portfolio source of truth — keeps Coach in sync with Dashboard / Portfolio / Risk / Tax.
+  const portfolio = usePortfolio();
   const [riskProfile, setRiskProfile] = useState("balanced");
   const [goals, setGoals] = useState("Retire in 20 years, prefer income, avoid 30%+ drawdowns.");
   const [weatherCity, setWeatherCity] = useState("");
-  const [holdings, setHoldings] = useState<any[]>([]);
-  const [loadingHoldings, setLoadingHoldings] = useState(true);
+  const holdings = portfolio.holdings;
+  const loadingHoldings = portfolio.loading;
   const [result, setResult] = useState<AdvisorResp | null>(null);
   const [running, setRunning] = useState(false);
-
-  useEffect(() => {
-    if (!user) { setLoadingHoldings(false); return; }
-    supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price").eq("user_id", user.id)
-      .then(({ data }) => { setHoldings(data ?? []); setLoadingHoldings(false); });
-  }, [user]);
 
   if (!enabled) {
     return (

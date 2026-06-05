@@ -46,10 +46,10 @@ export default function Rebalance() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Proposed Trades</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Drift vs target weights</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-6 text-xs font-semibold border-b pb-1">
-              <div>Symbol</div><div className="text-right">Current %</div><div className="text-right">Target %</div><div className="text-right">Drift</div><div className="text-right">$ Δ</div><div className="text-right">Action</div>
+              <div>Symbol</div><div className="text-right">Current %</div><div className="text-right">Target %</div><div className="text-right">Drift</div><div className="text-right">$ Δ</div><div className="text-right">Status</div>
             </div>
             {values.map(h => {
               const cur = (h.value / total) * 100;

@@ -18,3 +18,8 @@ Object.defineProperty(window, "matchMedia", {
 class RO { observe() {} unobserve() {} disconnect() {} }
 (globalThis as any).ResizeObserver = (globalThis as any).ResizeObserver || RO;
 (globalThis as any).IntersectionObserver = (globalThis as any).IntersectionObserver || RO;
+
+// jsdom doesn't implement scrollIntoView; many components call it after mount.
+if (!(Element.prototype as any).scrollIntoView) {
+  (Element.prototype as any).scrollIntoView = function () {};
+}

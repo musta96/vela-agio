@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 
 // In-memory "profiles" row that survives "refresh" by re-rendering.
 const profileRow: { ai_provider: string; ai_model: string | null } = {
@@ -34,20 +34,23 @@ describe("ConnectionsCard — AI provider/model persistence", () => {
   beforeEach(() => upsertSpy.mockClear());
 
   it("loads the stored provider and model from the profile (survives refresh)", async () => {
-    const { unmount } = render(<ConnectionsCard />);
-    // Provider dropdown shows the saved Anthropic label.
-    await waitFor(() =>
-      expect(screen.getByText(/Anthropic Claude/i)).toBeInTheDocument(),
-    );
-    // Model dropdown shows the saved Claude Sonnet entry.
-    expect(screen.getByText(/Claude Sonnet 4\.5/i)).toBeInTheDocument();
+    // Radix Select renders its current value inside a hidden span on the
+    // trigger. We inspect the DOM directly rather than relying on a label.
+    const { container, unmount } = render(<ConnectionsCard />);
+    await waitFor(() => {
+      const triggers = container.querySelectorAll('[role="combobox"]');
+      expect(triggers.length).toBeGreaterThanOrEqual(2);
+      expect(triggers[0].textContent).toMatch(/Anthropic/i);
+      expect(triggers[1].textContent).toMatch(/Claude Sonnet 4\.5/i);
+    });
     unmount();
 
     // Simulate a hard refresh: a new mount must read the same persisted row.
-    render(<ConnectionsCard />);
-    await waitFor(() =>
-      expect(screen.getByText(/Anthropic Claude/i)).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/Claude Sonnet 4\.5/i)).toBeInTheDocument();
+    const { container: c2 } = render(<ConnectionsCard />);
+    await waitFor(() => {
+      const triggers = c2.querySelectorAll('[role="combobox"]');
+      expect(triggers[0].textContent).toMatch(/Anthropic/i);
+      expect(triggers[1].textContent).toMatch(/Claude Sonnet 4\.5/i);
+    });
   });
 });

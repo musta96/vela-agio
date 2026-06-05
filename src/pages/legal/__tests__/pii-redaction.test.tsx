@@ -47,9 +47,9 @@ describe("legal pages — PII redaction", () => {
   });
 
   it("Privacy page redacts Codice Fiscale and personal email by default", async () => {
-    const { container, findByText } = render(<MemoryRouter><Privacy /></MemoryRouter>);
-    // Wait for the async platform_controls read to settle.
-    await findByText(/Data Controller/i);
+    const { container } = render(<MemoryRouter><Privacy /></MemoryRouter>);
+    // Default state is already redacted=true; the async platform_controls
+    // probe only re-confirms it. No wait needed.
     const body = html(container);
     expect(body).not.toContain(LEGAL_ENTITY.taxCode!.toLowerCase());
     expect(body).not.toContain(LEGAL_ENTITY.contactEmail.toLowerCase());

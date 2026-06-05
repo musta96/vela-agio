@@ -9,6 +9,7 @@ import VelaLogo from "@/components/VelaLogo";
 import SmoothScroll from "@/components/landing/SmoothScroll";
 import CinematicScene from "@/components/landing/CinematicScene";
 import Reveal from "@/components/landing/Reveal";
+import MobilePreview from "@/components/landing/MobilePreview";
 import {
   Sparkles, LineChart, Brain, Shield, Target, Zap, BarChart3, BookOpen,
   TrendingUp, Globe, Lock, Check, ArrowRight, Building2, Users, FileText,
@@ -352,18 +353,18 @@ export default function Landing() {
             <VelaLogo size={28} />
           </Link>
           <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
-            <a href="#features" className="hover:text-foreground">Features</a>
-            <a href="#audiences" className="hover:text-foreground">Who it's for</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
-            <a href="#faq" className="hover:text-foreground">FAQ</a>
-            <a href="#faq" className="hover:text-foreground md:hidden">FAQ</a>
+            <a href="#features" className="hover:text-foreground px-2 py-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Features</a>
+            <a href="#audiences" className="hover:text-foreground px-2 py-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Who it's for</a>
+            <a href="#pricing" className="hover:text-foreground px-2 py-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Pricing</a>
+            <a href="#faq" className="hover:text-foreground px-2 py-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">FAQ</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm"><Link to="/auth">Sign in</Link></Button>
-            <Button asChild size="sm"><Link to="/auth">Get started</Link></Button>
+            <Button asChild variant="ghost" size="sm" className="min-h-11"><Link to="/auth">Sign in</Link></Button>
+            <Button asChild size="sm" className="min-h-11"><Link to="/auth">Get started</Link></Button>
           </div>
         </div>
       </header>
+      <MobilePreview />
       {orderedKeys.map((k) => {
         const block = renderBlock(k);
         if (!block || k === "hero") return block;

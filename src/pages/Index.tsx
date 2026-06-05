@@ -14,6 +14,7 @@ import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
+import { usePortfolio } from "@/hooks/usePortfolio";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -83,23 +84,19 @@ export default function Index() {
   // Real net worth (FX-converted, shared with /net-worth page)
   const netWorth = useNetWorthTotal();
 
-  // Live holdings for real portfolio value
-  const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number; avg_price: number; currency: string }>>([]);
+  // Holdings + valuation come from the shared single-source-of-truth hook.
+  const portfolioData = usePortfolio();
+  const holdings = portfolioData.holdings;
   const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);
   const [sentimentAvg, setSentimentAvg] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!user) { setHoldings([]); return; }
+    if (!user) return;
     (async () => {
-      const holdingsQuery = primary?.id
-        ? supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price, currency").eq("portfolio_id", primary.id)
-        : supabase.from("portfolio_holdings").select("symbol, name, shares, avg_price, currency").eq("user_id", user.id);
-      const [h, rules, sent] = await Promise.all([
-        holdingsQuery,
+      const [rules, sent] = await Promise.all([
         supabase.from("alert_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),
         supabase.from("sentiment_history").select("score").order("created_at", { ascending: false }).limit(50),
       ]);
-      setHoldings((h.data ?? []) as any);
       setActiveSignalCount(rules.count ?? 0);
       const scores = (sent.data ?? []).map((r: any) => Number(r.score)).filter((n) => Number.isFinite(n));
       setSentimentAvg(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null);
@@ -112,28 +109,16 @@ export default function Index() {
   }, [holdings]);
   const { quotes } = useLiveQuotes(syms, 30000);
 
-  // Real portfolio metrics
-  const portfolio = useMemo(() => {
-    let value = 0, prevValue = 0, cost = 0, hasPrice = false;
-    for (const h of holdings) {
-      const q = quotes[h.symbol];
-      const px = q?.price;
-      const prev = q?.previousClose;
-      cost += h.shares * Number(h.avg_price ?? 0);
-      if (px != null) {
-        hasPrice = true;
-        value += h.shares * px;
-        prevValue += h.shares * (prev ?? px);
-      } else {
-        // fall back to cost basis so partial pricing doesn't blow up totals
-        value += h.shares * Number(h.avg_price ?? 0);
-        prevValue += h.shares * Number(h.avg_price ?? 0);
-      }
-    }
-    const dayPnl = value - prevValue;
-    const dayPct = prevValue > 0 ? (dayPnl / prevValue) * 100 : 0;
-    return { value, dayPnl, dayPct, cost, hasPrice, count: holdings.length };
-  }, [holdings, quotes]);
+  // Portfolio metrics — delegated to the shared hook so every page (Dashboard,
+  // Portfolio, Risk, Tax, Coach) reports the SAME numbers.
+  const portfolio = {
+    value: portfolioData.marketValue,
+    dayPnl: portfolioData.dayPnL,
+    dayPct: portfolioData.dayPnLPct,
+    cost: portfolioData.costBasis,
+    hasPrice: portfolioData.hasAnyLivePrice,
+    count: holdings.length,
+  };
 
   const greeting = (() => {
     const h = new Date().getHours();

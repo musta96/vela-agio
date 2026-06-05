@@ -45,6 +45,12 @@ const ACTION_STYLE: Record<string, string> = {
   hold: "bg-muted text-muted-foreground border-border",
   add: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
 };
+const ACTION_LABEL: Record<string, string> = {
+  sell_all: "Review in full",
+  trim: "Review for sizing",
+  hold: "No change flagged",
+  add: "Consider for research",
+};
 const URGENCY: Record<string, string> = {
   high: "bg-destructive text-destructive-foreground",
   medium: "bg-amber-500 text-white",
@@ -167,8 +173,8 @@ export default function Advisor() {
 
             <Tabs defaultValue="sell" className="space-y-3">
               <TabsList>
-                <TabsTrigger value="sell" className="gap-1.5"><TrendingDown className="h-3.5 w-3.5" /> Sell signals ({result.sell_signals?.length ?? 0})</TabsTrigger>
-                <TabsTrigger value="improve" className="gap-1.5"><TrendingUp className="h-3.5 w-3.5" /> Improvements ({result.improvements?.length ?? 0})</TabsTrigger>
+                <TabsTrigger value="sell" className="gap-1.5"><TrendingDown className="h-3.5 w-3.5" /> Positions to review ({result.sell_signals?.length ?? 0})</TabsTrigger>
+                <TabsTrigger value="improve" className="gap-1.5"><TrendingUp className="h-3.5 w-3.5" /> Ideas to research ({result.improvements?.length ?? 0})</TabsTrigger>
                 <TabsTrigger value="macro" className="gap-1.5"><Newspaper className="h-3.5 w-3.5" /> Macro context</TabsTrigger>
               </TabsList>
 
@@ -180,8 +186,7 @@ export default function Advisor() {
                         <div className="flex items-center gap-2">
                           <Link to={`/stock/${s.symbol}`} className="font-bold text-base hover:text-primary">{s.symbol}</Link>
                           <Badge variant="outline" className={ACTION_STYLE[s.action] ?? ""}>
-                            {s.action.replace("_", " ")}
-                            {s.action === "trim" && s.trim_pct != null ? ` ${s.trim_pct}%` : ""}
+                            {ACTION_LABEL[s.action] ?? "Review"}
                           </Badge>
                           {s.urgency && <Badge className={URGENCY[s.urgency]}>{s.urgency}</Badge>}
                         </div>
@@ -199,7 +204,7 @@ export default function Advisor() {
                     </CardContent>
                   </Card>
                 ))}
-                {!result.sell_signals?.length && <EmptyMsg msg="No sell signals — your portfolio looks fine for now." />}
+                {!result.sell_signals?.length && <EmptyMsg msg="No positions flagged for review right now." />}
               </TabsContent>
 
               <TabsContent value="improve" className="space-y-3">

@@ -72,6 +72,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, status: 'rejected' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Hard regulatory kill-switch: refuse any execute path while the
+    // `live_trading` feature flag is disabled. This is enforced server-side
+    // so a stale client cannot bypass it.
+    const { data: flag } = await client.from('feature_flags').select('enabled').eq('key', 'live_trading').maybeSingle();
+    if (!flag?.enabled) {
+      await client.from('live_order_intents').update({ status: 'rejected', result: { error: 'live trading disabled by platform' } }).eq('id', intent.id);
+      return new Response(JSON.stringify({ error: 'Live trading is currently disabled on this platform. The operator is not yet authorised to route real-money orders.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const exec = intent.broker === 'alpaca' ? await executeAlpacaLive(auth, intent) : await executeIbkrLive(auth, intent);
     const newStatus = exec.ok ? 'executed' : (exec as any).manual ? 'confirmed' : 'failed';
     await client.from('live_order_intents').update({ status: newStatus, result: exec }).eq('id', intent.id);

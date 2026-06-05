@@ -14,7 +14,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 export type ModelCap = "none" | "flash" | "mid" | "premium";
-export type AccessSource = "byo" | "beta" | "paid" | "none";
+export type AccessSource = "byo" | "beta" | "paid" | "none" | "opt_out";
 
 export interface AiAccess {
   allowed: boolean;
@@ -71,17 +71,50 @@ export async function resolveAiAccess(authHeader: string | null): Promise<AiAcce
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // ---- 1) BYO key: any of the supported AI providers configured?
-    const { data: keyRow } = await admin
-      .from("user_api_keys")
-      .select("provider")
+    // ---- 0) Honour the user's AI opt-out (Privacy settings). Hard block.
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("ai_opt_out, ai_provider")
       .eq("user_id", user.id)
-      .in("provider", [
-        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY",
-        "PERPLEXITY_API_KEY", "MISTRAL_API_KEY", "GROQ_API_KEY",
-      ])
-      .limit(1)
       .maybeSingle();
+    if (prof?.ai_opt_out) {
+      return {
+        allowed: false,
+        source: "opt_out",
+        tier: "free",
+        modelCap: "none",
+        reason: "You have disabled AI features for your account in Privacy settings. Re-enable them to use the Copilot.",
+        userId: user.id,
+      };
+    }
+
+    // ---- 1) BYO key: prefer the provider the user picked in Connections.
+    const PROVIDER_TO_KEY: Record<string, string> = {
+      openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", gemini: "GEMINI_API_KEY",
+      openrouter: "OPENROUTER_API_KEY", perplexity: "PERPLEXITY_API_KEY",
+      mistral: "MISTRAL_API_KEY", groq: "GROQ_API_KEY",
+    };
+    const preferredKey = prof?.ai_provider ? PROVIDER_TO_KEY[prof.ai_provider as string] : null;
+    let keyRow: { provider: string } | null = null;
+    if (preferredKey) {
+      const { data } = await admin
+        .from("user_api_keys")
+        .select("provider")
+        .eq("user_id", user.id)
+        .eq("provider", preferredKey)
+        .maybeSingle();
+      keyRow = data ?? null;
+    }
+    if (!keyRow) {
+      const { data } = await admin
+        .from("user_api_keys")
+        .select("provider")
+        .eq("user_id", user.id)
+        .in("provider", Object.values(PROVIDER_TO_KEY))
+        .limit(1)
+        .maybeSingle();
+      keyRow = data ?? null;
+    }
     if (keyRow?.provider) {
       return {
         allowed: true, source: "byo", tier: "byo", modelCap: "premium",
@@ -200,16 +233,18 @@ export async function logAiUsage(args: {
 
 /** Helper to build a 402 JSON response when access is denied. */
 export function aiDeniedResponse(access: AiAccess, corsHeaders: Record<string, string>): Response {
+  const status = access.source === "opt_out" ? 403 : 402;
   return new Response(
     JSON.stringify({
-      error: "ai_access_denied",
+      error: access.source === "opt_out" ? "ai_opt_out" : "ai_access_denied",
       reason: access.reason ?? "AI is a paid feature.",
       tier: access.tier,
       quotaUsed: access.quotaUsed,
       quotaLimit: access.quotaLimit,
       upgrade_url: "/pricing",
       byo_url: "/settings#ai",
+      opt_out_url: access.source === "opt_out" ? "/privacy-settings" : undefined,
     }),
-    { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 }

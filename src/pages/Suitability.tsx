@@ -13,14 +13,27 @@ import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText, Ale
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  SECTIONS,
+  PROFILES,
+  MAX_SCORE,
+  TOTAL_QUESTIONS,
+  computeSuitability,
+  sanitizeAnswers,
+  type SuitabilityQuestion,
+} from "@/lib/suitability";
 
 /**
  * MiFID II / IDD / SFDR-style suitability & appropriateness questionnaire.
- * Categories follow ESMA Guidelines on suitability assessment (2022/2023).
+ * Scoring lives in `@/lib/suitability` so the Settings summary card and
+ * unit tests share the exact same logic.
  */
-type Q = { key: string; q: string; help?: string; opts: { label: string; score: number }[] };
+type Q = SuitabilityQuestion;
 
-const SECTIONS: { id: string; title: string; description: string; questions: Q[] }[] = [
+// Legacy inline definitions kept for one PR so the diff stays surgical; they
+// are immediately overwritten by the imports above. Block kept as a dead
+// object literal that TypeScript ignores via assignment to `_LEGACY_SECTIONS`.
+const _LEGACY_SECTIONS: { id: string; title: string; description: string; questions: Q[] }[] = [
   {
     id: "knowledge",
     title: "1. Knowledge & Experience",
@@ -150,12 +163,9 @@ const CLIENT_CATEGORIES = [
   { value: "eligible",      label: "Eligible counterparty (institutional)" },
 ];
 
-const PROFILES = [
-  { min: 0, max: 8, name: "Conservative", risk: 2, allocation: "20% equities / 70% bonds / 10% cash", desc: "Capital preservation, low volatility." },
-  { min: 9, max: 15, name: "Moderate", risk: 3, allocation: "50% / 45% / 5%", desc: "Balanced growth with controlled risk." },
-  { min: 16, max: 22, name: "Growth", risk: 5, allocation: "70% / 25% / 5%", desc: "Long-term capital appreciation." },
-  { min: 23, max: 30, name: "Aggressive", risk: 7, allocation: "90% / 8% / 2% + thematic tilts", desc: "Maximum growth, high volatility tolerance." },
-];
+// PROFILES, SECTIONS, MAX_SCORE and TOTAL_QUESTIONS are imported from
+// `@/lib/suitability`. Do not redeclare here — the Settings page and unit
+// tests must read the same constants for scores to agree.
 
 // Re-assessment cadence — ESMA expects at least annual review for advised clients
 const REASSESS_MONTHS = 12;
@@ -190,13 +200,11 @@ export default function Suitability() {
   const [sfdrPaiConsidered, setSfdrPaiConsidered] = useState<boolean>(false);
   const [attestation, setAttestation] = useState<boolean>(false);
 
-  const totalQuestions = SECTIONS.reduce((n, s) => n + s.questions.length, 0);
-  const score = Object.values(ans).reduce((a, b) => a + b, 0);
-  const profile = PROFILES.find(p => score >= p.min && score <= p.max) ?? PROFILES[0];
+  // Single source of truth for score / profile / completion. Always clamped.
+  const suitability = computeSuitability(ans);
+  const { score, maxScore, profile, answeredCount: completed, totalQuestions, completionPct, complete } = suitability;
   const horizonScore = ans["horizon"] ?? 0;
   const horizonYears = [1, 3, 7, 10][horizonScore] ?? 3;
-  const completed = Object.keys(ans).length;
-  const complete = completed === totalQuestions;
 
   // Structured real-time validation (ESMA suitability guideline 5 + numeric ranges).
   // severity: "error" blocks save; "warn" allows save with attestation; "info" is advisory.
@@ -295,9 +303,9 @@ export default function Suitability() {
     suggestion: "Tighten the cap to ≤ 25% unless you have a documented concentration mandate.",
     fix: { label: "Cap at 25%", run: () => setMaxSinglePositionPct(25) },
   });
-  if (liquidityNeedMonths <= 12 && profile.risk >= 5) issues.push({
+  if (liquidityNeedMonths <= 12 && profile.sri >= 5) issues.push({
     id: "liq-risk", severity: "warn",
-    message: `${liquidityNeedMonths}-month liquidity need with a ${profile.name} (SRI ${profile.risk}) profile is risky.`,
+    message: `${liquidityNeedMonths}-month liquidity need with a ${profile.name} (SRI ${profile.sri}) profile is risky.`,
     suggestion: "Either extend the liquidity horizon or reduce risk by adjusting horizon/goal/loss reaction.",
   });
 
@@ -336,12 +344,9 @@ export default function Suitability() {
         .maybeSingle();
       if (data) {
         const a = (data.answers as Record<string, any>) ?? {};
-        // Core scored answers are numeric; extended fields live alongside
-        const core: Record<string, number> = {};
-        for (const k of Object.keys(a)) {
-          if (typeof a[k] === "number") core[k] = a[k];
-        }
-        setAns(core);
+        // Only keep numeric values for known core questions — strips legacy
+        // `__`-prefixed extension fields that used to inflate score/answered.
+        setAns(sanitizeAnswers(a));
         setClientCategory(a.__clientCategory ?? "retail");
         setProductKnowledge(a.__productKnowledge ?? {});
         setSourceOfFunds(a.__sourceOfFunds ?? []);
@@ -404,7 +409,7 @@ export default function Suitability() {
       answers: extendedAnswers,
       score,
       profile_name: profile.name,
-      risk_level: profile.risk,
+      risk_level: profile.sri,
       horizon_years: horizonYears,
       esg_preference: esg,
       loss_tolerance_pct: lossTolerancePct,
@@ -417,7 +422,7 @@ export default function Suitability() {
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     setSavedAt(row.completed_at);
-    toast.success(`Profile saved: ${profile.name} (SRI ${profile.risk}/7)`);
+    toast.success(`Profile saved: ${profile.name} (SRI ${profile.sri}/7)`);
   };
 
   const handleReset = () => {
@@ -441,7 +446,7 @@ export default function Suitability() {
       user_id: user?.id ?? null,
       user_email: user?.email ?? null,
       saved_at: savedAt,
-      profile: { name: profile.name, score, max_score: 30, sri: profile.risk, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
+      profile: { name: profile.name, score, max_score: maxScore, sri: profile.sri, sri_scale: "1-7", allocation: profile.allocation, description: profile.desc },
       horizon_years: horizonYears,
       core_answers: SECTIONS.flatMap((s) =>
         s.questions.map((q) => ({
@@ -639,7 +644,7 @@ export default function Suitability() {
                 <div className="text-sm text-muted-foreground">{profile.desc}</div>
               </div>
               <div className="text-right">
-                <div className="font-mono text-sm">Score {score}/30 · SRI {profile.risk}/7</div>
+                <div className="font-mono text-sm">Score {score}/{maxScore} · SRI {profile.sri}/7</div>
                 <div className="text-xs text-muted-foreground">{completed}/{totalQuestions} answered</div>
                 <div className="font-mono text-xs mt-1">{profile.allocation}</div>
               </div>
@@ -647,10 +652,10 @@ export default function Suitability() {
             <div>
               <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
                 <span>Completion</span>
-                <span className="font-mono">{Math.round((completed / totalQuestions) * 100)}%</span>
+                <span className="font-mono">{completionPct}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${(completed / totalQuestions) * 100}%` }} />
+                <div className="h-full bg-primary transition-all" style={{ width: `${completionPct}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap text-xs">

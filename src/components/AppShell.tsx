@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AuthButton } from "@/components/AuthButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { LegalFooter } from "@/components/LegalFooter";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CopilotFab } from "@/components/CopilotFab";
 import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
 import { PlatformBannerBar } from "@/components/PlatformBannerBar";
@@ -65,7 +66,9 @@ export default function AppShell() {
           </header>
 
           <main className="flex-1 min-w-0">
-            <Outlet />
+            <ErrorBoundary label="route">
+              <Outlet />
+            </ErrorBoundary>
             <LegalFooter />
           </main>
         </div>

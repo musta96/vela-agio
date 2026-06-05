@@ -6,6 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
+import SmoothScroll from "@/components/landing/SmoothScroll";
+import CinematicScene from "@/components/landing/CinematicScene";
+import Reveal from "@/components/landing/Reveal";
 import {
   Sparkles, LineChart, Brain, Shield, Target, Zap, BarChart3, BookOpen,
   TrendingUp, Globe, Lock, Check, ArrowRight, Building2, Users, FileText,
@@ -115,36 +118,43 @@ export default function Landing() {
   const renderBlock = (key: string) => {
     switch (key) {
       case "hero": return (
-        <section key="hero" className="relative overflow-hidden">
-          <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_55%)]" />
-          <div className="container mx-auto px-6 pt-20 pb-24 text-center max-w-4xl">
+        <section key="hero" className="relative overflow-hidden min-h-[92vh] flex items-center">
+          <CinematicScene />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.22),transparent_60%)]" />
+          <div className="container mx-auto px-6 pt-24 pb-28 text-center max-w-5xl">
             {hero.eyebrow && (
-              <Badge variant="outline" className="mb-5 border-primary/30 text-primary">
+              <Badge variant="outline" className="mb-6 border-primary/30 text-primary backdrop-blur-md bg-background/40 animate-fade-in">
                 <Sparkles className="h-3 w-3 mr-1.5" /> {hero.eyebrow}
               </Badge>
             )}
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-[1.05]">
-              {hero.title}
-              {hero.titleAccent && <span className="block text-primary mt-2">{hero.titleAccent}</span>}
-            </h1>
-            {hero.subtitle && <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">{hero.subtitle}</p>}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Reveal stagger>
+              <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-[0.95]">
+                {hero.title}
+              </h1>
+              {hero.titleAccent && (
+                <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-[0.95] bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mt-2">
+                  {hero.titleAccent}
+                </h1>
+              )}
+              {hero.subtitle && <p className="mt-8 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">{hero.subtitle}</p>}
+            </Reveal>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               {hero.primaryCta && (
-                <Button asChild size="lg" className="text-base">
+                <Button asChild size="lg" className="text-base shadow-[0_0_40px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_60px_hsl(var(--primary)/0.6)] transition-shadow">
                   <Link to={hero.primaryCta.href || "/auth"}>{hero.primaryCta.label} <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
                 </Button>
               )}
               {hero.secondaryCta && (
-                <Button asChild variant="outline" size="lg" className="text-base">
+                <Button asChild variant="outline" size="lg" className="text-base backdrop-blur-md bg-background/40 border-primary/30">
                   <a href={hero.secondaryCta.href || "#features"}>{hero.secondaryCta.label}</a>
                 </Button>
               )}
             </div>
             {hero.note && <p className="mt-4 text-xs text-muted-foreground">{hero.note}</p>}
             {Array.isArray(hero.trust) && (
-              <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-muted-foreground">
+              <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-muted-foreground">
                 {hero.trust.map((t: any, i: number) => (
-                  <span key={i} className="flex items-center gap-1.5"><Icon name={t.icon} className="h-3.5 w-3.5" /> {t.label}</span>
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md bg-background/40 border border-border/50"><Icon name={t.icon} className="h-3.5 w-3.5" /> {t.label}</span>
                 ))}
               </div>
             )}
@@ -327,7 +337,8 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <SmoothScroll>
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       <SEO
         title={seo.title || "Vela.ai — AI research for serious investors & advisors"}
         description={seo.description || "An educational research platform for FTSE MIB, European and US markets. AI copilot, portfolio coach, optimizer, backtesting and compliance tools — for individuals and professionals."}
@@ -353,7 +364,11 @@ export default function Landing() {
           </div>
         </div>
       </header>
-      {orderedKeys.map(renderBlock)}
+      {orderedKeys.map((k) => {
+        const block = renderBlock(k);
+        if (!block || k === "hero") return block;
+        return <Reveal key={k}>{block}</Reveal>;
+      })}
 
       {/* FOOTER */}
       <footer className="border-t border-border bg-card/40">

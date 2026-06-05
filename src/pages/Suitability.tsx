@@ -163,12 +163,9 @@ const CLIENT_CATEGORIES = [
   { value: "eligible",      label: "Eligible counterparty (institutional)" },
 ];
 
-const PROFILES = [
-  { min: 0, max: 8, name: "Conservative", risk: 2, allocation: "20% equities / 70% bonds / 10% cash", desc: "Capital preservation, low volatility." },
-  { min: 9, max: 15, name: "Moderate", risk: 3, allocation: "50% / 45% / 5%", desc: "Balanced growth with controlled risk." },
-  { min: 16, max: 22, name: "Growth", risk: 5, allocation: "70% / 25% / 5%", desc: "Long-term capital appreciation." },
-  { min: 23, max: 30, name: "Aggressive", risk: 7, allocation: "90% / 8% / 2% + thematic tilts", desc: "Maximum growth, high volatility tolerance." },
-];
+// PROFILES, SECTIONS, MAX_SCORE and TOTAL_QUESTIONS are imported from
+// `@/lib/suitability`. Do not redeclare here — the Settings page and unit
+// tests must read the same constants for scores to agree.
 
 // Re-assessment cadence — ESMA expects at least annual review for advised clients
 const REASSESS_MONTHS = 12;
@@ -203,13 +200,11 @@ export default function Suitability() {
   const [sfdrPaiConsidered, setSfdrPaiConsidered] = useState<boolean>(false);
   const [attestation, setAttestation] = useState<boolean>(false);
 
-  const totalQuestions = SECTIONS.reduce((n, s) => n + s.questions.length, 0);
-  const score = Object.values(ans).reduce((a, b) => a + b, 0);
-  const profile = PROFILES.find(p => score >= p.min && score <= p.max) ?? PROFILES[0];
+  // Single source of truth for score / profile / completion. Always clamped.
+  const suitability = computeSuitability(ans);
+  const { score, maxScore, profile, answeredCount: completed, totalQuestions, completionPct, complete } = suitability;
   const horizonScore = ans["horizon"] ?? 0;
   const horizonYears = [1, 3, 7, 10][horizonScore] ?? 3;
-  const completed = Object.keys(ans).length;
-  const complete = completed === totalQuestions;
 
   // Structured real-time validation (ESMA suitability guideline 5 + numeric ranges).
   // severity: "error" blocks save; "warn" allows save with attestation; "info" is advisory.

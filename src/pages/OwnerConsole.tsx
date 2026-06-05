@@ -6,6 +6,7 @@ import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
 import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
+import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -269,8 +270,8 @@ export default function OwnerConsole() {
                     <TableRow key={u.id}>
                       <TableCell className="font-medium text-sm">
                         <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>
-                          <div>{u.display_name || u.email}</div>
-                          {u.display_name && <div className="text-[10px] text-muted-foreground font-normal">{u.email}</div>}
+                          <div>{u.display_name || <MaskedEmail email={u.email} />}</div>
+                          {u.display_name && <div className="text-[10px] text-muted-foreground font-normal"><MaskedEmail email={u.email} /></div>}
                         </button>
                       </TableCell>
                       <TableCell className="text-xs space-x-1">
@@ -359,7 +360,7 @@ export default function OwnerConsole() {
                 {liveEvents.map((e) => (
                   <div key={`${e.id}-${e.ts}`} className="flex items-center gap-2 text-[11px] py-1 border-b border-border/40 last:border-0">
                     <span className="text-muted-foreground tabular-nums">{new Date(e.ts).toLocaleTimeString()}</span>
-                    <span className="truncate max-w-[160px]">{e.actor_email}</span>
+                    <span className="truncate max-w-[160px]"><MaskedEmail email={e.actor_email} /></span>
                     <Badge variant="outline" className="text-[9px]">{e.action}</Badge>
                     <span className="text-muted-foreground truncate">{e.entity}</span>
                   </div>
@@ -385,7 +386,7 @@ export default function OwnerConsole() {
                   {incidents.map((i) => (
                     <TableRow key={i.id}>
                       <TableCell className="text-xs text-muted-foreground">{new Date(i.ts).toLocaleString()}</TableCell>
-                      <TableCell className="text-xs">{i.actor_email || "—"}</TableCell>
+                      <TableCell className="text-xs"><MaskedEmail email={i.actor_email} /></TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{i.category}</Badge></TableCell>
                       <TableCell className="text-xs">{i.action}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{i.reason || "—"}</TableCell>
@@ -401,7 +402,7 @@ export default function OwnerConsole() {
                 {filteredAudit.map((a) => (
                   <div key={a.id} className="flex items-center gap-2 text-xs border-b border-border/40 py-1.5">
                     <span className="text-muted-foreground tabular-nums">{new Date(a.ts).toLocaleString()}</span>
-                    <span className="truncate max-w-[160px]">{a.actor_email}</span>
+                    <span className="truncate max-w-[160px]"><MaskedEmail email={a.actor_email} /></span>
                     <Badge variant="outline" className="text-[10px]">{a.action}</Badge>
                     <span className="text-muted-foreground truncate">{a.entity}{a.entity_id ? `/${a.entity_id.slice(0,8)}` : ""}</span>
                   </div>
@@ -415,9 +416,9 @@ export default function OwnerConsole() {
                 {sessions.map((s) => (
                   <div key={s.id} className="flex items-center gap-2 text-[11px] py-1 border-b border-border/40 last:border-0">
                     <span className="text-muted-foreground tabular-nums">{new Date(s.created_at).toLocaleString()}</span>
-                    <span className="truncate">{s.actor_email}</span>
+                    <span className="truncate"><MaskedEmail email={s.actor_email} /></span>
                     <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="truncate">{s.target_email || "—"}</span>
+                    <span className="truncate"><MaskedEmail email={s.target_email} /></span>
                     <span className="text-muted-foreground truncate flex-1">{s.purpose}</span>
                   </div>
                 ))}
@@ -447,7 +448,7 @@ export default function OwnerConsole() {
                     const due = new Date(e.scheduled_for).getTime() <= Date.now();
                     return (
                       <TableRow key={e.id}>
-                        <TableCell className="text-xs">{e.user_email || e.user_id.slice(0,8)}</TableCell>
+                        <TableCell className="text-xs">{e.user_email ? <MaskedEmail email={e.user_email} /> : e.user_id.slice(0,8)}</TableCell>
                         <TableCell><Badge variant={e.status === "completed" ? "secondary" : e.status === "cancelled" ? "outline" : due ? "destructive" : "outline"} className="text-[10px]">{e.status}{due && e.status === "pending" ? " · due" : ""}</Badge></TableCell>
                         <TableCell className="text-[10px] text-muted-foreground">{new Date(e.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="text-[10px] text-muted-foreground">{new Date(e.scheduled_for).toLocaleDateString()}</TableCell>
@@ -479,7 +480,7 @@ export default function OwnerConsole() {
                     return (
                       <TableRow key={c.id}>
                         <TableCell className="text-xs text-muted-foreground">{new Date(c.accepted_at).toLocaleString()}</TableCell>
-                        <TableCell className="text-xs">{u?.email || c.user_id.slice(0, 8)}</TableCell>
+                        <TableCell className="text-xs">{u?.email ? <MaskedEmail email={u.email} /> : c.user_id.slice(0,8)}</TableCell>
                         <TableCell className="text-xs font-mono">{c.tos_version}</TableCell>
                         <TableCell className="text-xs font-mono">{c.privacy_version}</TableCell>
                         <TableCell className="text-xs">{c.marketing_opt_in ? "yes" : "—"}</TableCell>
@@ -607,7 +608,7 @@ export default function OwnerConsole() {
                         <div className="flex items-center gap-2">
                           <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center">{(u.email || "?").slice(0,2).toUpperCase()}</div>
                           <div>
-                            <div className="text-sm font-medium leading-tight">{u.email}</div>
+                            <div className="text-sm font-medium leading-tight"><MaskedEmail email={u.email} /></div>
                             <div className="text-[10px] text-muted-foreground">{(u.roles || ["viewer"])[0]}</div>
                           </div>
                         </div>
@@ -748,6 +749,7 @@ export default function OwnerConsole() {
   return (
     <div className="min-h-screen bg-background flex">
       <SEO title="Owner Console — Vela.ai" description="Internal admin" path="/owner" />
+      <EmailRevealProvider>
       <OwnerSidebar
         section={section}
         setSection={setSection}
@@ -762,6 +764,7 @@ export default function OwnerConsole() {
             <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users, logs, signals…" className="pl-9 h-9" />
           </div>
+          <EmailRevealToggle />
           <Badge variant="outline" className={`gap-1.5 ${openIncidents ? "border-amber-400/40 text-amber-500" : "border-success/40 text-success"}`}>
             <CircleDot className={`h-2 w-2 fill-current`} />
             {openIncidents ? `${openIncidents} kill switch${openIncidents === 1 ? "" : "es"} active` : "All systems operational"}
@@ -775,6 +778,7 @@ export default function OwnerConsole() {
         <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
       </div>
       <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} />
+      </EmailRevealProvider>
     </div>
   );
 }
@@ -998,7 +1002,7 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
       <Dialog open={roleOpen} onOpenChange={setRoleOpen}>
         <DialogTrigger asChild><Button size="sm" variant="ghost" className="gap-1"><Shield className="h-3.5 w-3.5" /> Roles</Button></DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>Roles — {user.email}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Roles — <MaskedEmail email={user.email} /></DialogTitle></DialogHeader>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Current roles:</p>
             <div className="flex flex-wrap gap-1">
@@ -1026,7 +1030,7 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
         <DialogTrigger asChild><Button size="sm" variant="ghost" className="text-destructive gap-1"><Trash2 className="h-3.5 w-3.5" /> Erase</Button></DialogTrigger>
         <DialogContent>
           <DialogHeader><DialogTitle>GDPR right to erasure</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">This permanently deletes <strong>{user.email}</strong> and all their data across the platform. This cannot be undone.</p>
+          <p className="text-sm text-muted-foreground">This permanently deletes <strong><MaskedEmail email={user.email} /></strong> and all their data across the platform. This cannot be undone.</p>
           <Textarea placeholder="Reason (e.g. user request ticket #)" value={reason} onChange={(e) => setReason(e.target.value)} />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPurgeOpen(false)}>Cancel</Button>
@@ -1055,8 +1059,8 @@ function NewErasureCard({ users, onCreate }: { users: UserRow[]; onCreate: (user
             <div className="absolute z-10 mt-1 w-full bg-popover border border-border rounded-md shadow max-h-48 overflow-auto">
               {matches.map(m => (
                 <button key={m.id} type="button" className="w-full text-left text-xs px-2 py-1.5 hover:bg-muted" onClick={() => { setUserId(m.id); setQ(m.email); }}>
-                  <span className="font-medium">{m.display_name || m.email}</span>
-                  {m.display_name && <span className="text-muted-foreground"> · {m.email}</span>}
+                  <span className="font-medium">{m.display_name || <MaskedEmail email={m.email} />}</span>
+                  {m.display_name && <span className="text-muted-foreground"> · <MaskedEmail email={m.email} /></span>}
                 </button>
               ))}
             </div>
@@ -1212,7 +1216,7 @@ function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestEr
       <div className="relative w-full max-w-xl bg-background border-l border-border overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-background/95 backdrop-blur border-b border-border p-4 flex items-center justify-between">
           <div>
-            <h2 className="font-semibold">{user.email}</h2>
+            <h2 className="font-semibold"><MaskedEmail email={user.email} /></h2>
             <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>

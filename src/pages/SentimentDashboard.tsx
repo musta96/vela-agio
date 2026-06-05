@@ -391,7 +391,7 @@ const SentimentDashboard = () => {
               <CardHeader>
                 <CardTitle>Mentions & headlines ({result.articles.length})</CardTitle>
                 <CardDescription>
-                  Sources: Bloomberg, FT, Reuters, WSJ, CNBC, Morningstar, Barron's, Borsa Italiana, Sole 24 Ore, Seeking Alpha, Yahoo Finance, Reddit, X · Generated{" "}
+                  Sources: Yahoo Finance and your connected providers · Generated{" "}
                   {result.generatedAt ? new Date(result.generatedAt).toLocaleString() : "now"}
                 </CardDescription>
               </CardHeader>

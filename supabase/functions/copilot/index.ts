@@ -63,14 +63,10 @@ const TOOLS = [
         qty: { type: 'number' }, type: { type: 'string', enum: ['market', 'limit'] },
         limit_price: { type: 'number' }, time_in_force: { type: 'string', enum: ['day', 'gtc'], description: 'defaults to day' },
       }, required: ['symbol', 'side', 'qty', 'type'] } } },
-  { type: 'function', function: { name: 'propose_live_order', description: 'Propose a LIVE (real-money) order on Alpaca or IBKR. Does NOT place the order — it creates a pending intent that pops a confirm modal in the UI. The user MUST click Confirm before anything is sent to the broker. Use ONLY when the user explicitly asks to trade live (not paper). Default to place_paper_order otherwise.',
-      parameters: { type: 'object', properties: {
-        broker: { type: 'string', enum: ['alpaca', 'ibkr'], description: 'alpaca uses Alpaca LIVE endpoint (requires LIVE keys). ibkr stores the intent for the user to place via their Client Portal Gateway.' },
-        symbol: { type: 'string' }, side: { type: 'string', enum: ['buy', 'sell'] },
-        qty: { type: 'number' }, type: { type: 'string', enum: ['market', 'limit'] },
-        limit_price: { type: 'number' }, time_in_force: { type: 'string', enum: ['day', 'gtc'] },
-        rationale: { type: 'string', description: 'One-sentence reason shown to the user in the confirm modal.' },
-      }, required: ['broker', 'symbol', 'side', 'qty', 'type', 'rationale'] } } },
+  // NOTE: `propose_live_order` removed — Vela.ai is not yet authorised as an
+  // investment firm, so the Copilot must never route real-money orders. The
+  // server-side live-trade edge function additionally enforces the
+  // `live_trading` feature flag = false as a defence-in-depth kill-switch.
   { type: 'function', function: { name: 'capture_feature_request', description: 'Use ONLY when the user asks for a capability that is NOT in the PLATFORM MAP above. Captures a feature request for the product team with your structured analysis. After calling, tell the user it has been forwarded.',
       parameters: { type: 'object', properties: {
         title: { type: 'string', description: 'Short, action-oriented title (max 80 chars).' },
@@ -184,21 +180,8 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         return { ok: true, mode: 'PAPER', order_id: j.id, status: j.status, filled_qty: j.filled_qty, submitted_at: j.submitted_at };
       } catch (e: any) { return { error: e?.message ?? 'alpaca call failed' }; }
     }
-    case 'propose_live_order': {
-      const { data, error } = await sb.from('live_order_intents').insert({
-        user_id: user.id,
-        broker: args.broker,
-        symbol: String(args.symbol).toUpperCase(),
-        side: args.side,
-        qty: args.qty,
-        type: args.type,
-        limit_price: args.limit_price ?? null,
-        time_in_force: args.time_in_force ?? 'day',
-        rationale: args.rationale ?? null,
-      }).select('id, expires_at').single();
-      if (error) return { error: error.message };
-      return { ok: true, intent_id: data.id, expires_at: data.expires_at, mode: 'LIVE', awaiting_user_confirmation: true, ui_action: 'A confirm modal has popped on the user\'s screen. Tell them to review and click Confirm or Reject within 5 minutes.' };
-    }
+    case 'propose_live_order':
+      return { error: 'Live order routing is disabled on this platform. Vela.ai is not authorised as an investment firm; only paper orders are supported.' };
     case 'capture_feature_request': {
       const { data, error } = await sb.from('feature_requests').insert({
         user_id: user.id,
@@ -272,7 +255,7 @@ RULES:
 - You MAY discuss historical performance, valuation metrics, factor exposures, scenarios, risks, and how an instrument fits a generic risk profile. You MAY NOT issue a directive.
 - Before ANY mutation (add/remove/update holdings or watchlist, create alerts, place orders) confirm intent with the user explicitly UNLESS they already gave a clear directive in their latest message.
 - For place_paper_order: always state it is PAPER (sandbox), summarize the order, and only call the tool after the user has confirmed.
-- For propose_live_order: this is REAL money. Triple-check intent. Always summarize the order + risk in chat first, ask the user "place a live order?", and only call after they explicitly say yes. The tool itself does NOT execute — it pops a confirm modal where the user must click Confirm. Default to paper if the user is ambiguous.
+- LIVE (real-money) order routing is DISABLED on this platform. Vela.ai is not authorised as an investment firm and does NOT route real orders. If the user asks to place a live order, refuse and tell them only paper orders are supported and they must use their broker's own app for real orders.
 - Be number-driven. Cite metrics from tool outputs. Mark uncertainty.
 - Tailor tone, risk language, instrument complexity and ESG filters to the user's MiFID II suitability profile when available.
  - If the user asks for a feature/page/capability that is NOT in the PLATFORM MAP, do NOT pretend it exists. Instead: (1) acknowledge it doesn't yet exist, (2) call capture_feature_request with a real analysis (why it matters, proposed implementation, effort, priority), (3) tell the user it has been forwarded to the product team.

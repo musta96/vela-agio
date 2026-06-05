@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { Receipt, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
@@ -35,14 +35,14 @@ const JURISDICTIONS = [
 export default function TaxHarvest() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [holdings, setHoldings] = useState<any[]>([]);
+  // Single source of truth — shares the same numbers as Dashboard / Portfolio / Risk.
+  const { positions, losers: pfLosers } = usePortfolio();
   const [residence, setResidence] = useState<string>("IT");
   const [taxResidence, setTaxResidence] = useState<string>("IT");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("portfolio_holdings").select("*").eq("user_id", user.id).then(({ data }) => setHoldings(data ?? []));
     supabase.from("profiles").select("country_residence, country_tax_residence").eq("user_id", user.id).maybeSingle().then(({ data }: any) => {
       if (data?.country_residence) setResidence(data.country_residence);
       if (data?.country_tax_residence) setTaxResidence(data.country_tax_residence);
@@ -62,18 +62,21 @@ export default function TaxHarvest() {
     if (error) toast.error(error.message); else toast.success("Tax residency saved");
   };
 
-  const symbols = holdings.map(h => h.symbol);
-  const { quotes } = useLiveQuotes(symbols, 60_000);
-
-  const candidates = holdings.map(h => {
-    const q = quotes[h.symbol];
-    if (!q) return null;
-    const cost = h.shares * h.avg_price; const mkt = h.shares * q.price;
-    const pnl = mkt - cost; const pnlPct = cost ? (pnl / cost) * 100 : 0;
-    return { ...h, price: q.price, cost, mkt, pnl, pnlPct };
-  }).filter(Boolean).sort((a: any, b: any) => a.pnl - b.pnl);
-
-  const losers = candidates.filter((x: any) => x.pnl < 0);
+  // Build candidate rows from the shared portfolio positions. Only positions
+  // with a live quote contribute (matches `usePortfolio.losers` bucketing).
+  const losers = pfLosers
+    .map((p) => ({
+      symbol: p.holding.symbol,
+      name: p.holding.name,
+      shares: p.holding.shares,
+      avg_price: p.holding.avg_price,
+      price: p.livePrice,
+      cost: p.costBasis,
+      mkt: p.marketValue,
+      pnl: p.unrealisedPnL,
+      pnlPct: p.unrealisedPnLPct ?? 0,
+    }))
+    .sort((a, b) => a.pnl - b.pnl);
   const totalLoss = losers.reduce((s: number, x: any) => s + x.pnl, 0);
   const taxBenefit = -totalLoss * jur.capitalGainsRate;
   const sym = jur.currency === "EUR" ? "€" : jur.currency === "GBP" ? "£" : jur.currency === "USD" ? "$" : jur.currency + " ";

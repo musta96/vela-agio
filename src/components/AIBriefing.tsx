@@ -123,7 +123,8 @@ export function AIBriefing() {
       // eslint-disable-next-line no-console
       console.error("[ai-briefing] generate failed", { correlationId, error: e });
       trackAIEvent("ai_briefing_error", { message: e?.message ?? String(e), correlationId });
-      setError(e?.message || "Couldn't generate briefing");
+      // Never surface raw error / Edge-Function / Stream-failed text to users.
+      setError("We couldn't generate your briefing right now. Please try again in a moment.");
     } finally {
       setLoading(false);
     }

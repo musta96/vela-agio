@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useFlag } from "@/hooks/useFeatureFlags";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -12,11 +13,14 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 // anything hits the broker.
 export function LiveOrderConfirmModal() {
   const { user } = useAuth();
+  // Master kill-switch — until the operating entity is incorporated and
+  // licensed, the modal never mounts and we never poll for intents.
+  const liveTradingEnabled = useFlag("live_trading", false);
   const [intent, setIntent] = useState<any | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !liveTradingEnabled) return;
     let cancelled = false;
     const tick = async () => {
       const { data } = await supabase
@@ -35,7 +39,7 @@ export function LiveOrderConfirmModal() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "live_order_intents", filter: `user_id=eq.${user.id}` }, tick)
       .subscribe();
     return () => { cancelled = true; clearInterval(id); supabase.removeChannel(ch); };
-  }, [user]);
+  }, [user, liveTradingEnabled]);
 
   const act = async (action: "confirm" | "reject") => {
     if (!intent) return;
@@ -51,7 +55,7 @@ export function LiveOrderConfirmModal() {
     } finally { setBusy(false); }
   };
 
-  if (!intent) return null;
+  if (!liveTradingEnabled || !intent) return null;
 
   return (
     <AlertDialog open onOpenChange={(o) => !o && !busy && setIntent(null)}>

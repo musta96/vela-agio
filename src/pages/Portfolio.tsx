@@ -649,7 +649,12 @@ const Portfolio = () => {
             <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{gainBase.toFixed(2)}
             </div>
-            <span className="text-[11px] text-muted-foreground">{portfolio.filter(p => p.currentPrice >= p.avgPrice).length} winners · {portfolio.filter(p => p.currentPrice < p.avgPrice).length} losers</span>
+            <span className="text-[11px] text-muted-foreground">
+              {portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice > p.avgPrice).length} winners ·{" "}
+              {portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice < p.avgPrice).length} losers ·{" "}
+              {portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice === p.avgPrice).length} flat ·{" "}
+              {portfolio.filter(p => !quotes[p.symbol]?.price).length} no live price
+            </span>
           </div>
           <div className="p-5 flex flex-col gap-1.5">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Italian tax (26%)</span>

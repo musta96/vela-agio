@@ -23,7 +23,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
 // Privileged roles authorised to access /owner and /admin surfaces.
 // MFA enforcement still required on top of this — see edge function / Settings.
-export const PRIVILEGED_ROLES = ["admin", "owner", "support", "compliance", "engineer"] as const;
+export const PRIVILEGED_ROLES = ["admin", "support", "compliance", "engineer"] as const;
 export type PrivilegedRole = typeof PRIVILEGED_ROLES[number];
 
 export function OwnerRoute({ children }: { children: ReactNode }) {
@@ -39,7 +39,7 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", PRIVILEGED_ROLES as unknown as string[]);
+        .in("role", PRIVILEGED_ROLES as unknown as any);
       if (!active) return;
       setAllowed(!!(data && data.length));
       setChecking(false);

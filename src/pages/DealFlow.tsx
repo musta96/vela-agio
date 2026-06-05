@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, ExternalLink, TrendingUp, Handshake, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import { FeedFallback } from "@/components/FeedFallback";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Ipo = { symbol?: string; name?: string; date?: string; exchange?: string; priceRange?: string; shares?: number; value?: number; source?: string };
 type Deal = { title?: string; source?: string; url?: string; date?: string; description?: string };
@@ -17,12 +19,16 @@ export default function DealFlow() {
   const [data, setData] = useState<{ ipos?: Ipo[]; ma?: Deal[]; lbo?: Deal[]; summary?: string }>({});
   const [summarizing, setSummarizing] = useState(false);
 
+  const [errored, setErrored] = useState(false);
   const load = async (summarize = false) => {
-    setLoading(true); if (summarize) setSummarizing(true);
+    setLoading(true); setErrored(false); if (summarize) setSummarizing(true);
     try {
       const { data, error } = await supabase.functions.invoke("deal-flow", { body: { kind: "all", summarize, days: 14 } });
       if (error) throw error;
       setData(data ?? {});
+    } catch (e) {
+      console.error("[deal-flow] load failed", e);
+      setErrored(true);
     } finally { setLoading(false); setSummarizing(false); }
   };
 
@@ -59,7 +65,11 @@ export default function DealFlow() {
           </TabsList>
 
           <TabsContent value="ipo">
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+            {loading ? (
+              <div className="grid gap-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-md" />)}</div>
+            ) : errored ? (
+              <FeedFallback label="deal flow" onRetry={() => load(false)} />
+            ) : (
               <div className="grid gap-2">
                 {(data.ipos ?? []).length === 0 && <Card className="p-6 text-sm text-muted-foreground">No upcoming IPOs found. Add a Finnhub key in Settings for full calendar coverage.</Card>}
                 {(data.ipos ?? []).map((i, idx) => (
@@ -79,7 +89,11 @@ export default function DealFlow() {
 
           {(["ma", "lbo"] as const).map(k => (
             <TabsContent key={k} value={k}>
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+              {loading ? (
+                <div className="grid gap-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-md" />)}</div>
+              ) : errored ? (
+                <FeedFallback label="deal flow" onRetry={() => load(false)} />
+              ) : (
                 <div className="grid gap-2">
                   {((data as any)[k] ?? []).length === 0 && <Card className="p-6 text-sm text-muted-foreground">No deals yet. Add a NewsAPI / Marketaux key in Settings for richer feeds.</Card>}
                   {((data as any)[k] ?? []).map((d: Deal, idx: number) => (

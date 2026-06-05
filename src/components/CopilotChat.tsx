@@ -126,7 +126,16 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
         }
       }
     } catch (e: any) {
-      setMessages(m => [...m, { role: "assistant", content: `Error: ${e.message}` }]);
+      // User-facing fallback only. Raw error is logged for monitoring.
+      console.error("[copilot] stream failed", e);
+      setMessages(m => [
+        ...m,
+        {
+          role: "assistant",
+          content:
+            "The AI copilot is temporarily unavailable. Your data is unaffected — please try again in a moment.",
+        },
+      ]);
     } finally { setBusy(false); }
   };
 

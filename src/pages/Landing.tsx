@@ -16,6 +16,8 @@ import {
   Bell, PieChart, Activity, Star
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
+import { useFlag } from "@/hooks/useFeatureFlags";
+import { Gift } from "lucide-react";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -61,6 +63,7 @@ export default function Landing() {
   const [tiers, setTiers] = useState<Tier[]>(FALLBACK_TIERS);
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   const [seo, setSeo] = useState<any>({});
+  const pricingEnabled = useFlag("pricing", false);
   useEffect(() => {
     supabase
       .from("subscription_plans")

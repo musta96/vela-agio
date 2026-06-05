@@ -181,8 +181,8 @@ export default function OwnerLayout() {
         <TopBar />
         <main className="flex-1 p-8 max-w-[1600px] w-full mx-auto"><Outlet /></main>
       </div>
-    </EmailRevealProvider>
     </div>
+    </EmailRevealProvider>
   );
 }
 

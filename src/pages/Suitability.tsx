@@ -13,14 +13,27 @@ import { Shield, CheckCircle2, RefreshCw, AlertTriangle, Download, FileText, Ale
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  SECTIONS,
+  PROFILES,
+  MAX_SCORE,
+  TOTAL_QUESTIONS,
+  computeSuitability,
+  sanitizeAnswers,
+  type SuitabilityQuestion,
+} from "@/lib/suitability";
 
 /**
  * MiFID II / IDD / SFDR-style suitability & appropriateness questionnaire.
- * Categories follow ESMA Guidelines on suitability assessment (2022/2023).
+ * Scoring lives in `@/lib/suitability` so the Settings summary card and
+ * unit tests share the exact same logic.
  */
-type Q = { key: string; q: string; help?: string; opts: { label: string; score: number }[] };
+type Q = SuitabilityQuestion;
 
-const SECTIONS: { id: string; title: string; description: string; questions: Q[] }[] = [
+// Legacy inline definitions kept for one PR so the diff stays surgical; they
+// are immediately overwritten by the imports above. Block kept as a dead
+// object literal that TypeScript ignores via assignment to `_LEGACY_SECTIONS`.
+const _LEGACY_SECTIONS: { id: string; title: string; description: string; questions: Q[] }[] = [
   {
     id: "knowledge",
     title: "1. Knowledge & Experience",

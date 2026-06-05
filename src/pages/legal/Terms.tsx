@@ -1,4 +1,5 @@
 import { LegalLayout } from "@/components/legal/LegalLayout";
+import { GENERIC_CONTACT } from "@/lib/legal-entity";
 
 export default function Terms() {
   return (
@@ -31,7 +32,7 @@ export default function Terms() {
       <h2>3. Your account</h2>
       <p>
         You are responsible for safeguarding your credentials. Notify us immediately at{" "}
-        <a href="mailto:security@vela.ai">security@vela.ai</a> if you suspect unauthorized access.
+        <a href={`mailto:${GENERIC_CONTACT.security}`}>{GENERIC_CONTACT.security}</a> if you suspect unauthorized access.
       </p>
 
       <h2>4. Bring-your-own (BYO) keys and integrations</h2>
@@ -106,7 +107,7 @@ export default function Terms() {
       </p>
 
       <h2>12. Contact</h2>
-      <p>Questions: <a href="mailto:hello@vela.ai">hello@vela.ai</a>.</p>
+      <p>Questions: <a href={`mailto:${GENERIC_CONTACT.support}`}>{GENERIC_CONTACT.support}</a>. For privacy/GDPR requests see the <a href="/privacy">Privacy Policy</a>.</p>
     </LegalLayout>
   );
 }

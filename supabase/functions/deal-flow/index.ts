@@ -2,6 +2,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserDataKey } from '../_shared/data-provider.ts';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { isAiOptedOut } from '../_shared/ai-opt-out.ts';
 
 // =====================================================================
 // DEAL-FLOW — aggregates M&A, IPO and LBO deals.
@@ -94,6 +95,10 @@ async function fetchDeals(authHeader: string | null, query: string, label: 'ma' 
 
 async function aiSummary(authHeader: string, deals: any[], focus: string) {
   if (deals.length === 0) return null;
+  // Hard-respect the user's AI opt-out. The rest of deal-flow (IPO/M&A
+  // listings) keeps working because it does NOT call AI — only the
+  // optional natural-language summary is skipped.
+  if (await isAiOptedOut(authHeader)) return null;
   try {
     const cfg = await resolveAIConfig(authHeader);
     const sample = deals.slice(0, 15).map(d => `- ${d.title ?? d.name} (${d.source ?? d.exchange ?? ''}, ${d.date ?? ''})`).join('\n');

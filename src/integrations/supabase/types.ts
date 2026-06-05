@@ -499,6 +499,48 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_goals: {
+        Row: {
+          created_at: string
+          expected_return: number
+          id: string
+          initial: number
+          monthly: number
+          name: string
+          target: number
+          updated_at: string
+          user_id: string
+          volatility: number
+          years: number
+        }
+        Insert: {
+          created_at?: string
+          expected_return?: number
+          id?: string
+          initial?: number
+          monthly?: number
+          name?: string
+          target?: number
+          updated_at?: string
+          user_id: string
+          volatility?: number
+          years?: number
+        }
+        Update: {
+          created_at?: string
+          expected_return?: number
+          id?: string
+          initial?: number
+          monthly?: number
+          name?: string
+          target?: number
+          updated_at?: string
+          user_id?: string
+          volatility?: number
+          years?: number
+        }
+        Relationships: []
+      }
       gdpr_erasure_requests: {
         Row: {
           certificate_url: string | null

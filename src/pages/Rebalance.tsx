@@ -56,7 +56,7 @@ export default function Rebalance() {
               const tgt = targets[h.symbol] ?? 0;
               const drift = cur - tgt;
               const dollar = (tgt - cur) / 100 * total;
-              const action = Math.abs(drift) >= band ? (drift > 0 ? "SELL" : "BUY") : "HOLD";
+              const action = Math.abs(drift) >= band ? (drift > 0 ? "OVERWEIGHT" : "UNDERWEIGHT") : "IN BAND";
               return (
                 <div key={h.symbol} className="grid grid-cols-6 text-sm font-mono py-1 border-b">
                   <div>{h.symbol}</div>
@@ -66,11 +66,12 @@ export default function Rebalance() {
                   </div>
                   <div className={`text-right ${Math.abs(drift) >= band ? (drift > 0 ? "text-bear" : "text-bull") : ""}`}>{drift >= 0 ? "+" : ""}{drift.toFixed(1)}%</div>
                   <div className="text-right">{dollar >= 0 ? "+" : ""}${dollar.toFixed(0)}</div>
-                  <div className={`text-right font-semibold ${action === "BUY" ? "text-bull" : action === "SELL" ? "text-bear" : "text-muted-foreground"}`}>{action}</div>
+                  <div className={`text-right font-semibold ${action === "UNDERWEIGHT" ? "text-bull" : action === "OVERWEIGHT" ? "text-bear" : "text-muted-foreground"}`}>{action}</div>
                 </div>
               );
             })}
             <div className="mt-3 text-sm text-muted-foreground">Total NAV: <span className="font-mono">${total.toFixed(0)}</span></div>
+            <p className="mt-2 text-[11px] text-muted-foreground">Educational drift analysis only — Vela does not place orders or recommend specific trades. Discuss with a licensed advisor before acting.</p>
           </CardContent>
         </Card>
       </main>

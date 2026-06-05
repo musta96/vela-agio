@@ -344,12 +344,9 @@ export default function Suitability() {
         .maybeSingle();
       if (data) {
         const a = (data.answers as Record<string, any>) ?? {};
-        // Core scored answers are numeric; extended fields live alongside
-        const core: Record<string, number> = {};
-        for (const k of Object.keys(a)) {
-          if (typeof a[k] === "number") core[k] = a[k];
-        }
-        setAns(core);
+        // Only keep numeric values for known core questions — strips legacy
+        // `__`-prefixed extension fields that used to inflate score/answered.
+        setAns(sanitizeAnswers(a));
         setClientCategory(a.__clientCategory ?? "retail");
         setProductKnowledge(a.__productKnowledge ?? {});
         setSourceOfFunds(a.__sourceOfFunds ?? []);

@@ -50,7 +50,7 @@ async function fetchQuote(symbol: string): Promise<number | null> {
 }
 
 const Risk = () => {
-  const { holdings: pfHoldings, marketValue: pfMarketValue } = usePortfolio();
+  const { holdings: pfHoldings } = usePortfolio();
   const holdings = useMemo(
     () => pfHoldings.map((h) => ({ symbol: h.symbol, name: h.name ?? h.symbol, shares: h.shares })),
     [pfHoldings],

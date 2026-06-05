@@ -17,6 +17,7 @@ import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SupportCard } from "@/components/settings/SupportCard";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { computeSuitability } from "@/lib/suitability";
 
 type Tab = "Profile" | "Fiscal residency" | "Currencies" | "Broker connections" | "Notifications" | "Connections" | "AI" | "Privacy & data" | "Billing" | "Support";
 const TABS: { id: Tab; icon: typeof User }[] = [

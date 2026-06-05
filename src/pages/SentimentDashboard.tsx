@@ -159,7 +159,7 @@ const SentimentDashboard = () => {
           <Card className="p-12 text-center card-gradient border-border">
             <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold mb-2">Pick a stock to analyze</h3>
-            <p className="text-muted-foreground">Sentiment runs on live headlines from Bloomberg, FT, Reuters, WSJ, CNBC, Morningstar, Barron's, Borsa Italiana, Il Sole 24 Ore, Seeking Alpha, Yahoo Finance, Reddit and X.</p>
+            <p className="text-muted-foreground">Sentiment runs on live headlines from Yahoo Finance and any news providers you have connected in Settings → Data providers.</p>
           </Card>
         )}
 
@@ -391,7 +391,7 @@ const SentimentDashboard = () => {
               <CardHeader>
                 <CardTitle>Mentions & headlines ({result.articles.length})</CardTitle>
                 <CardDescription>
-                  Sources: Bloomberg, FT, Reuters, WSJ, CNBC, Morningstar, Barron's, Borsa Italiana, Sole 24 Ore, Seeking Alpha, Yahoo Finance, Reddit, X · Generated{" "}
+                  Sources: Yahoo Finance and your connected providers · Generated{" "}
                   {result.generatedAt ? new Date(result.generatedAt).toLocaleString() : "now"}
                 </CardDescription>
               </CardHeader>

@@ -1,13 +1,27 @@
-// Operating entity. The platform is currently operated as a pre-incorporation
-// project — there is no registered company yet. These constants are referenced
-// from the legal documents and footer so that, once the entity is registered,
-// the new name / VAT number / registered office can be filled in here in ONE
-// place and propagate everywhere.
+// Operating entity. Vela.ai is currently operated as a sole proprietorship
+// (ditta individuale / libero professionista) in Italy. Once an S.R.L. is
+// incorporated, replace the values below in this single file and they will
+// propagate to every legal document.
+//
+// These details are referenced ONLY where the law requires it (GDPR Art. 13:
+// identity & contact of the data controller in the Privacy Policy). They are
+// deliberately NOT shown in the footer, Terms, Disclaimer or Cookies pages
+// to minimise PII exposure.
 export const LEGAL_ENTITY = {
-  name: null as string | null,
-  vatNumber: null as string | null,
-  registeredAddress: null as string | null,
-  contactEmail: "privacy@vela.ai",
+  // Natural person operating the service (ditta individuale)
+  name: "Edoardo Mustarelli" as string | null,
+  // Partita IVA
+  vatNumber: "IT03005170182" as string | null,
+  // Codice Fiscale (natural person)
+  taxCode: "MSTDRD96L12F205U" as string | null,
+  // Sede legale (registered address tied to the P.IVA)
+  registeredAddress: "Via Case Basse di San Vittore 17, 27100 Pavia, Italy" as string | null,
+  // Public contact email for privacy / GDPR requests
+  contactEmail: "mustarelli.edoardo@gmail.com",
+  // PEC — certified email (official Italian channel for legal notices)
+  pec: "edoardo.mustarelli@pec.it" as string | null,
+  // Form of organisation, shown in the Privacy Policy for clarity
+  form: "Sole proprietorship (ditta individuale) — Italy" as string | null,
 } as const;
 
-export const LEGAL_ENTITY_DISPLAY = LEGAL_ENTITY.name ?? "Vela.ai (pre-incorporation operator — legal entity to be registered)";
+export const LEGAL_ENTITY_DISPLAY = LEGAL_ENTITY.name ?? "Vela.ai";

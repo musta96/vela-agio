@@ -14,20 +14,28 @@ export default function Privacy() {
 
       <h2>1. Data Controller</h2>
       <p>
-        The data controller is <strong>{LEGAL_ENTITY_DISPLAY}</strong>
-        {LEGAL_ENTITY.registeredAddress ? <>, registered at {LEGAL_ENTITY.registeredAddress}</> : null}
-        {LEGAL_ENTITY.vatNumber ? <> (VAT {LEGAL_ENTITY.vatNumber})</> : null}.{" "}
-        Contact: <a href={`mailto:${LEGAL_ENTITY.contactEmail}`}>{LEGAL_ENTITY.contactEmail}</a>.
-        If you are in the EU and prefer Italian, you may write to us in Italian and we will reply in Italian.
+        The data controller (titolare del trattamento) is{" "}
+        <strong>{LEGAL_ENTITY_DISPLAY}</strong>
+        {LEGAL_ENTITY.form ? <> — {LEGAL_ENTITY.form}</> : null}
+        {LEGAL_ENTITY.registeredAddress ? <>, with registered address at {LEGAL_ENTITY.registeredAddress}</> : null}
+        {LEGAL_ENTITY.vatNumber ? <> (P. IVA {LEGAL_ENTITY.vatNumber}</> : null}
+        {LEGAL_ENTITY.taxCode ? <>, Codice Fiscale {LEGAL_ENTITY.taxCode})</> : LEGAL_ENTITY.vatNumber ? <>)</> : null}.
       </p>
-      {!LEGAL_ENTITY.name && (
-        <p className="text-xs text-muted-foreground">
-          <strong>Notice:</strong> the operating company has not yet been incorporated. The
-          registered entity name, registered office and VAT number will appear here as soon as
-          the company is formally registered, and any prior consents will be re-confirmed at
-          that point.
-        </p>
-      )}
+      <p>
+        Contact for privacy enquiries and to exercise your GDPR rights:{" "}
+        <a href={`mailto:${LEGAL_ENTITY.contactEmail}`}>{LEGAL_ENTITY.contactEmail}</a>
+        {LEGAL_ENTITY.pec ? (
+          <>
+            {" "}· PEC (official certified channel, EU residents):{" "}
+            <a href={`mailto:${LEGAL_ENTITY.pec}`}>{LEGAL_ENTITY.pec}</a>
+          </>
+        ) : null}.
+      </p>
+      <p className="text-xs text-muted-foreground">
+        <strong>Notice:</strong> Vela.ai is currently operated by a natural person under
+        Italian P.IVA. Once a limited-liability company (S.R.L.) is incorporated, the
+        controller will be updated and prior consents will be re-confirmed.
+      </p>
 
       <h2>2. What we collect</h2>
       <ul>

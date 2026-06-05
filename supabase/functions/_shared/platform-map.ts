@@ -59,5 +59,5 @@ IMPORTANT FEATURE NOTES:
 - Paper trading uses Alpaca (sandbox keys in /settings).
 - Broker read-only sync uses SnapTrade (Phase 3) on /portfolio.
 - Fuzzy ticker resolution: AI symbol finder on /portfolio when adding instruments.
-- LIVE order placement: the Copilot proposes orders via propose_live_order; a confirm modal pops on any page and the user MUST click Confirm before anything hits Alpaca/IBKR. Default is paper.
+- LIVE order placement is DISABLED on this platform. Vela.ai is not authorised as an investment firm and never routes real-money orders. Only paper trading (Alpaca sandbox) is supported.
 `;

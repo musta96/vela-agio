@@ -1318,6 +1318,7 @@ export type Database = {
       profiles: {
         Row: {
           ai_model: string | null
+          ai_opt_out: boolean
           ai_provider: string
           avatar_url: string | null
           base_currency: string | null
@@ -1338,6 +1339,7 @@ export type Database = {
         }
         Insert: {
           ai_model?: string | null
+          ai_opt_out?: boolean
           ai_provider?: string
           avatar_url?: string | null
           base_currency?: string | null
@@ -1358,6 +1360,7 @@ export type Database = {
         }
         Update: {
           ai_model?: string | null
+          ai_opt_out?: boolean
           ai_provider?: string
           avatar_url?: string | null
           base_currency?: string | null

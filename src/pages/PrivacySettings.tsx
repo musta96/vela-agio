@@ -10,7 +10,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Download, Trash2, Cookie, Shield, ScrollText, Loader2 } from "lucide-react";
+import { Download, Trash2, Cookie, Shield, ScrollText, Loader2, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +35,8 @@ const PrivacySettings = () => {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [aiOptOut, setAiOptOut] = useState<boolean | null>(null);
+  const [aiSaving, setAiSaving] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -47,6 +50,31 @@ const PrivacySettings = () => {
       .order("accepted_at", { ascending: false })
       .then(({ data }) => setConsents(data ?? []));
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("ai_opt_out")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setAiOptOut(Boolean(data?.ai_opt_out)));
+  }, [user]);
+
+  const toggleAiOptOut = async (next: boolean) => {
+    if (!user) return;
+    setAiSaving(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ ai_opt_out: next }).eq("user_id", user.id);
+      if (error) throw error;
+      setAiOptOut(next);
+      toast({ title: next ? "AI features disabled" : "AI features enabled", description: next ? "The Copilot, AI briefing and AI-generated commentary will be skipped for your account." : "AI features are back on." });
+    } catch (e) {
+      toast({ title: "Could not update", description: String((e as Error)?.message ?? e), variant: "destructive" });
+    } finally {
+      setAiSaving(false);
+    }
+  };
 
   const latest = consents[0];
   const tosOutdated = latest && latest.tos_version !== TOS_VERSION;
@@ -156,6 +184,28 @@ const PrivacySettings = () => {
         <Button variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event(CONSENT_EVENTS.OPEN_EVENT))}>
           Open cookie settings
         </Button>
+      </Card>
+
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold">AI features</h2>
+          </div>
+          <Switch
+            checked={!(aiOptOut ?? false)}
+            disabled={aiOptOut === null || aiSaving}
+            onCheckedChange={(checked) => toggleAiOptOut(!checked)}
+            aria-label="Enable AI features"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          When AI is enabled, your prompts, portfolio snapshot and selected page context are sent
+          to the AI provider you configured (Lovable AI Gateway by default, or your own key) to
+          generate the Copilot answer, the daily briefing and AI commentary. Turn this off if you
+          do not want any AI processing on your account — Vela.ai's data and analytics features
+          will keep working without AI.
+        </p>
       </Card>
 
       <Card className="p-5 space-y-3">

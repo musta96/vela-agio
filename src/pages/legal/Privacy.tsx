@@ -1,4 +1,5 @@
 import { LegalLayout } from "@/components/legal/LegalLayout";
+import { LEGAL_ENTITY, LEGAL_ENTITY_DISPLAY } from "@/lib/legal-entity";
 
 export default function Privacy() {
   return (
@@ -13,9 +14,20 @@ export default function Privacy() {
 
       <h2>1. Data Controller</h2>
       <p>
-        The data controller is the Vela.ai operator. Contact:{" "}
-        <a href="mailto:privacy@vela.ai">privacy@vela.ai</a>. If you are in the EU and prefer
-        Italian, you may write to us in Italian and we will reply in Italian.
+        The data controller is <strong>{LEGAL_ENTITY_DISPLAY}</strong>
+        {LEGAL_ENTITY.registeredAddress ? <>, registered at {LEGAL_ENTITY.registeredAddress}</> : null}
+        {LEGAL_ENTITY.vatNumber ? <> (VAT {LEGAL_ENTITY.vatNumber})</> : null}.{" "}
+        Contact: <a href={`mailto:${LEGAL_ENTITY.contactEmail}`}>{LEGAL_ENTITY.contactEmail}</a>.
+        If you are in the EU and prefer Italian, you may write to us in Italian and we will reply in Italian.
+      </p>
+      {!LEGAL_ENTITY.name && (
+        <p className="text-xs text-muted-foreground">
+          <strong>Notice:</strong> the operating company has not yet been incorporated. The
+          registered entity name, registered office and VAT number will appear here as soon as
+          the company is formally registered, and any prior consents will be re-confirmed at
+          that point.
+        </p>
+      )}
       </p>
 
       <h2>2. What we collect</h2>

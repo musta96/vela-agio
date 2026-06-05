@@ -59,11 +59,15 @@ function StatusPill({ s }: { s: string }) {
 
 function ProfileTab() {
   const { user } = useAuth();
-  const [mifid, setMifid] = useState<{ completed_at: string | null; score: number | null } | null>(null);
+  const [mifid, setMifid] = useState<{ completed_at: string | null; score: number | null; answers: Record<string, any> | null } | null>(null);
   useEffect(() => {
     if (!user) return;
-    supabase.from("investor_profiles").select("completed_at, score").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => setMifid(data ?? { completed_at: null, score: null }));
+    supabase.from("investor_profiles").select("completed_at, score, answers").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => setMifid((data as any) ?? { completed_at: null, score: null, answers: null }));
   }, [user?.id]);
+  // Recompute score from saved answers so the Settings card and the
+  // questionnaire page can never disagree (even on legacy/corrupt rows).
+  const recomputed = computeSuitability(mifid?.answers ?? null);
+  const displayScore = mifid?.completed_at ? recomputed.score : (mifid?.score ?? null);
   return (
     <div className="space-y-6">
       <Card className="p-6 rounded-2xl">
@@ -84,7 +88,9 @@ function ProfileTab() {
           )}
         </div>
         <div className="text-xs text-muted-foreground mb-4">
-          {mifid?.completed_at ? `Completed on ${new Date(mifid.completed_at).toLocaleDateString()} · Score ${mifid.score ?? "—"}` : "Takes around 5 minutes."}
+          {mifid?.completed_at
+            ? `Completed on ${new Date(mifid.completed_at).toLocaleDateString()} · Score ${displayScore ?? "—"} / ${recomputed.maxScore} · ${recomputed.profile.name} (SRI ${recomputed.sri}/7)`
+            : "Takes around 5 minutes."}
         </div>
         <Button asChild size="sm" variant={mifid?.completed_at ? "outline" : "default"}>
           <Link to="/suitability">{mifid?.completed_at ? "Update questionnaire" : "Start questionnaire"} <ExternalLink className="h-3 w-3 ml-1.5" /></Link>

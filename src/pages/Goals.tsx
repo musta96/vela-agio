@@ -1,12 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Target, Save, Loader2, Check } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useTranslation } from "react-i18next";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -33,12 +37,74 @@ function monteCarlo(initial: number, monthlyAdd: number, years: number, mean: nu
 
 export default function Goals() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [name, setName] = useState("My goal");
   const [initial, setInitial] = useState(20000);
   const [monthly, setMonthly] = useState(500);
   const [years, setYears] = useState(25);
   const [target, setTarget] = useState(500000);
   const [mean, setMean] = useState(0.07);
   const [sd, setSd] = useState(0.15);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // Load the user's most recent saved plan on mount.
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("financial_goals")
+      .select("id, name, initial, monthly, years, target, expected_return, volatility")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setGoalId(data.id);
+        setName(data.name ?? "My goal");
+        setInitial(Number(data.initial) || 0);
+        setMonthly(Number(data.monthly) || 0);
+        setYears(Number(data.years) || 25);
+        setTarget(Number(data.target) || 0);
+        setMean(Number(data.expected_return) || 0.07);
+        setSd(Number(data.volatility) || 0.15);
+      });
+  }, [user?.id]);
+
+  const save = async () => {
+    if (!user) {
+      toast.error("Sign in to save your plan");
+      return;
+    }
+    setSaving(true);
+    try {
+      const row = {
+        user_id: user.id,
+        name,
+        initial,
+        monthly,
+        years,
+        target,
+        expected_return: mean,
+        volatility: sd,
+      };
+      if (goalId) {
+        const { error } = await supabase.from("financial_goals").update(row).eq("id", goalId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("financial_goals").insert(row).select("id").single();
+        if (error) throw error;
+        setGoalId(data.id);
+      }
+      setSavedAt(Date.now());
+      toast.success("Plan saved");
+    } catch (e) {
+      toast.error("Could not save", { description: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const sim = useMemo(() => monteCarlo(initial, monthly, years, mean, sd, 800), [initial, monthly, years, mean, sd]);
   const successProb = useMemo(() => sim.finals.filter(v => v >= target).length / sim.finals.length, [sim, target]);
@@ -49,9 +115,19 @@ export default function Goals() {
       <SEO title="Goal Planner | Vela.ai" description="Monte Carlo retirement & life-goal planner" path="/goals" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Target className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.goals.title")}</h1></div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Target className="h-6 w-6 text-primary" />
+            <h1 className="text-3xl font-bold">{t("pages.goals.title")}</h1>
+          </div>
+          <Button onClick={save} disabled={saving || !user} size="sm" className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedAt && Date.now() - savedAt < 4000 ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+            {goalId ? "Update plan" : "Save plan"}
+          </Button>
+        </div>
         <div className="grid md:grid-cols-3 gap-4">
           <Card><CardContent className="p-4 space-y-3">
+            <div><Label>Plan name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
             <div><Label>{t("pages.goals.initial")}</Label><Input type="number" value={initial} onChange={e => setInitial(+e.target.value)} /></div>
             <div><Label>{t("pages.goals.monthly")}</Label><Input type="number" value={monthly} onChange={e => setMonthly(+e.target.value)} /></div>
             <div><Label>{t("pages.goals.horizon")}</Label><Input type="number" value={years} onChange={e => setYears(+e.target.value)} /></div>

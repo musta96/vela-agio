@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, Activity, RefreshCw, Info } from "lucide-react";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
+import { FeedFallback } from "@/components/FeedFallback";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { INDICES, type IndexKey } from "@/data/marketTaxonomy";
 

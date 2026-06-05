@@ -44,6 +44,7 @@ const SECTIONS: { label: string; items: Item[] }[] = [
   { label: "Compliance", items: [
     { title: "GDPR requests", url: "/owner/gdpr", icon: Scale, badge: 5, tone: "warn" },
     { title: "Legal documents", url: "/owner/legal", icon: FileWarning },
+    { title: "Security scan", url: "/owner/security", icon: ShieldCheck },
   ]},
 ];
 

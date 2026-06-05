@@ -70,6 +70,7 @@ import OwnerRevenue from "./pages/owner/Revenue";
 import OwnerFeatureFlags from "./pages/owner/FeatureFlags";
 import OwnerAuditLog from "./pages/owner/AuditLog";
 import OwnerAISignals from "./pages/owner/AISignals";
+import OwnerSecurity from "./pages/owner/Security";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -180,6 +181,7 @@ const App = () => (
             <Route path="/owner/feature-flags" element={<OwnerFeatureFlags />} />
             <Route path="/owner/audit" element={<OwnerAuditLog />} />
             <Route path="/owner/signals" element={<OwnerAISignals />} />
+            <Route path="/owner/security" element={<OwnerSecurity />} />
           </Route>
         </Routes>
         </PortfoliosProvider>

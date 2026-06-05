@@ -1,98 +1,80 @@
-# Phase 4 — Coverage, accuracy & compliance
+## Vela.ai Master Fix & Upgrade — Execution Plan
 
-Scoped, non-breaking work. Each item is isolated; nothing rewrites existing pages from scratch.
+This is a large, multi-week scope. I'll deliver it in strict phases per your instruction: Sections 1–3 first and verified before touching 4–5. Below is what each phase changes, in what order, and how I'll verify it before moving on.
 
-## A. Bug fixes (small, surgical)
+---
 
-1. **Net-worth total mismatch (Dashboard vs /net-worth)**
-   - Audit both code paths. Likely causes: dashboard reads `portfolios` only, while `/net-worth` reads `net_worth_accounts`. Or one applies FX and the other doesn't.
-   - Centralise the computation in a single hook `useNetWorthTotal()` that:
-     - loads all `net_worth_accounts` for the user,
-     - converts every line to the user's `base_currency` via `useFxRate`,
-     - subtracts liabilities,
-     - returns `{ total, byCategory, currency }`.
-   - Use it in both `Index.tsx` (dashboard tile) and `NetWorth.tsx`. Single source of truth.
+### Phase 1 — Critical data & logic bugs (blocking)
 
-2. **Currency aggregation bug in Net Worth**
-   - Same fix as above: all sums go through FX conversion to base currency before adding.
-   - Show original currency badge on each row, but the total is always in base currency.
+**1.1 Single portfolio source of truth**
+- New `src/hooks/usePortfolio.tsx` (context + provider) that loads holdings once via Supabase, exposes: `holdings`, `marketValue`, `costBasis`, `unrealisedPnL`, `winners/losers/flat/noPrice`, `loading`, `refresh`.
+- Wraps `App.tsx` alongside `PortfoliosProvider`.
+- Refactor consumers to read from it: `Dashboard` (Home), `Portfolio`, `Risk`, `TaxHarvest`, `NetWorth`, Portfolio Coach.
+- Delete the per-page `supabase.from("portfolio_holdings")` fetches in those pages.
 
-3. **Italian routing / flash bugs**
-   - "Scanner" (IT) → currently maps to AI screener because the translated label collides. Fix the sidebar/command-palette routing to use stable route IDs, not translated labels. Translate the *label* only, never the target route.
-   - "Monitor" flashing watchlist: caused by route fallback or a redirect in `App.tsx`. Pin the IT label "Monitor" to the correct destination and remove the transient redirect.
+**1.2 Reconcile totals**
+- Define exactly two numbers in the hook: `marketValue = Σ shares × livePrice(fallback avg_price)` and `costBasis = Σ shares × avg_price`.
+- Header total, position rows, and Performance chart's "current value" all bind to `marketValue`. Cost-basis line clearly labeled.
+- Add an assertion in dev: `Math.abs(headerTotal − Σ positionTotals) < 0.01`.
 
-## B. Universal Instrument Explorer (new page `/explore`)
+**1.3 MiFID II suitability engine (highest priority)**
+- Rewrite `src/lib/suitability.ts` as a pure deterministic module:
+  - `MAX_SCORE`, `TOTAL_QUESTIONS` constants.
+  - `computeSuitability(answers)` → `{ score, maxScore, answeredCount, totalQuestions, completionPct, profile, sri, allocation }`.
+  - `score` clamped `[0, maxScore]`; `answeredCount ≤ totalQuestions`; `completionPct ≤ 100`.
+  - Profile thresholds tuned so all-min → Conservative/SRI 1, all-max → Aggressive/SRI 7.
+- Suitability page binds live to `computeSuitability` on every answer change; Save disabled until `answeredCount === totalQuestions`.
+- Settings card reads the same function from the same stored answers row.
+- Unit tests in `src/lib/__tests__/suitability.test.ts`: all-min, all-max, partial, score-never-exceeds-max, monotonicity.
 
-- One page to search **anything** Yahoo indexes: stocks, ETFs, mutual funds, indices, bonds (via funds/ETFs — true OTC bonds aren't on Yahoo, we'll be honest about that), futures, FX, crypto.
-- Uses the existing `symbol-search` edge function (already universal — covers 150k+ instruments).
-- Filters: asset type, exchange, currency, region.
-- Result rows show: symbol, name, exchange, type, currency, last price, 1D %.
-- Click → existing `/stock/:symbol` page.
-- Add to sidebar under "Markets" as **Explore / Esplora**.
-- Compliance note in footer: "Bond OTC coverage limited to listed bond ETFs/funds."
+**1.4 Tax-loss harvesting bound to live holdings**
+- `TaxHarvest` reads holdings from `usePortfolio`; computes per-position unrealised P&L using live quotes; lists losers; multiplies aggregate loss by jurisdiction rate (already in file).
 
-## C. Market Movers page (`/movers`)
+**1.5 Net Worth vs Dashboard**
+- Dashboard "accounts" tile reads the real `net_worth_accounts` count (or hides if 0). Remove hard-coded "13 accounts".
 
-- Top gainers, top losers, most active.
-- Scope selector: **Index** (FTSE MIB, S&P 500, Nasdaq 100, DAX, CAC 40, FTSE 100, Nikkei 225, Hang Seng, ASX 200, TSX, Bovespa, Sensex, Euro Stoxx 50, MSCI World ETF proxy), **Region** (EU / US / APAC / LATAM / EMEA), or **Global**.
-- Backed by a new edge function `market-movers` that uses Yahoo screener endpoints (no key).
-- Auto-refresh every 60s during market hours (uses `useMarketClock`).
-- Sidebar entry under "Markets" as **Movers / Top & Flop**.
+**1.6 Winner/loser bucketing**
+- In `usePortfolio`: bucket `>0`, `<0`, `===0`, and `noPrice` (missing/0 live price); UI shows all four where relevant; counts must sum to holdings length. Holdings without live price display "no live price" instead of a fake 0%.
 
-## D. Proper world indices & segmentation
+**Verification 1**: manual walkthrough + new unit tests; assert totals match across pages.
 
-- Replace the hard-coded `Italy / Europe / S&P / Nasdaq / ETF` filter with a structured taxonomy used across Screener, Picks, Compare, Heatmap:
-  - **Asset class**: Equity / ETF / Fund / Index / Bond proxy / FX / Crypto / Commodity
-  - **Region**: North America, Europe, UK, Switzerland, Japan, Greater China, APAC ex-JP, India, LATAM, MEA
-  - **Index membership**: real index constituents (FTSE MIB, S&P 500, Nasdaq 100, Russell 2000, Dow 30, DAX 40, MDAX, CAC 40, AEX, IBEX 35, SMI, FTSE 100, OMX 30, Nikkei 225, TOPIX, HSI, KOSPI, ASX 200, TSX 60, Bovespa, Nifty 50, …)
-  - **Sector**: GICS sectors
-  - **Style**: Large/Mid/Small cap, Value/Growth, Dividend, ESG
-- Define this taxonomy in `src/data/marketTaxonomy.ts`. Existing pages adopt it via a shared `<MarketFilter>` component.
+---
 
-## E. Paper Trading (Lab)
+### Phase 2 — Error & empty states
 
-- New section under Lab (or sidebar "Lab → Paper Trading").
-- Reuses the existing `portfolios` table — already has `is_simulation` boolean. Mark these portfolios `is_simulation = true`.
-- New table `paper_trades` to log virtual buy/sell with timestamp, price (last market), qty, fees.
-- Cash balance tracked on the portfolio (new col `paper_cash`, base currency).
-- UI: portfolio selector, "New paper portfolio" with starting cash, ticker search, buy/sell modal, position table with live P&L, equity curve.
-- Big "PAPER" badge, no real-money wording, full disclaimer per MIFID (educational, no advice).
-- Strategies from Backtest can be "deployed to paper" — reuses backtest weights.
+- New `src/components/AiFallback.tsx` and `src/components/FeedFallback.tsx` (skeleton + friendly retry).
+- Wrap market briefing call (`Home`/`Dashboard`) and Copilot stream in try/catch → render fallback, log raw error to console only.
+- Macro / Movers / Watchlist / Deal Flow: skeleton while loading; explicit empty state with retry button when arrays are empty post-fetch.
+- New `src/components/ErrorBoundary.tsx` wrapping each top-level route in `App.tsx`.
 
-## F. Compliance / polish
+**Verification 2**: force-fail edge functions (block network) and confirm no raw strings surface.
 
-- Every new page: SEO `<SEO>` tags, AI disclaimer strip where AI is used, "informational only — not investment advice", data attribution (Yahoo Finance), correct H1 + canonical.
-- Pages are added to `App.tsx` routes and `AppSidebar.tsx` with proper i18n labels in `en.json` + `it.json`.
+---
 
-## Technical changes (for reference)
+### Phase 3 — Regulatory de-risking
 
-```text
-NEW
-  src/hooks/useNetWorthTotal.ts
-  src/pages/Explore.tsx
-  src/pages/Movers.tsx
-  src/pages/PaperTrading.tsx
-  src/components/MarketFilter.tsx
-  src/data/marketTaxonomy.ts
-  supabase/functions/market-movers/index.ts
-  migration: paper_trades table + portfolios.paper_cash column
+- Sweep for actionable language. Files to rewrite: `Alerts.tsx`, `SmartPicks.tsx` (rename title), `Copilot.tsx` / `CopilotChat.tsx` suggested prompts, `Optimizer.tsx` & `Rebalance.tsx` headings, `Advisor.tsx`, `SentimentDashboard.tsx`.
+- Rename in nav + page titles: Recommendations/Picks → "Research ideas"; Optimizer/Rebalance → "Allocation analysis (educational)".
+- Copilot system prompt (`supabase/functions/copilot/index.ts`): hard refusal pattern for "should I buy/sell X / what should I buy" → reframe to educational + disclaimer. Add server-side regex pre-check + post-check.
+- Live trade gate: `LiveOrderConfirmModal` + `live-trade` function → feature-flag off; UI copy changes to "read-only broker sync (SnapTrade)"; remove "place real orders" strings.
+- Privacy policy (`pages/legal/Privacy.tsx`): placeholder entity name + address surfaced as `<EntityName>` / `<RegisteredAddress>` constants you fill in once — **I'll ask you for the legal entity name and address before shipping this**. Add AI-provider disclosure + AI opt-out toggle in `PrivacySettings.tsx` writing to `profiles.ai_opt_out`.
+- Cookie banner: verify `ConsentBanner.tsx` — reject-all button equal weight, analytics default off.
+- Sentiment page: replace source list with "Yahoo Finance + your connected providers".
 
-EDIT
-  src/pages/Index.tsx          (use useNetWorthTotal)
-  src/pages/NetWorth.tsx       (use useNetWorthTotal, FX-aware totals)
-  src/pages/NetWorthCategory.tsx (FX-aware sums)
-  src/components/AppSidebar.tsx (Explore, Movers, Paper Trading; fix IT labels)
-  src/i18n/en.json + it.json   (stable route IDs, fix "Scanner"/"Monitor")
-  src/App.tsx                  (new routes, remove flashing redirect)
-  src/pages/Screener.tsx, SmartPicks.tsx, SectorHeatmap.tsx (adopt MarketFilter)
-  supabase/config.toml         (register market-movers)
-```
+**Verification 3**: grep for banned phrases (buy/sell/trim/rotate into/recommend); manual Copilot prompt tests.
 
-## Order of execution
+---
 
-1. Bug fixes (A) — fastest user-visible win.
-2. Universal Explorer (B) + Movers (C).
-3. Taxonomy refactor (D).
-4. Paper trading (E) — biggest feature, last.
+### Phase 4 — UX/IA consolidation (only after 1–3 signed off)
+Sidebar regrouping, onboarding flow, contrast audit, demo-data + Lovable badge removal, auth-gated root.
 
-Each step is shipped + verified before the next. Nothing existing is removed; only swapped behind shared utilities. Tell me to proceed (or pick a subset) and I'll start with A.
+### Phase 5 — Missing capabilities (only after 4 signed off)
+Real PDF exports, goal tracker + Monte-Carlo, PFM scope decision, advisor↔client household view.
+
+---
+
+### What I need from you before I start Phase 3
+1. **Legal entity name + registered address** for the Privacy Policy.
+2. Confirm live-trade / order placement should be **fully disabled** (not just hidden) until licensing — I'll feature-flag it off by default.
+
+I'll start Phase 1 immediately and pause for your confirmation at the end of each phase. Sound good?

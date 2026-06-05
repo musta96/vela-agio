@@ -250,7 +250,41 @@ export default function Landing() {
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{pricing.title}</h2>
               {pricing.subtitle && <p className="mt-4 text-muted-foreground">{pricing.subtitle}</p>}
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {!pricingEnabled ? (
+              <div className="max-w-2xl mx-auto">
+                <Card className="relative bg-background border-primary/40 ring-1 ring-primary/30 overflow-hidden">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-primary" />
+                  <CardContent className="p-8 sm:p-10 text-center space-y-4">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      <Sparkles className="h-3 w-3" /> Launch promotion
+                    </span>
+                    <Gift className="h-12 w-12 mx-auto text-primary" />
+                    <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">Free during early access</h3>
+                    <p className="text-muted-foreground max-w-lg mx-auto">
+                      Every Vela feature — AI research, optimizer, intraday data, alerts, PDF reports —
+                      is fully unlocked for early adopters at no cost while we finalise our paid tiers.
+                      Founding members keep preferred pricing when subscriptions go live.
+                    </p>
+                    <ul className="grid sm:grid-cols-2 gap-2 text-sm text-left max-w-md mx-auto pt-2">
+                      {["All AI tools unlocked","Unlimited watchlists","Real-time intraday data","PDF research reports"].map((f) => (
+                        <li key={f} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <span className="text-muted-foreground">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                      <Button asChild><Link to="/auth">Create your free account</Link></Button>
+                      <Button asChild variant="outline"><Link to="/">Explore the platform</Link></Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground pt-2">
+                      No credit card required. We'll give every active user 30 days' notice before any plan starts billing.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+            <div className={`grid gap-4 ${tiers.length >= 4 ? "md:grid-cols-2 lg:grid-cols-4" : tiers.length === 3 ? "md:grid-cols-3" : tiers.length === 2 ? "md:grid-cols-2 max-w-3xl mx-auto" : "max-w-md mx-auto"}`}>
               {tiers.map((t) => (
                 <Card key={t.name} className={`relative flex flex-col ${t.highlight ? "border-primary ring-1 ring-primary/40 bg-background" : "bg-background border-border"}`}>
                   {t.highlight && (
@@ -279,6 +313,7 @@ export default function Landing() {
                 </Card>
               ))}
             </div>
+            )}
             {pricing.footnote && <p className="text-center text-xs text-muted-foreground mt-6">{pricing.footnote}</p>}
           </div>
         </section>

@@ -246,6 +246,36 @@ export async function vaultDelete(provider: string): Promise<void> {
   if (error) throw error;
 }
 
+export interface VaultHealth {
+  ok: boolean;
+  encryption_key: {
+    ok: boolean;
+    present: boolean;
+    base64_valid: boolean;
+    byte_length: number;
+    expected_byte_length: number;
+    message: string;
+    hint: string;
+  };
+  secrets: { name: string; present: boolean }[];
+}
+
+export async function vaultHealth(): Promise<VaultHealth> {
+  const { data, error } = await supabase.functions.invoke("keys-vault", {
+    body: { action: "health" },
+  });
+  if (error) throw error;
+  return data as VaultHealth;
+}
+
+/** Generate a fresh 32-byte AES-256 key, base64-encoded, in the browser. */
+export function generateEncryptionKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
 // One-time cleanup: purge the old plaintext localStorage blob if present.
 if (typeof window !== "undefined") {
   try { localStorage.removeItem("user_api_keys_v1"); } catch { /* ignore */ }

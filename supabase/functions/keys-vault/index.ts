@@ -29,12 +29,43 @@ function b64decode(s: string): Uint8Array {
 }
 
 let cachedKey: CryptoKey | null = null;
+
+export type KeyCheckResult = {
+  ok: boolean;
+  present: boolean;
+  base64_valid: boolean;
+  byte_length: number;
+  expected_byte_length: 32;
+  hint: string;
+  message: string;
+};
+
+function checkEncryptionKey(): KeyCheckResult {
+  const raw = Deno.env.get("APP_ENCRYPTION_KEY");
+  const base: KeyCheckResult = {
+    ok: false, present: false, base64_valid: false,
+    byte_length: 0, expected_byte_length: 32,
+    hint: "Generate one with: openssl rand -base64 32  (or use the in-app generator).",
+    message: "",
+  };
+  if (!raw) return { ...base, message: "APP_ENCRYPTION_KEY secret is not set." };
+  base.present = true;
+  let bytes: Uint8Array;
+  try { bytes = b64decode(raw.trim()); }
+  catch { return { ...base, message: "APP_ENCRYPTION_KEY is not valid base64." }; }
+  base.base64_valid = true;
+  base.byte_length = bytes.length;
+  if (bytes.length !== 32) {
+    return { ...base, message: `APP_ENCRYPTION_KEY must decode to exactly 32 bytes (got ${bytes.length}). AES-256 requires a 32-byte key (44-char base64 ending in '=').` };
+  }
+  return { ...base, ok: true, message: "APP_ENCRYPTION_KEY is valid (32 bytes, base64)." };
+}
+
 async function getKey(): Promise<CryptoKey> {
   if (cachedKey) return cachedKey;
-  const raw = Deno.env.get("APP_ENCRYPTION_KEY");
-  if (!raw) throw new Error("APP_ENCRYPTION_KEY not configured");
-  const bytes = b64decode(raw);
-  if (bytes.length !== 32) throw new Error("APP_ENCRYPTION_KEY must be 32 bytes (base64)");
+  const check = checkEncryptionKey();
+  if (!check.ok) throw new Error(`[vault setup] ${check.message} ${check.hint}`);
+  const bytes = b64decode((Deno.env.get("APP_ENCRYPTION_KEY") || "").trim());
   cachedKey = await crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);
   return cachedKey;
 }
@@ -112,6 +143,19 @@ Deno.serve(async (req) => {
   const action = body.action;
 
   try {
+    if (action === "health") {
+      const enc = checkEncryptionKey();
+      const required = [
+        "APP_ENCRYPTION_KEY",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+      ];
+      const secrets = required.map((name) => ({ name, present: !!Deno.env.get(name) }));
+      const allOk = enc.ok && secrets.every((s) => s.present);
+      return json({ ok: allOk, encryption_key: enc, secrets });
+    }
+
     if (action === "list") {
       const { data, error } = await admin
         .from("user_api_keys")
@@ -170,7 +214,9 @@ Deno.serve(async (req) => {
 
     return json({ error: "unknown action" }, 400);
   } catch (e) {
-    console.error("keys-vault error", e);
-    return json({ error: (e as Error).message || "internal error" }, 500);
+    const msg = (e as Error)?.message || "internal error";
+    const stack = (e as Error)?.stack;
+    console.error("[keys-vault] error", { action, message: msg, stack });
+    return json({ error: msg, action, hint: msg.includes("APP_ENCRYPTION_KEY") ? "Run the 'health' action or use the in-app key generator to fix APP_ENCRYPTION_KEY." : undefined }, 500);
   }
 });

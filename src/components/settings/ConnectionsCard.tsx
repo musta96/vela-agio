@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Key, Trash2, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { VaultHealthCard } from "./VaultHealthCard";
 
 const AI_PROVIDERS = [
   { value: "lovable", label: "Lovable AI Gateway (default)" },
@@ -78,6 +79,7 @@ export function ConnectionsCard() {
 
   return (
     <div className="space-y-6">
+      <VaultHealthCard />
       <Card className="p-6 rounded-2xl">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="h-4 w-4 text-primary" />

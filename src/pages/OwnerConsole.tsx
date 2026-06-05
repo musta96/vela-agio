@@ -6,6 +6,7 @@ import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
 import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
+import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

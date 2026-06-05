@@ -23,7 +23,14 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 vi.mock("@/lib/userApiKeys", async () => {
   const actual = await vi.importActual<any>("@/lib/userApiKeys");
-  return { ...actual, vaultList: async () => [], vaultSet: vi.fn(), vaultDelete: vi.fn() };
+  return {
+    ...actual,
+    vaultList: async () => [],
+    vaultSet: vi.fn(),
+    vaultDelete: vi.fn(),
+    vaultHealth: async () => ({ ok: true, encryption_key: { present: true } }),
+    generateEncryptionKey: () => "test-key",
+  };
 });
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

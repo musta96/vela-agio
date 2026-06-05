@@ -726,3 +726,172 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
   footer(doc);
   doc.save(`${input.symbol}-deep-analysis-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
+
+// =====================================================================
+// Goals plan PDF — deep version with inputs, percentiles, year table,
+// success probability and actionable interpretation.
+// =====================================================================
+
+export interface GoalsPlanReportInput {
+  name: string;
+  initial: number;
+  monthly: number;
+  years: number;
+  target: number;
+  expectedReturn: number; // 0.07 = 7%
+  volatility: number;     // 0.15 = 15%
+  successProb: number;    // 0..1
+  paths: { p10: number[]; median: number[]; p90: number[] }; // monthly arrays
+  currency?: string;
+}
+
+export function generateGoalsPlanReport(input: GoalsPlanReportInput) {
+  const cur = input.currency ?? "€";
+  const doc = new jsPDF();
+  const fmt = (n: number) =>
+    `${cur}${Math.round(n).toLocaleString("en-US")}`;
+
+  header(doc, "Goal Plan", input.name);
+
+  // Inputs summary
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...BRAND.muted);
+  doc.text("INITIAL", 14, 56);
+  doc.text("MONTHLY", 64, 56);
+  doc.text("HORIZON", 114, 56);
+  doc.text("TARGET", 164, 56);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(13);
+  doc.text(fmt(input.initial), 14, 64);
+  doc.text(fmt(input.monthly), 64, 64);
+  doc.text(`${input.years} yrs`, 114, 64);
+  doc.text(fmt(input.target), 164, 64);
+
+  // Assumptions
+  autoTable(doc, {
+    startY: 74,
+    head: [["Assumption", "Value"]],
+    body: [
+      ["Expected annual return", `${(input.expectedReturn * 100).toFixed(2)}%`],
+      ["Annual volatility (std. dev.)", `${(input.volatility * 100).toFixed(2)}%`],
+      ["Simulation trials", "800"],
+      ["Contribution timing", "End of month"],
+      ["Model", "Geometric Brownian Motion (lognormal monthly returns)"],
+    ],
+    headStyles: { fillColor: BRAND.primary, textColor: 255 },
+    styles: { fontSize: 9 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  // @ts-expect-error - autoTable adds lastAutoTable to doc
+  let y = (doc.lastAutoTable?.finalY ?? 100) + 8;
+
+  // Outcome card
+  const months = input.paths.median.length;
+  const finalMedian = input.paths.median[months - 1] ?? 0;
+  const finalP10 = input.paths.p10[months - 1] ?? 0;
+  const finalP90 = input.paths.p90[months - 1] ?? 0;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...BRAND.muted);
+  doc.text("SUCCESS PROBABILITY", 14, y);
+  doc.text("MEDIAN OUTCOME", 84, y);
+  doc.text("10TH / 90TH PCT", 154, y);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(14);
+  const okColor: [number, number, number] =
+    input.successProb >= 0.7 ? [16, 185, 129] : input.successProb >= 0.4 ? [234, 179, 8] : [239, 68, 68];
+  doc.setTextColor(...okColor);
+  doc.text(`${Math.round(input.successProb * 100)}%`, 14, y + 8);
+  doc.setTextColor(0, 0, 0);
+  doc.text(fmt(finalMedian), 84, y + 8);
+  doc.setFontSize(11);
+  doc.text(`${fmt(finalP10)} / ${fmt(finalP90)}`, 154, y + 8);
+
+  y += 18;
+
+  // Yearly percentile table — sample year-end values
+  const yearRows: any[] = [];
+  for (let yr = 1; yr <= input.years; yr++) {
+    const idx = Math.min(yr * 12 - 1, months - 1);
+    yearRows.push([
+      `Year ${yr}`,
+      fmt(input.paths.p10[idx]),
+      fmt(input.paths.median[idx]),
+      fmt(input.paths.p90[idx]),
+      input.paths.median[idx] >= input.target ? "Reached" : "—",
+    ]);
+  }
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Year", "10th pct", "Median", "90th pct", "Target?"]],
+    body: yearRows,
+    headStyles: { fillColor: BRAND.primary, textColor: 255 },
+    styles: { fontSize: 9 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  // Interpretation page
+  doc.addPage();
+  header(doc, "Interpretation", "Educational guidance — not financial advice");
+
+  let iy = 56;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("What this means", 14, iy);
+  iy += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+
+  const gap = input.target - finalMedian;
+  const verdict =
+    input.successProb >= 0.7
+      ? `Your plan looks on track: in ${Math.round(input.successProb * 100)}% of simulated futures, the portfolio meets or exceeds ${fmt(input.target)} by year ${input.years}.`
+      : input.successProb >= 0.4
+        ? `Your plan is borderline: only ${Math.round(input.successProb * 100)}% of simulations reach ${fmt(input.target)}. Small changes to contributions, horizon, or risk profile can meaningfully improve odds.`
+        : `Your plan is unlikely to reach the target as-is: only ${Math.round(input.successProb * 100)}% of simulations clear ${fmt(input.target)}. Consider raising contributions, extending the horizon, or revisiting your target.`;
+
+  const verdictLines = doc.splitTextToSize(verdict, doc.internal.pageSize.getWidth() - 28);
+  doc.text(verdictLines, 14, iy);
+  iy += verdictLines.length * 5 + 4;
+
+  // Suggestions
+  doc.setFont("helvetica", "bold");
+  doc.text("Levers to consider", 14, iy);
+  iy += 6;
+  doc.setFont("helvetica", "normal");
+
+  const extraMonthly = gap > 0 ? Math.max(50, Math.round(gap / (input.years * 12) / 10) * 10) : 0;
+  const levers = [
+    extraMonthly > 0
+      ? `Increase monthly contribution by roughly ${fmt(extraMonthly)} to close the median gap of ${fmt(Math.max(0, gap))}.`
+      : `Median outcome already clears the target — consider locking in gains as the horizon shortens.`,
+    `Extending the horizon by 2-3 years typically lifts success probability by 10-20 percentage points at the same contribution.`,
+    `Lowering volatility (more bonds / diversification) trims the downside p10 but also reduces the p90 upside.`,
+    `Re-run this plan whenever income, target, or market regime changes materially.`,
+  ];
+  levers.forEach((l) => {
+    const lines = doc.splitTextToSize(`• ${l}`, doc.internal.pageSize.getWidth() - 28);
+    doc.text(lines, 14, iy);
+    iy += lines.length * 5 + 2;
+  });
+
+  iy += 4;
+  doc.setFont("helvetica", "bold");
+  doc.text("Method notes", 14, iy);
+  iy += 6;
+  doc.setFont("helvetica", "normal");
+  const notes =
+    "Outcomes are simulated using 800 random paths of monthly returns drawn from a normal distribution with the annual mean and volatility you specified. Returns are compounded and monthly contributions are added end-of-period. Inflation, taxes, fees, and sequence-of-returns risk are not modelled explicitly; treat percentiles as relative guidance rather than precise forecasts.";
+  const noteLines = doc.splitTextToSize(notes, doc.internal.pageSize.getWidth() - 28);
+  doc.text(noteLines, 14, iy);
+  iy += noteLines.length * 5 + 6;
+
+  disclaimer(doc, iy);
+
+  footer(doc);
+  doc.save(`goal-plan-${input.name.replace(/[^a-z0-9-]+/gi, "-").toLowerCase() || "plan"}-${new Date().toISOString().slice(0, 10)}.pdf`);
+}

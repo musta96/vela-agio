@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { isAiOptedOut, aiOptOutResponse } from '../_shared/ai-opt-out.ts';
 
 /**
  * AI-powered fuzzy symbol resolver.
@@ -13,6 +14,7 @@ import { resolveAIConfig } from '../_shared/ai-provider.ts';
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
+    if (await isAiOptedOut(req.headers.get('Authorization'))) return aiOptOutResponse(corsHeaders);
     const { query, lang } = await req.json();
     const q = String(query ?? '').trim();
     if (!q) return new Response(JSON.stringify({ candidates: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

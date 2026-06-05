@@ -62,7 +62,10 @@ export interface UsePortfolioResult {
 export function usePortfolio(): UsePortfolioResult {
   const { user } = useAuth();
   const { primary, activeId } = usePortfolios();
-  const portfolioId = primary?.id ?? activeId ?? null;
+  // Match the Portfolio page: the user's currently-active portfolio drives
+  // every other surface (Dashboard, Risk, Tax, Coach). Fall back to the
+  // primary portfolio only when nothing is selected.
+  const portfolioId = activeId ?? primary?.id ?? null;
 
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(false);

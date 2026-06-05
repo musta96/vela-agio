@@ -8,6 +8,7 @@ import { ShieldAlert, Loader2, AlertTriangle, Activity, Zap, FileDown } from "lu
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import type { OHLCBar } from "@/lib/technicalIndicators";
 import {
   computePortfolioRisk,
@@ -51,33 +52,19 @@ async function fetchQuote(symbol: string): Promise<number | null> {
 
 const Risk = () => {
   const { user } = useAuth();
-  const [holdings, setHoldings] = useState<Array<{ symbol: string; name: string; shares: number }>>([]);
+  const { holdings: pfHoldings, marketValue: pfMarketValue } = usePortfolio();
+  const holdings = useMemo(
+    () => pfHoldings.map((h) => ({ symbol: h.symbol, name: h.name ?? h.symbol, shares: h.shares })),
+    [pfHoldings],
+  );
   const [positions, setPositions] = useState<PortfolioPosition[]>([]);
   const [benchmark, setBenchmark] = useState<OHLCBar[]>([]);
   const [factors, setFactors] = useState<Array<{ factor: string; symbol: string; bars: OHLCBar[] }>>([]);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<string>("");
 
-  // Load holdings
-  useEffect(() => {
-    (async () => {
-      if (user) {
-        const { data } = await supabase
-          .from("portfolio_holdings")
-          .select("symbol,name,shares")
-          .order("created_at", { ascending: true });
-        if (data) setHoldings(data.map((r) => ({ symbol: r.symbol, name: r.name, shares: Number(r.shares) })));
-      } else {
-        try {
-          const raw = localStorage.getItem("portfolio_holdings");
-          if (raw) {
-            const arr = JSON.parse(raw) as any[];
-            setHoldings(arr.map((r) => ({ symbol: r.symbol, name: r.name, shares: Number(r.shares) })));
-          }
-        } catch {}
-      }
-    })();
-  }, [user]);
+  // Holdings now sourced from the canonical `usePortfolio` hook so Risk
+  // always reconciles with the Dashboard / Portfolio header totals.
 
   // Load bars for all holdings + benchmark + factor proxies
   useEffect(() => {

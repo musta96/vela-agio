@@ -28,7 +28,6 @@ export default function Privacy() {
           that point.
         </p>
       )}
-      </p>
 
       <h2>2. What we collect</h2>
       <ul>

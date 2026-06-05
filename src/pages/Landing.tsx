@@ -128,11 +128,11 @@ export default function Landing() {
               </Badge>
             )}
             <Reveal stagger>
-              <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-[0.95]">
+              <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold tracking-tight leading-[1] md:leading-[0.95]">
                 {hero.title}
               </h1>
               {hero.titleAccent && (
-                <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-[0.95] bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mt-2">
+                <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold tracking-tight leading-[1] md:leading-[0.95] bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mt-2">
                   {hero.titleAccent}
                 </h1>
               )}

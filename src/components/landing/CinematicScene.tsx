@@ -42,6 +42,17 @@ function WireGlobe() {
 }
 
 export default function CinematicScene({ className = "" }: { className?: string }) {
+  if (typeof window !== "undefined") {
+    const isSmall = window.matchMedia("(max-width: 768px)").matches;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (isSmall || reduced) {
+      return (
+        <div className={`pointer-events-none absolute inset-0 -z-10 ${className}`}>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.25),transparent_60%),radial-gradient(ellipse_at_bottom_right,hsl(var(--accent)/0.18),transparent_55%)]" />
+        </div>
+      );
+    }
+  }
   return (
     <div className={`pointer-events-none absolute inset-0 -z-10 ${className}`}>
       <Canvas

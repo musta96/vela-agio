@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Target, Save, Loader2, Check } from "lucide-react";
+import { Target, Save, Loader2, Check, FileDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { generateGoalsPlanReport } from "@/lib/pdfReports";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -123,6 +124,30 @@ export default function Goals() {
           <Button onClick={save} disabled={saving || !user} size="sm" className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedAt && Date.now() - savedAt < 4000 ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             {goalId ? "Update plan" : "Save plan"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              try {
+                generateGoalsPlanReport({
+                  name,
+                  initial,
+                  monthly,
+                  years,
+                  target,
+                  expectedReturn: mean,
+                  volatility: sd,
+                  successProb,
+                  paths: { p10: sim.p10, median: sim.p50, p90: sim.p90 },
+                });
+              } catch (e) {
+                toast.error("Could not export PDF", { description: (e as Error).message });
+              }
+            }}
+          >
+            <FileDown className="h-4 w-4" /> Export PDF
           </Button>
         </div>
         <div className="grid md:grid-cols-3 gap-4">

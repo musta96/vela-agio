@@ -188,6 +188,35 @@ Deno.serve(async (req) => {
     const arr = mrr * 12;
     const arpu = activeCustomers > 0 ? mrr / activeCustomers : 0;
 
+    // P8 #46: per-tier AI cost vs MRR contribution (last 30d).
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: marginRows } = await adminClient.rpc("ai_margin_summary");
+    // Join per-tier MRR (from `plans` we already computed). plans entries
+    // don't carry a tier, but their `name`/lookup_key usually does — best
+    // effort: aggregate any plan whose price_id contains the tier keyword.
+    const margin: Array<{ tier: string; users: number; mrr: number; ai_cost: number; gross_margin: number; gross_margin_pct: number; ai_credits: number }> = [];
+    for (const row of (marginRows ?? []) as any[]) {
+      const tier = row.tier as string;
+      let tierMrr = 0;
+      for (const p of plans) {
+        if ((p.price_id ?? "").toLowerCase().includes(tier) || (p.name ?? "").toLowerCase().includes(tier)) tierMrr += p.mrr;
+      }
+      const ai_cost = Number(row.ai_cost_cents ?? 0) / 100;
+      const gm = tierMrr - ai_cost;
+      margin.push({
+        tier,
+        users: Number(row.users ?? 0),
+        mrr: tierMrr,
+        ai_cost,
+        gross_margin: gm,
+        gross_margin_pct: tierMrr > 0 ? (gm / tierMrr) * 100 : 0,
+        ai_credits: Number(row.ai_credits ?? 0),
+      });
+    }
+
     return new Response(JSON.stringify({
       env,
       range,
@@ -195,6 +224,7 @@ Deno.serve(async (req) => {
       kpis: { mrr, arr, arpu, paid: activeCustomers, churn_pct_30d: churnRate, trend_pct: trendPct },
       plans,
       series,
+      margin,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("billing-metrics error", err);

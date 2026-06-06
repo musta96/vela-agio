@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { AdvisoryAccessCard } from "@/components/settings/AdvisoryAccessCard";
+import { TenantLicensingCard } from "@/components/settings/TenantLicensingCard";
 import { ConnectionsCard } from "@/components/settings/ConnectionsCard";
 import { AIAccessCard } from "@/components/settings/AIAccessCard";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
@@ -246,6 +247,7 @@ function PrivacyTab() {
   return (
     <div className="space-y-6">
       <AdvisoryAccessCard />
+      <TenantLicensingCard />
       <Card className="p-6 rounded-2xl">
         <h2 className="text-base font-semibold mb-2">Privacy & data controls</h2>
         <p className="text-sm text-muted-foreground mb-4">Manage consent, marketing preferences, cookie categories and GDPR data rights.</p>

@@ -3,9 +3,13 @@ import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Target, PieChart, ShieldAlert, Loader2 } from "lucide-react";
+import { Users, Target, PieChart, ShieldAlert, Loader2, FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { generateConsolidatedReport } from "@/lib/pdfReports";
+import { logMandateEvent } from "@/lib/mandates";
+import { toast } from "sonner";
 
 type ClientRow = {
   clientId: string;
@@ -15,6 +19,7 @@ type ClientRow = {
   holdingsCount: number;
   marketValue: number;
   riskProfile?: string | null;
+  holdings: Array<{ symbol: string; value: number }>;
 };
 
 export default function Household() {
@@ -42,7 +47,7 @@ export default function Household() {
       const [profiles, goals, holdings, investorProfiles] = await Promise.all([
         supabase.from("profiles").select("user_id, display_name").in("user_id", clientIds),
         supabase.from("financial_goals").select("user_id, target").in("user_id", clientIds),
-        supabase.from("portfolio_holdings").select("user_id, shares, avg_price").in("user_id", clientIds),
+        supabase.from("portfolio_holdings").select("user_id, symbol, shares, avg_price").in("user_id", clientIds),
         supabase.from("investor_profiles").select("user_id, profile_name").in("user_id", clientIds),
       ]);
       const rows: ClientRow[] = clientIds.map((cid) => {
@@ -58,6 +63,10 @@ export default function Household() {
           holdingsCount: hs.length,
           marketValue: hs.reduce((s: number, h: any) => s + Number(h.shares || 0) * Number(h.avg_price || 0), 0),
           riskProfile: inv?.profile_name ?? null,
+          holdings: hs.map((h: any) => ({
+            symbol: h.symbol ?? "—",
+            value: Number(h.shares || 0) * Number(h.avg_price || 0),
+          })),
         };
       });
       if (!cancelled) { setClients(rows); setLoading(false); }
@@ -69,14 +78,48 @@ export default function Household() {
   const totalGoals = clients.reduce((s, c) => s + c.goalsCount, 0);
   const totalTarget = clients.reduce((s, c) => s + c.totalTarget, 0);
 
+  const exportConsolidated = async () => {
+    if (!user || !clients.length) return;
+    try {
+      generateConsolidatedReport({
+        householdName: "Household",
+        asOfDate: new Date().toISOString(),
+        baseCurrency: "EUR",
+        entities: clients.map((c) => ({
+          label: c.displayName,
+          holdings: c.holdings.map((h) => ({ symbol: h.symbol, value: h.value })),
+        })),
+      });
+      // Audit one event per client included in the export.
+      await Promise.all(
+        clients.map((c) =>
+          logMandateEvent({
+            actorId: user.id,
+            clientId: c.clientId,
+            action: "export_pdf",
+            metadata: { report: "consolidated" },
+          }),
+        ),
+      );
+      toast.success("Consolidated report generated");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Export failed");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SEO title="Household View | Vela.ai" description="Advisor household aggregation: goals, holdings, risk" path="/household" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <Users className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Household view</h1>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Users className="h-6 w-6 text-primary" />
+            <h1 className="text-3xl font-bold">Household view</h1>
+          </div>
+          <Button onClick={exportConsolidated} disabled={!clients.length} className="gap-2">
+            <FileDown className="h-4 w-4" /> Consolidated PDF
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl">
           Aggregated, educational view of clients who granted you advisory access. Read-only. Not financial advice.

@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { timeWeightedReturn, moneyWeightedReturn, liquidityLadder, type CashFlow } from "@/lib/performanceMetrics";
 
 const BRAND = {
   primary: [13, 71, 161] as [number, number, number], // deep navy
@@ -917,6 +918,147 @@ export function generateGoalsPlanReport(
   disclaimer(doc, iy);
 
   footer(doc);
+  if (options.mode === "blob") {
+    const blob = doc.output("bloburl");
+    return { filename, blobUrl: String(blob) };
+  }
+  doc.save(filename);
+  return { filename };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Consolidated household / entity report (P6)
+// ───────────────────────────────────────────────────────────────────────────
+export interface ConsolidatedReportInput {
+  householdName: string;
+  asOfDate: string; // ISO
+  baseCurrency?: string;
+  brand?: { tenantName?: string; primaryHex?: string };
+  entities: Array<{
+    label: string;
+    holdings: Array<{ symbol: string; value: number; type?: string | null; country?: string | null; sector?: string | null; currency?: string | null }>;
+  }>;
+  periodReturns?: number[];          // for TWR (decimal per period)
+  cashFlows?: CashFlow[];            // for MWR/IRR
+  endingValue?: number;              // for MWR/IRR
+  taxLots?: Array<{ symbol: string; realizedPL: number; unrealizedPL: number }>;
+  leverageRatio?: number | null;     // gross / equity
+}
+
+function bucketByKey<T>(items: T[], key: (it: T) => string, val: (it: T) => number) {
+  const totals = new Map<string, number>();
+  for (const it of items) {
+    const k = key(it) || "—";
+    totals.set(k, (totals.get(k) ?? 0) + Math.max(0, val(it)));
+  }
+  const sum = Array.from(totals.values()).reduce((s, v) => s + v, 0) || 1;
+  return Array.from(totals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => [k, v, (v / sum) * 100] as const);
+}
+
+export function generateConsolidatedReport(input: ConsolidatedReportInput, options: { mode?: "save" | "blob" } = {}) {
+  const doc = new jsPDF();
+  const cur = input.baseCurrency || "EUR";
+  const fmt = (n: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(n);
+  const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
+  const filename = `consolidated-${input.householdName.replace(/\s+/g, "-").toLowerCase()}-${input.asOfDate.slice(0,10)}.pdf`;
+
+  // Cover
+  header(doc, "Consolidated Report", `${input.brand?.tenantName ?? "Vela.ai"} · ${input.householdName} · as of ${new Date(input.asOfDate).toLocaleDateString()}`);
+
+  const allHoldings = input.entities.flatMap((e) => e.holdings.map((h) => ({ ...h, _entity: e.label })));
+  const totalMV = allHoldings.reduce((s, h) => s + Number(h.value || 0), 0);
+
+  // KPI strip
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.muted);
+  doc.text("TOTAL MARKET VALUE", 14, 56);
+  doc.text("ENTITIES", 84, 56);
+  doc.text("POSITIONS", 134, 56);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.text(fmt(totalMV), 14, 64);
+  doc.text(String(input.entities.length), 84, 64);
+  doc.text(String(allHoldings.length), 134, 64);
+  doc.setFont("helvetica", "normal");
+
+  // Performance: TWR + MWR/IRR
+  doc.addPage();
+  header(doc, "Performance", "TWR isolates manager skill; MWR/IRR reflects the investor's actual experience.");
+  const twr = input.periodReturns?.length ? timeWeightedReturn(input.periodReturns) : null;
+  const irr =
+    input.cashFlows?.length && input.endingValue != null
+      ? moneyWeightedReturn(input.cashFlows, input.endingValue, input.asOfDate)
+      : null;
+  autoTable(doc, {
+    startY: 56,
+    head: [["Metric", "Value", "Note"]],
+    body: [
+      ["Time-Weighted Return (TWR)", twr == null ? "n/a" : pct(twr, 2), "Period chained, contribution-neutral"],
+      ["Money-Weighted Return (IRR)", irr == null || Number.isNaN(irr) ? "n/a" : pct(irr, 2), "Annualised, accounts for cash flow timing"],
+      ["Leverage (gross/equity)", input.leverageRatio == null ? "n/a" : input.leverageRatio.toFixed(2) + "x", "1.00x = no leverage"],
+    ],
+    headStyles: { fillColor: BRAND.primary, textColor: 255 },
+    styles: { fontSize: 10 },
+  });
+
+  // Allocation by entity / sector / geography / currency
+  doc.addPage();
+  header(doc, "Allocation", "Aggregated across all entities in the household.");
+  const entityRows = bucketByKey(allHoldings, (h: any) => h._entity, (h) => h.value);
+  const sectorRows = bucketByKey(allHoldings, (h) => h.sector || "Unclassified", (h) => h.value);
+  const geoRows = bucketByKey(allHoldings, (h) => h.country || "Unclassified", (h) => h.value);
+  const ccyRows = bucketByKey(allHoldings, (h) => h.currency || cur, (h) => h.value);
+  const allocTable = (title: string, rows: ReadonlyArray<readonly [string, number, number]>, startY: number) => {
+    autoTable(doc, {
+      startY,
+      head: [[title, "Value", "Weight"]],
+      body: rows.map(([k, v, p]) => [k, fmt(v), `${p.toFixed(1)}%`]),
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+    });
+    // @ts-expect-error autotable adds finalY
+    return (doc.lastAutoTable?.finalY ?? startY) + 6;
+  };
+  let y = allocTable("By entity", entityRows, 56);
+  y = allocTable("By sector", sectorRows, y);
+  if (y > 230) { doc.addPage(); header(doc, "Allocation (cont.)", ""); y = 56; }
+  y = allocTable("By geography", geoRows, y);
+  if (y > 230) { doc.addPage(); header(doc, "Allocation (cont.)", ""); y = 56; }
+  y = allocTable("By currency", ccyRows, y);
+
+  // Liquidity ladder
+  doc.addPage();
+  header(doc, "Liquidity ladder", "How quickly each slice of the portfolio can be turned into cash.");
+  const ladder = liquidityLadder(allHoldings.map((h) => ({ value: h.value, type: h.type })));
+  autoTable(doc, {
+    startY: 56,
+    head: [["Settlement", "Market value", "Weight"]],
+    body: ladder.map((r) => [r.bucket, fmt(r.marketValue), `${r.weightPct.toFixed(1)}%`]),
+    headStyles: { fillColor: BRAND.primary, textColor: 255 },
+    styles: { fontSize: 10 },
+  });
+
+  // Tax lots summary
+  if (input.taxLots?.length) {
+    doc.addPage();
+    header(doc, "Tax-lot summary", "Realized vs. unrealized P/L per symbol.");
+    autoTable(doc, {
+      startY: 56,
+      head: [["Symbol", "Realized P/L", "Unrealized P/L"]],
+      body: input.taxLots.map((t) => [t.symbol, fmt(t.realizedPL), fmt(t.unrealizedPL)]),
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 10 },
+    });
+  }
+
+  // @ts-expect-error autotable adds finalY
+  const endY = (doc.lastAutoTable?.finalY ?? 200) + 8;
+  disclaimer(doc, endY);
+  footer(doc);
+
   if (options.mode === "blob") {
     const blob = doc.output("bloburl");
     return { filename, blobUrl: String(blob) };

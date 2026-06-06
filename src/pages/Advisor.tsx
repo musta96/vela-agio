@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Sparkles, TrendingDown, TrendingUp, AlertTriangle, CloudSun, Scale, Newspaper, Target, RefreshCw, Info } from "lucide-react";
+import { Sparkles, TrendingDown, TrendingUp, AlertTriangle, CloudSun, Scale, Newspaper, Target, RefreshCw, Info, ShieldAlert } from "lucide-react";
 import { Navigate, Link } from "react-router-dom";
 
 type SellSignal = {
@@ -70,6 +70,17 @@ export default function Advisor() {
   const loadingHoldings = portfolio.loading;
   const [result, setResult] = useState<AdvisorResp | null>(null);
   const [running, setRunning] = useState(false);
+  const [hasSuitability, setHasSuitability] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("investor_profiles")
+      .select("completed_at")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setHasSuitability(!!data?.completed_at));
+  }, [user?.id]);
 
   if (!enabled) {
     return (
@@ -84,6 +95,10 @@ export default function Advisor() {
 
   const run = async () => {
     if (!holdings.length) { toast.error("Add some holdings to your portfolio first"); return; }
+    if (hasSuitability === false) {
+      toast.error("Complete your suitability assessment before running personalized analysis");
+      return;
+    }
     setRunning(true); setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("advisor", {
@@ -109,6 +124,21 @@ export default function Advisor() {
           description="Educational research on your portfolio: ideas to consider around concentration, valuation, news, regulation, and optional weather signals."
         />
         <AiDisclaimerStrip variant="ai" />
+
+        {hasSuitability === false && (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardContent className="p-4 flex items-start gap-3">
+              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <div className="text-sm space-y-1">
+                <div className="font-medium">Suitability assessment required</div>
+                <div className="text-muted-foreground">
+                  Client-specific recommendations are blocked until your suitability profile is on file.{" "}
+                  <Link to="/suitability" className="text-primary underline">Start the 5-minute questionnaire</Link>.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Your context</CardTitle>

@@ -1081,6 +1081,16 @@ const StockDetails = () => {
 
           {/* SOURCES */}
           <TabsContent value="sources" className="space-y-4">
+          </TabsContent>
+          {/* STATEMENTS */}
+          <TabsContent value="statements" className="space-y-6">
+            <FinancialStatementsPanel symbol={sym} />
+          </TabsContent>
+          {/* PEERS */}
+          <TabsContent value="peers" className="space-y-6">
+            <PeerComparisonPanel symbol={sym} />
+          </TabsContent>
+          <TabsContent value="sources-real" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>All Sources</CardTitle>

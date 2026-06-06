@@ -77,6 +77,7 @@ import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
 import AdminSettings from "./pages/AdminSettings";
 import Advisor from "./pages/Advisor";
+import Household from "./pages/Household";
 import AppShell from "./components/AppShell";
 import { ProtectedRoute, OwnerRoute } from "./components/ProtectedRoute";
 import Privacy from "./pages/legal/Privacy";
@@ -168,6 +169,7 @@ const App = () => (
             <Route path="/admin/audit" element={<OwnerRoute><AdminAuditLog /></OwnerRoute>} />
             <Route path="/admin/settings" element={<OwnerRoute><AdminSettings /></OwnerRoute>} />
             <Route path="/advisor" element={<Advisor />} />
+            <Route path="/household" element={<Household />} />
             <Route path="/owner" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
             <Route path="*" element={<NotFound />} />
           </Route>

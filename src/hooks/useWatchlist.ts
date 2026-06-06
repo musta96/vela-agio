@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { normalizeSymbol } from "@/lib/symbolNormalize";
+
+function dedupe(items: { symbol: string; name: string | null; addedAt: number }[]) {
+  const map = new Map<string, typeof items[number]>();
+  for (const it of items) {
+    const key = normalizeSymbol(it.symbol);
+    const existing = map.get(key);
+    if (!existing || existing.addedAt > it.addedAt) {
+      map.set(key, { ...it, symbol: key });
+    }
+  }
+  return Array.from(map.values());
+}
 
 const STORAGE_KEY = "ftse-watchlist";
 

@@ -36,6 +36,8 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
+import { FinancialStatementsPanel } from "@/components/stock/FinancialStatementsPanel";
+import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
 
 interface SentimentArticle {
   title: string;
@@ -401,11 +403,13 @@ const StockDetails = () => {
 
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-8 max-w-5xl">
             <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" />Overview</TabsTrigger>
             <TabsTrigger value="technicals" className="gap-1.5"><Activity className="h-4 w-4" />Technicals</TabsTrigger>
             <TabsTrigger value="risk" className="gap-1.5"><ShieldAlert className="h-4 w-4" />Risk</TabsTrigger>
             <TabsTrigger value="deep" className="gap-1.5" onClick={() => { if (!deep && !deepLoading) fetchDeep(); }}><Calculator className="h-4 w-4" />Deep Analysis</TabsTrigger>
+            <TabsTrigger value="statements" className="gap-1.5"><Briefcase className="h-4 w-4" />Statements</TabsTrigger>
+            <TabsTrigger value="peers" className="gap-1.5"><Star className="h-4 w-4" />Peers</TabsTrigger>
             <TabsTrigger value="sentiment" className="gap-1.5"><MessageSquare className="h-4 w-4" />Sentiment</TabsTrigger>
             <TabsTrigger value="sources" className="gap-1.5"><Globe className="h-4 w-4" />Sources</TabsTrigger>
           </TabsList>
@@ -1075,6 +1079,14 @@ const StockDetails = () => {
             </Card>
           </TabsContent>
 
+          {/* STATEMENTS */}
+          <TabsContent value="statements" className="space-y-6">
+            <FinancialStatementsPanel symbol={sym} />
+          </TabsContent>
+          {/* PEERS */}
+          <TabsContent value="peers" className="space-y-6">
+            <PeerComparisonPanel symbol={sym} />
+          </TabsContent>
           {/* SOURCES */}
           <TabsContent value="sources" className="space-y-4">
             <Card>

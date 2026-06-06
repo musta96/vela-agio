@@ -80,9 +80,9 @@ export function useWatchlist() {
         .select("symbol,name,created_at")
         .order("created_at", { ascending: true });
       if (cancelled || !data) return;
-      const next: WatchlistItem[] = data.map((r) => ({
+      const next: WatchlistItem[] = dedupe(data.map((r) => ({
         symbol: r.symbol, name: r.name, addedAt: new Date(r.created_at).getTime(),
-      }));
+      })));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setItems(next);
     })();
@@ -101,9 +101,9 @@ export function useWatchlist() {
           .select("symbol,name,created_at")
           .order("created_at", { ascending: true });
         if (!data) return;
-        const next: WatchlistItem[] = data.map((r) => ({
+        const next: WatchlistItem[] = dedupe(data.map((r) => ({
           symbol: r.symbol, name: r.name, addedAt: new Date(r.created_at).getTime(),
-        }));
+        })));
         write(next);
       }
     ).subscribe();

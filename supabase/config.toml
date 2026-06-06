@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.manage-plans]
 verify_jwt = false
+
+[functions.macro-series]
+verify_jwt = false

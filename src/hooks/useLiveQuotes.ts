@@ -9,6 +9,9 @@ export interface LiveQuote {
   currency?: string;
   marketState?: string;
   updatedAt: number;
+  source?: string;
+  asOf?: number;
+  stale?: boolean;
 }
 
 // Quotes are fetched via our `market-data` edge function which proxies Yahoo

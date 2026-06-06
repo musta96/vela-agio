@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { MiniSparkline, ChangePill } from "@/components/ui/mini-sparkline";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { useMacroSeries } from "@/hooks/useMacroSeries";
+import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Globe2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +31,8 @@ export default function Macro() {
   const { t } = useTranslation();
   const allSyms = GROUPS.flatMap(g => g.symbols.map(x => x.s));
   const { quotes, refresh, loading } = useLiveQuotes(allSyms, 30_000);
+  const macroIds = ["ecb_mro", "ecb_depo", "eur_hicp_yoy", "ea_unemployment", "us_10y", "us_2y"];
+  const { series: macro } = useMacroSeries(macroIds);
   const [view, setView] = useState<"tiles" | "list" | "heatmap">("tiles");
 
   return (
@@ -92,6 +96,41 @@ export default function Macro() {
           </div>
         </section>
       ))}
+      {/* Authoritative macro series (P5 #25) */}
+      <section className="space-y-3">
+        <h2 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+          Official Series (ECB · FRED · Eurostat)
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {macroIds.map((id) => {
+            const s = macro[id];
+            const last = s?.points?.[s.points.length - 1];
+            return (
+              <div key={id} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm text-muted-foreground">{s?.label ?? id}</span>
+                  <DataSourceBadge
+                    source={s?.source}
+                    asOf={s?.asOf}
+                    stale={s?.stale}
+                    notCovered={s?.notCovered}
+                  />
+                </div>
+                <div className="text-2xl font-bold tracking-tight tabular-nums">
+                  {s?.notCovered
+                    ? <span className="text-sm font-normal text-muted-foreground">Not covered</span>
+                    : last
+                      ? `${last.v.toFixed(2)}${s.unit === "%" ? "%" : ""}`
+                      : "—"}
+                </div>
+                {last && (
+                  <span className="text-[11px] text-muted-foreground">as of {last.t}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
       {/* Cross-asset correlation card */}
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center justify-between mb-4">

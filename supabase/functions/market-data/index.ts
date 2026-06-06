@@ -107,6 +107,8 @@ function parseQuote(symbol: string, json: any) {
     currency: m?.currency,
     marketState: m?.marketState,
     updatedAt: Date.now(),
+    source: "yahoo" as const,
+    asOf: (m?.regularMarketTime ? m.regularMarketTime * 1000 : Date.now()),
   };
 }
 
@@ -143,12 +145,18 @@ Deno.serve(async (req) => {
       await Promise.all(body.symbols.slice(0, 50).map(async (sym) => {
         const key = `q:${sym}`;
         const cached = await readCache(key);
-        if (cached) { out[sym] = cached; return; }
+        if (cached) { out[sym] = { ...(cached as object), source: "cache" }; return; }
         try {
           const j = await fetchYahooWithFallback(sym, "1d", "1m");
           const q = parseQuote(sym, j);
           if (q) { out[sym] = q; await writeCache(key, "quote", sym, q, TTL.quote); }
-        } catch { /* skip */ }
+        } catch {
+          // Stale-with-badge fallback: try cache regardless of expiry.
+          const { data: stale } = await supabase
+            .from("market_data_cache").select("payload")
+            .eq("cache_key", key).maybeSingle();
+          if (stale?.payload) out[sym] = { ...(stale.payload as object), source: "cache", stale: true };
+        }
       }));
       return new Response(JSON.stringify({ quotes: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

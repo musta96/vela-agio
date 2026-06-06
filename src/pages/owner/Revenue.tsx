@@ -202,6 +202,49 @@ export default function OwnerRevenue() {
           </div>
         </div>
       </div>
+
+      {/* P8 #46: per-tier AI gross margin */}
+      <div className="bg-card border border-border rounded-2xl p-6">
+        <h3 className="text-sm font-semibold mb-4">Per-tier gross margin (last 30d)</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted-foreground border-b border-border">
+              <tr>
+                <th className="text-left py-2 font-semibold">Tier</th>
+                <th className="text-right">Users</th>
+                <th className="text-right">MRR</th>
+                <th className="text-right">AI cost</th>
+                <th className="text-right">AI credits</th>
+                <th className="text-right">Gross margin</th>
+                <th className="text-right">Margin %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.margin ?? []).map((m) => (
+                <tr key={m.tier} className="border-b border-border/60 last:border-0">
+                  <td className="py-2 font-medium capitalize">{m.tier}</td>
+                  <td className="text-right tabular-nums">{m.users}</td>
+                  <td className="text-right tabular-nums">{fmtEUR(m.mrr)}</td>
+                  <td className="text-right tabular-nums">{fmtEUR(m.ai_cost)}</td>
+                  <td className="text-right tabular-nums">{m.ai_credits.toLocaleString()}</td>
+                  <td className={`text-right tabular-nums font-semibold ${m.gross_margin >= 0 ? "text-success" : "text-destructive"}`}>
+                    {fmtEUR(m.gross_margin)}
+                  </td>
+                  <td className={`text-right tabular-nums ${m.gross_margin_pct >= 0 ? "text-success" : "text-destructive"}`}>
+                    {m.gross_margin_pct.toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+              {(!data?.margin || data.margin.length === 0) && (
+                <tr><td colSpan={7} className="py-6 text-center text-muted-foreground">No AI usage in the last 30 days.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          AI cost is the sum of `cost_cents` recorded by edge functions (BYO-key requests are excluded — heavy users supply their own key).
+        </p>
+      </div>
     </>
   );
 }

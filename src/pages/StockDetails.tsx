@@ -108,6 +108,7 @@ const StockDetails = () => {
   const { toast } = useToast();
   const { toggle, isWatched } = useWatchlist();
   const { user } = useAuth();
+  const { enabled: showVerdicts } = useRecommendationVerdicts();
   const [addOpen, setAddOpen] = useState(false);
   const [addShares, setAddShares] = useState("");
   const [addAvg, setAddAvg] = useState("");

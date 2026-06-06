@@ -745,13 +745,36 @@ export interface GoalsPlanReportInput {
   currency?: string;
 }
 
-export function generateGoalsPlanReport(input: GoalsPlanReportInput) {
+export interface GoalsPlanReportOptions {
+  includeAssumptions?: boolean;   // default true
+  includeProbabilityTable?: boolean; // default true
+  filename?: string;              // overrides default
+  mode?: "save" | "blob";         // save = doc.save; blob = return Blob URL for preview
+}
+
+export function buildGoalsPlanFilename(name: string) {
+  const slug = name.replace(/[^a-z0-9-]+/gi, "-").toLowerCase() || "plan";
+  return `goal-plan-${slug}-${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
+export function generateGoalsPlanReport(
+  input: GoalsPlanReportInput,
+  options: GoalsPlanReportOptions = {},
+): { filename: string; blobUrl?: string } {
+  const includeAssumptions = options.includeAssumptions ?? true;
+  const includeProbabilityTable = options.includeProbabilityTable ?? true;
+  const filename = options.filename || buildGoalsPlanFilename(input.name);
   const cur = input.currency ?? "€";
   const doc = new jsPDF();
   const fmt = (n: number) =>
     `${cur}${Math.round(n).toLocaleString("en-US")}`;
 
-  header(doc, "Goal Plan", input.name);
+  header(doc, "Goal Plan", `${input.name} · ${new Date().toLocaleDateString()}`);
+  // filename header strip
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.muted);
+  doc.text(`File: ${filename}`, 14, 48);
+  doc.setTextColor(0, 0, 0);
 
   // Inputs summary
   doc.setFontSize(11);
@@ -768,24 +791,25 @@ export function generateGoalsPlanReport(input: GoalsPlanReportInput) {
   doc.text(`${input.years} yrs`, 114, 64);
   doc.text(fmt(input.target), 164, 64);
 
-  // Assumptions
-  autoTable(doc, {
-    startY: 74,
-    head: [["Assumption", "Value"]],
-    body: [
-      ["Expected annual return", `${(input.expectedReturn * 100).toFixed(2)}%`],
-      ["Annual volatility (std. dev.)", `${(input.volatility * 100).toFixed(2)}%`],
-      ["Simulation trials", "800"],
-      ["Contribution timing", "End of month"],
-      ["Model", "Geometric Brownian Motion (lognormal monthly returns)"],
-    ],
-    headStyles: { fillColor: BRAND.primary, textColor: 255 },
-    styles: { fontSize: 9 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-  });
-
-  // @ts-expect-error - autoTable adds lastAutoTable to doc
-  let y = (doc.lastAutoTable?.finalY ?? 100) + 8;
+  let y = 74;
+  if (includeAssumptions) {
+    autoTable(doc, {
+      startY: 74,
+      head: [["Assumption", "Value"]],
+      body: [
+        ["Expected annual return", `${(input.expectedReturn * 100).toFixed(2)}%`],
+        ["Annual volatility (std. dev.)", `${(input.volatility * 100).toFixed(2)}%`],
+        ["Simulation trials", "800"],
+        ["Contribution timing", "End of month"],
+        ["Model", "Geometric Brownian Motion (lognormal monthly returns)"],
+      ],
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    // @ts-expect-error - autoTable adds lastAutoTable to doc
+    y = (doc.lastAutoTable?.finalY ?? 100) + 8;
+  }
 
   // Outcome card
   const months = input.paths.median.length;
@@ -812,27 +836,27 @@ export function generateGoalsPlanReport(input: GoalsPlanReportInput) {
 
   y += 18;
 
-  // Yearly percentile table — sample year-end values
-  const yearRows: any[] = [];
-  for (let yr = 1; yr <= input.years; yr++) {
-    const idx = Math.min(yr * 12 - 1, months - 1);
-    yearRows.push([
-      `Year ${yr}`,
-      fmt(input.paths.p10[idx]),
-      fmt(input.paths.median[idx]),
-      fmt(input.paths.p90[idx]),
-      input.paths.median[idx] >= input.target ? "Reached" : "—",
-    ]);
+  if (includeProbabilityTable) {
+    const yearRows: any[] = [];
+    for (let yr = 1; yr <= input.years; yr++) {
+      const idx = Math.min(yr * 12 - 1, months - 1);
+      yearRows.push([
+        `Year ${yr}`,
+        fmt(input.paths.p10[idx]),
+        fmt(input.paths.median[idx]),
+        fmt(input.paths.p90[idx]),
+        input.paths.median[idx] >= input.target ? "Reached" : "—",
+      ]);
+    }
+    autoTable(doc, {
+      startY: y,
+      head: [["Year", "10th pct", "Median", "90th pct", "Target?"]],
+      body: yearRows,
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
   }
-
-  autoTable(doc, {
-    startY: y,
-    head: [["Year", "10th pct", "Median", "90th pct", "Target?"]],
-    body: yearRows,
-    headStyles: { fillColor: BRAND.primary, textColor: 255 },
-    styles: { fontSize: 9 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-  });
 
   // Interpretation page
   doc.addPage();
@@ -893,5 +917,10 @@ export function generateGoalsPlanReport(input: GoalsPlanReportInput) {
   disclaimer(doc, iy);
 
   footer(doc);
-  doc.save(`goal-plan-${input.name.replace(/[^a-z0-9-]+/gi, "-").toLowerCase() || "plan"}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  if (options.mode === "blob") {
+    const blob = doc.output("bloburl");
+    return { filename, blobUrl: String(blob) };
+  }
+  doc.save(filename);
+  return { filename };
 }

@@ -1178,6 +1178,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pdf_export_log: {
+        Row: {
+          created_at: string
+          filename: string | null
+          id: string
+          params: Json
+          report_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filename?: string | null
+          id?: string
+          params?: Json
+          report_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string | null
+          id?: string
+          params?: Json
+          report_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_banners: {
         Row: {
           active: boolean

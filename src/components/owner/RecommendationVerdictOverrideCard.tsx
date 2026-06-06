@@ -52,8 +52,8 @@ export function RecommendationVerdictOverrideCard({ userId }: { userId: string }
       action: "recommendation_verdicts_override.set",
       entity: "profile",
       entity_id: userId,
-      meta: { value } as any,
-    });
+      payload: { value } as any,
+    } as any);
     toast.success("Override saved");
   };
 

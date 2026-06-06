@@ -63,13 +63,6 @@ export async function getCachedAnalysis<T = unknown>(
     .maybeSingle();
   if (!data) return null;
   if (new Date(data.expires_at).getTime() < Date.now()) return null;
-  // bump hit_count (best-effort)
-  admin().from("ai_output_cache")
-    .update({ hit_count: undefined } as any)
-    .eq("cache_key", key)
-    .then(() => {})
-    .catch(() => {});
-  await admin().rpc("noop_increment_or_use_raw_sql").catch(() => {});
   return { payload: data.payload as T, cached_at: data.created_at };
 }
 

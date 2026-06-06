@@ -27,7 +27,7 @@ export async function logMandateEvent(opts: {
     action: opts.action,
     scope: opts.scope ?? null,
     client_role: opts.clientRole ?? null,
-    metadata: opts.metadata ?? {},
+    metadata: (opts.metadata ?? {}) as any,
   });
   if (error) console.warn("[mandate audit] insert failed", error.message);
 }

@@ -447,20 +447,41 @@ const StockDetails = () => {
                 verdict === "TRIM" ? "Risk skewed to the downside. Reduce exposure or tighten stops." :
                 "Multiple negatives align. Avoid new buys; exit or hedge if already long.";
 
+              // Descriptive composite read-out used when recommendation
+              // verdicts are disabled (default). Neutral language, no
+              // buy/hold/sell label, no horizon, no sizing instruction.
+              const compositeLabel =
+                combined >= 45 ? "Strongly bullish composite"
+                : combined >= 15 ? "Bullish composite"
+                : combined > -15 ? "Neutral composite"
+                : combined > -45 ? "Bearish composite"
+                : "Strongly bearish composite";
+              const descriptive =
+                `Technical/sentiment composite ${combined >= 0 ? "+" : ""}${combined.toFixed(0)} (${compositeLabel.toLowerCase()}). ` +
+                `Educational read-out only; no recommendation issued.`;
+
               return (
                 <Card className="border-primary/30">
                   <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
                       <Lightbulb className="h-5 w-5 text-primary" />
                       <div>
-                        <CardTitle>What to do</CardTitle>
-                        <CardDescription>AI-blended verdict from technicals, volume and news sentiment.</CardDescription>
+                        <CardTitle>{showVerdicts ? "What to do" : "Composite read-out"}</CardTitle>
+                        <CardDescription>
+                          {showVerdicts
+                            ? "AI-blended verdict from technicals, volume and news sentiment."
+                            : "Descriptive composite of technicals, volume and news sentiment. Educational only."}
+                        </CardDescription>
                       </div>
                     </div>
-                    <Badge variant="outline" className={`${tone} text-base px-3 py-1`}>{verdict}</Badge>
+                    {showVerdicts ? (
+                      <Badge variant="outline" className={`${tone} text-base px-3 py-1`}>{verdict}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-base px-3 py-1">{compositeLabel}</Badge>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-sm">{action}</p>
+                    <p className="text-sm">{showVerdicts ? action : descriptive}</p>
                     {(nearestSupport || nearestResistance) && (
                       <div className="flex flex-wrap gap-2 text-xs">
                         {nearestSupport && (

@@ -90,15 +90,28 @@ export function usePortfolio(): UsePortfolioResult {
             .eq("user_id", user.id);
       const { data, error: err } = await q;
       if (err) throw err;
-      setHoldings(
-        (data ?? []).map((r: any) => ({
-          symbol: String(r.symbol),
-          name: r.name ?? null,
-          shares: Number(r.shares) || 0,
-          avg_price: Number(r.avg_price) || 0,
-          currency: r.currency || "EUR",
-        })),
-      );
+      const raw = (data ?? []).map((r: any) => ({
+        symbol: String(r.symbol),
+        name: r.name ?? null,
+        shares: Number(r.shares) || 0,
+        avg_price: Number(r.avg_price) || 0,
+        currency: r.currency || "EUR",
+      }));
+      // P5 #26: collapse ISIN/exchange-suffix duplicates (e.g. ENEL vs ENEL.MI),
+      // weighting avg_price by shares.
+      const { normalizeSymbol } = await import("@/lib/symbolNormalize");
+      const map = new Map<string, typeof raw[number]>();
+      for (const h of raw) {
+        const key = normalizeSymbol(h.symbol, h.currency === "EUR" ? "IT" : undefined);
+        const existing = map.get(key);
+        if (!existing) { map.set(key, { ...h, symbol: key }); continue; }
+        const totalShares = existing.shares + h.shares;
+        const weighted = totalShares > 0
+          ? (existing.avg_price * existing.shares + h.avg_price * h.shares) / totalShares
+          : existing.avg_price;
+        map.set(key, { ...existing, shares: totalShares, avg_price: weighted });
+      }
+      setHoldings(Array.from(map.values()));
     } catch (e: any) {
       setError(e?.message || "Failed to load holdings");
       setHoldings([]);

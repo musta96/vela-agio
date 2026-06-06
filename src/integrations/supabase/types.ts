@@ -52,28 +52,37 @@ export type Database = {
       }
       advisory_consents: {
         Row: {
+          client_role: Database["public"]["Enums"]["client_role"]
+          expires_at: string | null
           granted_at: string
           granted_to: string
           id: string
           mandate_ref: string | null
+          note: string | null
           revoked_at: string | null
           scope: string
           user_id: string
         }
         Insert: {
+          client_role?: Database["public"]["Enums"]["client_role"]
+          expires_at?: string | null
           granted_at?: string
           granted_to: string
           id?: string
           mandate_ref?: string | null
+          note?: string | null
           revoked_at?: string | null
           scope: string
           user_id: string
         }
         Update: {
+          client_role?: Database["public"]["Enums"]["client_role"]
+          expires_at?: string | null
           granted_at?: string
           granted_to?: string
           id?: string
           mandate_ref?: string | null
+          note?: string | null
           revoked_at?: string | null
           scope?: string
           user_id?: string
@@ -895,6 +904,39 @@ export type Database = {
           type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      mandate_audit: {
+        Row: {
+          action: string
+          actor_id: string
+          client_id: string
+          client_role: Database["public"]["Enums"]["client_role"] | null
+          created_at: string
+          id: string
+          metadata: Json
+          scope: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          client_id: string
+          client_role?: Database["public"]["Enums"]["client_role"] | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          scope?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          client_id?: string
+          client_role?: Database["public"]["Enums"]["client_role"] | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          scope?: string | null
         }
         Relationships: []
       }
@@ -1720,6 +1762,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_settings: {
+        Row: {
+          brand_logo_url: string | null
+          brand_primary_hex: string | null
+          created_at: string
+          data_residency: string
+          id: string
+          license_authority: string | null
+          license_number: string | null
+          licensed_professional: boolean
+          owner_id: string
+          tenant_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_logo_url?: string | null
+          brand_primary_hex?: string | null
+          created_at?: string
+          data_residency?: string
+          id?: string
+          license_authority?: string | null
+          license_number?: string | null
+          licensed_professional?: boolean
+          owner_id: string
+          tenant_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_logo_url?: string | null
+          brand_primary_hex?: string | null
+          created_at?: string
+          data_residency?: string
+          id?: string
+          license_authority?: string | null
+          license_number?: string | null
+          licensed_professional?: boolean
+          owner_id?: string
+          tenant_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           ciphertext: string
@@ -1884,6 +1968,10 @@ export type Database = {
     }
     Functions: {
       ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
+      has_active_mandate: {
+        Args: { _admin: string; _client: string; _scope: string }
+        Returns: boolean
+      }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
@@ -1909,6 +1997,12 @@ export type Database = {
         | "support"
         | "compliance"
         | "engineer"
+      client_role:
+        | "principal"
+        | "family_view"
+        | "advisor_ro"
+        | "accountant"
+        | "broker_ro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2044,6 +2138,13 @@ export const Constants = {
         "support",
         "compliance",
         "engineer",
+      ],
+      client_role: [
+        "principal",
+        "family_view",
+        "advisor_ro",
+        "accountant",
+        "broker_ro",
       ],
     },
   },

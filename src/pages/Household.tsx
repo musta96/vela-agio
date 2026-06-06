@@ -43,7 +43,7 @@ export default function Household() {
         supabase.from("profiles").select("user_id, display_name").in("user_id", clientIds),
         supabase.from("financial_goals").select("user_id, target").in("user_id", clientIds),
         supabase.from("portfolio_holdings").select("user_id, shares, avg_price").in("user_id", clientIds),
-        supabase.from("investor_profiles").select("user_id, risk_profile").in("user_id", clientIds),
+        supabase.from("investor_profiles").select("user_id, profile_name").in("user_id", clientIds),
       ]);
       const rows: ClientRow[] = clientIds.map((cid) => {
         const prof = profiles.data?.find((p: any) => p.user_id === cid);
@@ -57,7 +57,7 @@ export default function Household() {
           totalTarget: gs.reduce((s: number, g: any) => s + Number(g.target || 0), 0),
           holdingsCount: hs.length,
           marketValue: hs.reduce((s: number, h: any) => s + Number(h.shares || 0) * Number(h.avg_price || 0), 0),
-          riskProfile: inv?.risk_profile ?? null,
+          riskProfile: inv?.profile_name ?? null,
         };
       });
       if (!cancelled) { setClients(rows); setLoading(false); }

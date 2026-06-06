@@ -1,6 +1,8 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
 import { fetchAllByoFundamentals } from '../_shared/data-provider.ts';
+import { resolveAiAccess, logAiUsage, aiDeniedResponse } from '../_shared/ai-access.ts';
+import { checkCredits, creditsDeniedResponse, getCachedAnalysis, setCachedAnalysis, creditsFor } from '../_shared/ai-credits.ts';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface Body { symbol: string; name?: string; currency?: string }
@@ -266,6 +268,28 @@ Deno.serve(async (req) => {
       });
     }
     const sym = body.symbol.toUpperCase();
+
+    // P8 #43: gate on credits (BYO unlimited).
+    const auth = req.headers.get('Authorization');
+    const access = await resolveAiAccess(auth);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+    const isByo = access.source === 'byo';
+    const cap = access.quotaLimit && access.quotaLimit > 0 ? access.quotaLimit * 10 /* messages → credits proxy */ : -1;
+    const credit = await checkCredits(access.userId, 'deep_analysis', cap, isByo);
+    if (!credit.allowed) return creditsDeniedResponse(credit, corsHeaders);
+
+    // P8 #44: short-circuit on identical (ticker, day, type) cache hit.
+    const cached = await getCachedAnalysis<any>(sym, 'deep_analysis');
+    if (cached) {
+      await logAiUsage({
+        userId: access.userId, feature: 'deep_analysis', provider: isByo ? 'byo' : 'lovable',
+        credits: 1, cacheHit: true, costCents: 0,
+      });
+      return new Response(JSON.stringify({ ...cached.payload, cached: true, cachedAt: cached.cached_at }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const q = await fetchQuoteSummary(sym);
     if (!q) throw new Error('No data from Yahoo');
     const fundamentals = extractFundamentals(q);
@@ -280,7 +304,7 @@ Deno.serve(async (req) => {
       : fundamentals;
     const ai = await aiNarrative(cfg, sym, body.name || fundamentals.longName || sym, enrichedForAi, dcf, ddm, liquidity);
 
-    return new Response(JSON.stringify({
+    const payload = {
       symbol: sym,
       fundamentals,
       byoFundamentals: byoFundamentals.length ? byoFundamentals : undefined,
@@ -289,7 +313,15 @@ Deno.serve(async (req) => {
       analysis: ai,
       ai_meta: { provider: cfg.effectiveProvider, model: cfg.model, source: cfg.source, notice: cfg.notice ?? null },
       generatedAt: new Date().toISOString(),
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    };
+    await setCachedAnalysis(sym, 'deep_analysis', payload, cfg.model);
+    await logAiUsage({
+      userId: access.userId, feature: 'deep_analysis',
+      model: cfg.model, provider: isByo ? 'byo' : 'lovable',
+      credits: creditsFor('deep_analysis'),
+      costCents: Math.round(creditsFor('deep_analysis') * 2), // ~2¢/credit proxy
+    });
+    return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     console.error('deep-analysis error', e);
     return new Response(JSON.stringify({ error: e?.message || 'Internal error' }), {

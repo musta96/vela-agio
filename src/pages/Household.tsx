@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { generateConsolidatedReport } from "@/lib/pdfReports";
 import { logMandateEvent } from "@/lib/mandates";
+import { enterClientContext } from "@/lib/clientContext";
+import { Eye, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 type ClientRow = {
@@ -19,6 +21,8 @@ type ClientRow = {
   holdingsCount: number;
   marketValue: number;
   riskProfile?: string | null;
+  suitabilityCompletedAt?: string | null;
+  suitabilityDue: boolean;
   holdings: Array<{ symbol: string; value: number }>;
 };
 
@@ -48,13 +52,17 @@ export default function Household() {
         supabase.from("profiles").select("user_id, display_name").in("user_id", clientIds),
         supabase.from("financial_goals").select("user_id, target").in("user_id", clientIds),
         supabase.from("portfolio_holdings").select("user_id, symbol, shares, avg_price").in("user_id", clientIds),
-        supabase.from("investor_profiles").select("user_id, profile_name").in("user_id", clientIds),
+        supabase.from("investor_profiles").select("user_id, profile_name, completed_at").in("user_id", clientIds),
       ]);
       const rows: ClientRow[] = clientIds.map((cid) => {
         const prof = profiles.data?.find((p: any) => p.user_id === cid);
         const gs = (goals.data ?? []).filter((g: any) => g.user_id === cid);
         const hs = (holdings.data ?? []).filter((h: any) => h.user_id === cid);
         const inv = investorProfiles.data?.find((i: any) => i.user_id === cid);
+        const completedAt = inv?.completed_at ?? null;
+        const dueMs = 365 * 24 * 60 * 60 * 1000;
+        const suitabilityDue =
+          !completedAt || Date.now() - new Date(completedAt).getTime() > dueMs;
         return {
           clientId: cid,
           displayName: prof?.display_name || cid.slice(0, 8),
@@ -63,6 +71,8 @@ export default function Household() {
           holdingsCount: hs.length,
           marketValue: hs.reduce((s: number, h: any) => s + Number(h.shares || 0) * Number(h.avg_price || 0), 0),
           riskProfile: inv?.profile_name ?? null,
+          suitabilityCompletedAt: completedAt,
+          suitabilityDue,
           holdings: hs.map((h: any) => ({
             symbol: h.symbol ?? "—",
             value: Number(h.shares || 0) * Number(h.avg_price || 0),
@@ -77,6 +87,22 @@ export default function Household() {
   const totalAUM = clients.reduce((s, c) => s + c.marketValue, 0);
   const totalGoals = clients.reduce((s, c) => s + c.goalsCount, 0);
   const totalTarget = clients.reduce((s, c) => s + c.totalTarget, 0);
+  const dueList = clients.filter((c) => c.suitabilityDue);
+
+  const enterContext = async (c: ClientRow) => {
+    if (!user) return;
+    try {
+      await enterClientContext({
+        actorId: user.id,
+        clientId: c.clientId,
+        displayName: c.displayName,
+        role: "advisor_ro",
+      });
+      toast.success(`Now viewing ${c.displayName} (read-only)`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not switch context");
+    }
+  };
 
   const exportConsolidated = async () => {
     if (!user || !clients.length) return;
@@ -150,15 +176,51 @@ export default function Household() {
             ) : (
               <div className="divide-y">
                 {clients.map((c) => (
-                  <div key={c.clientId} className="grid grid-cols-1 md:grid-cols-5 gap-3 py-3 text-sm items-center">
+                  <div key={c.clientId} className="grid grid-cols-1 md:grid-cols-6 gap-3 py-3 text-sm items-center">
                     <div className="font-medium">{c.displayName}</div>
                     <div><Badge variant="outline" className="gap-1"><Target className="h-3 w-3" /> {c.goalsCount} goals</Badge></div>
                     <div className="text-muted-foreground">Target €{Math.round(c.totalTarget).toLocaleString()}</div>
                     <div className="text-muted-foreground">{c.holdingsCount} holdings · €{Math.round(c.marketValue).toLocaleString()}</div>
                     <div className="flex items-center gap-1 text-muted-foreground"><ShieldAlert className="h-3 w-3" /> {c.riskProfile ?? "—"}</div>
+                    <div className="flex md:justify-end">
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => enterContext(c)}>
+                        <Eye className="h-3.5 w-3.5" /> Switch in
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-500" /> Suitability reviews due
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-sm text-muted-foreground py-4">Loading…</div>
+            ) : dueList.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-4">All client suitability records are up to date.</div>
+            ) : (
+              <ul className="divide-y text-sm">
+                {dueList.map((c) => (
+                  <li key={c.clientId} className="py-2 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{c.displayName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {c.suitabilityCompletedAt
+                          ? `Last completed ${new Date(c.suitabilityCompletedAt).toLocaleDateString()}`
+                          : "No suitability record on file"}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-amber-600 border-amber-500/40">Review due</Badge>
+                  </li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>

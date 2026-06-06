@@ -5,13 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Target, Save, Loader2, Check, FileDown } from "lucide-react";
+import { Target, Save, Loader2, Check, FileDown, Eye, Download, History } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { generateGoalsPlanReport } from "@/lib/pdfReports";
+import { generateGoalsPlanReport, buildGoalsPlanFilename } from "@/lib/pdfReports";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -49,6 +51,12 @@ export default function Goals() {
   const [sd, setSd] = useState(0.15);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [includeAssumptions, setIncludeAssumptions] = useState(true);
+  const [includeProbTable, setIncludeProbTable] = useState(true);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState<string>("");
+  const [history, setHistory] = useState<Array<{ id: string; created_at: string; filename: string | null; params: any }>>([]);
 
   // Load the user's most recent saved plan on mount.
   useEffect(() => {
@@ -72,6 +80,20 @@ export default function Goals() {
         setSd(Number(data.volatility) || 0.15);
       });
   }, [user?.id]);
+
+  // Load export history
+  const loadHistory = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("pdf_export_log")
+      .select("id, created_at, filename, params")
+      .eq("user_id", user.id)
+      .eq("report_type", "goals_plan")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setHistory((data as any) ?? []);
+  };
+  useEffect(() => { loadHistory(); }, [user?.id]);
 
   const save = async () => {
     if (!user) {
@@ -111,45 +133,83 @@ export default function Goals() {
   const successProb = useMemo(() => sim.finals.filter(v => v >= target).length / sim.finals.length, [sim, target]);
   const data = sim.p50.map((m, i) => ({ year: ((i + 1) / 12).toFixed(1), p10: sim.p10[i], median: m, p90: sim.p90[i] }));
 
+  const buildPdfInput = () => ({
+    name, initial, monthly, years, target,
+    expectedReturn: mean, volatility: sd, successProb,
+    paths: { p10: sim.p10, median: sim.p50, p90: sim.p90 },
+  });
+
+  const logExport = async (filename: string, action: "preview" | "download") => {
+    if (!user) return;
+    await supabase.from("pdf_export_log").insert({
+      user_id: user.id,
+      report_type: "goals_plan",
+      filename,
+      params: { name, initial, monthly, years, target, expectedReturn: mean, volatility: sd, includeAssumptions, includeProbTable, action },
+    });
+    loadHistory();
+  };
+
+  const openPreview = () => {
+    try {
+      const filename = buildGoalsPlanFilename(name);
+      const { blobUrl } = generateGoalsPlanReport(buildPdfInput(), {
+        includeAssumptions, includeProbabilityTable: includeProbTable, mode: "blob", filename,
+      });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(blobUrl ?? null);
+      setPreviewFilename(filename);
+      setPreviewOpen(true);
+      logExport(filename, "preview");
+    } catch (e) {
+      toast.error("Could not generate preview", { description: (e as Error).message });
+    }
+  };
+
+  const download = () => {
+    try {
+      const { filename } = generateGoalsPlanReport(buildPdfInput(), {
+        includeAssumptions, includeProbabilityTable: includeProbTable,
+      });
+      logExport(filename, "download");
+    } catch (e) {
+      toast.error("Could not export PDF", { description: (e as Error).message });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SEO title="Goal Planner | Vela.ai" description="Monte Carlo retirement & life-goal planner" path="/goals" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <Target className="h-6 w-6 text-primary" />
             <h1 className="text-3xl font-bold">{t("pages.goals.title")}</h1>
           </div>
-          <Button onClick={save} disabled={saving || !user} size="sm" className="gap-2">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedAt && Date.now() - savedAt < 4000 ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-            {goalId ? "Update plan" : "Save plan"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => {
-              try {
-                generateGoalsPlanReport({
-                  name,
-                  initial,
-                  monthly,
-                  years,
-                  target,
-                  expectedReturn: mean,
-                  volatility: sd,
-                  successProb,
-                  paths: { p10: sim.p10, median: sim.p50, p90: sim.p90 },
-                });
-              } catch (e) {
-                toast.error("Could not export PDF", { description: (e as Error).message });
-              }
-            }}
-          >
-            <FileDown className="h-4 w-4" /> Export PDF
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button onClick={save} disabled={saving || !user} size="sm" className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedAt && Date.now() - savedAt < 4000 ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+              {goalId ? "Update plan" : "Save plan"}
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={openPreview}>
+              <Eye className="h-4 w-4" /> Preview PDF
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={download}>
+              <FileDown className="h-4 w-4" /> Export PDF
+            </Button>
+          </div>
         </div>
+
+        {/* PDF options */}
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">PDF options</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap gap-6 text-sm">
+            <label className="flex items-center gap-2"><Switch checked={includeAssumptions} onCheckedChange={setIncludeAssumptions} /> Include assumptions table</label>
+            <label className="flex items-center gap-2"><Switch checked={includeProbTable} onCheckedChange={setIncludeProbTable} /> Include year-by-year probability table</label>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-3 gap-4">
           <Card><CardContent className="p-4 space-y-3">
             <div><Label>Plan name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
@@ -170,7 +230,44 @@ export default function Goals() {
             </ResponsiveContainer>
           </CardContent></Card>
         </div>
+
+        {/* Export history */}
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><History className="h-4 w-4" /> Export history</CardTitle></CardHeader>
+          <CardContent>
+            {history.length === 0 ? (
+              <div className="text-xs text-muted-foreground">No exports yet.</div>
+            ) : (
+              <div className="divide-y text-sm">
+                {history.map((h) => (
+                  <div key={h.id} className="py-2 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{h.filename ?? "goal-plan.pdf"}</div>
+                      <div className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()} · {h.params?.action ?? "download"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <p className="text-xs text-muted-foreground">{t("pages.goals.trials")} {t("common.notFinancialAdvice")}</p>
+
+        <Dialog open={previewOpen} onOpenChange={(o) => { setPreviewOpen(o); if (!o && previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle className="text-base">Preview · {previewFilename}</DialogTitle></DialogHeader>
+            {previewUrl ? (
+              <iframe title="Goals PDF preview" src={previewUrl} className="w-full h-[70vh] rounded border" />
+            ) : (
+              <div className="text-sm text-muted-foreground">Generating…</div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
+              <Button onClick={() => { download(); setPreviewOpen(false); }} className="gap-2"><Download className="h-4 w-4" /> Download</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

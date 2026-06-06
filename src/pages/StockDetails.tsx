@@ -36,6 +36,8 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
+import { FinancialStatementsPanel } from "@/components/stock/FinancialStatementsPanel";
+import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
 
 interface SentimentArticle {
   title: string;

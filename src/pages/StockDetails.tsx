@@ -35,6 +35,7 @@ import { findCatalogEntry, currencySign } from "@/data/stockCatalog";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
 
 interface SentimentArticle {
   title: string;

@@ -209,6 +209,9 @@ export async function logAiUsage(args: {
   tokensIn?: number;
   tokensOut?: number;
   success?: boolean;
+  credits?: number;
+  cacheHit?: boolean;
+  costCents?: number;
 }): Promise<void> {
   if (!args.userId) return;
   try {
@@ -225,6 +228,9 @@ export async function logAiUsage(args: {
       tokens_in: args.tokensIn ?? 0,
       tokens_out: args.tokensOut ?? 0,
       success: args.success !== false,
+      credits: args.credits ?? 1,
+      cache_hit: args.cacheHit ?? false,
+      cost_cents: args.costCents ?? 0,
     });
   } catch (e) {
     console.warn("logAiUsage failed", e);

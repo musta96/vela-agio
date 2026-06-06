@@ -772,11 +772,30 @@ const StockDetails = () => {
                     {deep.analysis?.recommendation && (
                       <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between flex-wrap gap-3">
                         <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">AI recommendation</p>
-                          <p className="text-2xl font-bold">{deep.analysis.recommendation}</p>
-                          {deep.analysis.horizon && <p className="text-xs text-muted-foreground">Horizon: {deep.analysis.horizon}</p>}
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            {showVerdicts ? "AI recommendation" : "Valuation read"}
+                          </p>
+                          {showVerdicts ? (
+                            <>
+                              <p className="text-2xl font-bold">{deep.analysis.recommendation}</p>
+                              {deep.analysis.horizon && (
+                                <p className="text-xs text-muted-foreground">Horizon: {deep.analysis.horizon}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm max-w-md">
+                              {deep.analysis.valuation
+                                ? deep.analysis.valuation
+                                : "Descriptive valuation summary unavailable. Underlying DCF, DDM, fundamentals and technicals are shown below."}
+                              <span className="block text-[10px] text-muted-foreground italic mt-1">
+                                No recommendation issued. Educational read-out only.
+                              </span>
+                            </p>
+                          )}
                         </div>
-                        {deep.analysis.valuation && <p className="text-sm max-w-md text-right">{deep.analysis.valuation}</p>}
+                        {showVerdicts && deep.analysis.valuation && (
+                          <p className="text-sm max-w-md text-right">{deep.analysis.valuation}</p>
+                        )}
                       </div>
                     )}
 

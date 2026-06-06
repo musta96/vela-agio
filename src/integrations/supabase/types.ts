@@ -116,6 +116,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_output_cache: {
+        Row: {
+          analysis_type: string
+          cache_key: string
+          created_at: string
+          day: string
+          expires_at: string
+          hit_count: number
+          model: string | null
+          payload: Json
+          ticker: string
+        }
+        Insert: {
+          analysis_type: string
+          cache_key: string
+          created_at?: string
+          day: string
+          expires_at?: string
+          hit_count?: number
+          model?: string | null
+          payload: Json
+          ticker: string
+        }
+        Update: {
+          analysis_type?: string
+          cache_key?: string
+          created_at?: string
+          day?: string
+          expires_at?: string
+          hit_count?: number
+          model?: string | null
+          payload?: Json
+          ticker?: string
+        }
+        Relationships: []
+      }
       ai_signal_log: {
         Row: {
           confidence: number | null
@@ -166,8 +202,10 @@ export type Database = {
       }
       ai_usage_log: {
         Row: {
+          cache_hit: boolean
           cost_cents: number | null
           created_at: string
+          credits: number
           feature: string
           id: number
           model: string | null
@@ -178,8 +216,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cache_hit?: boolean
           cost_cents?: number | null
           created_at?: string
+          credits?: number
           feature: string
           id?: number
           model?: string | null
@@ -190,8 +230,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cache_hit?: boolean
           cost_cents?: number | null
           created_at?: string
+          credits?: number
           feature?: string
           id?: number
           model?: string | null
@@ -1602,6 +1644,7 @@ export type Database = {
           highlighted: boolean
           id: string
           is_active: boolean
+          monthly_credit_cap: number
           monthly_price_cents: number | null
           name: string
           price_label: string
@@ -1624,6 +1667,7 @@ export type Database = {
           highlighted?: boolean
           id?: string
           is_active?: boolean
+          monthly_credit_cap?: number
           monthly_price_cents?: number | null
           name: string
           price_label: string
@@ -1646,6 +1690,7 @@ export type Database = {
           highlighted?: boolean
           id?: string
           is_active?: boolean
+          monthly_credit_cap?: number
           monthly_price_cents?: number | null
           name?: string
           price_label?: string
@@ -1970,6 +2015,16 @@ export type Database = {
       }
     }
     Functions: {
+      ai_credits_this_month: { Args: { _user_id: string }; Returns: number }
+      ai_margin_summary: {
+        Args: never
+        Returns: {
+          ai_cost_cents: number
+          ai_credits: number
+          tier: string
+          users: number
+        }[]
+      }
       ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
       has_active_mandate: {
         Args: { _admin: string; _client: string; _scope: string }

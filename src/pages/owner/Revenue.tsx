@@ -20,6 +20,7 @@ type Metrics = {
   kpis: { mrr: number; arr: number; arpu: number; paid: number; churn_pct_30d: number; trend_pct: number };
   plans: { name: string; users: number; mrr: number; price: number; price_id: string }[];
   series: { label: string; mrr: number; new: number; churn: number; net: number }[];
+  margin?: { tier: string; users: number; mrr: number; ai_cost: number; gross_margin: number; gross_margin_pct: number; ai_credits: number }[];
 };
 
 function fmtEUR(n: number) { return `€${Math.round(n).toLocaleString()}`; }

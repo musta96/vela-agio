@@ -13,6 +13,7 @@ import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
 import { PlatformBannerBar } from "@/components/PlatformBannerBar";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { ClientContextBanner } from "@/components/ClientContextBanner";
 import { useMarketClock } from "@/hooks/useMarketClock";
 
 function MarketStatusPill() {
@@ -43,6 +44,7 @@ export default function AppShell() {
 
         <div className="flex-1 flex flex-col min-w-0">
           <PlatformBannerBar />
+          <ClientContextBanner />
           <header className="h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 bg-background border-b border-border">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground hover:bg-muted/60" />
 

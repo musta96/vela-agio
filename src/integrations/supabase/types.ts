@@ -1444,6 +1444,7 @@ export type Database = {
           onboarding_dismissed: boolean
           phone: string | null
           preferred_market: string | null
+          recommendation_verdicts_override: string
           secondary_tax_residences: string[] | null
           updated_at: string
           user_id: string
@@ -1465,6 +1466,7 @@ export type Database = {
           onboarding_dismissed?: boolean
           phone?: string | null
           preferred_market?: string | null
+          recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id: string
@@ -1486,6 +1488,7 @@ export type Database = {
           onboarding_dismissed?: boolean
           phone?: string | null
           preferred_market?: string | null
+          recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
           updated_at?: string
           user_id?: string

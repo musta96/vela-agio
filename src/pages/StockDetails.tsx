@@ -35,6 +35,7 @@ import { findCatalogEntry, currencySign } from "@/data/stockCatalog";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
 
 interface SentimentArticle {
   title: string;
@@ -107,6 +108,7 @@ const StockDetails = () => {
   const { toast } = useToast();
   const { toggle, isWatched } = useWatchlist();
   const { user } = useAuth();
+  const { enabled: showVerdicts } = useRecommendationVerdicts();
   const [addOpen, setAddOpen] = useState(false);
   const [addShares, setAddShares] = useState("");
   const [addAvg, setAddAvg] = useState("");
@@ -445,20 +447,41 @@ const StockDetails = () => {
                 verdict === "TRIM" ? "Risk skewed to the downside. Reduce exposure or tighten stops." :
                 "Multiple negatives align. Avoid new buys; exit or hedge if already long.";
 
+              // Descriptive composite read-out used when recommendation
+              // verdicts are disabled (default). Neutral language, no
+              // buy/hold/sell label, no horizon, no sizing instruction.
+              const compositeLabel =
+                combined >= 45 ? "Strongly bullish composite"
+                : combined >= 15 ? "Bullish composite"
+                : combined > -15 ? "Neutral composite"
+                : combined > -45 ? "Bearish composite"
+                : "Strongly bearish composite";
+              const descriptive =
+                `Technical/sentiment composite ${combined >= 0 ? "+" : ""}${combined.toFixed(0)} (${compositeLabel.toLowerCase()}). ` +
+                `Educational read-out only; no recommendation issued.`;
+
               return (
                 <Card className="border-primary/30">
                   <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
                       <Lightbulb className="h-5 w-5 text-primary" />
                       <div>
-                        <CardTitle>What to do</CardTitle>
-                        <CardDescription>AI-blended verdict from technicals, volume and news sentiment.</CardDescription>
+                        <CardTitle>{showVerdicts ? "What to do" : "Composite read-out"}</CardTitle>
+                        <CardDescription>
+                          {showVerdicts
+                            ? "AI-blended verdict from technicals, volume and news sentiment."
+                            : "Descriptive composite of technicals, volume and news sentiment. Educational only."}
+                        </CardDescription>
                       </div>
                     </div>
-                    <Badge variant="outline" className={`${tone} text-base px-3 py-1`}>{verdict}</Badge>
+                    {showVerdicts ? (
+                      <Badge variant="outline" className={`${tone} text-base px-3 py-1`}>{verdict}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-base px-3 py-1">{compositeLabel}</Badge>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-sm">{action}</p>
+                    <p className="text-sm">{showVerdicts ? action : descriptive}</p>
                     {(nearestSupport || nearestResistance) && (
                       <div className="flex flex-wrap gap-2 text-xs">
                         {nearestSupport && (
@@ -749,11 +772,30 @@ const StockDetails = () => {
                     {deep.analysis?.recommendation && (
                       <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between flex-wrap gap-3">
                         <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">AI recommendation</p>
-                          <p className="text-2xl font-bold">{deep.analysis.recommendation}</p>
-                          {deep.analysis.horizon && <p className="text-xs text-muted-foreground">Horizon: {deep.analysis.horizon}</p>}
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            {showVerdicts ? "AI recommendation" : "Valuation read"}
+                          </p>
+                          {showVerdicts ? (
+                            <>
+                              <p className="text-2xl font-bold">{deep.analysis.recommendation}</p>
+                              {deep.analysis.horizon && (
+                                <p className="text-xs text-muted-foreground">Horizon: {deep.analysis.horizon}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm max-w-md">
+                              {deep.analysis.valuation
+                                ? deep.analysis.valuation
+                                : "Descriptive valuation summary unavailable. Underlying DCF, DDM, fundamentals and technicals are shown below."}
+                              <span className="block text-[10px] text-muted-foreground italic mt-1">
+                                No recommendation issued. Educational read-out only.
+                              </span>
+                            </p>
+                          )}
                         </div>
-                        {deep.analysis.valuation && <p className="text-sm max-w-md text-right">{deep.analysis.valuation}</p>}
+                        {showVerdicts && deep.analysis.valuation && (
+                          <p className="text-sm max-w-md text-right">{deep.analysis.valuation}</p>
+                        )}
                       </div>
                     )}
 

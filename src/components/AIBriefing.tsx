@@ -137,9 +137,10 @@ export function AIBriefing() {
   }, [user, active?.id]);
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(212_70%_18%)] p-5 sm:p-6 text-[hsl(var(--sidebar-foreground))]">
-      <div className="flex gap-4">
-        <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-accent">
+    <div className="relative overflow-hidden rounded-2xl glass-card-strong gradient-hero glow-primary p-5 sm:p-6 text-[hsl(var(--sidebar-foreground))]">
+      <div className="pointer-events-none absolute inset-0 gradient-accent opacity-[0.06]" aria-hidden />
+      <div className="relative flex gap-4">
+        <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gradient-accent text-white shadow-[var(--glow-primary)]">
           <Sparkles className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">

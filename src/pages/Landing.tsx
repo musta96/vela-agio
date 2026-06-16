@@ -277,9 +277,145 @@ export default function Landing() {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
-        <PricingSection />
+      {/* AUDIENCES — investors vs professionals */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+        <div className="grid md:grid-cols-2 gap-6">
+          {[
+            {
+              icon: Users,
+              tag: "For Individual Investors",
+              title: "Personal portfolio insights",
+              points: ["Personal portfolio insights", "Risk management tools", "Learning-friendly interface"],
+              cta: { label: "Start Free Research", href: "/auth" },
+              grad: "linear-gradient(135deg,#042C53,#185FA5)",
+            },
+            {
+              icon: Building2,
+              tag: "For Professionals",
+              title: "Institutional-grade data",
+              points: ["Institutional-grade data", "API access & webhooks", "Dedicated account support"],
+              cta: { label: "Explore Enterprise", href: "/auth" },
+              grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            },
+          ].map((a, i) => {
+            const Ic = a.icon;
+            return (
+              <div key={i} className="glass-card p-10 rounded-3xl">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: a.grad }}>
+                    <Ic className="h-7 w-7" />
+                  </div>
+                  <div className="text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>{a.tag}</div>
+                </div>
+                <h3 className="mt-6 text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>{a.title}</h3>
+                <ul className="mt-6 space-y-3">
+                  {a.points.map((p) => (
+                    <li key={p} className="flex items-center gap-3" style={{ color: "#1f3147" }}>
+                      <Check className="h-5 w-5 shrink-0" style={{ color: "#1D9E75" }} />
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link to={a.cta.href} className="mt-8 button-gradient inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
+                  {a.cta.label} <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            );
+          })}
+        </div>
       </section>
+
+      {/* STEPS — From signup to insight in 60 seconds */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>How it works</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+            From signup to insight in 60 seconds
+          </h2>
+        </div>
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { icon: UserPlus, title: "Sign Up", desc: "Create account in seconds with email or OAuth.", grad: "linear-gradient(135deg,#042C53,#185FA5)" },
+            { icon: Link2, title: "Connect Portfolio", desc: "Link your broker or upload portfolio data.", grad: "linear-gradient(135deg,#185FA5,#378ADD)" },
+            { icon: Brain, title: "Get AI Insights", desc: "Neural engine analyzes and delivers alpha.", grad: "linear-gradient(135deg,#378ADD,#7CD0AE)" },
+            { icon: Rocket, title: "Start Trading Better", desc: "Act on real-time intelligence.", grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)" },
+          ].map((s, i) => {
+            const Ic = s.icon;
+            return (
+              <div key={i} className="glass-card p-7 rounded-3xl relative">
+                <div className="absolute -top-3 -right-3 h-9 w-9 rounded-full grid place-items-center text-white text-sm font-bold shadow-lg" style={{ background: s.grad }}>
+                  {i + 1}
+                </div>
+                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-md" style={{ background: s.grad }}>
+                  <Ic className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-lg font-bold" style={{ color: "#042C53" }}>{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{s.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* TRUST & COMPLIANCE */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Compliance</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+            Built for Trust & Compliance
+          </h2>
+          <p className="mt-4 text-lg" style={{ color: "#3d4f66" }}>
+            Enterprise-grade security and regulatory compliance across all jurisdictions.
+          </p>
+        </div>
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { icon: Lock, title: "GDPR Compliant", desc: "EU data protection standards" },
+            { icon: Globe, title: "EU-Hosted Infrastructure", desc: "Data centers in Frankfurt" },
+            { icon: Shield, title: "MiFID II Ready", desc: "Professional investment services" },
+            { icon: Landmark, title: "SEC & CONSOB Filings", desc: "Regulatory compliance across US & EU" },
+          ].map((t, i) => {
+            const Ic = t.icon;
+            return (
+              <div key={i} className="glass-card p-7 rounded-3xl text-center">
+                <div className="mx-auto h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: "linear-gradient(135deg,#042C53,#1D9E75)" }}>
+                  <Ic className="h-7 w-7" />
+                </div>
+                <h3 className="mt-5 text-base font-bold" style={{ color: "#042C53" }}>{t.title}</h3>
+                <p className="mt-2 text-sm" style={{ color: "#6b7a8c" }}>{t.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* PRICING — gated by owner-dashboard pricing flag */}
+      {pricingEnabled && (
+        <>
+          {/* LAUNCH SPECIAL */}
+          <section className="relative z-10 max-w-6xl mx-auto px-6 pt-24">
+            <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
+                <Sparkles className="h-3 w-3" /> Launch Special: 50% off first year
+              </span>
+              <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Lock in institutional intelligence at half price.</h3>
+              <p className="mt-3 text-white/85 max-w-xl">Limited-time offer for early adopters. Founding members keep preferred pricing forever.</p>
+              <div className="mt-7 flex flex-col sm:flex-row gap-3">
+                <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
+                  Claim Launch Offer <ArrowRight className="h-4 w-4" />
+                </a>
+                <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold border border-white/40 hover:bg-white/10 transition">
+                  See All Plans
+                </a>
+              </div>
+            </div>
+          </section>
+
+          <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
+            <PricingSection />
+          </section>
+        </>
+      )}
 
       {/* FAQ */}
       <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 py-24">

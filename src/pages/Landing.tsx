@@ -65,21 +65,23 @@ export default function Landing() {
   return (
     <div className="vela-landing min-h-screen relative">
       <style>{`
-        .vela-landing { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; background:#ffffff; color:#0f172a; overflow-x:hidden; }
-        .vela-landing .gradient-blob { position:absolute; border-radius:50%; filter:blur(100px); z-index:0; opacity:0.28; animation:vmove 25s infinite alternate; pointer-events:none; }
-        .vela-landing .blob-1 { width:800px; height:800px; background:linear-gradient(to right,#ff0080,#7928ca); top:-300px; left:-150px; }
-        .vela-landing .blob-2 { width:700px; height:700px; background:linear-gradient(to right,#7928ca,#0070f3); bottom:5%; right:-150px; animation-delay:-7s; }
-        .vela-landing .blob-3 { width:600px; height:600px; background:linear-gradient(to right,#0070f3,#00dfd8); top:30%; left:15%; animation-delay:-12s; }
+        /* Vela.ai brand palette
+           Navy #042C53 · Ocean #185FA5 · Sky #378ADD · Teal #1D9E75 · Seafoam #7CD0AE · Sand #F1EFE8 */
+        .vela-landing { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; background:#F1EFE8; color:#042C53; overflow-x:hidden; }
+        .vela-landing .gradient-blob { position:absolute; border-radius:50%; filter:blur(110px); z-index:0; opacity:0.45; animation:vmove 25s infinite alternate; pointer-events:none; }
+        .vela-landing .blob-1 { width:800px; height:800px; background:linear-gradient(to right,#185FA5,#378ADD); top:-300px; left:-150px; }
+        .vela-landing .blob-2 { width:700px; height:700px; background:linear-gradient(to right,#1D9E75,#378ADD); bottom:5%; right:-150px; animation-delay:-7s; }
+        .vela-landing .blob-3 { width:600px; height:600px; background:linear-gradient(to right,#378ADD,#7CD0AE); top:30%; left:15%; animation-delay:-12s; opacity:0.35; }
         @keyframes vmove { 0%{transform:translate(0,0) scale(1) rotate(0deg);} 100%{transform:translate(150px,100px) scale(1.2) rotate(45deg);} }
-        .vela-landing .glass-nav { background:rgba(255,255,255,0.7); backdrop-filter:blur(16px); border-bottom:1px solid rgba(0,0,0,0.04); }
-        .vela-landing .hero-gradient-text { background:linear-gradient(90deg,#ff0080,#7928ca,#0070f3,#00dfd8,#ff0080); background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; animation:vshine 8s linear infinite; }
+        .vela-landing .glass-nav { background:rgba(241,239,232,0.75); backdrop-filter:blur(16px); border-bottom:1px solid rgba(4,44,83,0.06); }
+        .vela-landing .hero-gradient-text { background:linear-gradient(90deg,#042C53,#185FA5,#378ADD,#1D9E75,#185FA5,#042C53); background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; animation:vshine 10s linear infinite; }
         @keyframes vshine { to { background-position:300% center; } }
-        .vela-landing .glass-card { background:rgba(255,255,255,0.65); backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.85); box-shadow:0 10px 40px -10px rgba(31,38,135,0.08); transition:all 0.5s cubic-bezier(0.23,1,0.32,1); }
-        .vela-landing .glass-card:hover { transform:translateY(-12px) scale(1.02); box-shadow:0 20px 60px -10px rgba(31,38,135,0.18); background:rgba(255,255,255,0.9); }
-        .vela-landing .button-gradient { background:linear-gradient(135deg,#ff0080 0%,#7928ca 50%,#0070f3 100%); color:#fff; transition:all 0.4s cubic-bezier(0.23,1,0.32,1); }
-        .vela-landing .button-gradient:hover { transform:translateY(-2px) scale(1.04); filter:brightness(1.1); box-shadow:0 15px 30px -5px rgba(121,40,202,0.4); }
-        .vela-landing .ghost-btn { background:rgba(255,255,255,0.6); backdrop-filter:blur(12px); border:1px solid rgba(15,23,42,0.08); color:#0f172a; transition:all .3s ease; }
-        .vela-landing .ghost-btn:hover { background:rgba(255,255,255,0.9); transform:translateY(-1px); }
+        .vela-landing .glass-card { background:rgba(255,255,255,0.7); backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.9); box-shadow:0 10px 40px -10px rgba(4,44,83,0.12); transition:all 0.5s cubic-bezier(0.23,1,0.32,1); }
+        .vela-landing .glass-card:hover { transform:translateY(-12px) scale(1.02); box-shadow:0 20px 60px -10px rgba(4,44,83,0.2); background:rgba(255,255,255,0.92); }
+        .vela-landing .button-gradient { background:linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%); color:#fff; transition:all 0.4s cubic-bezier(0.23,1,0.32,1); }
+        .vela-landing .button-gradient:hover { transform:translateY(-2px) scale(1.04); filter:brightness(1.08); box-shadow:0 15px 30px -5px rgba(24,95,165,0.45); }
+        .vela-landing .ghost-btn { background:rgba(255,255,255,0.65); backdrop-filter:blur(12px); border:1px solid rgba(4,44,83,0.12); color:#042C53; transition:all .3s ease; }
+        .vela-landing .ghost-btn:hover { background:rgba(255,255,255,0.95); transform:translateY(-1px); border-color:rgba(24,95,165,0.4); }
         .vela-landing .float-slow { animation:vfloat 6s ease-in-out infinite; }
         .vela-landing .float-delayed { animation:vfloat 7s ease-in-out infinite -3s; }
         @keyframes vfloat { 0%,100%{transform:translateY(0) rotate(3deg);} 50%{transform:translateY(-20px) rotate(5deg);} }
@@ -88,7 +90,7 @@ export default function Landing() {
         .vela-landing .accordion-content.open { grid-template-rows:1fr; }
         .vela-landing .logo-strip { filter:grayscale(1); opacity:.55; transition:all .3s ease; }
         .vela-landing .logo-strip:hover { filter:none; opacity:1; }
-        .vela-landing .ticker { background:linear-gradient(135deg,#ff008015,#7928ca15,#0070f315); border:1px solid rgba(121,40,202,.15); }
+        .vela-landing .ticker { background:linear-gradient(135deg,rgba(24,95,165,0.08),rgba(29,158,117,0.08)); border:1px solid rgba(24,95,165,0.18); }
       `}</style>
 
       <SEO

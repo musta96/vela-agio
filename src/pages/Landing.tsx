@@ -276,7 +276,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PRICING */}
       {/* AUDIENCES — investors vs professionals */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="grid md:grid-cols-2 gap-6">
@@ -285,7 +284,12 @@ export default function Landing() {
               icon: Users,
               tag: "For Individual Investors",
               title: "Personal portfolio insights",
-              points: ["Personal portfolio insights", "Risk management tools", "Learning-friendly interface"],
+              points: [
+                "Make smarter decisions, without the noise",
+                "See your full portfolio in one place",
+                "Plain-English AI explanations, no finance degree required",
+                "Educational research, not high-pressure tips",
+              ],
               cta: { label: "Start Free Research", href: "/auth" },
               grad: "linear-gradient(135deg,#042C53,#185FA5)",
             },
@@ -293,7 +297,12 @@ export default function Landing() {
               icon: Building2,
               tag: "For Professionals",
               title: "Institutional-grade data",
-              points: ["Institutional-grade data", "API access & webhooks", "Dedicated account support"],
+              points: [
+                "Make smarter decisions, without the noise",
+                "See your full portfolio in one place",
+                "Plain-English AI explanations, no finance degree required",
+                "Educational research, not high-pressure tips",
+              ],
               cta: { label: "Explore Enterprise", href: "/auth" },
               grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
             },

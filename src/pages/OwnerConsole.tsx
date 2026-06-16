@@ -760,6 +760,7 @@ export default function OwnerConsole() {
     gdpr: complianceSection,
     legal: <LegalDocsEditor docs={legal} reload={load} />,
     landing: <LandingEditor />,
+    tickets: <OwnerTickets />,
   };
 
   return (

@@ -6,6 +6,7 @@ import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
 import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
+import OwnerTickets from "@/pages/owner/Tickets";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import {
   Users, Activity, ShieldCheck, Briefcase, Crown, Power, AlertTriangle, Megaphone, Bot,
   ScrollText, Scale, FileDown, Trash2, Ban, Shield, Flag, Database, Mail, TrendingUp,
   LayoutDashboard, KeyRound, CreditCard, Wallet, AlertCircle, Search, BellRing, Settings,
-  CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X, Sparkles,
+  CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X, Sparkles, LifeBuoy,
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };

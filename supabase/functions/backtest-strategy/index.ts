@@ -175,6 +175,12 @@ Deno.serve(async (req) => {
       return { t, close: v };
     });
 
+    if (basketBars.length < 2) {
+      return new Response(JSON.stringify({ error: "Selected holdings have no overlapping price history for this range. Try a longer range or fewer symbols." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const result = simulate(basketBars, strategy, initial);
 
     // External benchmark (index): replace the self-basket benchmark in the equity series.

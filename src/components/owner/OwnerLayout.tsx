@@ -125,6 +125,28 @@ function TopBar() {
 
 function Sidebar() {
   const { pathname } = useLocation();
+  const [openTickets, setOpenTickets] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("support_tickets" as any)
+        .select("id", { count: "exact", head: true })
+        .in("status", ["open", "in_progress"]);
+      if (!cancelled) setOpenTickets(count ?? 0);
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  const sections = SECTIONS.map((s) => ({
+    ...s,
+    items: s.items.map((it) =>
+      it.url === "/owner/tickets" && openTickets && openTickets > 0
+        ? { ...it, badge: openTickets, tone: "warn" as const }
+        : it,
+    ),
+  }));
   return (
     <aside className="w-[232px] shrink-0 h-screen sticky top-0 flex flex-col bg-[hsl(211,91%,9%)] text-[hsl(210,76%,95%)] border-r border-[hsl(211,50%,18%)]">
       <div className="px-5 pt-5 pb-3 flex items-center gap-2">
@@ -134,7 +156,7 @@ function Sidebar() {
       </div>
       <div className="px-4 pb-3"><KillSwitchButton /></div>
       <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-4">
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <div key={s.label}>
             <div className="px-3 pb-1.5 text-[10px] uppercase tracking-[0.12em] text-white/40 font-semibold">{s.label}</div>
             <ul className="space-y-0.5">

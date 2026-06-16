@@ -5,19 +5,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Download, Megaphone, UserPlus, AlertCircle, CreditCard, FileWarning, Activity as ActivityIcon, Flag } from "lucide-react";
 
-type Counts = { users: number; signals: number; flagged: number; failedPayments: number; gdpr: number };
+type Counts = { users: number; signals: number; flagged: number; failedPayments: number; gdpr: number; openTickets: number };
 type RecentUser = { id: string; display_name: string | null; created_at: string };
 type AuditRow = { id: number; ts: string; actor_email: string | null; action: string; entity: string | null };
 
 export default function OwnerDashboard() {
-  const [c, setC] = useState<Counts>({ users: 0, signals: 0, flagged: 0, failedPayments: 0, gdpr: 0 });
+  const [c, setC] = useState<Counts>({ users: 0, signals: 0, flagged: 0, failedPayments: 0, gdpr: 0, openTickets: 0 });
   const [users, setUsers] = useState<RecentUser[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [flags, setFlags] = useState<{ key: string; label: string; enabled: boolean; category: string }[]>([]);
   const [syncedAt] = useState(new Date());
 
   useEffect(() => { (async () => {
-    const [{ count: uCount }, { data: pData }, { data: aData }, { count: sCount }, { count: rCount }, { count: gCount }, { data: fData }] = await Promise.all([
+    const [{ count: uCount }, { data: pData }, { data: aData }, { count: sCount }, { count: rCount }, { count: gCount }, { data: fData }, { count: tCount }] = await Promise.all([
       supabase.from("profiles").select("user_id", { count: "exact", head: true }),
       supabase.from("profiles").select("user_id,display_name,created_at").order("created_at", { ascending: false }).limit(6),
       supabase.from("audit_log").select("id,ts,actor_email,action,entity").order("ts", { ascending: false }).limit(6),
@@ -25,8 +25,9 @@ export default function OwnerDashboard() {
       supabase.from("ai_signal_log").select("id", { count: "exact", head: true }).eq("status", "retracted"),
       supabase.from("gdpr_erasure_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       supabase.from("feature_flags").select("key,label,enabled,category").order("key"),
+      supabase.from("support_tickets" as any).select("id", { count: "exact", head: true }).in("status", ["open", "in_progress"]),
     ]);
-    setC({ users: uCount || 0, signals: sCount || 0, flagged: rCount || 0, failedPayments: 8, gdpr: gCount || 0 });
+    setC({ users: uCount || 0, signals: sCount || 0, flagged: rCount || 0, failedPayments: 8, gdpr: gCount || 0, openTickets: tCount || 0 });
     setUsers((pData || []).map((r: any) => ({ id: r.user_id, display_name: r.display_name, created_at: r.created_at })));
     setAudit((aData || []) as any);
     setFlags((fData || []).slice(0, 4) as any);
@@ -52,7 +53,7 @@ export default function OwnerDashboard() {
         { label: "Total users", value: c.users.toLocaleString(), sub: "↑ +284 this week", tone: "up" },
         { label: "MRR", value: "€41.2k", sub: "↑ +8.4% MoM", tone: "up" },
         { label: "Active signals", value: c.signals.toLocaleString(), sub: `${c.flagged} flagged`, tone: "warn" },
-        { label: "Churn rate", value: "2.1%", sub: "↓ vs 2.8%", tone: "up" },
+        { label: "Open tickets", value: c.openTickets.toLocaleString(), sub: c.openTickets ? "needs reply" : "all clear", tone: c.openTickets ? "warn" : "ok" },
         { label: "Open incidents", value: "0", sub: "All clear", tone: "ok" },
       ]} />
 

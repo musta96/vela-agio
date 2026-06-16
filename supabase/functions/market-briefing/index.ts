@@ -6,7 +6,7 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
 // Extend CORS to allow the client-supplied correlation id header.
 const cors = {
-  ...corsHeaders,
+  ...cors,
   'Access-Control-Allow-Headers':
     `${corsHeaders['Access-Control-Allow-Headers'] ?? 'authorization, x-client-info, apikey, content-type'}, x-correlation-id`,
 };
@@ -55,7 +55,7 @@ async function yahooNews(symbol: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const correlationId = getCorrelationId(req);
   try {
     const auth = req.headers.get('Authorization');
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       }));
       return new Response(
         JSON.stringify(aiAccessDeniedBody(access, correlationId)),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
+        { status: 200, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
       );
     }
 
@@ -143,7 +143,7 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
         response_format: { type: 'json_object' },
       }),
     });
-    if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited', correlationId }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
+    if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited', correlationId }), { status: 429, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
     if (r.status === 402) {
       console.warn('[market-briefing] ai_access_denied', JSON.stringify({
         correlationId,
@@ -155,7 +155,7 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
       }));
       return new Response(
         JSON.stringify(aiAccessDeniedBody(access, correlationId, 'AI credits are unavailable. Upgrade or add your own API key in Settings.')),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
+        { status: 200, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
       );
     }
     const j = await r.json();
@@ -163,9 +163,9 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
     let out: any = { headline: '', body: '', highlights: [] };
     try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
     out._meta = { symbols: symbols.length, hasFocus: !!focus, generatedAt: new Date().toISOString(), correlationId };
-    return new Response(JSON.stringify(out), { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
+    return new Response(JSON.stringify(out), { headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
   } catch (e) {
     console.error('[market-briefing] unhandled', JSON.stringify({ correlationId, error: String(e) }));
-    return new Response(JSON.stringify({ error: String(e), correlationId }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
+    return new Response(JSON.stringify({ error: String(e), correlationId }), { status: 500, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
   }
 });

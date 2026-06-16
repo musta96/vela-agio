@@ -65,21 +65,23 @@ export default function Landing() {
   return (
     <div className="vela-landing min-h-screen relative">
       <style>{`
-        .vela-landing { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; background:#ffffff; color:#0f172a; overflow-x:hidden; }
-        .vela-landing .gradient-blob { position:absolute; border-radius:50%; filter:blur(100px); z-index:0; opacity:0.28; animation:vmove 25s infinite alternate; pointer-events:none; }
-        .vela-landing .blob-1 { width:800px; height:800px; background:linear-gradient(to right,#ff0080,#7928ca); top:-300px; left:-150px; }
-        .vela-landing .blob-2 { width:700px; height:700px; background:linear-gradient(to right,#7928ca,#0070f3); bottom:5%; right:-150px; animation-delay:-7s; }
-        .vela-landing .blob-3 { width:600px; height:600px; background:linear-gradient(to right,#0070f3,#00dfd8); top:30%; left:15%; animation-delay:-12s; }
+        /* Vela.ai brand palette
+           Navy #042C53 · Ocean #185FA5 · Sky #378ADD · Teal #1D9E75 · Seafoam #7CD0AE · Sand #F1EFE8 */
+        .vela-landing { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; background:#F1EFE8; color:#042C53; overflow-x:hidden; }
+        .vela-landing .gradient-blob { position:absolute; border-radius:50%; filter:blur(110px); z-index:0; opacity:0.45; animation:vmove 25s infinite alternate; pointer-events:none; }
+        .vela-landing .blob-1 { width:800px; height:800px; background:linear-gradient(to right,#185FA5,#378ADD); top:-300px; left:-150px; }
+        .vela-landing .blob-2 { width:700px; height:700px; background:linear-gradient(to right,#1D9E75,#378ADD); bottom:5%; right:-150px; animation-delay:-7s; }
+        .vela-landing .blob-3 { width:600px; height:600px; background:linear-gradient(to right,#378ADD,#7CD0AE); top:30%; left:15%; animation-delay:-12s; opacity:0.35; }
         @keyframes vmove { 0%{transform:translate(0,0) scale(1) rotate(0deg);} 100%{transform:translate(150px,100px) scale(1.2) rotate(45deg);} }
-        .vela-landing .glass-nav { background:rgba(255,255,255,0.7); backdrop-filter:blur(16px); border-bottom:1px solid rgba(0,0,0,0.04); }
-        .vela-landing .hero-gradient-text { background:linear-gradient(90deg,#ff0080,#7928ca,#0070f3,#00dfd8,#ff0080); background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; animation:vshine 8s linear infinite; }
+        .vela-landing .glass-nav { background:rgba(241,239,232,0.75); backdrop-filter:blur(16px); border-bottom:1px solid rgba(4,44,83,0.06); }
+        .vela-landing .hero-gradient-text { background:linear-gradient(90deg,#042C53,#185FA5,#378ADD,#1D9E75,#185FA5,#042C53); background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; color:transparent; animation:vshine 10s linear infinite; }
         @keyframes vshine { to { background-position:300% center; } }
-        .vela-landing .glass-card { background:rgba(255,255,255,0.65); backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.85); box-shadow:0 10px 40px -10px rgba(31,38,135,0.08); transition:all 0.5s cubic-bezier(0.23,1,0.32,1); }
-        .vela-landing .glass-card:hover { transform:translateY(-12px) scale(1.02); box-shadow:0 20px 60px -10px rgba(31,38,135,0.18); background:rgba(255,255,255,0.9); }
-        .vela-landing .button-gradient { background:linear-gradient(135deg,#ff0080 0%,#7928ca 50%,#0070f3 100%); color:#fff; transition:all 0.4s cubic-bezier(0.23,1,0.32,1); }
-        .vela-landing .button-gradient:hover { transform:translateY(-2px) scale(1.04); filter:brightness(1.1); box-shadow:0 15px 30px -5px rgba(121,40,202,0.4); }
-        .vela-landing .ghost-btn { background:rgba(255,255,255,0.6); backdrop-filter:blur(12px); border:1px solid rgba(15,23,42,0.08); color:#0f172a; transition:all .3s ease; }
-        .vela-landing .ghost-btn:hover { background:rgba(255,255,255,0.9); transform:translateY(-1px); }
+        .vela-landing .glass-card { background:rgba(255,255,255,0.7); backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.9); box-shadow:0 10px 40px -10px rgba(4,44,83,0.12); transition:all 0.5s cubic-bezier(0.23,1,0.32,1); }
+        .vela-landing .glass-card:hover { transform:translateY(-12px) scale(1.02); box-shadow:0 20px 60px -10px rgba(4,44,83,0.2); background:rgba(255,255,255,0.92); }
+        .vela-landing .button-gradient { background:linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%); color:#fff; transition:all 0.4s cubic-bezier(0.23,1,0.32,1); }
+        .vela-landing .button-gradient:hover { transform:translateY(-2px) scale(1.04); filter:brightness(1.08); box-shadow:0 15px 30px -5px rgba(24,95,165,0.45); }
+        .vela-landing .ghost-btn { background:rgba(255,255,255,0.65); backdrop-filter:blur(12px); border:1px solid rgba(4,44,83,0.12); color:#042C53; transition:all .3s ease; }
+        .vela-landing .ghost-btn:hover { background:rgba(255,255,255,0.95); transform:translateY(-1px); border-color:rgba(24,95,165,0.4); }
         .vela-landing .float-slow { animation:vfloat 6s ease-in-out infinite; }
         .vela-landing .float-delayed { animation:vfloat 7s ease-in-out infinite -3s; }
         @keyframes vfloat { 0%,100%{transform:translateY(0) rotate(3deg);} 50%{transform:translateY(-20px) rotate(5deg);} }
@@ -88,7 +90,7 @@ export default function Landing() {
         .vela-landing .accordion-content.open { grid-template-rows:1fr; }
         .vela-landing .logo-strip { filter:grayscale(1); opacity:.55; transition:all .3s ease; }
         .vela-landing .logo-strip:hover { filter:none; opacity:1; }
-        .vela-landing .ticker { background:linear-gradient(135deg,#ff008015,#7928ca15,#0070f315); border:1px solid rgba(121,40,202,.15); }
+        .vela-landing .ticker { background:linear-gradient(135deg,rgba(24,95,165,0.08),rgba(29,158,117,0.08)); border:1px solid rgba(24,95,165,0.18); }
       `}</style>
 
       <SEO
@@ -108,14 +110,14 @@ export default function Landing() {
           <Link to="/" className="flex items-center gap-2 font-bold tracking-tight">
             <VelaLogo size={28} />
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <a href="#features" className="hover:text-slate-900 transition">Intelligence</a>
-            <a href="#engine" className="hover:text-slate-900 transition">Alpha Engine</a>
-            <a href="#pricing" className="hover:text-slate-900 transition">Pricing</a>
-            <a href="#faq" className="hover:text-slate-900 transition">Resources</a>
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium" style={{ color: "#3d4f66" }}>
+            <a href="#features" className="hover:opacity-70 transition">Intelligence</a>
+            <a href="#engine" className="hover:opacity-70 transition">Alpha Engine</a>
+            <a href="#pricing" className="hover:opacity-70 transition">Pricing</a>
+            <a href="#faq" className="hover:opacity-70 transition">Resources</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/auth" className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition">Sign In</Link>
+            <Link to="/auth" className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium hover:opacity-70 transition" style={{ color: "#042C53" }}>Sign In</Link>
             <Link to="/auth" className="button-gradient inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg">Get Started Free</Link>
           </div>
         </div>
@@ -123,15 +125,15 @@ export default function Landing() {
 
       {/* HERO */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-24 text-center">
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[0.2em] text-purple-700 ticker uppercase">
-          <span className="h-1.5 w-1.5 rounded-full bg-pink-500 animate-pulse" />
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[0.2em] uppercase ticker" style={{ color: "#185FA5" }}>
+          <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: "#1D9E75" }} />
           {hero.eyebrow || "GENESIS v4.0 NOW LIVE"}
         </span>
         <h1 className="mt-8 text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight leading-[0.95]">
-          <span className="block text-slate-900">{hero.title || "Research like"}</span>
+          <span className="block" style={{ color: "#042C53" }}>{hero.title || "Research like"}</span>
           <span className="block hero-gradient-text">{hero.titleAccent || "the elite."}</span>
         </h1>
-        <p className="mt-8 text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+        <p className="mt-8 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed" style={{ color: "#3d4f66" }}>
           {hero.subtitle || "The playground of high-frequency precision. Vela leverages industrial-grade AI to decode market velocity for everyone."}
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -147,34 +149,34 @@ export default function Landing() {
         <div className="mt-16 relative max-w-4xl mx-auto h-48 hidden md:block">
           <div className="glass-card absolute left-0 top-4 px-6 py-5 rounded-2xl float-slow">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 grid place-items-center text-white">
+              <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#1D9E75,#7CD0AE)" }}>
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Alpha Signal</div>
-                <div className="text-2xl font-bold text-emerald-600">+14.2%</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>Alpha Signal</div>
+                <div className="text-2xl font-bold" style={{ color: "#1D9E75" }}>+14.2%</div>
               </div>
             </div>
           </div>
           <div className="glass-card absolute right-0 top-2 px-6 py-5 rounded-2xl float-delayed">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 grid place-items-center text-white">
+              <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#185FA5,#378ADD)" }}>
                 <Shield className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Risk Index</div>
-                <div className="text-2xl font-bold text-slate-900">SECURE</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>Risk Index</div>
+                <div className="text-2xl font-bold" style={{ color: "#042C53" }}>SECURE</div>
               </div>
             </div>
           </div>
           <div className="glass-card absolute left-1/2 -translate-x-1/2 bottom-0 px-6 py-5 rounded-2xl float-slow">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 grid place-items-center text-white">
+              <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#042C53,#185FA5)" }}>
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">AI Coverage</div>
-                <div className="text-2xl font-bold text-slate-900">12,400+</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>AI Coverage</div>
+                <div className="text-2xl font-bold" style={{ color: "#042C53" }}>12,400+</div>
               </div>
             </div>
           </div>
@@ -183,10 +185,10 @@ export default function Landing() {
 
       {/* PARTNERS STRIP */}
       <section className="relative z-10 max-w-6xl mx-auto px-6 py-10">
-        <div className="text-center text-[11px] font-bold tracking-[0.25em] text-slate-500 uppercase">Institutional Liquidity Partners</div>
+        <div className="text-center text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#6b7a8c" }}>Institutional Liquidity Partners</div>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 logo-strip">
           {["Bloomberg","Goldman","BlackRock","J.P. Morgan","Vanguard"].map(n => (
-            <span key={n} className="text-lg font-bold tracking-tight text-slate-700">{n}</span>
+            <span key={n} className="text-lg font-bold tracking-tight" style={{ color: "#042C53" }}>{n}</span>
           ))}
         </div>
       </section>
@@ -194,10 +196,10 @@ export default function Landing() {
       {/* FEATURES */}
       <section id="features" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {features.title || "Hyper-targeted Intelligence"}
           </h2>
-          <p className="mt-4 text-slate-600 text-lg">
+          <p className="mt-4 text-lg" style={{ color: "#3d4f66" }}>
             {features.subtitle || "Our engines don't just find data. They find actionable alpha across trillions of variables."}
           </p>
         </div>
@@ -205,9 +207,9 @@ export default function Landing() {
           {(features.items || []).slice(0, 3).map((f: any, i: number) => {
             const IC = featureIcons[i] || Sparkles;
             const grads = [
-              "from-pink-500 to-purple-600",
-              "from-blue-500 to-cyan-400",
-              "from-purple-500 to-indigo-600",
+              "linear-gradient(135deg,#042C53,#185FA5)",
+              "linear-gradient(135deg,#185FA5,#378ADD)",
+              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
             ];
             const metrics = [
               ["99.8% ACCURACY", "4.2s LATENCY"],
@@ -216,14 +218,14 @@ export default function Landing() {
             ];
             return (
               <div key={i} className="glass-card group p-8 rounded-3xl">
-                <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${grads[i]} grid place-items-center text-white shadow-lg`}>
+                <div className="h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i] }}>
                   {f.icon ? <Icon name={f.icon} className="h-7 w-7" /> : <IC className="h-7 w-7" />}
                 </div>
-                <h3 className="mt-6 text-xl font-bold text-slate-900">{f.title}</h3>
-                <p className="mt-2 text-slate-600 leading-relaxed">{f.desc}</p>
+                <h3 className="mt-6 text-xl font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
+                <p className="mt-2 leading-relaxed" style={{ color: "#3d4f66" }}>{f.desc}</p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {(metrics[i] || []).map((m) => (
-                    <span key={m} className="text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-slate-900/5 text-slate-700">{m}</span>
+                    <span key={m} className="text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full" style={{ background: "rgba(4,44,83,0.06)", color: "#185FA5" }}>{m}</span>
                   ))}
                 </div>
               </div>
@@ -235,23 +237,23 @@ export default function Landing() {
       {/* TESTIMONIALS */}
       <section id="engine" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] text-purple-600 uppercase">Voices of Alpha</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Voices of Alpha</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {trust.title || "Trusted by the boldest."}
           </h2>
         </div>
         <div className="mt-14 grid md:grid-cols-3 gap-6">
           {(trust.items || []).slice(0, 3).map((t: any, i: number) => (
             <div key={i} className="glass-card p-8 rounded-3xl">
-              <div className="flex gap-1 text-amber-400">
+              <div className="flex gap-1" style={{ color: "#378ADD" }}>
                 {[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 fill-current" />)}
               </div>
-              <p className="mt-5 text-slate-700 text-lg leading-relaxed">
+              <p className="mt-5 text-lg leading-relaxed" style={{ color: "#1f3147" }}>
                 "{t.desc || t.title}"
               </p>
-              <div className="mt-6 pt-5 border-t border-slate-900/5">
-                <div className="font-bold text-slate-900">{t.author || t.title || "Vela User"}</div>
-                <div className="text-xs font-medium tracking-wider text-slate-500 uppercase mt-0.5">{t.role || t.title}</div>
+              <div className="mt-6 pt-5" style={{ borderTop: "1px solid rgba(4,44,83,0.08)" }}>
+                <div className="font-bold" style={{ color: "#042C53" }}>{t.author || t.title || "Vela User"}</div>
+                <div className="text-xs font-medium tracking-wider uppercase mt-0.5" style={{ color: "#6b7a8c" }}>{t.role || t.title}</div>
               </div>
             </div>
           ))}
@@ -261,8 +263,8 @@ export default function Landing() {
       {/* FAQ */}
       <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 py-24">
         <div className="text-center">
-          <div className="text-[11px] font-bold tracking-[0.25em] text-purple-600 uppercase">Common Queries</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Common Queries</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {faq.title || "Everything you need to know."}
           </h2>
         </div>
@@ -275,11 +277,11 @@ export default function Landing() {
                   onClick={() => setOpenFaq(open ? null : i)}
                   className="w-full px-6 py-5 flex items-center justify-between text-left"
                 >
-                  <span className="font-semibold text-slate-900">{f.q}</span>
-                  <ChevronDown className={`h-5 w-5 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
+                  <span className="font-semibold" style={{ color: "#042C53" }}>{f.q}</span>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "#185FA5" }} />
                 </button>
                 <div className={`accordion-content ${open ? "open" : ""}`}>
-                  <div><div className="px-6 pb-5 text-slate-600 leading-relaxed">{f.a}</div></div>
+                  <div><div className="px-6 pb-5 leading-relaxed" style={{ color: "#3d4f66" }}>{f.a}</div></div>
                 </div>
               </div>
             );
@@ -290,10 +292,10 @@ export default function Landing() {
       {/* CTA */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 py-24 text-center">
         <div className="glass-card rounded-[2rem] p-12 md:p-16">
-          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {ctaBlock.title || "Ready to amplify your edge?"}
           </h2>
-          {ctaBlock.subtitle && <p className="mt-4 text-lg text-slate-600 max-w-xl mx-auto">{ctaBlock.subtitle}</p>}
+          {ctaBlock.subtitle && <p className="mt-4 text-lg max-w-xl mx-auto" style={{ color: "#3d4f66" }}>{ctaBlock.subtitle}</p>}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link to={ctaBlock.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold shadow-xl">
               {ctaBlock.primaryCta?.label || "Create free account"} <ArrowRight className="h-4 w-4" />
@@ -306,17 +308,17 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer className="relative z-10 border-t border-slate-900/5 bg-white/60 backdrop-blur-md">
+      <footer className="relative z-10 backdrop-blur-md" style={{ borderTop: "1px solid rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.5)" }}>
         <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <VelaLogo size={24} />
-            <span className="text-xs text-slate-500">© {new Date().getFullYear()} Vela Intelligence Systems. Smart money, amplified.</span>
+            <span className="text-xs" style={{ color: "#6b7a8c" }}>© {new Date().getFullYear()} Vela Intelligence Systems. Smart money, amplified.</span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600">
-            <Link to="/" className="hover:text-slate-900">Research</Link>
-            <Link to="/terms" className="hover:text-slate-900">Terms</Link>
-            <Link to="/privacy" className="hover:text-slate-900">Privacy</Link>
-            <Link to="/disclaimer" className="hover:text-slate-900">Disclaimer</Link>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" style={{ color: "#3d4f66" }}>
+            <Link to="/" className="hover:underline">Research</Link>
+            <Link to="/terms" className="hover:underline">Terms</Link>
+            <Link to="/privacy" className="hover:underline">Privacy</Link>
+            <Link to="/disclaimer" className="hover:underline">Disclaimer</Link>
           </div>
         </div>
       </footer>

@@ -110,14 +110,14 @@ export default function Landing() {
           <Link to="/" className="flex items-center gap-2 font-bold tracking-tight">
             <VelaLogo size={28} />
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <a href="#features" className="hover:text-slate-900 transition">Intelligence</a>
-            <a href="#engine" className="hover:text-slate-900 transition">Alpha Engine</a>
-            <a href="#pricing" className="hover:text-slate-900 transition">Pricing</a>
-            <a href="#faq" className="hover:text-slate-900 transition">Resources</a>
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium" style={{ color: "#3d4f66" }}>
+            <a href="#features" className="hover:opacity-70 transition">Intelligence</a>
+            <a href="#engine" className="hover:opacity-70 transition">Alpha Engine</a>
+            <a href="#pricing" className="hover:opacity-70 transition">Pricing</a>
+            <a href="#faq" className="hover:opacity-70 transition">Resources</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/auth" className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition">Sign In</Link>
+            <Link to="/auth" className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium hover:opacity-70 transition" style={{ color: "#042C53" }}>Sign In</Link>
             <Link to="/auth" className="button-gradient inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg">Get Started Free</Link>
           </div>
         </div>

@@ -111,6 +111,18 @@ Deno.serve(async (req) => {
             await logAudit("auth", null, { email });
             return ok({ ok: true });
           }
+          case "set_user_override": {
+            const { user_id, key, value } = body as { user_id: string; key: string; value: boolean };
+            const allowed = new Set(["unrestricted_advice", "ai_opt_out"]);
+            if (!user_id || !allowed.has(key)) {
+              return new Response(JSON.stringify({ error: "invalid override" }), { status: 400, headers: jsonHeaders });
+            }
+            const patch: Record<string, unknown> = { user_id, [key]: !!value };
+            await admin.from("profiles").upsert(patch, { onConflict: "user_id" });
+            await logAudit("profiles", user_id, { override: key, value: !!value });
+            await logIncident("user_override", { user_id, key, value: !!value }, `override ${key}=${!!value}`);
+            return ok({ ok: true });
+          }
           case "grant_role": {
             const { user_id, role } = body;
             await admin.from("user_roles").upsert({ user_id, role });

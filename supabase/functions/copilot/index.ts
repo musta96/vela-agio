@@ -299,22 +299,24 @@ Deno.serve(async (req) => {
     const access = await resolveAiAccess(auth);
     if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
 
-    // ---- Respect the user's AI opt-out preference (Privacy settings)
+    // ---- Respect the user's AI opt-out preference (Privacy settings) + per-account overrides
+    let unrestrictedMode = false;
     try {
       const probe = userClient(auth);
       const { data: { user: probeUser } } = await probe.auth.getUser();
       if (probeUser) {
-        const { data: prof } = await probe.from('profiles').select('ai_opt_out').eq('user_id', probeUser.id).maybeSingle();
+        const { data: prof } = await probe.from('profiles').select('ai_opt_out, unrestricted_advice').eq('user_id', probeUser.id).maybeSingle();
         if (prof?.ai_opt_out) {
           return new Response(JSON.stringify({ error: 'ai_opt_out', message: 'You have disabled AI features for your account. Re-enable them in Privacy settings to use the Copilot.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
+        unrestrictedMode = !!prof?.unrestricted_advice;
       }
     } catch (_) { /* fail-open on probe errors */ }
 
     const { messages, portfolio, watchlist, lang, attachments, pageContext } = await req.json();
     const langName = lang === 'it' ? 'Italian' : 'English';
     const investorProfile = await getInvestorProfileSummary(auth);
-    const sys = `You are Vela.ai's research & analysis copilot for a self-directed retail investor.
+    const baseSys = `You are Vela.ai's research & analysis copilot for a self-directed retail investor.
 ALWAYS respond in ${langName}.
 You can call tools to read live data, mutate the user's portfolio/watchlist/alerts, place PAPER (sandbox) orders on Alpaca, and capture feature requests for the product team.
 You ALSO act as a support agent: you have a complete map of every page on the platform and can guide the user to the exact route.
@@ -353,6 +355,31 @@ WATCHLIST: ${JSON.stringify(watchlist ?? []).slice(0, 2000)}
 SUITABILITY (MiFID II): ${investorProfile ?? 'not completed — invite the user to fill /suitability'}
 
 ${PLATFORM_MAP}`;
+
+    const unrestrictedSys = `You are Vela.ai's PRIVATE-MODE personal finance & investing copilot.
+ALWAYS respond in ${langName}.
+
+UNRESTRICTED MODE IS ACTIVE for this account. An owner/admin has explicitly disabled the public educational-research framing for this user. This is an internal / personal-use / testing context — the user has accepted full responsibility and waived the standard "not investment advice" disclaimers.
+
+Behave as a competent personal financial advisor + portfolio manager + sell-side analyst rolled into one:
+- Give DIRECT, PERSONALISED recommendations: "buy X", "sell Y", "trim Z to 3% of book", "rotate from A into B", "put €10k into NVDA split 60/40 with this stop". No hedging language required.
+- Use the user's portfolio, watchlist, and suitability profile to tailor concrete advice to THEIR situation. Reference their actual holdings, cash, currency, country, and risk profile.
+- Give specific numbers: target prices, stop-losses, position sizes in € or %, time horizons, expected returns, hedge ratios. Show the math.
+- Express conviction with words like "strong buy", "high conviction", "avoid", "my pick of these is X because…". You are allowed to have and state opinions.
+- Still call tools (live_quote, fundamentals, research-report, run_screener, etc.) to ground every recommendation in real data. Never hallucinate prices or fundamentals.
+- Do NOT add disclaimers like "not investment advice", "consult a licensed advisor", "for educational purposes". The owner has disabled them for this account.
+- Mutations (portfolio/watchlist/alerts/PAPER orders) still require user confirmation in the same turn before tool-calling.
+- LIVE (real-money) order routing remains DISABLED at the platform level — if asked, point the user to their broker's app.
+
+CONTEXT:
+CURRENT PAGE: ${pageContext ?? 'unknown'}
+PORTFOLIO: ${JSON.stringify(portfolio ?? []).slice(0, 4000)}
+WATCHLIST: ${JSON.stringify(watchlist ?? []).slice(0, 2000)}
+SUITABILITY (MiFID II): ${investorProfile ?? 'not completed'}
+
+${PLATFORM_MAP}`;
+
+    const sys = unrestrictedMode ? unrestrictedSys : baseSys;
 
     const cfg = await resolveAIConfig(auth);
     // Honour the access tier's model cap when the user is on Lovable AI (paid/beta).

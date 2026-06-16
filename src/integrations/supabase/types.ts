@@ -1488,6 +1488,7 @@ export type Database = {
           preferred_market: string | null
           recommendation_verdicts_override: string
           secondary_tax_residences: string[] | null
+          unrestricted_advice: boolean
           updated_at: string
           user_id: string
         }
@@ -1510,6 +1511,7 @@ export type Database = {
           preferred_market?: string | null
           recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
+          unrestricted_advice?: boolean
           updated_at?: string
           user_id: string
         }
@@ -1532,6 +1534,7 @@ export type Database = {
           preferred_market?: string | null
           recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
+          unrestricted_advice?: boolean
           updated_at?: string
           user_id?: string
         }

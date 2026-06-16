@@ -118,7 +118,7 @@ export default function Landing() {
           <nav className="hidden md:flex items-center gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>
             <a href="#features" className="hover:text-[#042C53] transition">Intelligence</a>
             <a href="#engine" className="hover:text-[#042C53] transition">Alpha Engine</a>
-            <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
+            {pricingEnabled && <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>}
             <a href="#faq" className="hover:text-[#042C53] transition">Resources</a>
           </nav>
           <div className="flex items-center gap-5">

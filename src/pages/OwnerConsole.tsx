@@ -1247,6 +1247,22 @@ function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestEr
             <DetailSection title={`Recent orders (${data.orders?.length || 0})`}>
               {(data.orders || []).slice(0,10).map((o: any) => <div key={o.id} className="flex justify-between border-b border-border/40 py-1"><span>{o.side} {o.qty} <span className="font-mono">{o.symbol}</span></span><Badge variant="outline" className="text-[9px]">{o.status}</Badge></div>)}
             </DetailSection>
+            <DetailSection title="Account overrides">
+              <div className="space-y-2 py-1">
+                <OverrideRow
+                  label="Unrestricted advisor mode"
+                  description="Disables the educational-research framing for this account. Copilot will give direct, personalised buy/sell advice. Owner self-use & internal testing only."
+                  enabled={!!data.profile?.unrestricted_advice}
+                  onToggle={async (v) => { await act("set_user_override", { user_id: user.id, key: "unrestricted_advice", value: v }); }}
+                />
+                <OverrideRow
+                  label="AI opt-out (privacy)"
+                  description="Blocks every AI feature for this account."
+                  enabled={!!data.profile?.ai_opt_out}
+                  onToggle={async (v) => { await act("set_user_override", { user_id: user.id, key: "ai_opt_out", value: v }); }}
+                />
+              </div>
+            </DetailSection>
             <DetailSection title={`Consents (${data.consents?.length || 0})`}>
               {(data.consents || []).slice(0,5).map((c: any) => <div key={c.id} className="flex justify-between border-b border-border/40 py-1"><span>{new Date(c.accepted_at).toLocaleDateString()}</span><span className="font-mono text-muted-foreground">T&C {c.tos_version} / Priv {c.privacy_version}</span></div>)}
             </DetailSection>
@@ -1266,4 +1282,16 @@ function DetailKv({ label, value }: { label: string; value: string }) {
 }
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return <div><h4 className="font-semibold text-xs mb-1">{title}</h4><div className="max-h-40 overflow-auto">{children}</div></div>;
+}
+function OverrideRow({ label, description, enabled, onToggle }: { label: string; description: string; enabled: boolean; onToggle: (v: boolean) => void | Promise<unknown> }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/40 py-2">
+      <div className="min-w-0">
+        <div className="font-medium text-xs">{label}</div>
+        <div className="text-[10px] text-muted-foreground leading-snug">{description}</div>
+      </div>
+      <Switch checked={enabled} onCheckedChange={(v) => onToggle(!!v)} />
+    </div>
+  );
+}
 }

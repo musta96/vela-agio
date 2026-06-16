@@ -107,14 +107,8 @@ export default function Landing() {
       {/* NAV */}
       <header className="sticky top-0 z-40 glass-nav">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3" style={{ color: "#042C53" }}>
-            <span
-              className="h-10 w-10 rounded-2xl grid place-items-center text-white shadow-md"
-              style={{ background: "linear-gradient(135deg,#185FA5 0%,#378ADD 50%,#1D9E75 100%)" }}
-            >
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <span className="text-2xl font-extrabold tracking-tight">Vela.ai</span>
+          <Link to="/" className="flex items-center gap-3">
+            <VelaLogo size={32} />
           </Link>
           <nav className="hidden md:flex items-center gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>
             <a href="#features" className="hover:text-[#042C53] transition">Intelligence</a>

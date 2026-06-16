@@ -8,6 +8,7 @@ import {
   Sparkles, ArrowRight, ChevronDown, Brain, Activity, Shield, TrendingUp, Star, Check,
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
+import { PricingSection } from "@/components/landing/pricing-section";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -273,84 +274,8 @@ export default function Landing() {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Investment Tiers</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            {pricing.title || "Pricing that scales with you"}
-          </h2>
-          {pricing.subtitle && (
-            <p className="mt-4 text-lg" style={{ color: "#3d4f66" }}>{pricing.subtitle}</p>
-          )}
-        </div>
-        <div className="mt-14 grid md:grid-cols-3 gap-6">
-          {[
-            {
-              name: "Explorer",
-              price: "€0",
-              period: "/forever",
-              desc: "Start researching markets with the essentials.",
-              features: ["Delayed market data", "Up to 3 watchlists", "AI summaries (25/mo)", "Community access"],
-              cta: "Start free",
-              highlight: false,
-            },
-            {
-              name: "Pro",
-              price: "€29",
-              period: "/month",
-              desc: "For serious investors who need an edge.",
-              features: ["Real-time market data", "Unlimited watchlists", "Unlimited AI research", "Backtesting & screeners", "Broker connect (read-only)"],
-              cta: "Start Pro trial",
-              highlight: true,
-            },
-            {
-              name: "Enterprise",
-              price: "Custom",
-              period: "",
-              desc: "For teams, advisors and institutions.",
-              features: ["Everything in Pro", "Advisor seats & MiFID II tools", "REST API & WebSocket streams", "SSO & audit logs", "Priority support"],
-              cta: "Contact sales",
-              highlight: false,
-            },
-          ].map((tier, i) => (
-            <div
-              key={i}
-              className="glass-card p-8 rounded-3xl relative flex flex-col"
-              style={tier.highlight ? { background: "linear-gradient(135deg,rgba(24,95,165,0.08),rgba(29,158,117,0.08))", border: "1px solid rgba(24,95,165,0.35)" } : undefined}
-            >
-              {tier.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1 rounded-full text-white shadow" style={{ background: "linear-gradient(135deg,#185FA5,#1D9E75)" }}>
-                  Most popular
-                </span>
-              )}
-              <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{tier.name}</div>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>{tier.price}</span>
-                <span className="text-sm font-medium" style={{ color: "#6b7a8c" }}>{tier.period}</span>
-              </div>
-              <p className="mt-3" style={{ color: "#3d4f66" }}>{tier.desc}</p>
-              <ul className="mt-6 space-y-3 flex-1">
-                {tier.features.map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-sm" style={{ color: "#1f3147" }}>
-                    <span className="mt-0.5 grid place-items-center h-5 w-5 rounded-full" style={{ background: "rgba(29,158,117,0.15)", color: "#1D9E75" }}>
-                      <Check className="h-3 w-3" />
-                    </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className={`mt-8 inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold transition ${tier.highlight ? "button-gradient shadow-lg" : "ghost-btn"}`}
-              >
-                {tier.cta}
-              </Link>
-            </div>
-          ))}
-        </div>
-        {pricing.footnote && (
-          <p className="mt-8 text-center text-xs" style={{ color: "#6b7a8c" }}>{pricing.footnote}</p>
-        )}
+      <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
+        <PricingSection />
       </section>
 
       {/* FAQ */}

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";
+import { useFlag } from "@/hooks/useFeatureFlags";
 
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
@@ -38,6 +39,7 @@ export default function Landing() {
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   const [seo, setSeo] = useState<any>({});
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const pricingEnabled = useFlag("pricing", false);
 
   useEffect(() => {
     (async () => {
@@ -482,27 +484,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PRICING — always visible on landing */}
-      <>
-        {/* LAUNCH SPECIAL */}
-        <section className="relative z-10 max-w-6xl mx-auto px-6 pt-24">
-          <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
-              <Sparkles className="h-3 w-3" /> Launch Special: 50% off first year
-            </span>
-            <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Lock in institutional intelligence at half price.</h3>
-            <p className="mt-3 text-white/85 max-w-xl">Limited-time offer for early adopters. Founding members keep preferred pricing forever.</p>
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
-                Claim Launch Offer <ArrowRight className="h-4 w-4" />
-              </a>
-              <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold border border-white/40 hover:bg-white/10 transition">
-                See All Plans
-              </a>
-            </div>
-          </div>
-        </section>
-
+      {/* PRICING — gated by owner feature flag */}
+      {pricingEnabled ? (
         <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
           <PricingSection />
           <div className="mt-10 text-center">
@@ -515,7 +498,22 @@ export default function Landing() {
             </Link>
           </div>
         </section>
-      </>
+      ) : (
+        <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
+          <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
+              <Sparkles className="h-3 w-3" /> Launch Offer · Free Access
+            </span>
+            <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Vela.ai is completely free during launch.</h3>
+            <p className="mt-3 text-white/85 max-w-xl">Get full access to institutional-grade intelligence — no credit card, no plans, no limits. Founding members keep preferred pricing forever when we introduce paid tiers.</p>
+            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+              <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
+                Get Started Free <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* FAQ */}
       <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 py-24">

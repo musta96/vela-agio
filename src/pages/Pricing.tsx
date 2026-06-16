@@ -7,6 +7,7 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { ArrowRight, ChevronDown, Check, X } from "lucide-react";
+import { useFlag } from "@/hooks/useFeatureFlags";
 
 const COMPARISON: { label: string; values: (string | boolean)[] }[] = [
   { label: "AI Research Queries", values: ["25 / month", "Unlimited", "Unlimited"] },
@@ -28,6 +29,7 @@ const PRICING_FAQ = [
 export default function Pricing() {
   const { user } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const pricingEnabled = useFlag("pricing", false);
   return (
     <div className="vela-landing min-h-screen relative">
       <style>{`
@@ -88,12 +90,14 @@ export default function Pricing() {
       </section>
 
       {/* PRICING TIERS (shared with landing) */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pb-16">
-        <PricingSection />
-      </section>
+      {pricingEnabled ? (
+        <>
+        <section className="relative z-10 max-w-6xl mx-auto px-6 pb-16">
+          <PricingSection />
+        </section>
 
-      {/* COMPARISON TABLE */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-20">
+        {/* COMPARISON TABLE */}
+        <section className="relative z-10 max-w-6xl mx-auto px-6 py-20">
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Compare Features</div>
           <h2 className="mt-3 text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
@@ -128,7 +132,24 @@ export default function Pricing() {
             </table>
           </div>
         </div>
-      </section>
+        </section>
+        </>
+      ) : (
+        <section className="relative z-10 max-w-4xl mx-auto px-6 pb-16">
+          <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl text-center" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
+              Launch Offer · Free Access
+            </span>
+            <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Vela.ai is completely free during launch.</h3>
+            <p className="mt-3 text-white/85 max-w-2xl mx-auto">Full access to institutional-grade intelligence — no credit card, no plans, no limits. Founding members keep preferred pricing forever when paid tiers launch.</p>
+            <div className="mt-7 flex justify-center">
+              <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
+                Get Started Free <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* FAQ */}
       <section className="relative z-10 max-w-3xl mx-auto px-6 py-20">

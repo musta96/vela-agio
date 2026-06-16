@@ -368,63 +368,72 @@ export default function Landing() {
 
       {/* TRUST & COMPLIANCE */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Compliance</div>
+        <div className="text-center max-w-3xl mx-auto">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Built for Trust</div>
           <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            Built for Trust & Compliance
+            Security, compliance and transparency aren't add-ons — they're the foundation.
           </h2>
-          <p className="mt-4 text-lg" style={{ color: "#3d4f66" }}>
-            Enterprise-grade security and regulatory compliance across all jurisdictions.
-          </p>
         </div>
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
-            { icon: Lock, title: "GDPR Compliant", desc: "EU data protection standards" },
-            { icon: Globe, title: "EU-Hosted Infrastructure", desc: "Data centers in Frankfurt" },
-            { icon: Shield, title: "MiFID II Ready", desc: "Professional investment services" },
-            { icon: Landmark, title: "SEC & CONSOB Filings", desc: "Regulatory compliance across US & EU" },
+            {
+              icon: Lock,
+              title: "Privacy by design",
+              desc: "GDPR-compliant. EU-hosted. Encrypted at rest and in transit. One-click data export and deletion.",
+              grad: "linear-gradient(135deg,#042C53,#185FA5)",
+            },
+            {
+              icon: Shield,
+              title: "Regulatory aware",
+              desc: "Educational tool only — no advice. MiFID II suitability tooling for advisor seats. SEC & CONSOB filings indexed.",
+              grad: "linear-gradient(135deg,#185FA5,#378ADD)",
+            },
+            {
+              icon: FileText,
+              title: "Transparent methods",
+              desc: "Every score, model and backtest links to its methodology page. No black-box magic.",
+              grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            },
           ].map((t, i) => {
             const Ic = t.icon;
             return (
-              <div key={i} className="glass-card p-7 rounded-3xl text-center">
-                <div className="mx-auto h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: "linear-gradient(135deg,#042C53,#1D9E75)" }}>
+              <div key={i} className="glass-card p-8 rounded-3xl">
+                <div className="h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: t.grad }}>
                   <Ic className="h-7 w-7" />
                 </div>
-                <h3 className="mt-5 text-base font-bold" style={{ color: "#042C53" }}>{t.title}</h3>
-                <p className="mt-2 text-sm" style={{ color: "#6b7a8c" }}>{t.desc}</p>
+                <h3 className="mt-5 text-xl font-bold" style={{ color: "#042C53" }}>{t.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{t.desc}</p>
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* PRICING — gated by owner-dashboard pricing flag */}
-      {pricingEnabled && (
-        <>
-          {/* LAUNCH SPECIAL */}
-          <section className="relative z-10 max-w-6xl mx-auto px-6 pt-24">
-            <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
-                <Sparkles className="h-3 w-3" /> Launch Special: 50% off first year
-              </span>
-              <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Lock in institutional intelligence at half price.</h3>
-              <p className="mt-3 text-white/85 max-w-xl">Limited-time offer for early adopters. Founding members keep preferred pricing forever.</p>
-              <div className="mt-7 flex flex-col sm:flex-row gap-3">
-                <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
-                  Claim Launch Offer <ArrowRight className="h-4 w-4" />
-                </a>
-                <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold border border-white/40 hover:bg-white/10 transition">
-                  See All Plans
-                </a>
-              </div>
+      {/* PRICING — always visible on landing */}
+      <>
+        {/* LAUNCH SPECIAL */}
+        <section className="relative z-10 max-w-6xl mx-auto px-6 pt-24">
+          <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
+              <Sparkles className="h-3 w-3" /> Launch Special: 50% off first year
+            </span>
+            <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Lock in institutional intelligence at half price.</h3>
+            <p className="mt-3 text-white/85 max-w-xl">Limited-time offer for early adopters. Founding members keep preferred pricing forever.</p>
+            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+              <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
+                Claim Launch Offer <ArrowRight className="h-4 w-4" />
+              </a>
+              <a href="#pricing" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold border border-white/40 hover:bg-white/10 transition">
+                See All Plans
+              </a>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
-            <PricingSection />
-          </section>
-        </>
-      )}
+        <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
+          <PricingSection />
+        </section>
+      </>
 
       {/* FAQ */}
       <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 py-24">

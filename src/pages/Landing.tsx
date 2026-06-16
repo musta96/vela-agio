@@ -505,6 +505,15 @@ export default function Landing() {
 
         <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
           <PricingSection />
+          <div className="mt-10 text-center">
+            <Link
+              to="/pricing"
+              className="inline-flex items-center gap-2 text-sm font-semibold hover:underline transition"
+              style={{ color: "#185FA5" }}
+            >
+              See full feature breakdown <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </section>
       </>
 

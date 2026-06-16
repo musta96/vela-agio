@@ -8,9 +8,9 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Vela.ai brand — light theme
-       Sand #F1EFE8 bg · Navy #042C53 text · Ocean #185FA5 primary
-       Sky #378ADD interactive · Teal #1D9E75 accent (positive)        */
+    /* Vela.ai — LIGHT theme
+       Cream/sand base preserved from mockup v2, paired with glass surfaces
+       that mirror the landing page language.                           */
     --background: 45 23% 93%;            /* Sand */
     --foreground: 211 91% 17%;           /* Navy */
 
@@ -66,6 +66,25 @@ All colors MUST be HSL.
 
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
+    /* ============================================================
+       Glass / landing-aligned tokens (LIGHT)
+       ============================================================ */
+    --surface-glass: 0 0% 100% / 0.7;
+    --surface-glass-strong: 0 0% 100% / 0.92;
+    --surface-glass-soft: 0 0% 100% / 0.55;
+    --border-glass: 0 0% 100% / 0.9;
+    --border-glass-strong: 211 91% 17% / 0.08;
+    --blur-glass: 24px;
+    --blur-glass-strong: 32px;
+    --gradient-hero: radial-gradient(1200px 600px at 10% 0%, hsl(210 70% 54% / 0.18), transparent 60%),
+                     radial-gradient(900px 500px at 100% 20%, hsl(159 69% 37% / 0.12), transparent 60%),
+                     linear-gradient(180deg, hsl(45 23% 96%), hsl(45 23% 93%));
+    --gradient-accent: linear-gradient(135deg, hsl(210 75% 37%) 0%, hsl(210 70% 54%) 50%, hsl(159 69% 37%) 100%);
+    --gradient-border: linear-gradient(135deg, hsl(210 70% 54% / 0.5), hsl(159 69% 37% / 0.3));
+    --shadow-elevated: 0 10px 40px -10px hsl(211 91% 17% / 0.12);
+    --shadow-glass: 0 8px 32px -8px hsl(211 91% 17% / 0.1);
+    --glow-primary: 0 0 40px hsl(210 70% 54% / 0.35);
+
     /* Sidebar — dark Navy in both themes */
     --sidebar-background: 212 87% 12%;
     --sidebar-foreground: 210 76% 95%;
@@ -78,63 +97,95 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Vela.ai brand — dark theme (Navy base) */
-    --background: 211 91% 9%;
-    --foreground: 210 76% 95%;           /* Foam */
+    /* Vela.ai — DARK theme (default)
+       Matches landing page cinematic navy + glassmorphism.            */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
 
-    --card: 211 70% 13%;
-    --card-foreground: 210 76% 95%;
+    --card: 222 47% 10%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 211 70% 13%;
-    --popover-foreground: 210 76% 95%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 96%;
 
-    --primary: 210 70% 54%;              /* Sky for contrast */
-    --primary-foreground: 211 91% 9%;
+    --primary: 210 80% 60%;              /* Sky-bright for contrast */
+    --primary-foreground: 222 47% 6%;
 
     --secondary: 210 75% 37%;            /* Ocean */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 211 50% 18%;
-    --muted-foreground: 211 30% 70%;
+    --muted: 222 40% 14%;
+    --muted-foreground: 215 25% 70%;
 
-    --accent: 156 49% 58%;               /* Seafoam */
-    --accent-foreground: 211 91% 9%;
+    --accent: 156 60% 55%;               /* Seafoam */
+    --accent-foreground: 222 47% 6%;
 
     --destructive: 1 73% 59%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 156 49% 58%;
-    --success-foreground: 211 91% 9%;
+    --success: 156 60% 55%;
+    --success-foreground: 222 47% 6%;
 
     --warning: 33 86% 54%;
-    --warning-foreground: 211 91% 9%;
+    --warning-foreground: 222 47% 6%;
 
-    --bull: 156 49% 58%;
+    --bull: 156 60% 55%;
     --bear: 1 73% 59%;
 
-    --border: 211 50% 22%;
-    --input: 211 50% 22%;
-    --ring: 210 70% 54%;
+    --border: 220 40% 22% / 0.6;
+    --input: 220 40% 22%;
+    --ring: 210 80% 60%;
 
-    --chart-1: 210 70% 54%;
-    --chart-2: 156 49% 58%;
+    --chart-1: 210 80% 60%;
+    --chart-2: 156 60% 55%;
     --chart-3: 211 76% 83%;
     --chart-4: 159 69% 37%;
     --chart-5: 210 75% 37%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(210 70% 54%), hsl(156 49% 58%));
-    --gradient-card: linear-gradient(145deg, hsl(211 70% 13%), hsl(211 70% 16%));
+    --gradient-primary: linear-gradient(135deg, hsl(210 80% 60%), hsl(156 60% 55%));
+    --gradient-card: linear-gradient(145deg, hsl(222 47% 11% / 0.85), hsl(222 47% 8% / 0.7));
     
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4);
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5);
-    --shadow-glow: 0 0 30px hsl(210 100% 55% / 0.25);
+    --shadow-glow: 0 0 30px hsl(210 100% 55% / 0.3);
+
+    /* Glass / landing-aligned tokens (DARK) */
+    --surface-glass: 222 47% 12% / 0.6;
+    --surface-glass-strong: 222 47% 14% / 0.85;
+    --surface-glass-soft: 222 47% 12% / 0.4;
+    --border-glass: 220 40% 40% / 0.25;
+    --border-glass-strong: 220 40% 50% / 0.4;
+    --gradient-hero: radial-gradient(1200px 600px at 10% 0%, hsl(210 80% 50% / 0.25), transparent 60%),
+                     radial-gradient(900px 500px at 100% 20%, hsl(156 60% 45% / 0.18), transparent 60%),
+                     radial-gradient(800px 400px at 50% 100%, hsl(260 60% 50% / 0.15), transparent 60%),
+                     linear-gradient(180deg, hsl(222 47% 7%), hsl(222 47% 5%));
+    --gradient-accent: linear-gradient(135deg, hsl(210 80% 60%) 0%, hsl(180 70% 55%) 50%, hsl(156 60% 55%) 100%);
+    --gradient-border: linear-gradient(135deg, hsl(210 80% 60% / 0.5), hsl(156 60% 55% / 0.3));
+    --shadow-elevated: 0 10px 40px -10px hsl(0 0% 0% / 0.6);
+    --shadow-glass: 0 8px 32px -8px hsl(0 0% 0% / 0.5);
+    --glow-primary: 0 0 40px hsl(210 80% 60% / 0.4);
+
+    /* Sidebar — even darker glass in dark mode */
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 210 40% 92%;
+    --sidebar-primary: 210 80% 60%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 47% 12%;
+    --sidebar-accent-foreground: 210 40% 92%;
+    --sidebar-border: 220 40% 18%;
+    --sidebar-ring: 210 80% 60%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
+  }
+
+  html.dark body {
+    background: var(--gradient-hero);
+    background-attachment: fixed;
   }
 
   body {
@@ -143,6 +194,51 @@ All colors MUST be HSL.
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: hsl(var(--surface-glass));
+    backdrop-filter: blur(var(--blur-glass));
+    -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid hsl(var(--border-glass));
+    box-shadow: var(--shadow-elevated);
+  }
+  .glass-card-strong {
+    background: hsl(var(--surface-glass-strong));
+    backdrop-filter: blur(var(--blur-glass-strong));
+    -webkit-backdrop-filter: blur(var(--blur-glass-strong));
+    border: 1px solid hsl(var(--border-glass-strong));
+    box-shadow: var(--shadow-elevated);
+  }
+  .glass-panel {
+    background: hsl(var(--surface-glass-soft));
+    backdrop-filter: blur(var(--blur-glass));
+    -webkit-backdrop-filter: blur(var(--blur-glass));
+    border-color: hsl(var(--border-glass));
+  }
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+  .gradient-border {
+    position: relative;
+    background-clip: padding-box;
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute; inset: 0;
+    padding: 1px; border-radius: inherit;
+    background: var(--gradient-border);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events: none;
+  }
+  .glow-primary {
+    box-shadow: var(--glow-primary);
   }
 }
 

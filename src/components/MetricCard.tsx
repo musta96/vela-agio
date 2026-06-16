@@ -13,9 +13,9 @@ export const MetricCard = ({ title, value, change, icon }: MetricCardProps) => {
   const isPositive = change > 0;
 
   return (
-    <Card className="p-6 card-gradient border-border hover:shadow-md transition-all duration-300">
+    <Card className="glass-card p-6 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glass)] transition-all duration-300">
       <div className="flex items-center justify-between mb-4">
-        <div className="rounded-lg bg-primary/10 p-2">
+        <div className="rounded-lg bg-primary/15 text-primary p-2 ring-1 ring-primary/20">
           {icon}
         </div>
         <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-success' : 'text-destructive'}`}>

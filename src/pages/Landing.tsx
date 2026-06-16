@@ -117,10 +117,10 @@ export default function Landing() {
             <VelaLogo size={32} />
           </Link>
           <nav className="hidden md:flex items-center gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>
-            <a href="#features" className="hover:text-[#042C53] transition">Intelligence</a>
-            <a href="#engine" className="hover:text-[#042C53] transition">Alpha Engine</a>
-            {pricingEnabled && <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>}
-            <a href="#faq" className="hover:text-[#042C53] transition">Resources</a>
+            <a href="#features" className="hover:text-[#042C53] transition">Features</a>
+            <a href="#who-its-for" className="hover:text-[#042C53] transition">Who it's for</a>
+            <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
+            <a href="#faq" className="hover:text-[#042C53] transition">FAQ</a>
           </nav>
           <div className="flex items-center gap-5">
             <Link
@@ -351,7 +351,7 @@ export default function Landing() {
       </section>
 
       {/* AUDIENCES — investors vs professionals */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+      <section id="who-its-for" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="grid md:grid-cols-2 gap-6">
           {[
             {

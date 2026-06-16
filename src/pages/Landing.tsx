@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
 import {
-  Sparkles, ArrowRight, ChevronDown, Brain, Activity, Shield, TrendingUp, Star, Check,
-  Users, Building2, UserPlus, Link2, Zap, Rocket, Lock, Globe, FileText, Landmark,
-  LineChart, Wallet, FlaskConical, Newspaper, Bell, ShieldCheck, Receipt,
+  Sparkles, ArrowRight, ChevronDown, Brain, Activity, Shield, TrendingUp, Check,
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";

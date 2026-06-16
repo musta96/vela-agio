@@ -121,6 +121,16 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return { error: 'not authenticated' };
 
+  // Built-in screening universes — used by run_screener when the user doesn't
+  // supply an explicit list. Kept small to stay within the per-call fanout budget.
+  const UNIVERSES: Record<string, string[]> = {
+    us_large: ['AAPL','MSFT','GOOGL','AMZN','META','NVDA','TSLA','JPM','V','MA','UNH','XOM','CVX','JNJ','PG','KO','PEP','WMT','HD','MRK','LLY','AVGO','COST','ABBV','ORCL','CRM','NFLX','AMD','INTC','CSCO'],
+    us_growth: ['NVDA','TSLA','META','AMD','SNOW','CRWD','NET','DDOG','PLTR','MDB','SHOP','ABNB','UBER','COIN','ZS','OKTA','PANW','TEAM','NOW','HUBS','SQ','PYPL','ROKU','ARM','SMCI'],
+    eu_large: ['ASML.AS','SAP.DE','NESN.SW','NOVN.SW','MC.PA','OR.PA','SAN.PA','LVMH.PA','ROG.SW','SIE.DE','ALV.DE','BAS.DE','BMW.DE','VOW3.DE','BNP.PA','ING.AS','BBVA.MC','SAN.MC','TEF.MC','VOD.L','HSBA.L','SHEL.L','BP.L','AZN.L','GSK.L','ULVR.L'],
+    ftse_mib: ['ENI.MI','ENEL.MI','ISP.MI','UCG.MI','STM.MI','RACE.MI','G.MI','TIT.MI','MB.MI','FBK.MI','BAMI.MI','BPE.MI','LDO.MI','PIRC.MI','PRY.MI','MONC.MI','UNI.MI','REC.MI','SRG.MI','TRN.MI','TEN.MI','HER.MI','A2A.MI','AMP.MI','BMED.MI'],
+    global_mix: ['AAPL','MSFT','NVDA','GOOGL','AMZN','TSLA','META','JPM','ASML.AS','SAP.DE','LVMH.PA','NESN.SW','NOVN.SW','ENI.MI','ENEL.MI','ISP.MI','RACE.MI','STM.MI','SHEL.L','AZN.L','ULVR.L','SAN.MC','BNP.PA','OR.PA','SIE.DE'],
+  };
+
   switch (name) {
     case 'get_quote': return await fetchYahooQuote(String(args.symbol).toUpperCase());
     case 'get_news': {
@@ -131,6 +141,46 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
     case 'get_fundamentals': {
       const res = await callEdge(ctx.authHeader, 'deep-analysis', { symbol: args.symbol, name: args.name });
       return { fundamentals: res.fundamentals, valuation: res.valuation, recommendation: res.analysis?.recommendation, thesis: res.analysis?.thesis };
+    }
+    case 'run_screener': {
+      const universeKey = (typeof args.universe === 'string' && UNIVERSES[args.universe]) ? args.universe : 'global_mix';
+      const symbols = UNIVERSES[universeKey];
+      const res = await callEdge(ctx.authHeader, 'nl-screener', { query: String(args.query ?? ''), symbols });
+      return {
+        universe: universeKey,
+        query: res.query,
+        spec: res.spec,
+        matched: res.matched,
+        total: res.total,
+        results: (res.results ?? []).slice(0, 12).map((r: any) => ({
+          symbol: r.symbol, name: r.name, price: r.price, marketCap: r.marketCap,
+          pe: r.pe, divYield: r.divYield, revGrowth: r.revGrowth, roe: r.roe, beta: r.beta,
+        })),
+        disclaimer: 'Screening output is information, not a recommendation.',
+      };
+    }
+    case 'generate_research_brief': {
+      const syms = Array.isArray(args.symbols) ? args.symbols.slice(0, 4).map((s: any) => String(s).toUpperCase()) : [];
+      if (syms.length === 0) return { error: 'Provide 1-4 ticker symbols.' };
+      const briefs = await Promise.all(syms.map(async (sym) => {
+        const res = await callEdge(ctx.authHeader, 'research-report', { symbol: sym });
+        return {
+          symbol: sym,
+          summary: res?.summary ?? res?.executiveSummary ?? null,
+          fundamentals: res?.fundamentals ?? null,
+          valuation: res?.valuation ?? null,
+          bullCase: res?.bullCase ?? res?.bull_case ?? null,
+          bearCase: res?.bearCase ?? res?.bear_case ?? null,
+          risks: res?.risks ?? null,
+          sentiment: res?.sentiment ?? null,
+          error: res?.error ?? null,
+        };
+      }));
+      return {
+        focus: args.focus ?? null,
+        briefs,
+        disclaimer: 'Educational research only — no buy/sell recommendation. Decide for yourself based on the data.',
+      };
     }
     case 'add_watchlist': {
       const { error } = await sb.from('watchlist_items').insert({ user_id: user.id, symbol: String(args.symbol).toUpperCase(), name: args.name });

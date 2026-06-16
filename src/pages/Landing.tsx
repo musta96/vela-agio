@@ -2,22 +2,12 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
-import SmoothScroll from "@/components/landing/SmoothScroll";
-import CinematicScene from "@/components/landing/CinematicScene";
-import Reveal from "@/components/landing/Reveal";
-import MobilePreview from "@/components/landing/MobilePreview";
 import {
-  Sparkles, LineChart, Brain, Shield, Target, Zap, BarChart3, BookOpen,
-  TrendingUp, Globe, Lock, Check, ArrowRight, Building2, Users, FileText,
-  Bell, PieChart, Activity, Star
+  Sparkles, ArrowRight, ChevronDown, Brain, Activity, Shield,
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
-import { useFlag } from "@/hooks/useFeatureFlags";
-import { Gift } from "lucide-react";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;

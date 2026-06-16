@@ -201,16 +201,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PARTNERS STRIP */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-10">
-        <div className="text-center text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#6b7a8c" }}>Institutional Liquidity Partners</div>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 logo-strip">
-          {["Bloomberg","Goldman","BlackRock","J.P. Morgan","Vanguard"].map(n => (
-            <span key={n} className="text-lg font-bold tracking-tight" style={{ color: "#042C53" }}>{n}</span>
-          ))}
-        </div>
-      </section>
-
       {/* FEATURES */}
       <section id="features" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="text-center max-w-2xl mx-auto">

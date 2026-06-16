@@ -105,40 +105,36 @@ export default function Landing() {
       <div className="gradient-blob blob-3" />
 
       {/* NAV */}
-      <header className="sticky top-4 z-40 px-4">
-        <div
-          className="max-w-6xl mx-auto h-14 pl-5 pr-2 flex items-center justify-between rounded-full"
-          style={{
-            background: "rgba(255,255,255,0.7)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.9)",
-            boxShadow: "0 10px 40px -10px rgba(4,44,83,0.15)",
-          }}
-        >
-          <Link to="/" className="flex items-center gap-2 font-bold tracking-tight" style={{ color: "#042C53" }}>
-            <VelaLogo size={26} />
-            <span className="text-base font-extrabold">Vela.ai</span>
+      <header className="sticky top-0 z-40 glass-nav">
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3" style={{ color: "#042C53" }}>
+            <span
+              className="h-10 w-10 rounded-2xl grid place-items-center text-white shadow-md"
+              style={{ background: "linear-gradient(135deg,#185FA5 0%,#378ADD 50%,#1D9E75 100%)" }}
+            >
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <span className="text-2xl font-extrabold tracking-tight">Vela.ai</span>
           </Link>
-          <nav className="hidden md:flex items-center gap-7 text-sm font-medium" style={{ color: "#3d4f66" }}>
+          <nav className="hidden md:flex items-center gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>
             <a href="#features" className="hover:text-[#042C53] transition">Intelligence</a>
             <a href="#engine" className="hover:text-[#042C53] transition">Alpha Engine</a>
             <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
             <a href="#faq" className="hover:text-[#042C53] transition">Resources</a>
           </nav>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-5">
             <Link
               to="/auth"
-              className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-semibold hover:opacity-70 transition"
+              className="hidden sm:inline-flex items-center text-[11px] font-bold tracking-[0.22em] uppercase hover:opacity-70 transition"
               style={{ color: "#042C53" }}
             >
               Sign In
             </Link>
             <Link
               to="/auth"
-              className="button-gradient inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold shadow-md"
+              className="button-gradient inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold shadow-lg"
             >
-              Get Started <ArrowRight className="h-3.5 w-3.5" />
+              Get Started Free
             </Link>
           </div>
         </div>

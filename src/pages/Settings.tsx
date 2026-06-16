@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Settings as SettingsIcon, Download, Plus, User, FileText, Coins, Briefcase, Bell, ShieldCheck, CreditCard, ExternalLink, Loader2, Plug, Sparkles, LifeBuoy } from "lucide-react";
+import { Sun, Moon, Monitor } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -278,6 +280,7 @@ const Settings = () => {
   const [tab, setTab] = useState<Tab>("Profile");
   const [baseCcy, setBaseCcy] = useState("EUR");
   const navigate = useNavigate();
+  const { mode, setMode } = useTheme();
 
   return (
     <div className="p-6 sm:p-8 space-y-6">
@@ -292,6 +295,30 @@ const Settings = () => {
           </Button>
         }
       />
+
+      <Card className="glass-card p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Appearance</p>
+          <p className="text-xs text-muted-foreground">Choose how Vela looks. Matches the landing page when set to dark.</p>
+        </div>
+        <div className="sm:ml-auto inline-flex rounded-lg border border-border bg-card p-1">
+          {([
+            { id: "light", label: "Light", icon: Sun },
+            { id: "dark", label: "Dark", icon: Moon },
+            { id: "system", label: "System", icon: Monitor },
+          ] as const).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMode(id)}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${mode === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-pressed={mode === id}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid lg:grid-cols-[240px_1fr] gap-6 items-start">
         {/* Left nav */}

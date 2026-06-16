@@ -45,7 +45,7 @@ export default function OwnerAuditLog() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Filter by action, actor, entity…" value={q} onChange={e => setQ(e.target.value)} className="pl-9" />
       </div>
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>

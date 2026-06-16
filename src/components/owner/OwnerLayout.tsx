@@ -206,7 +206,7 @@ export function KpiStrip({ items }: { items: { label: string; value: ReactNode; 
   };
   return (
     <div className={cn(
-      "bg-card border border-border rounded-2xl grid grid-cols-2 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border",
+      "bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] grid grid-cols-2 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border",
       colsClass[items.length] || "lg:grid-cols-4",
     )}>
       {items.map((m) => (

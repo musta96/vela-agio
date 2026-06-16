@@ -59,7 +59,7 @@ export default function OwnerAISignals() {
         { label: "Avg confidence", value: `${Math.round(avgConf * 100)}%` },
       ]} />
 
-      <div className="bg-card border border-border rounded-2xl overflow-hidden mt-8">
+      <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] overflow-hidden mt-8">
         <div className="px-6 py-4 border-b border-border flex items-center gap-2">
           <Bot className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold">Recent signals</h3>

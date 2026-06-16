@@ -814,7 +814,7 @@ function relTime(iso: string) {
   return `${d}d`;
 }
 
-function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; onKill: () => void }) {
+function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; onKill: () => void }) {
   const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number }[] }[] = [
     { label: "Overview", items: [
       { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },

@@ -6,7 +6,7 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
 // Extend CORS to allow the client-supplied correlation id header.
 const cors = {
-  ...cors,
+  ...corsHeaders,
   'Access-Control-Allow-Headers':
     `${corsHeaders['Access-Control-Allow-Headers'] ?? 'authorization, x-client-info, apikey, content-type'}, x-correlation-id`,
 };

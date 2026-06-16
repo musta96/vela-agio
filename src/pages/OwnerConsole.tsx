@@ -71,6 +71,21 @@ export default function OwnerConsole() {
   const [detailUser, setDetailUser] = useState<UserRow | null>(null);
   const [detailData, setDetailData] = useState<any>(null);
   const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
+  const [openTickets, setOpenTickets] = useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("support_tickets" as any)
+        .select("id", { count: "exact", head: true })
+        .in("status", ["open", "in_progress"]);
+      if (!cancelled) setOpenTickets(count ?? 0);
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -757,6 +772,7 @@ export default function OwnerConsole() {
         flagsOff={flagsOff}
         signalAlerts={flaggedSignals}
         gdprPending={pendingGdpr}
+        openTickets={openTickets}
         onKill={() => setSection("kill")}
       />
       <div className="flex-1 min-w-0 flex flex-col">

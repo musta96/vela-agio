@@ -6,6 +6,7 @@ import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
 import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
+import OwnerTickets from "@/pages/owner/Tickets";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import {
   Users, Activity, ShieldCheck, Briefcase, Crown, Power, AlertTriangle, Megaphone, Bot,
   ScrollText, Scale, FileDown, Trash2, Ban, Shield, Flag, Database, Mail, TrendingUp,
   LayoutDashboard, KeyRound, CreditCard, Wallet, AlertCircle, Search, BellRing, Settings,
-  CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X, Sparkles,
+  CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X, Sparkles, LifeBuoy,
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
@@ -70,6 +71,21 @@ export default function OwnerConsole() {
   const [detailUser, setDetailUser] = useState<UserRow | null>(null);
   const [detailData, setDetailData] = useState<any>(null);
   const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
+  const [openTickets, setOpenTickets] = useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("support_tickets" as any)
+        .select("id", { count: "exact", head: true })
+        .in("status", ["open", "in_progress"]);
+      if (!cancelled) setOpenTickets(count ?? 0);
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -744,6 +760,7 @@ export default function OwnerConsole() {
     gdpr: complianceSection,
     legal: <LegalDocsEditor docs={legal} reload={load} />,
     landing: <LandingEditor />,
+    tickets: <OwnerTickets />,
   };
 
   return (
@@ -756,6 +773,7 @@ export default function OwnerConsole() {
         flagsOff={flagsOff}
         signalAlerts={flaggedSignals}
         gdprPending={pendingGdpr}
+        openTickets={openTickets}
         onKill={() => setSection("kill")}
       />
       <div className="flex-1 min-w-0 flex flex-col">
@@ -813,7 +831,7 @@ function relTime(iso: string) {
   return `${d}d`;
 }
 
-function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; onKill: () => void }) {
+function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; onKill: () => void }) {
   const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number }[] }[] = [
     { label: "Overview", items: [
       { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
@@ -834,6 +852,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "audit", label: "Audit logs", icon: <ScrollText className="h-3.5 w-3.5" /> },
       { key: "comms", label: "Comms & CRM", icon: <Mail className="h-3.5 w-3.5" /> },
       { key: "landing", label: "Landing page", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
+      { key: "tickets", label: "Support tickets", icon: <LifeBuoy className="h-3.5 w-3.5" />, badge: openTickets || undefined },
     ]},
     { label: "AI & data", items: [
       { key: "ai", label: "Signal governance", icon: <Bot className="h-3.5 w-3.5" />, badge: signalAlerts || undefined },

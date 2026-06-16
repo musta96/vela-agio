@@ -631,7 +631,7 @@ const Portfolio = () => {
         </div>
 
         {/* KPI strip — mockup v2 */}
-        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
           <div className="p-5 flex flex-col gap-1.5">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total value</span>
             <div className="text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>

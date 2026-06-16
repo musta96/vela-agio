@@ -42,7 +42,7 @@ export default function OwnerFeatureFlags() {
       </div>
       <div className="space-y-6">
         {Object.entries(grouped).map(([cat, items]) => (
-          <div key={cat} className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div key={cat} className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] overflow-hidden">
             <div className="px-6 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider">{cat}</span>
               <Badge variant="outline">{items.length}</Badge>

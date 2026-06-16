@@ -166,7 +166,7 @@ export default function Index() {
         <OnboardingChecklist />
 
         {/* KPI strip — 5 cells: portfolio, P&L, net worth, sentiment, signals */}
-        <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {(() => {
             const empty = portfolio.count === 0;
             const pnlSign = portfolio.dayPnl >= 0 ? "+" : "−";
@@ -220,7 +220,7 @@ export default function Index() {
           <div className="col-span-12 lg:col-span-8">
             <AIBriefing />
           </div>
-          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-foreground">Today at a glance</h3>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -258,7 +258,7 @@ export default function Index() {
                 }))}
               />
             ) : (
-              <div className="bg-card border border-border rounded-2xl p-6">
+              <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
                 <div>
                   <h3 className="text-base font-semibold text-foreground">Suggestions for your portfolio</h3>
                   <p className="text-xs text-muted-foreground mt-1">AI-driven research from the Portfolio Coach. Not investment advice.</p>
@@ -280,7 +280,7 @@ export default function Index() {
           </div>
 
           {/* FTSE MIB chart */}
-          <div className="col-span-12 lg:col-span-8 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-8 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-base font-semibold text-foreground">FTSE MIB · IT0003465736</h3>
@@ -309,7 +309,7 @@ export default function Index() {
           </div>
 
           {/* Watchlist */}
-          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-semibold text-foreground">Watchlist</h3>
               <button onClick={() => navigate("/watchlist")} className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">Edit <ChevronRight className="h-3 w-3" /></button>
@@ -340,7 +340,7 @@ export default function Index() {
           </div>
 
           {/* Sector performance */}
-          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">Sector performance</h3>
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">vs index today</span>
@@ -368,7 +368,7 @@ export default function Index() {
           </div>
 
           {/* AI signals */}
-          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">AI signals</h3>
               <span className="text-[10px] font-semibold px-2 py-0.5 bg-primary/10 text-primary rounded-full uppercase tracking-wider">3 new</span>
@@ -395,7 +395,7 @@ export default function Index() {
           </div>
 
           {/* Net worth allocation donut */}
-          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6">
+          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-foreground">Net worth allocation</h3>
               <button onClick={() => navigate("/net-worth")} className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">View detail <ChevronRight className="h-3 w-3" /></button>

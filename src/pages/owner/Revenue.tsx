@@ -95,7 +95,7 @@ export default function OwnerRevenue() {
       ]} />
 
       <div className="grid lg:grid-cols-3 gap-6 mt-8">
-        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6">
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold">Recurring revenue</h3>
@@ -128,7 +128,7 @@ export default function OwnerRevenue() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Plan mix</h3>
           <div className="h-40 relative">
             {planPie.length === 0 && !loading && (
@@ -164,7 +164,7 @@ export default function OwnerRevenue() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-card border border-border rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
           <h3 className="text-sm font-semibold mb-4">New vs churned MRR</h3>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -184,7 +184,7 @@ export default function OwnerRevenue() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
           <h3 className="text-sm font-semibold mb-4">Net new MRR</h3>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -204,7 +204,7 @@ export default function OwnerRevenue() {
       </div>
 
       {/* P8 #46: per-tier AI gross margin */}
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
         <h3 className="text-sm font-semibold mb-4">Per-tier gross margin (last 30d)</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

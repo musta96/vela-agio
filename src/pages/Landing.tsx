@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";
-import { useFlag } from "@/hooks/useFeatureFlags";
+
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -38,7 +38,6 @@ export default function Landing() {
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   const [seo, setSeo] = useState<any>({});
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const pricingEnabled = useFlag("pricing", false);
 
   useEffect(() => {
     (async () => {

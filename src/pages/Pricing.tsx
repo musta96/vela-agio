@@ -2,13 +2,11 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
-import { useFlag } from "@/hooks/useFeatureFlags";
 import { useAuth } from "@/hooks/useAuth";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { PricingSection } from "@/components/landing/pricing-section";
-import { ArrowRight, ChevronDown, Check, X, Sparkles, Gift } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, ChevronDown, Check, X } from "lucide-react";
 
 const COMPARISON: { label: string; values: (string | boolean)[] }[] = [
   { label: "AI Research Queries", values: ["25 / month", "Unlimited", "Unlimited"] },
@@ -28,40 +26,8 @@ const PRICING_FAQ = [
 ];
 
 export default function Pricing() {
-  const pricingEnabled = useFlag("pricing", false);
   const { user } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  // ---------------- Promo mode (pricing disabled) ----------------
-  if (!pricingEnabled) {
-    return (
-      <div className="min-h-screen bg-background">
-        <SEO
-          title="Launch promotion | Vela.ai"
-          description="Early-access launch promotion — every Vela feature is unlocked while we finalise pricing."
-          path="/pricing"
-        />
-        <main className="container mx-auto px-6 py-20 text-center max-w-2xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
-            <Sparkles className="h-3 w-3" /> Launch promotion
-          </span>
-          <Gift className="h-14 w-14 mx-auto text-primary mt-6 mb-3" />
-          <h1 className="text-4xl font-bold">Free during early access</h1>
-          <p className="text-muted-foreground mt-3">
-            We're in launch mode. Every Vela feature — AI research, optimizer, intraday data,
-            alerts, PDF reports — is fully unlocked for early adopters at no cost while we finalise
-            our paid tiers. Founding members will keep preferred pricing when subscriptions go live.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            <Button asChild><Link to="/">Start exploring</Link></Button>
-            <Button asChild variant="outline"><Link to="/auth">Create an account</Link></Button>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // ---------------- Full pricing page (gradient hero + tiers + table + FAQ) ----------------
   return (
     <div className="vela-landing min-h-screen relative">
       <style>{`

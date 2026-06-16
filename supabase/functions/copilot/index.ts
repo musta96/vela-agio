@@ -76,6 +76,16 @@ const TOOLS = [
         effort: { type: 'string', enum: ['S', 'M', 'L', 'XL'] },
         priority: { type: 'string', enum: ['nice-to-have', 'should-have', 'must-have'] },
       }, required: ['title', 'user_quote', 'why_it_matters', 'proposed_implementation', 'effort', 'priority'] } } },
+  { type: 'function', function: { name: 'run_screener', description: 'Run a natural-language stock screener against a universe of tickers. Returns a ranked, filtered candidate list with fundamentals — NOT a recommendation. Use this when the user describes objective criteria ("high momentum small caps under 15x earnings", "EU banks with yield > 6%", "speculative growth names with revenue growth > 30%") or asks for a shortlist to research. The output is information, not advice.',
+      parameters: { type: 'object', properties: {
+        query: { type: 'string', description: 'The user\u2019s natural-language screening criteria.' },
+        universe: { type: 'string', enum: ['us_large', 'us_growth', 'eu_large', 'ftse_mib', 'global_mix'], description: 'Which universe to scan. Defaults to global_mix.' },
+      }, required: ['query'] } } },
+  { type: 'function', function: { name: 'generate_research_brief', description: 'Produce a structured educational research brief on one or more tickers the USER has already named (max 4). Each brief includes fundamentals, DCF/DDM intrinsic value range, bull case, bear case, key risks, sentiment, and suitability fit. NOT a buy/sell recommendation \u2014 it is research material the user can read and decide on themselves. Use this when the user asks for a "report", "deep dive", "compare X vs Y", or "document on these stocks".',
+      parameters: { type: 'object', properties: {
+        symbols: { type: 'array', items: { type: 'string' }, description: 'Ticker symbols (Yahoo format) to brief. Max 4.' },
+        focus: { type: 'string', description: 'Optional research angle, e.g. "valuation", "downside risk", "growth runway".' },
+      }, required: ['symbols'] } } },
 ];
 
 // ---------- Tool executors ----------

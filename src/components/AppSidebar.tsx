@@ -246,8 +246,8 @@ export function AppSidebar() {
   const { user } = useAuth();
   const isOwner = (user?.email || "").toLowerCase() === "mustarelli.edoardo@gmail.com";
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
+      <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? <VelaLogo size={22} withWordmark={false} /> : (
           <span className="inline-flex items-center gap-2 text-base font-semibold tracking-tight text-sidebar-foreground">
             <VelaLogo size={22} withWordmark={false} />
@@ -276,10 +276,11 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       {!collapsed && (
-        <SidebarFooter className="border-t border-sidebar-border p-3">
-          <div className="rounded-md border border-[hsl(var(--sidebar-ring))]/20 bg-accent/10 px-3 py-2">
-            <p className="text-[11px] font-medium text-accent">Pro plan</p>
-            <p className="text-[10px] text-sidebar-foreground/40">API · Backtesting · Export</p>
+        <SidebarFooter className="border-t border-sidebar-border/60 p-3">
+          <div className="rounded-xl glass-card px-3 py-2.5 relative overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 gradient-accent opacity-10" aria-hidden />
+            <p className="relative text-[11px] font-semibold tracking-wide text-accent">Pro plan</p>
+            <p className="relative text-[10px] text-sidebar-foreground/50">API · Backtesting · Export</p>
           </div>
         </SidebarFooter>
       )}

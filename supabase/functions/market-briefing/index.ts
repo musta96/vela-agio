@@ -4,6 +4,13 @@ import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
+// Extend CORS to allow the client-supplied correlation id header.
+const cors = {
+  ...corsHeaders,
+  'Access-Control-Allow-Headers':
+    `${corsHeaders['Access-Control-Allow-Headers'] ?? 'authorization, x-client-info, apikey, content-type'}, x-correlation-id`,
+};
+
 function aiAccessDeniedBody(access: Awaited<ReturnType<typeof resolveAiAccess>>, correlationId: string, reason?: string) {
   return {
     error: 'ai_access_denied',

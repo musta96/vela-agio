@@ -2,13 +2,11 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
-import { useFlag } from "@/hooks/useFeatureFlags";
 import { useAuth } from "@/hooks/useAuth";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { PricingSection } from "@/components/landing/pricing-section";
-import { ArrowRight, ChevronDown, Check, X, Sparkles, Gift } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, ChevronDown, Check, X } from "lucide-react";
 
 const COMPARISON: { label: string; values: (string | boolean)[] }[] = [
   { label: "AI Research Queries", values: ["25 / month", "Unlimited", "Unlimited"] },

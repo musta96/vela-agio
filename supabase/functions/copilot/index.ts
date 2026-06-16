@@ -304,10 +304,11 @@ Deno.serve(async (req) => {
       const probe = userClient(auth);
       const { data: { user: probeUser } } = await probe.auth.getUser();
       if (probeUser) {
-        const { data: prof } = await probe.from('profiles').select('ai_opt_out').eq('user_id', probeUser.id).maybeSingle();
+        const { data: prof } = await probe.from('profiles').select('ai_opt_out, unrestricted_advice').eq('user_id', probeUser.id).maybeSingle();
         if (prof?.ai_opt_out) {
           return new Response(JSON.stringify({ error: 'ai_opt_out', message: 'You have disabled AI features for your account. Re-enable them in Privacy settings to use the Copilot.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
+        (globalThis as any).__velaUnrestricted = !!prof?.unrestricted_advice;
       }
     } catch (_) { /* fail-open on probe errors */ }
 

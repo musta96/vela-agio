@@ -105,20 +105,41 @@ export default function Landing() {
       <div className="gradient-blob blob-3" />
 
       {/* NAV */}
-      <header className="glass-nav sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold tracking-tight">
-            <VelaLogo size={28} />
+      <header className="sticky top-4 z-40 px-4">
+        <div
+          className="max-w-6xl mx-auto h-14 pl-5 pr-2 flex items-center justify-between rounded-full"
+          style={{
+            background: "rgba(255,255,255,0.7)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.9)",
+            boxShadow: "0 10px 40px -10px rgba(4,44,83,0.15)",
+          }}
+        >
+          <Link to="/" className="flex items-center gap-2 font-bold tracking-tight" style={{ color: "#042C53" }}>
+            <VelaLogo size={26} />
+            <span className="text-base font-extrabold">Vela.ai</span>
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium" style={{ color: "#3d4f66" }}>
-            <a href="#features" className="hover:opacity-70 transition">Intelligence</a>
-            <a href="#engine" className="hover:opacity-70 transition">Alpha Engine</a>
-            <a href="#pricing" className="hover:opacity-70 transition">Pricing</a>
-            <a href="#faq" className="hover:opacity-70 transition">Resources</a>
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium" style={{ color: "#3d4f66" }}>
+            <a href="#features" className="hover:text-[#042C53] transition">Intelligence</a>
+            <a href="#engine" className="hover:text-[#042C53] transition">Alpha Engine</a>
+            <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
+            <a href="#faq" className="hover:text-[#042C53] transition">Resources</a>
           </nav>
-          <div className="flex items-center gap-2">
-            <Link to="/auth" className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium hover:opacity-70 transition" style={{ color: "#042C53" }}>Sign In</Link>
-            <Link to="/auth" className="button-gradient inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg">Get Started Free</Link>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/auth"
+              className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-semibold hover:opacity-70 transition"
+              style={{ color: "#042C53" }}
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/auth"
+              className="button-gradient inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold shadow-md"
+            >
+              Get Started <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
       </header>

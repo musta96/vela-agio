@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
 import {
-  Sparkles, ArrowRight, ChevronDown, Brain, Activity, Shield, TrendingUp, Star, Check,
-  Users, Building2, UserPlus, Link2, Zap, Rocket, Lock, Globe, FileText, Landmark,
-  LineChart, Wallet, FlaskConical, Newspaper, Bell, ShieldCheck, Receipt,
+  Sparkles, ArrowRight, ChevronDown, Brain, Activity, Shield, TrendingUp, Check,
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";
@@ -66,6 +64,12 @@ export default function Landing() {
   const faq = get("faq").content;
   const ctaBlock = get("cta").content;
   const pricing = get("pricing").content;
+  const audiences = get("audiences").content;
+  const steps = get("how").content;
+  const launch = get("launch").content;
+  const footer = get("footer").content;
+  const year = new Date().getFullYear();
+  const footerCopy = (footer.copyright || "").replace("{{year}}", String(year));
 
   const featureIcons = [Brain, Activity, Shield];
 
@@ -113,17 +117,17 @@ export default function Landing() {
 
       {/* NAV */}
       <header className="sticky top-0 z-40 glass-nav">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 h-16 sm:h-20 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <VelaLogo size={32} />
           </Link>
-          <nav className="hidden md:flex items-center gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>
+          <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>
             <a href="#features" className="hover:text-[#042C53] transition">Features</a>
             <a href="#who-its-for" className="hover:text-[#042C53] transition">Who it's for</a>
             <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
             <a href="#faq" className="hover:text-[#042C53] transition">FAQ</a>
           </nav>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5">
             <Link
               to="/auth"
               className="hidden sm:inline-flex items-center text-[11px] font-bold tracking-[0.22em] uppercase hover:opacity-70 transition"
@@ -133,38 +137,38 @@ export default function Landing() {
             </Link>
             <Link
               to="/auth"
-              className="button-gradient inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold shadow-lg"
+              className="button-gradient inline-flex items-center px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap"
             >
-              Get Started Free
+              Get Started
             </Link>
           </div>
         </div>
       </header>
 
       {/* HERO */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-24 text-center">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 md:pt-20 pb-16 sm:pb-20 md:pb-24 text-center">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[0.2em] uppercase ticker" style={{ color: "#185FA5" }}>
           <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: "#1D9E75" }} />
           {hero.eyebrow || "GENESIS v4.0 NOW LIVE"}
         </span>
-        <h1 className="mt-8 text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight leading-[0.95]">
+        <h1 className="mt-6 sm:mt-8 text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.95]">
           <span className="block" style={{ color: "#042C53" }}>{hero.title || "Research like"}</span>
           <span className="block hero-gradient-text">{hero.titleAccent || "the elite."}</span>
         </h1>
-        <p className="mt-8 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed" style={{ color: "#3d4f66" }}>
+        <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed px-2" style={{ color: "#3d4f66" }}>
           {hero.subtitle || "The playground of high-frequency precision. Vela leverages industrial-grade AI to decode market velocity for everyone."}
         </p>
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link to={hero.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold shadow-xl">
+        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 px-4 sm:px-0">
+          <Link to={hero.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-xl">
             {hero.primaryCta?.label || "Start Alpha Hunt"} <ArrowRight className="h-4 w-4" />
           </Link>
-          <a href={hero.secondaryCta?.href || "#features"} className="ghost-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold">
+          <a href={hero.secondaryCta?.href || "#features"} className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold">
             {hero.secondaryCta?.label || "Watch Performance"}
           </a>
         </div>
 
         {/* Floating stat cards */}
-        <div className="mt-16 relative max-w-4xl mx-auto h-48 hidden md:block">
+        <div className="mt-12 lg:mt-16 relative max-w-4xl mx-auto h-48 hidden lg:block">
           <div className="glass-card absolute left-0 top-4 px-6 py-5 rounded-2xl float-slow">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#1D9E75,#7CD0AE)" }}>
@@ -202,16 +206,16 @@ export default function Landing() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+      <section id="features" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {features.title || "Hyper-targeted Intelligence"}
           </h2>
-          <p className="mt-4 text-lg" style={{ color: "#3d4f66" }}>
+          <p className="mt-4 text-base sm:text-lg" style={{ color: "#3d4f66" }}>
             {features.subtitle || "Our engines don't just find data. They find actionable alpha across trillions of variables."}
           </p>
         </div>
-        <div className="mt-14 grid md:grid-cols-3 gap-6">
+        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {(features.items || []).slice(0, 3).map((f: any, i: number) => {
             const IC = featureIcons[i] || Sparkles;
             const grads = [
@@ -225,11 +229,11 @@ export default function Landing() {
               ["SOC2 TYPE II", "AUTO-HEDGE"],
             ];
             return (
-              <div key={i} className="glass-card group p-8 rounded-3xl">
+              <div key={i} className="glass-card group p-6 sm:p-8 rounded-3xl">
                 <div className="h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i] }}>
                   {f.icon ? <Icon name={f.icon} className="h-7 w-7" /> : <IC className="h-7 w-7" />}
                 </div>
-                <h3 className="mt-6 text-xl font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
+                <h3 className="mt-5 sm:mt-6 text-lg sm:text-xl font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
                 <p className="mt-2 leading-relaxed" style={{ color: "#3d4f66" }}>{f.desc}</p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {(metrics[i] || []).map((m) => (
@@ -243,71 +247,31 @@ export default function Landing() {
       </section>
 
       {/* FULL FEATURE GRID — Everything you need */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Platform</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+          <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             Everything you need to research the markets
           </h2>
         </div>
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            {
-              icon: Brain,
-              title: "AI Research Copilot",
-              desc: "Ask anything about a stock, sector or your portfolio. Get cited, jargon-free answers powered by the latest LLMs.",
-              grad: "linear-gradient(135deg,#042C53,#185FA5)",
-            },
-            {
-              icon: LineChart,
-              title: "Live Markets & Charts",
-              desc: "FTSE MIB, pan-European, US stocks, ETFs and crypto. Real-time quotes, intraday, VWAP and 50+ technical indicators.",
-              grad: "linear-gradient(135deg,#185FA5,#378ADD)",
-            },
-            {
-              icon: Wallet,
-              title: "Portfolio Coach",
-              desc: "Track multiple portfolios. Get continuous, plain-English suggestions on rebalancing, risk and diversification.",
-              grad: "linear-gradient(135deg,#378ADD,#7CD0AE)",
-            },
-            {
-              icon: FlaskConical,
-              title: "Optimizer & Backtesting",
-              desc: "Mean-variance, risk-parity, factor tilts. Stress-test any strategy across 20+ years of history.",
-              grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
-            },
-            {
-              icon: Newspaper,
-              title: "Sentiment & News",
-              desc: "AI-summarised filings, earnings calls and social sentiment so you spot signals before the crowd.",
-              grad: "linear-gradient(135deg,#042C53,#378ADD)",
-            },
-            {
-              icon: Bell,
-              title: "Smart Alerts",
-              desc: "Price, technical, fundamental and news alerts via email, push or webhook. Never miss what matters.",
-              grad: "linear-gradient(135deg,#185FA5,#1D9E75)",
-            },
-            {
-              icon: ShieldCheck,
-              title: "Risk & Compliance",
-              desc: "VaR, drawdown, factor exposures. MiFID II suitability and KIDs for advisors. Built for European rules.",
-              grad: "linear-gradient(135deg,#1D9E75,#042C53)",
-            },
-            {
-              icon: Receipt,
-              title: "Reports & Tax Tools",
-              desc: "One-click PDF reports, tax-loss harvesting, corporate actions and a full audit log.",
-              grad: "linear-gradient(135deg,#378ADD,#185FA5)",
-            },
-          ].map((f, i) => {
-            const Ic = f.icon;
+        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {(features.items || []).map((f: any, i: number) => {
+            const grads = [
+              "linear-gradient(135deg,#042C53,#185FA5)",
+              "linear-gradient(135deg,#185FA5,#378ADD)",
+              "linear-gradient(135deg,#378ADD,#7CD0AE)",
+              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+              "linear-gradient(135deg,#042C53,#378ADD)",
+              "linear-gradient(135deg,#185FA5,#1D9E75)",
+              "linear-gradient(135deg,#1D9E75,#042C53)",
+              "linear-gradient(135deg,#378ADD,#185FA5)",
+            ];
             return (
-              <div key={i} className="glass-card p-8 rounded-3xl">
-                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: f.grad }}>
-                  <Ic className="h-6 w-6" />
+              <div key={i} className="glass-card p-6 sm:p-8 rounded-3xl">
+                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i % grads.length] }}>
+                  <Icon name={f.icon} className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
+                <h3 className="mt-5 text-base sm:text-lg font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{f.desc}</p>
               </div>
             );
@@ -315,84 +279,36 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section id="engine" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Voices of Alpha</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            {trust.title || "Trusted by the boldest."}
-          </h2>
-        </div>
-        <div className="mt-14 grid md:grid-cols-3 gap-6">
-          {(trust.items || []).slice(0, 3).map((t: any, i: number) => (
-            <div key={i} className="glass-card p-8 rounded-3xl">
-              <div className="flex gap-1" style={{ color: "#378ADD" }}>
-                {[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 fill-current" />)}
-              </div>
-              <p className="mt-5 text-lg leading-relaxed" style={{ color: "#1f3147" }}>
-                "{t.desc || t.title}"
-              </p>
-              <div className="mt-6 pt-5" style={{ borderTop: "1px solid rgba(4,44,83,0.08)" }}>
-                <div className="font-bold" style={{ color: "#042C53" }}>{t.author || t.title || "Vela User"}</div>
-                <div className="text-xs font-medium tracking-wider uppercase mt-0.5" style={{ color: "#6b7a8c" }}>{t.role || t.title}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* AUDIENCES — investors vs professionals */}
-      <section id="who-its-for" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
-        <div className="grid md:grid-cols-2 gap-6">
-          {[
-            {
-              icon: Users,
-              tag: "For Individual Investors",
-              title: "Personal portfolio insights",
-              points: [
-                "Make smarter decisions, without the noise",
-                "See your full portfolio in one place",
-                "Plain-English AI explanations, no finance degree required",
-                "Educational research, not high-pressure tips",
-              ],
-              cta: { label: "Start Free Research", href: "/auth" },
-              grad: "linear-gradient(135deg,#042C53,#185FA5)",
-            },
-            {
-              icon: Building2,
-              tag: "For Professionals",
-              title: "Institutional-grade data",
-              points: [
-                "Real-time market data & analytics APIs",
-                "Multi-asset coverage across EU & US markets",
-                "White-label & embedded finance ready",
-                "Dedicated support & SLA guarantees",
-              ],
-              cta: { label: "Explore Enterprise", href: "/auth" },
-              grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
-            },
-          ].map((a, i) => {
-            const Ic = a.icon;
+      <section id="who-its-for" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
+          {(audiences.items || []).map((a: any, i: number) => {
+            const grads = [
+              "linear-gradient(135deg,#042C53,#185FA5)",
+              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            ];
             return (
-              <div key={i} className="glass-card p-10 rounded-3xl">
-                <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: a.grad }}>
-                    <Ic className="h-7 w-7" />
+              <div key={i} className="glass-card p-6 sm:p-8 md:p-10 rounded-3xl">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl grid place-items-center text-white shadow-lg shrink-0" style={{ background: grads[i % grads.length] }}>
+                    <Icon name={a.icon} className="h-6 w-6 sm:h-7 sm:w-7" />
                   </div>
-                  <div className="text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>{a.tag}</div>
+                  <div className="text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#6b7a8c" }}>{a.tag}</div>
                 </div>
-                <h3 className="mt-6 text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>{a.title}</h3>
-                <ul className="mt-6 space-y-3">
-                  {a.points.map((p) => (
-                    <li key={p} className="flex items-center gap-3" style={{ color: "#1f3147" }}>
-                      <Check className="h-5 w-5 shrink-0" style={{ color: "#1D9E75" }} />
-                      <span>{p}</span>
+                <h3 className="mt-5 sm:mt-6 text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>{a.title}</h3>
+                <ul className="mt-5 sm:mt-6 space-y-3">
+                  {(a.points || []).map((p: string) => (
+                    <li key={p} className="flex items-start gap-3" style={{ color: "#1f3147" }}>
+                      <Check className="h-5 w-5 shrink-0 mt-0.5" style={{ color: "#1D9E75" }} />
+                      <span className="text-sm sm:text-base">{p}</span>
                     </li>
                   ))}
                 </ul>
-                <Link to={a.cta.href} className="mt-8 button-gradient inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
-                  {a.cta.label} <ArrowRight className="h-4 w-4" />
-                </Link>
+                {a.ctaLabel && (
+                  <Link to={a.ctaHref || "/auth"} className="mt-7 sm:mt-8 button-gradient inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-sm font-semibold shadow-lg">
+                    {a.ctaLabel} <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
               </div>
             );
           })}
@@ -400,30 +316,31 @@ export default function Landing() {
       </section>
 
       {/* STEPS — From signup to insight in 60 seconds */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>How it works</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            From signup to insight in 60 seconds
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{steps.eyebrow || "How it works"}</div>
+          <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+            {steps.title || "From signup to insight in 60 seconds"}
           </h2>
         </div>
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { icon: UserPlus, title: "Sign Up", desc: "Create account in seconds with email or OAuth.", grad: "linear-gradient(135deg,#042C53,#185FA5)" },
-            { icon: Link2, title: "Connect Portfolio", desc: "Link your broker or upload portfolio data.", grad: "linear-gradient(135deg,#185FA5,#378ADD)" },
-            { icon: Brain, title: "Get AI Insights", desc: "Neural engine analyzes and delivers alpha.", grad: "linear-gradient(135deg,#378ADD,#7CD0AE)" },
-            { icon: Rocket, title: "Start Trading Better", desc: "Act on real-time intelligence.", grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)" },
-          ].map((s, i) => {
-            const Ic = s.icon;
+        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {(steps.items || []).map((s: any, i: number) => {
+            const grads = [
+              "linear-gradient(135deg,#042C53,#185FA5)",
+              "linear-gradient(135deg,#185FA5,#378ADD)",
+              "linear-gradient(135deg,#378ADD,#7CD0AE)",
+              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            ];
+            const grad = grads[i % grads.length];
             return (
-              <div key={i} className="glass-card p-7 rounded-3xl relative">
-                <div className="absolute -top-3 -right-3 h-9 w-9 rounded-full grid place-items-center text-white text-sm font-bold shadow-lg" style={{ background: s.grad }}>
+              <div key={i} className="glass-card p-6 sm:p-7 rounded-3xl relative">
+                <div className="absolute -top-3 -right-3 h-9 w-9 rounded-full grid place-items-center text-white text-sm font-bold shadow-lg" style={{ background: grad }}>
                   {i + 1}
                 </div>
-                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-md" style={{ background: s.grad }}>
-                  <Ic className="h-6 w-6" />
+                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-md" style={{ background: grad }}>
+                  <Icon name={s.icon} className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-bold" style={{ color: "#042C53" }}>{s.title}</h3>
+                <h3 className="mt-5 text-base sm:text-lg font-bold" style={{ color: "#042C53" }}>{s.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{s.desc}</p>
               </div>
             );
@@ -432,41 +349,27 @@ export default function Landing() {
       </section>
 
       {/* TRUST & COMPLIANCE */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-3xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Built for Trust</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            Security, compliance and transparency aren't add-ons — they're the foundation.
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{trust.eyebrow || "Built for Trust"}</div>
+          <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+            {trust.title || "Security, compliance and transparency aren't add-ons — they're the foundation."}
           </h2>
+          {trust.subtitle && <p className="mt-4 text-base sm:text-lg" style={{ color: "#3d4f66" }}>{trust.subtitle}</p>}
         </div>
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            {
-              icon: Lock,
-              title: "Privacy by design",
-              desc: "GDPR-compliant. EU-hosted. Encrypted at rest and in transit. One-click data export and deletion.",
-              grad: "linear-gradient(135deg,#042C53,#185FA5)",
-            },
-            {
-              icon: Shield,
-              title: "Regulatory aware",
-              desc: "Educational tool only — no advice. MiFID II suitability tooling for advisor seats. SEC & CONSOB filings indexed.",
-              grad: "linear-gradient(135deg,#185FA5,#378ADD)",
-            },
-            {
-              icon: FileText,
-              title: "Transparent methods",
-              desc: "Every score, model and backtest links to its methodology page. No black-box magic.",
-              grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
-            },
-          ].map((t, i) => {
-            const Ic = t.icon;
+        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {(trust.items || []).map((t: any, i: number) => {
+            const grads = [
+              "linear-gradient(135deg,#042C53,#185FA5)",
+              "linear-gradient(135deg,#185FA5,#378ADD)",
+              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            ];
             return (
-              <div key={i} className="glass-card p-8 rounded-3xl">
-                <div className="h-14 w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: t.grad }}>
-                  <Ic className="h-7 w-7" />
+              <div key={i} className="glass-card p-6 sm:p-8 rounded-3xl">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i % grads.length] }}>
+                  <Icon name={t.icon} className="h-6 w-6 sm:h-7 sm:w-7" />
                 </div>
-                <h3 className="mt-5 text-xl font-bold" style={{ color: "#042C53" }}>{t.title}</h3>
+                <h3 className="mt-5 text-lg sm:text-xl font-bold" style={{ color: "#042C53" }}>{t.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{t.desc}</p>
               </div>
             );
@@ -476,7 +379,7 @@ export default function Landing() {
 
       {/* PRICING — gated by owner feature flag */}
       {pricingEnabled ? (
-        <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
+        <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
           <PricingSection />
           <div className="mt-10 text-center">
             <Link
@@ -489,16 +392,16 @@ export default function Landing() {
           </div>
         </section>
       ) : (
-        <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-6 py-24">
-          <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
+        <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+          <div className="rounded-3xl p-6 sm:p-10 md:p-12 text-white relative overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
-              <Sparkles className="h-3 w-3" /> Launch Offer · Free Access
+              <Sparkles className="h-3 w-3" /> {launch.eyebrow || "Launch Offer · Free Access"}
             </span>
-            <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Vela.ai is completely free during launch.</h3>
-            <p className="mt-3 text-white/85 max-w-xl">Get full access to institutional-grade intelligence — no credit card, no plans, no limits. Founding members keep preferred pricing forever when we introduce paid tiers.</p>
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
-                Get Started Free <ArrowRight className="h-4 w-4" />
+            <h3 className="mt-4 text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">{launch.title || "Vela.ai is completely free during launch."}</h3>
+            <p className="mt-3 text-sm sm:text-base text-white/85 max-w-xl">{launch.subtitle}</p>
+            <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row gap-3">
+              <Link to={launch.primaryCta?.href || "/auth"} className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
+                {launch.primaryCta?.label || "Get Started Free"} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
@@ -506,27 +409,27 @@ export default function Landing() {
       )}
 
       {/* FAQ */}
-      <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 py-24">
+      <section id="faq" className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Common Queries</div>
-          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+          <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {faq.title || "Everything you need to know."}
           </h2>
         </div>
-        <div className="mt-12 space-y-3">
+        <div className="mt-10 sm:mt-12 space-y-3">
           {(faq.items || []).map((f: any, i: number) => {
             const open = openFaq === i;
             return (
               <div key={i} className="glass-card rounded-2xl overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(open ? null : i)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left"
+                  className="w-full px-5 sm:px-6 py-4 sm:py-5 flex items-center justify-between gap-3 text-left"
                 >
-                  <span className="font-semibold" style={{ color: "#042C53" }}>{f.q}</span>
-                  <ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "#185FA5" }} />
+                  <span className="font-semibold text-sm sm:text-base" style={{ color: "#042C53" }}>{f.q}</span>
+                  <ChevronDown className={`h-5 w-5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "#185FA5" }} />
                 </button>
                 <div className={`accordion-content ${open ? "open" : ""}`}>
-                  <div><div className="px-6 pb-5 leading-relaxed" style={{ color: "#3d4f66" }}>{f.a}</div></div>
+                  <div><div className="px-5 sm:px-6 pb-5 text-sm sm:text-base leading-relaxed" style={{ color: "#3d4f66" }}>{f.a}</div></div>
                 </div>
               </div>
             );
@@ -535,17 +438,17 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 py-24 text-center">
-        <div className="glass-card rounded-[2rem] p-12 md:p-16">
-          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+      <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24 text-center">
+        <div className="glass-card rounded-[1.5rem] sm:rounded-[2rem] p-8 sm:p-12 md:p-16">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             {ctaBlock.title || "Ready to amplify your edge?"}
           </h2>
-          {ctaBlock.subtitle && <p className="mt-4 text-lg max-w-xl mx-auto" style={{ color: "#3d4f66" }}>{ctaBlock.subtitle}</p>}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to={ctaBlock.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold shadow-xl">
+          {ctaBlock.subtitle && <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "#3d4f66" }}>{ctaBlock.subtitle}</p>}
+          <div className="mt-7 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+            <Link to={ctaBlock.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-xl">
               {ctaBlock.primaryCta?.label || "Create free account"} <ArrowRight className="h-4 w-4" />
             </Link>
-            <a href={ctaBlock.secondaryCta?.href || "#pricing"} className="ghost-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold">
+            <a href={ctaBlock.secondaryCta?.href || "#pricing"} className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold">
               {ctaBlock.secondaryCta?.label || "See pricing"}
             </a>
           </div>
@@ -554,16 +457,15 @@ export default function Landing() {
 
       {/* FOOTER */}
       <footer className="relative z-10 backdrop-blur-md" style={{ borderTop: "1px solid rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.5)" }}>
-        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
+          <div className="flex items-center gap-3 text-center md:text-left">
             <VelaLogo size={24} />
-            <span className="text-xs" style={{ color: "#6b7a8c" }}>© {new Date().getFullYear()} Vela Intelligence Systems. Smart money, amplified.</span>
+            <span className="text-xs" style={{ color: "#6b7a8c" }}>{footerCopy || `© ${year} Vela Intelligence Systems. Smart money, amplified.`}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" style={{ color: "#3d4f66" }}>
-            <Link to="/" className="hover:underline">Research</Link>
-            <Link to="/terms" className="hover:underline">Terms</Link>
-            <Link to="/privacy" className="hover:underline">Privacy</Link>
-            <Link to="/disclaimer" className="hover:underline">Disclaimer</Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-6 gap-y-2 text-sm" style={{ color: "#3d4f66" }}>
+            {(footer.links || []).map((l: any) => (
+              <Link key={l.href} to={l.href} className="hover:underline">{l.label}</Link>
+            ))}
           </div>
         </div>
       </footer>

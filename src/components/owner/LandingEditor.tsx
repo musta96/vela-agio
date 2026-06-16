@@ -21,6 +21,7 @@ const KIND_LABELS: Record<string, string> = {
   hero: "Hero", stats: "Stat strip", features: "Feature grid",
   audiences: "Audience cards", steps: "Step list",
   pricing: "Pricing wrapper", trust: "Trust cards",
+  launch: "Launch promo", footer: "Footer",
   faq: "FAQ", cta: "Call to action",
 };
 
@@ -337,6 +338,7 @@ function SectionFields({ row, setContent }: { row: Row; setContent: (path: strin
       return (
         <>
           <TextField label="Title" path="title" />
+          <TextField label="Eyebrow (small label above title)" path="eyebrow" />
           {k !== "steps" && <TextField label="Subtitle" path="subtitle" multiline />}
           <ItemsEditor path="items" fields={[
             { key: "icon", label: "Icon" },
@@ -356,9 +358,11 @@ function SectionFields({ row, setContent }: { row: Row; setContent: (path: strin
               <div><label className="text-[9px] uppercase text-muted-foreground">Tag</label><Input value={items[i].tag ?? ""} className="h-7 text-xs mt-0.5" onChange={(e) => { const n=[...items]; n[i]={...n[i],tag:e.target.value}; setContent("items", n); }} /></div>
               <div><label className="text-[9px] uppercase text-muted-foreground">Title</label><Input value={items[i].title ?? ""} className="h-7 text-xs mt-0.5" onChange={(e) => { const n=[...items]; n[i]={...n[i],title:e.target.value}; setContent("items", n); }} /></div>
               <PointsEditor itemIdx={i} />
+              <div><label className="text-[9px] uppercase text-muted-foreground">CTA label</label><Input value={items[i].ctaLabel ?? ""} className="h-7 text-xs mt-0.5" onChange={(e) => { const n=[...items]; n[i]={...n[i],ctaLabel:e.target.value}; setContent("items", n); }} /></div>
+              <div><label className="text-[9px] uppercase text-muted-foreground">CTA href</label><Input value={items[i].ctaHref ?? ""} className="h-7 text-xs mt-0.5" onChange={(e) => { const n=[...items]; n[i]={...n[i],ctaHref:e.target.value}; setContent("items", n); }} /></div>
             </Card>
           ))}
-          <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1" onClick={() => setContent("items", [...items, { icon: "Users", tag: "", title: "", points: [] }])}><Plus className="h-3 w-3" /> Add audience</Button>
+          <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1" onClick={() => setContent("items", [...items, { icon: "Users", tag: "", title: "", points: [], ctaLabel: "", ctaHref: "/auth" }])}><Plus className="h-3 w-3" /> Add audience</Button>
         </>
       );
     }
@@ -387,6 +391,27 @@ function SectionFields({ row, setContent }: { row: Row; setContent: (path: strin
           <TextField label="Primary CTA href" path="primaryCta.href" />
           <TextField label="Secondary CTA label" path="secondaryCta.label" />
           <TextField label="Secondary CTA href" path="secondaryCta.href" />
+        </>
+      );
+    case "launch":
+      return (
+        <>
+          <TextField label="Eyebrow badge" path="eyebrow" />
+          <TextField label="Title" path="title" />
+          <TextField label="Subtitle" path="subtitle" multiline />
+          <TextField label="Primary CTA label" path="primaryCta.label" />
+          <TextField label="Primary CTA href" path="primaryCta.href" />
+          <p className="text-[10px] text-muted-foreground italic">Shown when the <code>pricing</code> feature flag is OFF.</p>
+        </>
+      );
+    case "footer":
+      return (
+        <>
+          <TextField label="Copyright (use {{year}} for current year)" path="copyright" />
+          <ItemsEditor path="links" fields={[
+            { key: "label", label: "Label" },
+            { key: "href", label: "Href" },
+          ]} />
         </>
       );
     default:

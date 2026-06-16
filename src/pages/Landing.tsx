@@ -251,6 +251,79 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* FULL FEATURE GRID — Everything you need */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Platform</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+            Everything you need to research the markets
+          </h2>
+        </div>
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              icon: Brain,
+              title: "AI Research Copilot",
+              desc: "Ask anything about a stock, sector or your portfolio. Get cited, jargon-free answers powered by the latest LLMs.",
+              grad: "linear-gradient(135deg,#042C53,#185FA5)",
+            },
+            {
+              icon: LineChart,
+              title: "Live Markets & Charts",
+              desc: "FTSE MIB, pan-European, US stocks, ETFs and crypto. Real-time quotes, intraday, VWAP and 50+ technical indicators.",
+              grad: "linear-gradient(135deg,#185FA5,#378ADD)",
+            },
+            {
+              icon: Wallet,
+              title: "Portfolio Coach",
+              desc: "Track multiple portfolios. Get continuous, plain-English suggestions on rebalancing, risk and diversification.",
+              grad: "linear-gradient(135deg,#378ADD,#7CD0AE)",
+            },
+            {
+              icon: FlaskConical,
+              title: "Optimizer & Backtesting",
+              desc: "Mean-variance, risk-parity, factor tilts. Stress-test any strategy across 20+ years of history.",
+              grad: "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            },
+            {
+              icon: Newspaper,
+              title: "Sentiment & News",
+              desc: "AI-summarised filings, earnings calls and social sentiment so you spot signals before the crowd.",
+              grad: "linear-gradient(135deg,#042C53,#378ADD)",
+            },
+            {
+              icon: Bell,
+              title: "Smart Alerts",
+              desc: "Price, technical, fundamental and news alerts via email, push or webhook. Never miss what matters.",
+              grad: "linear-gradient(135deg,#185FA5,#1D9E75)",
+            },
+            {
+              icon: ShieldCheck,
+              title: "Risk & Compliance",
+              desc: "VaR, drawdown, factor exposures. MiFID II suitability and KIDs for advisors. Built for European rules.",
+              grad: "linear-gradient(135deg,#1D9E75,#042C53)",
+            },
+            {
+              icon: Receipt,
+              title: "Reports & Tax Tools",
+              desc: "One-click PDF reports, tax-loss harvesting, corporate actions and a full audit log.",
+              grad: "linear-gradient(135deg,#378ADD,#185FA5)",
+            },
+          ].map((f, i) => {
+            const Ic = f.icon;
+            return (
+              <div key={i} className="glass-card p-8 rounded-3xl">
+                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: f.grad }}>
+                  <Ic className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-lg font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{f.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* TESTIMONIALS */}
       <section id="engine" className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="text-center max-w-2xl mx-auto">

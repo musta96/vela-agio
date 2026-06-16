@@ -372,7 +372,11 @@ ${PLATFORM_MAP}`;
       'X-AI-Source': cfg.source,
       'Access-Control-Expose-Headers': 'X-AI-Provider, X-AI-Model, X-AI-Source, X-AI-Notice',
     };
-    if (cfg.notice) headers['X-AI-Notice'] = cfg.notice;
+    if (cfg.notice) {
+      // HTTP header values must be ByteStrings (ASCII). Percent-encode any
+      // non-ASCII characters (e.g. em-dashes from notice strings).
+      headers['X-AI-Notice'] = encodeURIComponent(cfg.notice);
+    }
     return new Response(stream, { headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

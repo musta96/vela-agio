@@ -1,11 +1,13 @@
 import {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
+  UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt,
 } from "lucide-react";
 
 export const ICONS: Record<string, any> = {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
+  UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt,
 };
 
 export type LandingSectionRow = {
@@ -67,18 +69,20 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
   {
     key: "audiences", kind: "audiences", sort_order: 40, enabled: true,
     content: { items: [
-      { icon: "Users", tag: "For investors", title: "Make smarter decisions, without the noise", points: ["See your full portfolio in one place", "Plain-English AI explanations, no finance degree required", "Educational research, not high-pressure tips"] },
-      { icon: "Building2", tag: "For professionals", title: "Institutional-grade tools at a fraction of the cost", points: ["Multi-portfolio modelling & rebalancing", "Compliance-ready audit trail & client reports", "API, SSO and white-label client portal"] },
+      { icon: "Users", tag: "For Individual Investors", title: "Personal portfolio insights", points: ["Make smarter decisions, without the noise", "See your full portfolio in one place", "Plain-English AI explanations, no finance degree required", "Educational research, not high-pressure tips"], ctaLabel: "Start Free Research", ctaHref: "/auth" },
+      { icon: "Building2", tag: "For Professionals", title: "Institutional-grade data", points: ["Real-time market data & analytics APIs", "Multi-asset coverage across EU & US markets", "White-label & embedded finance ready", "Dedicated support & SLA guarantees"], ctaLabel: "Explore Enterprise", ctaHref: "/auth" },
     ]},
   },
   {
     key: "how", kind: "steps", sort_order: 50, enabled: true,
     content: {
       title: "From signup to insight in 60 seconds",
+      eyebrow: "How it works",
       items: [
-        { icon: "Zap", title: "Create your account", desc: "Free forever plan, no card required. Sign up with email or Google." },
-        { icon: "BarChart3", title: "Add your portfolio or watchlist", desc: "Manual, CSV import, or read-only broker connection. We never touch your money." },
-        { icon: "Brain", title: "Let the AI guide your research", desc: "Get coaching, alerts, backtests and reports on demand — in plain English." },
+        { icon: "UserPlus", title: "Sign Up", desc: "Create account in seconds with email or OAuth." },
+        { icon: "Link2", title: "Connect Portfolio", desc: "Link your broker or upload portfolio data." },
+        { icon: "Brain", title: "Get AI Insights", desc: "Neural engine analyzes and delivers alpha." },
+        { icon: "Rocket", title: "Start Trading Better", desc: "Act on real-time intelligence." },
       ],
     },
   },
@@ -91,14 +95,24 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
     },
   },
   {
+    key: "launch", kind: "launch", sort_order: 65, enabled: true,
+    content: {
+      eyebrow: "Launch Offer · Free Access",
+      title: "Vela.ai is completely free during launch.",
+      subtitle: "Get full access to institutional-grade intelligence — no credit card, no plans, no limits. Founding members keep preferred pricing forever when we introduce paid tiers.",
+      primaryCta: { label: "Get Started Free", href: "/auth" },
+    },
+  },
+  {
     key: "trust", kind: "trust", sort_order: 70, enabled: true,
     content: {
-      title: "Built for trust",
-      subtitle: "Security, compliance and transparency aren't add-ons — they're the foundation.",
+      title: "Security, compliance and transparency aren't add-ons — they're the foundation.",
+      subtitle: "",
+      eyebrow: "Built for Trust",
       items: [
         { icon: "Lock", title: "Privacy by design", desc: "GDPR-compliant. EU-hosted. Encrypted at rest and in transit. One-click data export and deletion." },
         { icon: "Shield", title: "Regulatory aware", desc: "Educational tool only — no advice. MiFID II suitability tooling for advisor seats. SEC & CONSOB filings indexed." },
-        { icon: "BookOpen", title: "Transparent methods", desc: "Every score, model and backtest links to its methodology page. No black-box magic." },
+        { icon: "FileText", title: "Transparent methods", desc: "Every score, model and backtest links to its methodology page. No black-box magic." },
       ],
     },
   },
@@ -119,6 +133,18 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       subtitle: "Join thousands of investors and advisors using Vela.ai every day.",
       primaryCta: { label: "Create your free account", href: "/auth" },
       secondaryCta: { label: "Compare plans", href: "#pricing" },
+    },
+  },
+  {
+    key: "footer", kind: "footer", sort_order: 100, enabled: true,
+    content: {
+      copyright: "© {{year}} Vela Intelligence Systems. Smart money, amplified.",
+      links: [
+        { label: "Research", href: "/" },
+        { label: "Terms", href: "/terms" },
+        { label: "Privacy", href: "/privacy" },
+        { label: "Disclaimer", href: "/disclaimer" },
+      ],
     },
   },
 ];

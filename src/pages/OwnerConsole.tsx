@@ -1294,4 +1294,3 @@ function OverrideRow({ label, description, enabled, onToggle }: { label: string;
     </div>
   );
 }
-}

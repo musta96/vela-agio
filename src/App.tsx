@@ -75,6 +75,7 @@ import OwnerTickets from "./pages/owner/Tickets";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
+import { ThemeProvider } from "./hooks/useTheme";
 import AdminSettings from "./pages/AdminSettings";
 import Advisor from "./pages/Advisor";
 import Household from "./pages/Household";
@@ -92,6 +93,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -193,6 +195,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

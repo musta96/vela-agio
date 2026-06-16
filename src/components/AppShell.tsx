@@ -15,6 +15,7 @@ import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { ClientContextBanner } from "@/components/ClientContextBanner";
 import { useMarketClock } from "@/hooks/useMarketClock";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function MarketStatusPill() {
   const { status, short, market, label } = useMarketClock();
@@ -39,19 +40,19 @@ export default function AppShell() {
   return (
     <MaintenanceGate>
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-background gradient-hero">
         <AppSidebar />
 
         <div className="flex-1 flex flex-col min-w-0">
           <PlatformBannerBar />
           <ClientContextBanner />
-          <header className="h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 bg-background border-b border-border">
+          <header className="h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 glass-panel border-b border-border/60">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground hover:bg-muted/60" />
 
             {/* Search */}
             <button
               onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex flex-1 max-w-2xl items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 transition-colors"
+              className="flex flex-1 max-w-2xl items-center gap-2 rounded-xl glass-card px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 transition-colors"
               aria-label="Search"
             >
               <Search className="h-4 w-4" />
@@ -63,6 +64,7 @@ export default function AppShell() {
               <MarketStatusPill />
               <NotificationBell />
               <LanguageSwitcher />
+              <ThemeToggle />
               <AuthButton />
             </div>
           </header>

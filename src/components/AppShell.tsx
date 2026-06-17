@@ -1,5 +1,5 @@
-import { Outlet } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Outlet, useLocation } from "react-router-dom";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Search } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -16,6 +16,18 @@ import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { ClientContextBanner } from "@/components/ClientContextBanner";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useEffect } from "react";
+
+/** Auto-close the mobile sidebar sheet whenever the route changes. */
+function CloseMobileSidebarOnNav() {
+  const { setOpenMobile, isMobile } = useSidebar();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [pathname, isMobile, setOpenMobile]);
+  return null;
+}
 
 function MarketStatusPill() {
   const { status, short, market, label } = useMarketClock();
@@ -40,6 +52,7 @@ export default function AppShell() {
   return (
     <MaintenanceGate>
     <SidebarProvider>
+      <CloseMobileSidebarOnNav />
       <div className="min-h-screen flex w-full bg-background gradient-hero">
         <AppSidebar />
 
@@ -69,7 +82,7 @@ export default function AppShell() {
             </div>
           </header>
 
-          <main className="flex-1 min-w-0">
+          <main className="flex-1 min-w-0 pb-16 md:pb-0">
             <ErrorBoundary label="route">
               <Outlet />
             </ErrorBoundary>
@@ -81,6 +94,7 @@ export default function AppShell() {
       <CopilotFab />
       <LiveOrderConfirmModal />
       <UpdatePrompt />
+      <MobileBottomNav />
     </SidebarProvider>
     </MaintenanceGate>
   );

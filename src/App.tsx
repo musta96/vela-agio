@@ -81,6 +81,7 @@ import Advisor from "./pages/Advisor";
 import Household from "./pages/Household";
 import AppShell from "./components/AppShell";
 import { ProtectedRoute, OwnerRoute } from "./components/ProtectedRoute";
+import ScrollToTop from "./components/ScrollToTop";
 import Privacy from "./pages/legal/Privacy";
 import Terms from "./pages/legal/Terms";
 import Disclaimer from "./pages/legal/Disclaimer";
@@ -98,6 +99,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <AuthProvider>
         <FeatureFlagsProvider>
         <PortfoliosProvider>

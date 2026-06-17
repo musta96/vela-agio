@@ -68,6 +68,7 @@ export default function Landing() {
   const audiences = get("audiences").content;
   const steps = get("how").content;
   const launch = get("launch").content;
+  const blogs = get("blogs").content;
   const footer = get("footer").content;
   const year = new Date().getFullYear();
   const footerCopy = (footer.copyright || "").replace("{{year}}", String(year));
@@ -396,6 +397,38 @@ export default function Landing() {
                 <h3 className="mt-5 text-lg sm:text-xl font-bold" style={{ color: "#042C53" }}>{t.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{t.desc}</p>
               </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* BLOGS */}
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{blogs.eyebrow || "From the blog"}</div>
+          <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+            {blogs.title || "Research, tools and market insight"}
+          </h2>
+        </div>
+        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {(blogs.items || []).map((b: any, i: number) => {
+            const grads = [
+              "linear-gradient(135deg,#042C53,#185FA5)",
+              "linear-gradient(135deg,#185FA5,#378ADD)",
+              "linear-gradient(135deg,#378ADD,#7CD0AE)",
+              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+            ];
+            return (
+              <Link key={i} to={b.href || "#"} className="glass-card p-6 sm:p-7 rounded-3xl block group">
+                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i % grads.length] }}>
+                  <Icon name={b.icon} className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-base sm:text-lg font-bold" style={{ color: "#042C53" }}>{b.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{b.desc}</p>
+                <div className="mt-4 flex items-center gap-1.5 text-sm font-semibold" style={{ color: "#185FA5" }}>
+                  Read article <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </div>
+              </Link>
             );
           })}
         </div>

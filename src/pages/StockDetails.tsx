@@ -204,9 +204,7 @@ const StockDetails = () => {
   if (!sym) {
     return (
       <div className="min-h-screen bg-background p-8">
-        <Link to="/dashboard" className="inline-flex items-center gap-2 text-primary hover:underline">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+        <BackLink />
         <p className="mt-8 text-muted-foreground">No symbol specified.</p>
       </div>
     );
@@ -294,9 +292,7 @@ const StockDetails = () => {
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-6 py-6">
-          <Link to="/dashboard" className="inline-flex items-center gap-2 text-primary hover:underline mb-4 text-sm">
-            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-          </Link>
+          <div className="mb-4"><BackLink /></div>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -403,16 +399,18 @@ const StockDetails = () => {
 
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 max-w-5xl">
-            <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" />Overview</TabsTrigger>
-            <TabsTrigger value="technicals" className="gap-1.5"><Activity className="h-4 w-4" />Technicals</TabsTrigger>
-            <TabsTrigger value="risk" className="gap-1.5"><ShieldAlert className="h-4 w-4" />Risk</TabsTrigger>
-            <TabsTrigger value="deep" className="gap-1.5" onClick={() => { if (!deep && !deepLoading) fetchDeep(); }}><Calculator className="h-4 w-4" />Deep Analysis</TabsTrigger>
-            <TabsTrigger value="statements" className="gap-1.5"><Briefcase className="h-4 w-4" />Statements</TabsTrigger>
-            <TabsTrigger value="peers" className="gap-1.5"><Star className="h-4 w-4" />Peers</TabsTrigger>
-            <TabsTrigger value="sentiment" className="gap-1.5"><MessageSquare className="h-4 w-4" />Sentiment</TabsTrigger>
-            <TabsTrigger value="sources" className="gap-1.5"><Globe className="h-4 w-4" />Sources</TabsTrigger>
-          </TabsList>
+          <div className="-mx-6 md:mx-0 overflow-x-auto scrollbar-none">
+            <TabsList className="inline-flex w-max md:grid md:w-full md:grid-cols-8 md:max-w-5xl px-6 md:px-0">
+              <TabsTrigger value="overview" className="gap-1.5 shrink-0"><BarChart3 className="h-4 w-4" />Overview</TabsTrigger>
+              <TabsTrigger value="technicals" className="gap-1.5 shrink-0"><Activity className="h-4 w-4" />Technicals</TabsTrigger>
+              <TabsTrigger value="risk" className="gap-1.5 shrink-0"><ShieldAlert className="h-4 w-4" />Risk</TabsTrigger>
+              <TabsTrigger value="deep" className="gap-1.5 shrink-0" onClick={() => { if (!deep && !deepLoading) fetchDeep(); }}><Calculator className="h-4 w-4" />Deep Analysis</TabsTrigger>
+              <TabsTrigger value="statements" className="gap-1.5 shrink-0"><Briefcase className="h-4 w-4" />Statements</TabsTrigger>
+              <TabsTrigger value="peers" className="gap-1.5 shrink-0"><Star className="h-4 w-4" />Peers</TabsTrigger>
+              <TabsTrigger value="sentiment" className="gap-1.5 shrink-0"><MessageSquare className="h-4 w-4" />Sentiment</TabsTrigger>
+              <TabsTrigger value="sources" className="gap-1.5 shrink-0"><Globe className="h-4 w-4" />Sources</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-6">

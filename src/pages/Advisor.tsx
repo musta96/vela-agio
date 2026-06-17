@@ -96,8 +96,8 @@ export default function Advisor() {
     if (!user) return;
     supabase.from("investor_profiles").select("completed_at").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => setHasSuitability(!!data?.completed_at));
-    supabase.from("paper_cash").select("amount,currency").eq("user_id", user.id).maybeSingle()
-      .then(({ data }) => { if (data?.amount != null) setCash(Number(data.amount)); });
+    supabase.from("paper_cash").select("cash,currency").eq("user_id", user.id).limit(1).maybeSingle()
+      .then(({ data }) => { if (data?.cash != null) setCash(Number(data.cash)); });
   }, [user?.id]);
 
   useEffect(() => {

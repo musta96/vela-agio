@@ -41,32 +41,40 @@ function CloseMobileSidebarOnNav() {
 function useHideOnScroll() {
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
-  const upAccum = useRef(0);
   const downAccum = useRef(0);
   useEffect(() => {
-    lastY.current = window.scrollY;
+    const getY = () =>
+      window.scrollY ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop ||
+      0;
+    lastY.current = getY();
     const onScroll = () => {
-      const y = window.scrollY;
+      const y = getY();
       const dy = y - lastY.current;
       lastY.current = y;
-      if (y < 64) {
+      if (y < 56) {
         setHidden(false);
-        upAccum.current = 0;
         downAccum.current = 0;
         return;
       }
       if (dy < 0) {
-        upAccum.current += -dy;
         downAccum.current = 0;
-        if (upAccum.current > 6) setHidden(false);
+        setHidden(false);
       } else if (dy > 0) {
         downAccum.current += dy;
-        upAccum.current = 0;
-        if (downAccum.current > 18) setHidden(true);
+        if (downAccum.current > 16) setHidden(true);
       }
     };
+    const onTouchStart = () => { lastY.current = getY(); };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    document.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("scroll", onScroll);
+      window.removeEventListener("touchstart", onTouchStart);
+    };
   }, []);
   return hidden;
 }
@@ -103,7 +111,11 @@ export default function AppShell() {
           <PlatformBannerBar />
           <ClientContextBanner />
           <header
-            className={`h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 glass-panel border-b border-border/60 transition-transform duration-200 will-change-transform ${headerHidden ? "-translate-y-full md:translate-y-0" : "translate-y-0"}`}
+            className={`h-16 sticky top-0 z-30 flex items-center gap-2 sm:gap-3 px-3 sm:px-6 glass-panel border-b border-border/60 transition-transform duration-200 will-change-transform ${headerHidden ? "-translate-y-full md:translate-y-0" : "translate-y-0"}`}
+            style={{
+              paddingLeft: "max(env(safe-area-inset-left), 12px)",
+              paddingRight: "max(env(safe-area-inset-right), 12px)",
+            }}
           >
             {/* Sidebar trigger: desktop/tablet only. On mobile the "More" bottom tab opens the menu. */}
             <SidebarTrigger className="hidden md:inline-flex text-muted-foreground hover:text-foreground hover:bg-muted/60" />
@@ -111,15 +123,15 @@ export default function AppShell() {
             {/* Search */}
             <button
               onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex flex-1 max-w-2xl items-center gap-2 rounded-xl glass-card px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 transition-colors"
+              className="flex flex-1 min-w-0 max-w-2xl items-center gap-2 rounded-xl glass-card px-3 sm:px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 transition-colors"
               aria-label="Search"
             >
-              <Search className="h-4 w-4" />
-              <span className="truncate">Search tickers, markets, news, screeners…</span>
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="truncate"><span className="hidden sm:inline">Search tickers, markets, news, screeners…</span><span className="sm:hidden">Search…</span></span>
               <kbd className="ml-auto hidden md:inline-flex items-center text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">⌘K</kbd>
             </button>
 
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <MarketStatusPill />
               <NotificationBell />
               {/* Secondary controls — hidden on phones; available from the "More" sheet via bottom nav. */}

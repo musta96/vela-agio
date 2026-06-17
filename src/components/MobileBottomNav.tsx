@@ -2,6 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Home, Compass, Briefcase, Eye, Sparkles, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useEffect, useRef, useState } from "react";
 
 const ITEMS = [
   { to: "/dashboard", label: "Home", icon: Home },
@@ -24,6 +25,23 @@ export function MobileBottomNav() {
   const { setOpenMobile } = useSidebar();
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
 
+  // Instagram-style shrink-while-scrolling. Pill compresses slightly during scroll
+  // and springs back to full size once the user stops.
+  const [scrolling, setScrolling] = useState(false);
+  const idleTimer = useRef<number | null>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolling(true);
+      if (idleTimer.current) window.clearTimeout(idleTimer.current);
+      idleTimer.current = window.setTimeout(() => setScrolling(false), 180);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (idleTimer.current) window.clearTimeout(idleTimer.current);
+    };
+  }, []);
+
   return (
     <nav
       className="md:hidden fixed bottom-0 inset-x-0 z-40 pointer-events-none transform-gpu"
@@ -36,7 +54,13 @@ export function MobileBottomNav() {
       aria-label="Primary"
     >
       <div
-        className="pointer-events-auto mx-auto max-w-md rounded-[26px] border border-border/60 bg-background/85 backdrop-blur-xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.45)]"
+        className={cn(
+          "pointer-events-auto mx-auto rounded-[28px] border border-white/15 dark:border-white/10",
+          "bg-background/55 supports-[backdrop-filter]:bg-background/40 backdrop-blur-2xl backdrop-saturate-150",
+          "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.55)]",
+          "transition-[transform,max-width,padding,opacity] duration-300 ease-out will-change-transform",
+          scrolling ? "max-w-[19rem] scale-[0.94] opacity-90" : "max-w-md scale-100 opacity-100",
+        )}
       >
         <ul className="flex items-stretch justify-between px-2 py-1.5">
           {ITEMS.map(({ to, label, icon: Icon }) => {

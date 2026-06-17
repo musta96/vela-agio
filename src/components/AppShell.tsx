@@ -33,23 +33,41 @@ function CloseMobileSidebarOnNav() {
  * Auto-hide the top header on scroll-down, reveal on scroll-up (mobile only).
  * Keeps quick access to search/menu just one small flick away.
  */
-function useHideOnScroll(threshold = 8) {
+/**
+ * Hide-on-scroll-down / reveal-on-scroll-up for the mobile header.
+ * Accumulates small upward gestures so even a tiny flick (~6px) reveals the
+ * search bar, while requiring a more deliberate downward scroll to hide it.
+ */
+function useHideOnScroll() {
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
+  const upAccum = useRef(0);
+  const downAccum = useRef(0);
   useEffect(() => {
     lastY.current = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
       const dy = y - lastY.current;
-      if (Math.abs(dy) < threshold) return;
-      if (y < 80) setHidden(false);
-      else if (dy > 0) setHidden(true);
-      else setHidden(false);
       lastY.current = y;
+      if (y < 64) {
+        setHidden(false);
+        upAccum.current = 0;
+        downAccum.current = 0;
+        return;
+      }
+      if (dy < 0) {
+        upAccum.current += -dy;
+        downAccum.current = 0;
+        if (upAccum.current > 6) setHidden(false);
+      } else if (dy > 0) {
+        downAccum.current += dy;
+        upAccum.current = 0;
+        if (downAccum.current > 18) setHidden(true);
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
+  }, []);
   return hidden;
 }
 

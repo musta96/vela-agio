@@ -370,7 +370,7 @@ const NetWorth = () => {
                   ))}
                 </div>
               </div>
-              <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+              <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[820px]">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">

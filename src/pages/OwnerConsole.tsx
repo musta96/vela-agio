@@ -528,13 +528,13 @@ export default function OwnerConsole() {
       <div className="grid md:grid-cols-3 gap-3">
         {health.length === 0 && <Card className="p-4 col-span-full text-xs text-muted-foreground text-center">No checks run yet - click "Run checks now".</Card>}
         {health.map((h) => (
-          <Card key={h.service} className={`p-4 ${h.status === "ok" ? "border-success/30" : h.status === "degraded" ? "border-amber-400/30" : "border-destructive/40"}`}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-sm">{h.service}</span>
-              <Badge variant={h.status === "ok" ? "secondary" : h.status === "degraded" ? "outline" : "destructive"} className="text-[10px]">{h.status}</Badge>
+          <Card key={h.service} className={`p-4 min-w-0 ${h.status === "ok" ? "border-success/30" : h.status === "degraded" ? "border-amber-400/30" : "border-destructive/40"}`}>
+            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+              <span className="font-medium text-sm break-all">{h.service}</span>
+              <Badge variant={h.status === "ok" ? "secondary" : h.status === "degraded" ? "outline" : "destructive"} className="text-[10px] shrink-0">{h.status}</Badge>
             </div>
-            <div className="text-[11px] text-muted-foreground">{h.latency_ms != null ? `${h.latency_ms}ms` : "-"} · {h.detail || ""}</div>
-            <div className="text-[10px] text-muted-foreground mt-1">{new Date(h.last_checked).toLocaleString()}</div>
+            <div className="text-[11px] text-muted-foreground break-words">{h.latency_ms != null ? `${h.latency_ms}ms` : "-"} · {h.detail || ""}</div>
+            <div className="text-[10px] text-muted-foreground mt-1 break-words">{new Date(h.last_checked).toLocaleString()}</div>
           </Card>
         ))}
       </div>

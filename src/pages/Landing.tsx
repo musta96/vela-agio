@@ -11,6 +11,7 @@ import {
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { useFlag } from "@/hooks/useFeatureFlags";
+import type { BlogPostRow } from "@/lib/blog";
 
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
@@ -38,6 +39,7 @@ export default function Landing() {
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   const [seo, setSeo] = useState<any>({});
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [livePosts, setLivePosts] = useState<BlogPostRow[]>([]);
   const pricingEnabled = useFlag("pricing", false);
 
   useEffect(() => {
@@ -55,6 +57,19 @@ export default function Landing() {
       const picked = Array.from(byKey.values()).map((r) => ({ ...r, content: interpolate(r.content, globals) }));
       setSections(mergeWithDefaults(picked).map((s) => ({ ...s, content: interpolate(s.content, globals) })));
       if (settingsRes.data?.seo) setSeo(settingsRes.data.seo);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("blog_posts")
+        .select("*")
+        .eq("published", true)
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(4);
+      setLivePosts(((data as any) || []) as BlogPostRow[]);
     })();
   }, []);
 
@@ -405,33 +420,71 @@ export default function Landing() {
       {/* BLOGS */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{blogs.eyebrow || "From the blog"}</div>
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{blogs.eyebrow || "From the journal"}</div>
           <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            {blogs.title || "Research, tools and market insight"}
+            {blogs.title || "Research, news and field notes"}
           </h2>
+          <p className="mt-3 text-base sm:text-lg" style={{ color: "#3d4f66" }}>
+            Deep dives, product updates and market commentary from the team building Vela.
+          </p>
         </div>
-        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {(blogs.items || []).map((b: any, i: number) => {
-            const grads = [
-              "linear-gradient(135deg,#042C53,#185FA5)",
-              "linear-gradient(135deg,#185FA5,#378ADD)",
-              "linear-gradient(135deg,#378ADD,#7CD0AE)",
-              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
-            ];
-            return (
-              <Link key={i} to={b.href || "#"} className="glass-card p-6 sm:p-7 rounded-3xl block group">
-                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i % grads.length] }}>
-                  <Icon name={b.icon} className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-base sm:text-lg font-bold" style={{ color: "#042C53" }}>{b.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{b.desc}</p>
-                <div className="mt-4 flex items-center gap-1.5 text-sm font-semibold" style={{ color: "#185FA5" }}>
-                  Read article <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </div>
+        {livePosts.length > 0 ? (
+          <>
+            <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {livePosts.map((p) => (
+                <Link key={p.id} to={`/blog/${p.slug}`} className="glass-card rounded-3xl block group overflow-hidden">
+                  <div className="aspect-[16/10] bg-gradient-to-br from-[#042C53] via-[#185FA5] to-[#1D9E75] relative overflow-hidden">
+                    {p.cover_image_url ? (
+                      <img src={p.cover_image_url} alt={p.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center text-white/70 text-[10px] font-bold tracking-[0.3em] uppercase">
+                        {p.category || "Article"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 sm:p-6">
+                    <div className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: "#185FA5" }}>
+                      {p.category || "Article"} · {p.reading_minutes} min
+                    </div>
+                    <h3 className="mt-2 text-base sm:text-lg font-bold leading-snug" style={{ color: "#042C53" }}>{p.title}</h3>
+                    {p.excerpt && <p className="mt-2 text-sm leading-relaxed line-clamp-3" style={{ color: "#3d4f66" }}>{p.excerpt}</p>}
+                    <div className="mt-4 flex items-center gap-1.5 text-sm font-semibold" style={{ color: "#185FA5" }}>
+                      Read article <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-10 text-center">
+              <Link to="/blog" className="ghost-btn inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-sm font-semibold">
+                Browse all articles <ArrowRight className="h-4 w-4" />
               </Link>
-            );
-          })}
-        </div>
+            </div>
+          </>
+        ) : (
+          <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {(blogs.items || []).map((b: any, i: number) => {
+              const grads = [
+                "linear-gradient(135deg,#042C53,#185FA5)",
+                "linear-gradient(135deg,#185FA5,#378ADD)",
+                "linear-gradient(135deg,#378ADD,#7CD0AE)",
+                "linear-gradient(135deg,#1D9E75,#7CD0AE)",
+              ];
+              return (
+                <Link key={i} to={b.href || "/blog"} className="glass-card p-6 sm:p-7 rounded-3xl block group">
+                  <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i % grads.length] }}>
+                    <Icon name={b.icon} className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-5 text-base sm:text-lg font-bold" style={{ color: "#042C53" }}>{b.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{b.desc}</p>
+                  <div className="mt-4 flex items-center gap-1.5 text-sm font-semibold" style={{ color: "#185FA5" }}>
+                    Read article <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* PRICING - gated by owner feature flag */}
@@ -520,9 +573,17 @@ export default function Landing() {
             <span className="text-xs" style={{ color: "#3d4f66" }}>{footerCopy || `© ${year} Vela Intelligence Systems. Smart money, amplified.`}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-6 gap-y-2 text-sm" style={{ color: "#3d4f66" }}>
-            {(footer.links || []).map((l: any) => (
-              <Link key={l.href} to={l.href} className="hover:underline">{l.label}</Link>
-            ))}
+            {(footer.links || []).map((l: any) => {
+              const href: string = l.href || "#";
+              if (href.startsWith("#")) {
+                return (
+                  <a key={href + l.label} href={href} className="hover:underline">{l.label}</a>
+                );
+              }
+              return (
+                <Link key={href + l.label} to={href} className="hover:underline">{l.label}</Link>
+              );
+            })}
           </div>
         </div>
       </footer>

@@ -78,6 +78,9 @@ import OwnerAuditLog from "./pages/owner/AuditLog";
 import OwnerAISignals from "./pages/owner/AISignals";
 import OwnerSecurity from "./pages/owner/Security";
 import OwnerTickets from "./pages/owner/Tickets";
+import OwnerBlog from "./pages/owner/BlogAdmin";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -121,10 +124,12 @@ const App = () => (
           <Route path="/install" element={<Install />} />
           <Route path="/support" element={<Support />} />
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
+          <Route path="/blog" element={<Blog />} />
           <Route path="/blog/best-ai-stock-research-tools" element={<BestAIStockResearchTools />} />
           <Route path="/blog/best-wealth-tracking-apps" element={<BestWealthTrackingApps />} />
           <Route path="/blog/best-ai-portfolio-trackers" element={<BestAIPortfolioTrackers />} />
           <Route path="/blog/vela-vs-bloomberg" element={<VelaVsBloomberg />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />
@@ -202,6 +207,7 @@ const App = () => (
             <Route path="/owner/signals" element={<OwnerAISignals />} />
             <Route path="/owner/security" element={<OwnerSecurity />} />
             <Route path="/owner/tickets" element={<OwnerTickets />} />
+            <Route path="/owner/blog" element={<OwnerBlog />} />
           </Route>
         </Routes>
         </PortfoliosProvider>

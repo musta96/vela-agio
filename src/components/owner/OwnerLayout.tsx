@@ -37,6 +37,7 @@ const SECTIONS: { label: string; items: Item[] }[] = [
     { title: "Audit log", url: "/owner/audit", icon: ScrollText },
     { title: "Comms & CRM", url: "/owner/comms", icon: MessageSquare },
     { title: "Content & copy", url: "/owner/content", icon: FileText },
+    { title: "Blog & news", url: "/owner/blog", icon: FileText },
     { title: "Support tickets", url: "/owner/tickets", icon: LifeBuoy },
   ]},
   { label: "AI & data", items: [

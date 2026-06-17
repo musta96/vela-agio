@@ -30,8 +30,12 @@ export const VelaLogo = ({ className, withWordmark = true, size = 28 }: VelaLogo
         <rect x="14" y="48" width="36" height="2" rx="1" fill="hsl(var(--primary) / 0.6)" />
       </svg>
       {withWordmark && (
-        <span className="font-bold tracking-tight text-foreground">
-          Vela<span className="text-accent">.ai</span>
+        <span
+          className="font-extrabold tracking-tight text-foreground leading-none"
+          style={{ fontSize: Math.round(size * 0.72) }}
+        >
+          <span style={{ color: "#042C53" }}>Vela</span>
+          <span className="text-accent">.ai</span>
         </span>
       )}
     </span>

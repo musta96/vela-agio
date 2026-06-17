@@ -104,6 +104,19 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
     },
   },
   {
+    key: "blogs", kind: "blogs", sort_order: 75, enabled: true,
+    content: {
+      eyebrow: "From the blog",
+      title: "Research, tools and market insight",
+      items: [
+        { icon: "Newspaper", title: "Best AI Stock Research Tools 2025", desc: "A deep comparison of the top AI-powered equity research platforms — and where Vela fits in.", href: "/blog/best-ai-stock-research-tools" },
+        { icon: "Wallet", title: "Best Wealth Tracking Apps", desc: "How to track net worth, assets and liabilities across accounts, real estate and alternative holdings.", href: "/blog/best-wealth-tracking-apps" },
+        { icon: "PieChart", title: "Best AI Portfolio Trackers", desc: "Automated portfolio monitoring, rebalancing alerts and risk metrics that actually help you decide.", href: "/blog/best-ai-portfolio-trackers" },
+        { icon: "BarChart3", title: "Vela vs Bloomberg Terminal", desc: "Why professional investors are switching to modern, AI-native platforms for a fraction of the cost.", href: "/blog/vela-vs-bloomberg" },
+      ],
+    },
+  },
+  {
     key: "trust", kind: "trust", sort_order: 70, enabled: true,
     content: {
       title: "Security, compliance and transparency aren't add-ons - they're the foundation.",
@@ -140,7 +153,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
     content: {
       copyright: "© {{year}} Vela Intelligence Systems. Smart money, amplified.",
       links: [
-        { label: "Research", href: "/" },
+        { label: "Platform", href: "#features" },
         { label: "Terms", href: "/terms" },
         { label: "Privacy", href: "/privacy" },
         { label: "Disclaimer", href: "/disclaimer" },

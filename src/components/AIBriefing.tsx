@@ -31,7 +31,7 @@ function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((p, i) =>
     p.startsWith("**") && p.endsWith("**")
-      ? <strong key={i} className="text-[hsl(var(--sidebar-foreground))]">{p.slice(2, -2)}</strong>
+      ? <strong key={i} className="text-foreground">{p.slice(2, -2)}</strong>
       : <span key={i}>{p}</span>
   );
 }
@@ -137,7 +137,7 @@ export function AIBriefing() {
   }, [user, active?.id]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl glass-card-strong gradient-hero glow-primary p-5 sm:p-6 text-[hsl(var(--sidebar-foreground))]">
+    <div className="relative overflow-hidden rounded-2xl glass-card-strong gradient-hero glow-primary p-5 sm:p-6 text-foreground">
       <div className="pointer-events-none absolute inset-0 gradient-accent opacity-[0.06]" aria-hidden />
       <div className="relative flex gap-4">
         <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gradient-accent text-white shadow-[var(--glow-primary)]">
@@ -146,13 +146,13 @@ export function AIBriefing() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
-              Vela AI · Market briefing {briefing?._meta?.hasFocus && <span className="ml-2 text-[hsl(var(--sidebar-foreground))]/50">· focused</span>}
+              Vela AI · Market briefing {briefing?._meta?.hasFocus && <span className="ml-2 text-foreground/55">· focused</span>}
             </p>
             <div className="flex items-center gap-1">
               <button
                 onClick={generate}
                 disabled={loading || !user || !active}
-                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15 inline-flex items-center gap-1 disabled:opacity-50"
+                className="rounded-full bg-foreground/10 px-2.5 py-1 text-[11px] font-medium text-foreground/80 hover:bg-foreground/15 inline-flex items-center gap-1 disabled:opacity-50"
                 title="Refresh briefing"
               >
                 {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
@@ -160,7 +160,7 @@ export function AIBriefing() {
               </button>
               <button
                 onClick={() => navigate("/settings?tab=briefing")}
-                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15 inline-flex items-center gap-1"
+                className="rounded-full bg-foreground/10 px-2.5 py-1 text-[11px] font-medium text-foreground/80 hover:bg-foreground/15 inline-flex items-center gap-1"
                 title="Customise focus"
               >
                 <SettingsIcon className="h-3 w-3" /> Focus
@@ -169,13 +169,13 @@ export function AIBriefing() {
           </div>
 
           {!user && (
-            <p className="mt-2 text-[13px] text-[hsl(var(--sidebar-foreground))]/70">
+            <p className="mt-2 text-[13px] text-foreground/75">
               Sign in to receive a personalised briefing based on your portfolio and watchlist.
             </p>
           )}
 
           {user && loading && !briefing && (
-            <p className="mt-2 text-[13px] text-[hsl(var(--sidebar-foreground))]/70 inline-flex items-center gap-2">
+            <p className="mt-2 text-[13px] text-foreground/75 inline-flex items-center gap-2">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analysing your portfolio & watchlist…
             </p>
           )}
@@ -186,7 +186,7 @@ export function AIBriefing() {
 
           {denied && (
             <div className="mt-2">
-              <p className="text-[13px] text-[hsl(var(--sidebar-foreground))]/80">{denied.reason}</p>
+              <p className="text-[13px] text-foreground/80">{denied.reason}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   onClick={() => {
@@ -200,7 +200,7 @@ export function AIBriefing() {
                     trackAIEvent("ai_byo_cta_clicked", { url: denied.byo_url || "/settings#ai", tier: denied.tier, correlationId: (denied as any).correlationId });
                     navigate(denied.byo_url || "/settings#ai");
                   }}
-                  className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15"
+                  className="rounded-full bg-foreground/10 px-3 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-foreground/15"
                 >Use my own API key</button>
               </div>
             </div>
@@ -209,10 +209,10 @@ export function AIBriefing() {
           {briefing && (
             <>
               {briefing.headline && (
-                <p className="mt-2 text-[13px] font-medium text-[hsl(var(--sidebar-foreground))]">{briefing.headline}</p>
+                <p className="mt-2 text-[13px] font-medium text-foreground">{briefing.headline}</p>
               )}
               {briefing.body && (
-                <p className="mt-1.5 text-[13px] leading-relaxed text-[hsl(var(--sidebar-foreground))]/85">
+                <p className="mt-1.5 text-[13px] leading-relaxed text-foreground/85">
                   {renderInline(briefing.body)}
                 </p>
               )}
@@ -221,7 +221,7 @@ export function AIBriefing() {
                   {briefing.highlights.map((h, i) => {
                     const cls = h.tone === "positive" ? "bg-success/15 text-success border-success/30"
                       : h.tone === "negative" ? "bg-destructive/20 text-destructive-foreground border-destructive/30"
-                      : "bg-white/10 text-[hsl(var(--sidebar-foreground))]/80 border-white/15";
+                      : "bg-foreground/10 text-foreground/80 border-foreground/15";
                     return (
                       <button
                         key={i}
@@ -240,7 +240,7 @@ export function AIBriefing() {
           {briefing && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => navigate("/picks")} className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90">View setups</button>
-              <button onClick={() => navigate("/advisor")} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/15">Full briefing</button>
+              <button onClick={() => navigate("/advisor")} className="rounded-full bg-foreground/10 px-3 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-foreground/15">Full briefing</button>
             </div>
           )}
         </div>

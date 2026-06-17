@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { SEO } from "@/components/SEO";
 import { ArrowRight, Check, Minus } from "lucide-react";
+import { authorRef, personSchema } from "@/data/blogAuthor";
 
 interface Tool {
   name: string;
@@ -124,10 +125,12 @@ export default function BestAIStockResearchTools() {
           "@type": "Article",
           headline: "Best AI Stock Research Tools (2026): Why Vela Leads the Pack",
           description: "Comparison of the best AI tools for stock research: Vela, ChatGPT, Claude, Perplexity, Gemini and Bloomberg.",
-          author: { "@type": "Organization", name: "Vela" },
+          author: authorRef(),
           publisher: { "@type": "Organization", name: "Vela" },
+          datePublished: "2026-06-17",
           mainEntityOfPage: "https://vela-agio.lovable.app/blog/best-ai-stock-research-tools",
         })}</script>
+        <script type="application/ld+json">{JSON.stringify(personSchema())}</script>
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "FAQPage",

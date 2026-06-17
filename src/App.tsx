@@ -60,6 +60,9 @@ import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import AIStocksToWatch from "./pages/AIStocksToWatch";
 import BestAIStockResearchTools from "./pages/BestAIStockResearchTools";
+import BestWealthTrackingApps from "./pages/BestWealthTrackingApps";
+import BestAIPortfolioTrackers from "./pages/BestAIPortfolioTrackers";
+import VelaVsBloomberg from "./pages/VelaVsBloomberg";
 import PaperTrading from "./pages/PaperTrading";
 import OwnerConsole from "./pages/OwnerConsole";
 import OwnerLayout from "./components/owner/OwnerLayout";
@@ -119,6 +122,9 @@ const App = () => (
           <Route path="/support" element={<Support />} />
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
           <Route path="/blog/best-ai-stock-research-tools" element={<BestAIStockResearchTools />} />
+          <Route path="/blog/best-wealth-tracking-apps" element={<BestWealthTrackingApps />} />
+          <Route path="/blog/best-ai-portfolio-trackers" element={<BestAIPortfolioTrackers />} />
+          <Route path="/blog/vela-vs-bloomberg" element={<VelaVsBloomberg />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

@@ -20,6 +20,9 @@
 
 - [Best AI Stocks to Buy Now](/ai-stocks-to-watch): Curated 12-stock AI watchlist with a one-line thesis per name across infrastructure, platforms, and applied AI.
 - [Best AI Stock Research Tools (2026)](/blog/best-ai-stock-research-tools): Head-to-head comparison of Vela vs ChatGPT, Claude, Perplexity, Gemini, and Bloomberg for stock research.
+- [Best Wealth Tracking Apps (2026)](/blog/best-wealth-tracking-apps): Vela vs Monarch, Empower, Kubera, YNAB, and the discontinued Mint.
+- [Best AI Portfolio Trackers (2026)](/blog/best-ai-portfolio-trackers): Vela vs Magnifi, Sharesight, Snowball Analytics, and DIY ChatGPT setups.
+- [Vela vs Bloomberg Terminal (2026)](/blog/vela-vs-bloomberg): Where the AI-native platform matches the institutional standard and where it does not.
 
 ## Positioning
 

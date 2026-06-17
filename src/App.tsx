@@ -59,6 +59,7 @@ import Explore from "./pages/Explore";
 import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import AIStocksToWatch from "./pages/AIStocksToWatch";
+import BestAIStockResearchTools from "./pages/BestAIStockResearchTools";
 import PaperTrading from "./pages/PaperTrading";
 import OwnerConsole from "./pages/OwnerConsole";
 import OwnerLayout from "./components/owner/OwnerLayout";
@@ -117,6 +118,7 @@ const App = () => (
           <Route path="/install" element={<Install />} />
           <Route path="/support" element={<Support />} />
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
+          <Route path="/blog/best-ai-stock-research-tools" element={<BestAIStockResearchTools />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

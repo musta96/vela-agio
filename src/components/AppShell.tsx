@@ -17,7 +17,7 @@ import { ClientContextBanner } from "@/components/ClientContextBanner";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** Auto-close the mobile sidebar sheet whenever the route changes. */
 function CloseMobileSidebarOnNav() {
@@ -27,6 +27,30 @@ function CloseMobileSidebarOnNav() {
     if (isMobile) setOpenMobile(false);
   }, [pathname, isMobile, setOpenMobile]);
   return null;
+}
+
+/**
+ * Auto-hide the top header on scroll-down, reveal on scroll-up (mobile only).
+ * Keeps quick access to search/menu just one small flick away.
+ */
+function useHideOnScroll(threshold = 8) {
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const dy = y - lastY.current;
+      if (Math.abs(dy) < threshold) return;
+      if (y < 80) setHidden(false);
+      else if (dy > 0) setHidden(true);
+      else setHidden(false);
+      lastY.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return hidden;
 }
 
 function MarketStatusPill() {
@@ -49,6 +73,7 @@ function MarketStatusPill() {
 }
 
 export default function AppShell() {
+  const headerHidden = useHideOnScroll();
   return (
     <MaintenanceGate>
     <SidebarProvider>
@@ -59,8 +84,11 @@ export default function AppShell() {
         <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
           <PlatformBannerBar />
           <ClientContextBanner />
-          <header className="h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 glass-panel border-b border-border/60">
-            <SidebarTrigger className="text-muted-foreground hover:text-foreground hover:bg-muted/60" />
+          <header
+            className={`h-16 sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 glass-panel border-b border-border/60 transition-transform duration-200 will-change-transform ${headerHidden ? "-translate-y-full md:translate-y-0" : "translate-y-0"}`}
+          >
+            {/* Sidebar trigger: desktop/tablet only. On mobile the "More" bottom tab opens the menu. */}
+            <SidebarTrigger className="hidden md:inline-flex text-muted-foreground hover:text-foreground hover:bg-muted/60" />
 
             {/* Search */}
             <button

@@ -112,7 +112,7 @@ export const CommandPalette = () => {
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
       <CommandInput
         placeholder="Search any ticker, company, crypto, FX, commodity, index…"
         value={query}

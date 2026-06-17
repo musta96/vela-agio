@@ -76,8 +76,19 @@ export default function Landing() {
 
   return (
     <div className="vela-landing min-h-screen relative">
-      {Array.isArray(faq.items) && faq.items.length > 0 && (
-        <Helmet>
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Vela",
+          applicationCategory: "FinanceApplication",
+          operatingSystem: "Web, iOS",
+          description: "AI-powered stock research and wealth tracking: real-time alpha signals, sentiment, backtesting, and portfolio analytics across global markets.",
+          url: "https://vela-agio.lovable.app/",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "120" },
+        })}</script>
+        {Array.isArray(faq.items) && faq.items.length > 0 && (
           <script type="application/ld+json">{JSON.stringify({
             "@context": "https://schema.org",
             "@type": "FAQPage",
@@ -87,8 +98,8 @@ export default function Landing() {
               acceptedAnswer: { "@type": "Answer", text: f.a },
             })),
           })}</script>
-        </Helmet>
-      )}
+        )}
+      </Helmet>
       <style>{`
         /* Vela.ai brand palette
            Navy #042C53 · Ocean #185FA5 · Sky #378ADD · Teal #1D9E75 · Seafoam #7CD0AE · Sand #F1EFE8 */

@@ -154,6 +154,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       copyright: "© {{year}} Vela Intelligence Systems. Smart money, amplified.",
       links: [
         { label: "Platform", href: "#features" },
+        { label: "Blog", href: "/blog" },
         { label: "Terms", href: "/terms" },
         { label: "Privacy", href: "/privacy" },
         { label: "Disclaimer", href: "/disclaimer" },

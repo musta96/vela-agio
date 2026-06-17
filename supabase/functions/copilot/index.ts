@@ -28,6 +28,8 @@ function userClient(authHeader: string) {
 
 // ---------- Tool schemas (OpenAI function-calling) ----------
 const TOOLS = [
+  { type: 'function', function: { name: 'search_symbol', description: 'Universal LIVE search across Yahoo Finance for any instrument by name or partial ticker — covers stocks, ETFs, crypto, FX, futures, indices, bonds across every exchange (US, Milan .MI, Xetra .DE, London .L, Paris .PA, Amsterdam .AS, Hong Kong .HK, Tokyo .T, etc.). USE THIS FIRST whenever the user names a company/asset and you are not 100% certain of the correct Yahoo ticker, or to verify whether a private company has recently IPO\'d. This is live data and overrides any internal/training-data assumption about a company being private, delisted, or unavailable. Returns up to 20 candidates with symbol, name, exchange, type, currency.',
+      parameters: { type: 'object', properties: { query: { type: 'string', description: 'Company name, brand, partial ticker, or asset description (e.g. "spacex", "spazio", "rivian", "ethereum", "gold").' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'get_quote', description: 'Latest price + basic stats for one ticker. Use Yahoo-style symbols (AAPL, ENI.MI, ASML.AS).',
       parameters: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'get_news', description: 'Recent news headlines + AI sentiment score for a ticker. Calls the analyze-sentiment pipeline.',

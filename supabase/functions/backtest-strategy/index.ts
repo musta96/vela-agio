@@ -162,15 +162,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build a synthetic weighted-basket bar series using common timestamps (intersection)
-    const tsSets = valid.map(v => new Set(v.bars.map(b => b.t)));
-    const commonTs = valid[0].bars.map(b => b.t).filter(t => tsSets.every(s => s.has(t)));
+    // Build a synthetic weighted-basket bar series by aligning on calendar date (UTC).
+    // Different exchanges close at different times, so exact-ms timestamps rarely match.
+    const dayKey = (t: number) => new Date(t).toISOString().slice(0, 10);
+    const perSymbolByDay = valid.map(v => {
+      const m = new Map<string, Bar>();
+      for (const b of v.bars) {
+        // Keep the last bar of the day (latest close)
+        m.set(dayKey(b.t), b);
+      }
+      return { h: v.h, map: m };
+    });
+    const commonDays = Array.from(perSymbolByDay[0].map.keys())
+      .filter(d => perSymbolByDay.every(s => s.map.has(d)))
+      .sort();
     const totalWeight = valid.reduce((s, v) => s + v.h.weight, 0) || 1;
-    const basketBars: Bar[] = commonTs.map(t => {
+    const basketBars: Bar[] = commonDays.map(d => {
       let v = 0;
-      for (const item of valid) {
-        const bar = item.bars.find(b => b.t === t)!;
+      let t = 0;
+      for (const item of perSymbolByDay) {
+        const bar = item.map.get(d)!;
         v += (item.h.weight / totalWeight) * bar.close;
+        if (bar.t > t) t = bar.t;
       }
       return { t, close: v };
     });

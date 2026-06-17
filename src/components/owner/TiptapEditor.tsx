@@ -1,12 +1,12 @@
 import { useEditor, EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image";
-import Table from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row";
-import TableHeader from "@tiptap/extension-table-header";
-import TableCell from "@tiptap/extension-table-cell";
-import Placeholder from "@tiptap/extension-placeholder";
+import { Link } from "@tiptap/extension-link";
+import { Image } from "@tiptap/extension-image";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { Placeholder } from "@tiptap/extension-placeholder";
 import {
   Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered,
   Quote, Minus, Link2, Image as ImageIcon, Table as TableIcon, Code,

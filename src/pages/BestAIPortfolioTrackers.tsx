@@ -104,7 +104,7 @@ export default function BestAIPortfolioTrackers() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="Best AI Portfolio Trackers (2026): Vela vs Magnifi, Sharesight, Snowball | Vela"
+        title="Best AI Portfolio Trackers (2026) | Vela"
         description="A 2026 comparison of the best AI portfolio trackers for self-directed investors. Vela vs Magnifi, Sharesight, Snowball Analytics, and DIY ChatGPT setups — features, pricing, and trade-offs."
         path="/blog/best-ai-portfolio-trackers"
       />

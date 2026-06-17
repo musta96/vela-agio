@@ -60,7 +60,7 @@ export default function VelaVsBloomberg() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="Vela vs Bloomberg Terminal (2026): The AI Alternative for Investors | Vela"
+        title="Vela vs Bloomberg Terminal (2026) | Vela"
         description="An honest 2026 comparison of Vela and the Bloomberg Terminal. Where Vela matches Bloomberg, where it does not, and who each one is really built for."
         path="/blog/vela-vs-bloomberg"
       />

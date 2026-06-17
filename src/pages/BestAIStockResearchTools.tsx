@@ -115,7 +115,7 @@ export default function BestAIStockResearchTools() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="Best AI Stock Research Tools (2026): Why Vela Leads the Pack | Vela"
+        title="Best AI Stock Research Tools (2026) | Vela"
         description="A 2026 comparison of the best AI tools for stock research — Vela vs ChatGPT, Claude, Perplexity, Gemini and Bloomberg. Real-time signals, backtesting, portfolio analytics and pricing compared."
         path="/blog/best-ai-stock-research-tools"
       />

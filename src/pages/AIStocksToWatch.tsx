@@ -30,8 +30,8 @@ export default function AIStocksToWatch() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="Best AI Stocks to Buy Now (2026) — Curated AI Watchlist | Vela"
-        description="A curated list of the best AI stocks to buy now, covering AI infrastructure, platforms, and applied AI. Each pick comes with a one-line thesis and the AI exposure it gives you."
+        title="AI Stocks to Watch (2026) | Vela"
+        description="A curated list of the best AI stocks covering infrastructure, platforms, and applied AI. Each pick includes a one-line thesis and its AI exposure."
         path="/ai-stocks-to-watch"
       />
       <Helmet>

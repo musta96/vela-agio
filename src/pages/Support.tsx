@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { LogoMark } from "@/components/Logo";
+import { VelaLogo } from "@/components/VelaLogo";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,

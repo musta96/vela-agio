@@ -11,6 +11,7 @@ import {
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { useFlag } from "@/hooks/useFeatureFlags";
+import type { BlogPostRow } from "@/lib/blog";
 
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
@@ -38,6 +39,7 @@ export default function Landing() {
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   const [seo, setSeo] = useState<any>({});
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [livePosts, setLivePosts] = useState<BlogPostRow[]>([]);
   const pricingEnabled = useFlag("pricing", false);
 
   useEffect(() => {
@@ -55,6 +57,19 @@ export default function Landing() {
       const picked = Array.from(byKey.values()).map((r) => ({ ...r, content: interpolate(r.content, globals) }));
       setSections(mergeWithDefaults(picked).map((s) => ({ ...s, content: interpolate(s.content, globals) })));
       if (settingsRes.data?.seo) setSeo(settingsRes.data.seo);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("blog_posts")
+        .select("*")
+        .eq("published", true)
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(4);
+      setLivePosts(((data as any) || []) as BlogPostRow[]);
     })();
   }, []);
 

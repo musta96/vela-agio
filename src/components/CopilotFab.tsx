@@ -17,7 +17,7 @@ export function CopilotFab() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
+         className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
           aria-label="Open Copilot"
         >
           <Bot className="h-6 w-6" />
@@ -25,7 +25,7 @@ export function CopilotFab() {
       )}
       {open && (
         <div
-          className="fixed bottom-6 right-6 z-40 w-[min(calc(100vw-2rem),400px)] h-[min(calc(100vh-6rem),600px)] rounded-xl border border-border bg-background shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+         className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 w-[min(calc(100vw-2rem),400px)] h-[min(calc(100vh-9rem),600px)] md:h-[min(calc(100vh-6rem),600px)] rounded-xl border border-border bg-background shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
           role="dialog"
           aria-label="Vela Copilot"
         >

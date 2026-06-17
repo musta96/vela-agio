@@ -149,7 +149,7 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
               {m.attachments && m.attachments.length > 0 && (
                 <div className="flex flex-wrap gap-1 justify-end">
                   {m.attachments.map((a, idx) => a.mime.startsWith("image/")
-                    ? <img key={idx} src={a.dataUrl} alt={a.name} className="h-16 rounded border border-border" />
+                    ? <img key={idx} src={a.dataUrl} alt={`Attached image: ${a.name}`} className="h-16 rounded border border-border" />
                     : <span key={idx} className="text-[10px] px-2 py-1 rounded bg-muted">{a.name}</span>)}
                 </div>
               )}
@@ -187,7 +187,7 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
           {attachments.map((a, i) => (
             <div key={i} className="relative">
               {a.mime.startsWith("image/")
-                ? <img src={a.dataUrl} alt={a.name} className="h-12 rounded border border-border" />
+                ? <img src={a.dataUrl} alt={`Attached image: ${a.name}`} className="h-12 rounded border border-border" />
                 : <span className="text-xs px-2 py-1 rounded bg-muted inline-flex items-center gap-1"><ImageIcon className="h-3 w-3" />{a.name}</span>}
               <button onClick={() => setAttachments(att => att.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 bg-background border border-border rounded-full p-0.5">
                 <X className="h-3 w-3" />

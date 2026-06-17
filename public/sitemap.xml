@@ -10,4 +10,9 @@
   <url><loc>https://vela-agio.lovable.app/compare</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://vela-agio.lovable.app/sectors</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
   <url><loc>https://vela-agio.lovable.app/auth</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://vela-agio.lovable.app/privacy</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://vela-agio.lovable.app/terms</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://vela-agio.lovable.app/disclaimer</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://vela-agio.lovable.app/cookies</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://vela-agio.lovable.app/install</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>

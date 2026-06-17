@@ -787,11 +787,11 @@ export default function OwnerConsole() {
             <CircleDot className={`h-2 w-2 fill-current`} />
             {openIncidents ? `${openIncidents} kill switch${openIncidents === 1 ? "" : "es"} active` : "All systems operational"}
           </Badge>
-          <Button variant="ghost" size="icon" className="relative" onClick={() => setSection("comms")}>
+          <Button variant="ghost" size="icon" aria-label="Open alerts" className="relative" onClick={() => setSection("comms")}>
             <BellRing className="h-4 w-4" />
             {activeAlerts > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[9px] rounded-full bg-amber-500 text-background font-bold flex items-center justify-center">{activeAlerts}</span>}
           </Button>
-          <Button variant="ghost" size="icon" onClick={load}><Settings className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" aria-label="Reload settings" onClick={load}><Settings className="h-4 w-4" /></Button>
         </header>
         <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
       </div>
@@ -1238,7 +1238,7 @@ function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestEr
             <h2 className="font-semibold"><MaskedEmail email={user.email} /></h2>
             <p className="text-[10px] text-muted-foreground font-mono">{user.id}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" aria-label="Close user details" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
         {!data && <p className="text-xs text-muted-foreground p-6 text-center">Loading…</p>}
         {data && (

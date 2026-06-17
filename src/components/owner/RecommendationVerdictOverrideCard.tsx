@@ -26,12 +26,15 @@ export function RecommendationVerdictOverrideCard({ userId }: { userId: string }
     (async () => {
       const [prof, flag] = await Promise.all([
         supabase.from("profiles").select("recommendation_verdicts_override").eq("user_id", userId).maybeSingle(),
-        supabase.from("feature_flags").select("enabled").eq("key", "show_recommendation_verdicts").maybeSingle(),
+        (supabase as any).rpc("get_enabled_feature_flags"),
       ]);
       if (!active) return;
       const v = (prof.data as any)?.recommendation_verdicts_override as Override | undefined;
       setValue(v ?? "inherit");
-      setGlobal(!!(flag.data as any)?.enabled);
+      const flagRow = Array.isArray(flag.data)
+        ? flag.data.find((f: any) => f.key === "show_recommendation_verdicts")
+        : null;
+      setGlobal(!!flagRow?.enabled);
       setLoading(false);
     })();
     return () => { active = false; };

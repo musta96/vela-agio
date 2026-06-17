@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 export type FeatureFlag = {
   key: string;
   enabled: boolean;
-  label: string;
-  description: string | null;
-  category: string;
+  label?: string;
+  description?: string | null;
+  category?: string;
 };
 
 interface Ctx {
@@ -28,12 +28,12 @@ export const FeatureFlagsProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("feature_flags")
-      .select("key, enabled, label, description, category");
-    if (!error && data) {
+    // Use the SECURITY DEFINER RPC: regular users can read on/off state of every flag
+    // without exposing internal labels, descriptions, or categories.
+    const { data, error } = await (supabase as any).rpc("get_enabled_feature_flags");
+    if (!error && Array.isArray(data)) {
       const map: Record<string, FeatureFlag> = {};
-      for (const f of data) map[f.key] = f as FeatureFlag;
+      for (const f of data) map[f.key] = { key: f.key, enabled: !!f.enabled };
       setFlags(map);
     }
     setLoading(false);

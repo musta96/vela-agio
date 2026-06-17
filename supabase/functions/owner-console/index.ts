@@ -271,7 +271,8 @@ Deno.serve(async (req) => {
               }
             };
             // Hit Yahoo directly from the edge runtime (no CORS needed server-side) — allorigins.win is unreliable.
-            await check("yahoo_proxy", "https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL", {
+            // /v7/quote now requires a crumb/cookie (401). /v8/chart is the open endpoint used by the rest of the app.
+            await check("yahoo_proxy", "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d", {
               headers: { "User-Agent": "Mozilla/5.0 VelaHealthCheck" },
             });
             // PostgREST requires the apikey header — without it the root returns 401.

@@ -505,6 +505,101 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_leads: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          post_id: string | null
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          post_id?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          post_id?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_leads_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_posts: {
+        Row: {
+          author_name: string | null
+          category: string | null
+          content_html: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          gated_html: string | null
+          id: string
+          published: boolean
+          published_at: string | null
+          reading_minutes: number
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          category?: string | null
+          content_html?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          gated_html?: string | null
+          id?: string
+          published?: boolean
+          published_at?: string | null
+          reading_minutes?: number
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          category?: string | null
+          content_html?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          gated_html?: string | null
+          id?: string
+          published?: boolean
+          published_at?: string | null
+          reading_minutes?: number
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       broker_accounts: {
         Row: {
           cash: number | null

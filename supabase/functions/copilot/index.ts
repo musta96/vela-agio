@@ -134,6 +134,17 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
   };
 
   switch (name) {
+    case 'search_symbol': {
+      const q = String(args.query ?? '').trim();
+      if (!q) return { results: [], error: 'empty query' };
+      try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/symbol-search?q=${encodeURIComponent(q)}`, {
+          headers: { Authorization: ctx.authHeader, apikey: SUPABASE_ANON_KEY },
+        });
+        const j = await r.json();
+        return { query: q, results: (j?.results ?? []).slice(0, 12) };
+      } catch (e: any) { return { results: [], error: e?.message ?? 'search failed' }; }
+    }
     case 'get_quote': return await fetchYahooQuote(String(args.symbol).toUpperCase());
     case 'get_news': {
       const res = await callEdge(ctx.authHeader, 'analyze-sentiment', { symbol: args.symbol, name: args.name });

@@ -257,18 +257,27 @@ Deno.serve(async (req) => {
           }
           case "run_healthchecks": {
             const checks: { service: string; status: string; latency_ms: number | null; detail: string | null }[] = [];
-            const check = async (service: string, url: string) => {
+            const check = async (service: string, url: string, init?: RequestInit) => {
               const t0 = Date.now();
               try {
-                const r = await fetch(url, { method: "GET" });
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 8000);
+                const r = await fetch(url, { method: "GET", signal: ctrl.signal, ...init });
+                clearTimeout(timer);
                 const ms = Date.now() - t0;
                 checks.push({ service, status: r.ok ? "ok" : "degraded", latency_ms: ms, detail: `HTTP ${r.status}` });
               } catch (e: any) {
                 checks.push({ service, status: "down", latency_ms: null, detail: String(e?.message || e) });
               }
             };
-            await check("yahoo_proxy", "https://api.allorigins.win/raw?url=https%3A%2F%2Fquery1.finance.yahoo.com%2Fv7%2Ffinance%2Fquote%3Fsymbols%3DAAPL");
-            await check("supabase_rest", `${supabaseUrl}/rest/v1/`);
+            // Hit Yahoo directly from the edge runtime (no CORS needed server-side) — allorigins.win is unreliable.
+            await check("yahoo_proxy", "https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL", {
+              headers: { "User-Agent": "Mozilla/5.0 VelaHealthCheck" },
+            });
+            // PostgREST requires the apikey header — without it the root returns 401.
+            await check("supabase_rest", `${supabaseUrl}/rest/v1/`, {
+              headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+            });
             try {
               const t0 = Date.now();
               const { error } = await admin.from("profiles").select("user_id", { head: true, count: "exact" }).limit(1);

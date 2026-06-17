@@ -86,7 +86,6 @@ export default function Landing() {
           description: "AI-powered stock research and wealth tracking: real-time alpha signals, sentiment, backtesting, and portfolio analytics across global markets.",
           url: "https://vela-agio.lovable.app/",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-          aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "120" },
         })}</script>
         {Array.isArray(faq.items) && faq.items.length > 0 && (
           <script type="application/ld+json">{JSON.stringify({

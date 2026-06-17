@@ -146,7 +146,7 @@ export default function Landing() {
           <Link to="/" className="flex items-center gap-3">
             <VelaLogo size={32} />
           </Link>
-          <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#54657a" }}>
+          <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#3d4f66" }}>
             <a href="#features" className="hover:text-[#042C53] transition">Features</a>
             <a href="#who-its-for" className="hover:text-[#042C53] transition">Who it's for</a>
             <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
@@ -200,7 +200,7 @@ export default function Landing() {
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#54657a" }}>Alpha Signal</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Alpha Signal</div>
                 <div className="text-2xl font-bold" style={{ color: "#1D9E75" }}>+14.2%</div>
               </div>
             </div>
@@ -211,7 +211,7 @@ export default function Landing() {
                 <Shield className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#54657a" }}>Risk Index</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Risk Index</div>
                 <div className="text-2xl font-bold" style={{ color: "#042C53" }}>SECURE</div>
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function Landing() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#54657a" }}>AI Coverage</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>AI Coverage</div>
                 <div className="text-2xl font-bold" style={{ color: "#042C53" }}>12,400+</div>
               </div>
             </div>
@@ -318,7 +318,7 @@ export default function Landing() {
                   <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl grid place-items-center text-white shadow-lg shrink-0" style={{ background: grads[i % grads.length] }}>
                     <Icon name={a.icon} className="h-6 w-6 sm:h-7 sm:w-7" />
                   </div>
-                  <div className="text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#54657a" }}>{a.tag}</div>
+                  <div className="text-[10px] sm:text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#3d4f66" }}>{a.tag}</div>
                 </div>
                 <h3 className="mt-5 sm:mt-6 text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>{a.title}</h3>
                 <ul className="mt-5 sm:mt-6 space-y-3">
@@ -517,7 +517,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
           <div className="flex items-center gap-3 text-center md:text-left">
             <VelaLogo size={24} />
-            <span className="text-xs" style={{ color: "#54657a" }}>{footerCopy || `© ${year} Vela Intelligence Systems. Smart money, amplified.`}</span>
+            <span className="text-xs" style={{ color: "#3d4f66" }}>{footerCopy || `© ${year} Vela Intelligence Systems. Smart money, amplified.`}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-6 gap-y-2 text-sm" style={{ color: "#3d4f66" }}>
             {(footer.links || []).map((l: any) => (

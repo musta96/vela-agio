@@ -16,6 +16,7 @@ import { AdvisoryAccessCard } from "@/components/settings/AdvisoryAccessCard";
 import { TenantLicensingCard } from "@/components/settings/TenantLicensingCard";
 import { ConnectionsCard } from "@/components/settings/ConnectionsCard";
 import { AIAccessCard } from "@/components/settings/AIAccessCard";
+import { AdvisorTogglesCard } from "@/components/settings/AdvisorTogglesCard";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SupportCard } from "@/components/settings/SupportCard";
 import { Switch } from "@/components/ui/switch";
@@ -347,7 +348,12 @@ const Settings = () => {
           {tab === "Broker connections" && <BrokersTab />}
           {tab === "Notifications" && <NotificationsTab />}
           {tab === "Connections" && <ConnectionsCard />}
-          {tab === "AI" && <AIAccessCard />}
+          {tab === "AI" && (
+            <div className="space-y-6">
+              <AIAccessCard />
+              <AdvisorTogglesCard />
+            </div>
+          )}
           {tab === "Privacy & data" && <PrivacyTab />}
           {tab === "Billing" && <BillingTab navigate={navigate} />}
           {tab === "Support" && <SupportCard />}

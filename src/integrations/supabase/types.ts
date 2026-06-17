@@ -50,6 +50,152 @@ export type Database = {
         }
         Relationships: []
       }
+      advisor_orders: {
+        Row: {
+          action: string
+          asset_class: string
+          created_at: string
+          currency: string
+          est_notional: number | null
+          est_price: number | null
+          id: string
+          limit_price: number | null
+          option_expiry: string | null
+          option_right: string | null
+          option_strike: number | null
+          option_structure: string | null
+          order_type: string
+          paper_order_id: string | null
+          qty: number
+          rationale: string | null
+          run_id: string
+          seq: number
+          side: string
+          status: string
+          status_message: string | null
+          symbol: string
+          symbol_label: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          asset_class?: string
+          created_at?: string
+          currency?: string
+          est_notional?: number | null
+          est_price?: number | null
+          id?: string
+          limit_price?: number | null
+          option_expiry?: string | null
+          option_right?: string | null
+          option_strike?: number | null
+          option_structure?: string | null
+          order_type?: string
+          paper_order_id?: string | null
+          qty?: number
+          rationale?: string | null
+          run_id: string
+          seq?: number
+          side: string
+          status?: string
+          status_message?: string | null
+          symbol: string
+          symbol_label?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          asset_class?: string
+          created_at?: string
+          currency?: string
+          est_notional?: number | null
+          est_price?: number | null
+          id?: string
+          limit_price?: number | null
+          option_expiry?: string | null
+          option_right?: string | null
+          option_strike?: number | null
+          option_structure?: string | null
+          order_type?: string
+          paper_order_id?: string | null
+          qty?: number
+          rationale?: string | null
+          run_id?: string
+          seq?: number
+          side?: string
+          status?: string
+          status_message?: string | null
+          symbol?: string
+          symbol_label?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advisor_orders_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "advisor_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      advisor_runs: {
+        Row: {
+          base_currency: string
+          blended_weights: Json
+          cash_available: number
+          created_at: string
+          gating: Json
+          id: string
+          notes: string | null
+          picked_basis: string
+          portfolio_id: string | null
+          risk_profile: string | null
+          run_at: string
+          strategies: Json
+          suitability_summary: string | null
+          total_value: number
+          user_id: string
+          winner_strategy: string | null
+        }
+        Insert: {
+          base_currency?: string
+          blended_weights?: Json
+          cash_available?: number
+          created_at?: string
+          gating?: Json
+          id?: string
+          notes?: string | null
+          picked_basis?: string
+          portfolio_id?: string | null
+          risk_profile?: string | null
+          run_at?: string
+          strategies?: Json
+          suitability_summary?: string | null
+          total_value?: number
+          user_id: string
+          winner_strategy?: string | null
+        }
+        Update: {
+          base_currency?: string
+          blended_weights?: Json
+          cash_available?: number
+          created_at?: string
+          gating?: Json
+          id?: string
+          notes?: string | null
+          picked_basis?: string
+          portfolio_id?: string | null
+          risk_profile?: string | null
+          run_at?: string
+          strategies?: Json
+          suitability_summary?: string | null
+          total_value?: number
+          user_id?: string
+          winner_strategy?: string | null
+        }
+        Relationships: []
+      }
       advisory_consents: {
         Row: {
           client_role: Database["public"]["Enums"]["client_role"]
@@ -1473,6 +1619,9 @@ export type Database = {
           ai_model: string | null
           ai_opt_out: boolean
           ai_provider: string
+          allow_cross_asset: boolean
+          allow_derivatives: boolean
+          allow_shorts: boolean
           avatar_url: string | null
           base_currency: string | null
           bio: string | null
@@ -1496,6 +1645,9 @@ export type Database = {
           ai_model?: string | null
           ai_opt_out?: boolean
           ai_provider?: string
+          allow_cross_asset?: boolean
+          allow_derivatives?: boolean
+          allow_shorts?: boolean
           avatar_url?: string | null
           base_currency?: string | null
           bio?: string | null
@@ -1519,6 +1671,9 @@ export type Database = {
           ai_model?: string | null
           ai_opt_out?: boolean
           ai_provider?: string
+          allow_cross_asset?: boolean
+          allow_derivatives?: boolean
+          allow_shorts?: boolean
           avatar_url?: string | null
           base_currency?: string | null
           bio?: string | null

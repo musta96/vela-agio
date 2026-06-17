@@ -475,22 +475,23 @@ const NetWorth = () => {
               const subtotal = k === "liabilities" ? totals.liabilities : (totals.byCat[k] || 0);
               return (
                 <Card key={k} className="overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-border" style={{ background: `${CATEGORIES[k].color}10` }}>
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4" style={{ color: CATEGORIES[k].color }} />
-                      <h3 className="font-semibold">{CATEGORIES[k].label}</h3>
-                      <span className="text-xs text-muted-foreground">· {CATEGORIES[k].hint}</span>
+                  <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-border flex-wrap" style={{ background: `${CATEGORIES[k].color}10` }}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className="h-4 w-4 shrink-0" style={{ color: CATEGORIES[k].color }} />
+                      <h3 className="font-semibold truncate">{CATEGORIES[k].label}</h3>
+                      <span className="text-xs text-muted-foreground hidden sm:inline">· {CATEGORIES[k].hint}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-sm font-semibold tabular-nums">{fmt(subtotal)}</div>
-                      <Button asChild size="sm" variant="outline"><RLink to={`/net-worth/${k}`}>Open detail →</RLink></Button>
+                      <Button asChild size="sm" variant="outline"><RLink to={`/net-worth/${k}`}>Open →</RLink></Button>
                     </div>
                   </div>
+                  <div className="w-full overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Source</TableHead>
+                        <TableHead className="hidden sm:table-cell">Source</TableHead>
                         <TableHead className="text-right">Value</TableHead>
                         <TableHead className="w-28"></TableHead>
                       </TableRow>
@@ -504,11 +505,14 @@ const NetWorth = () => {
                             <TableCell>
                               <div className="font-medium">{a.name}</div>
                               {a.subcategory && <div className="text-xs text-muted-foreground">{a.subcategory}</div>}
+                              <div className="sm:hidden mt-1 text-xs text-muted-foreground">
+                                {linked.length > 0 ? linked.join(", ") : "Manual"}
+                              </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               {linked.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
-                                  {linked.map((n, i) => <Badge key={i} variant="secondary" className="text-[10px]">📊 {n}</Badge>)}
+                                  {linked.map((n, i) => <Badge key={i} variant="secondary" className="text-[10px]">{n}</Badge>)}
                                 </div>
                               ) : (
                                 <span className="text-xs text-muted-foreground">Manual</span>
@@ -534,6 +538,7 @@ const NetWorth = () => {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
                 </Card>
               );
             })}

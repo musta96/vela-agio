@@ -2029,6 +2029,13 @@ export type Database = {
         }[]
       }
       ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
+      get_enabled_feature_flags: {
+        Args: never
+        Returns: {
+          enabled: boolean
+          key: string
+        }[]
+      }
       has_active_mandate: {
         Args: { _admin: string; _client: string; _scope: string }
         Returns: boolean

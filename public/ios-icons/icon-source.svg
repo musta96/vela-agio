@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E78C8"/>
+      <stop offset="55%" stop-color="#185FA5"/>
+      <stop offset="100%" stop-color="#0C447C"/>
+    </linearGradient>
+    <linearGradient id="sailMain" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9FCFFF"/>
+      <stop offset="100%" stop-color="#378ADD"/>
+    </linearGradient>
+    <linearGradient id="sailAccent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B9F0D8"/>
+      <stop offset="100%" stop-color="#5DCAA5"/>
+    </linearGradient>
+  </defs>
+  <!-- Full-bleed background (Apple will apply the rounded mask) -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- Sail composition, centered -->
+  <g transform="translate(512 560) scale(4.6) translate(-510 -346)">
+    <polygon points="468,410 468,282 552,410" fill="url(#sailMain)"/>
+    <polygon points="480,410 548,300 548,410" fill="url(#sailAccent)"/>
+    <polygon points="462,415 556,415 549,424 468,424" fill="#0C447C"/>
+  </g>
+</svg>

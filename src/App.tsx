@@ -56,6 +56,7 @@ import Home from "./pages/Home";
 import NetWorth from "./pages/NetWorth";
 import NetWorthCategory from "./pages/NetWorthCategory";
 import Explore from "./pages/Explore";
+import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import PaperTrading from "./pages/PaperTrading";
 import OwnerConsole from "./pages/OwnerConsole";

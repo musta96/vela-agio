@@ -135,7 +135,7 @@ export default function Index() {
   return (
     <>
       <SEO title="Dashboard · Vela.ai" description="Real-time market intelligence, AI signals, portfolio snapshot and macro briefing." path="/" />
-      <div className="p-6 sm:p-8 space-y-6">
+      <div className="p-4 sm:p-8 space-y-6 min-w-0">
         {/* Greeting row - icon chip + title, range + refresh on right */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-4 min-w-0">

@@ -15,4 +15,5 @@
   <url><loc>https://vela-agio.lovable.app/disclaimer</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://vela-agio.lovable.app/cookies</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://vela-agio.lovable.app/install</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://vela-agio.lovable.app/ai-stocks-to-watch</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
 </urlset>

@@ -58,6 +58,7 @@ import NetWorthCategory from "./pages/NetWorthCategory";
 import Explore from "./pages/Explore";
 import Support from "./pages/Support";
 import Movers from "./pages/Movers";
+import AIStocksToWatch from "./pages/AIStocksToWatch";
 import PaperTrading from "./pages/PaperTrading";
 import OwnerConsole from "./pages/OwnerConsole";
 import OwnerLayout from "./components/owner/OwnerLayout";
@@ -115,6 +116,7 @@ const App = () => (
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/install" element={<Install />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

@@ -95,6 +95,20 @@ const Auth = () => {
     navigate("/dashboard");
   };
 
+  const appleSignIn = async () => {
+    setBusy(true);
+    const result = await lovable.auth.signInWithOAuth("apple", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setBusy(false);
+      toast({ title: "Apple sign-in failed", description: String(result.error?.message || result.error), variant: "destructive" });
+      return;
+    }
+    if (result.redirected) return;
+    navigate("/dashboard");
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <SEO
@@ -187,6 +201,12 @@ const Auth = () => {
               <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.4-1.6 4.2-5.5 4.2-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.6 14.6 2.6 12 2.6 6.9 2.6 2.7 6.7 2.7 11.9s4.2 9.3 9.3 9.3c5.4 0 8.9-3.8 8.9-9.1 0-.6-.1-1.1-.2-1.6H12z"/>
             </svg>
             Continue with Google
+          </Button>
+          <Button variant="outline" onClick={appleSignIn} disabled={busy} className="w-full gap-2 mt-2">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+              <path d="M16.365 1.43c0 1.14-.42 2.21-1.27 3.08-.93.95-2.07 1.5-3.18 1.4-.13-1.1.42-2.27 1.21-3.09.86-.92 2.27-1.55 3.24-1.39zM20.5 17.36c-.55 1.27-.81 1.83-1.51 2.95-.98 1.56-2.36 3.51-4.07 3.52-1.52.02-1.91-.99-3.97-.98-2.06.01-2.5 1-4.02.98-1.71-.02-3.02-1.77-4-3.33-2.74-4.35-3.03-9.45-1.34-12.16 1.2-1.92 3.1-3.05 4.88-3.05 1.82 0 2.96 1 4.46 1 1.46 0 2.35-1 4.45-1 1.59 0 3.27.87 4.47 2.36-3.93 2.15-3.29 7.76.65 9.71z"/>
+            </svg>
+            Continue with Apple
           </Button>
         </Card>
       </main>

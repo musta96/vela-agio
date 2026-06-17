@@ -56,6 +56,7 @@ import Home from "./pages/Home";
 import NetWorth from "./pages/NetWorth";
 import NetWorthCategory from "./pages/NetWorthCategory";
 import Explore from "./pages/Explore";
+import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import PaperTrading from "./pages/PaperTrading";
 import OwnerConsole from "./pages/OwnerConsole";
@@ -113,6 +114,7 @@ const App = () => (
           <Route path="/disclaimer" element={<Disclaimer />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/support" element={<Support />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

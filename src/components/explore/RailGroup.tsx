@@ -7,29 +7,38 @@ import type { LiveQuote } from "@/hooks/useLiveQuotes";
 
 interface Props { group: RailGroupType }
 
-/** A 3-tab section: tabs across the top, horizontal rail of cards below. */
+/** A titled section with sub-tabs and a horizontal rail of instrument cards. */
 export function RailGroup({ group }: Props) {
   const [active, setActive] = useState(group.rails[0]?.id);
   const rail = group.rails.find((r) => r.id === active) ?? group.rails[0];
 
   return (
     <section className="space-y-3">
-      <div className="flex gap-2 overflow-x-auto snap-x scrollbar-hide -mx-1 px-1">
-        {group.rails.map((r) => {
-          const isActive = r.id === active;
-          return (
-            <button
-              key={r.id}
-              onClick={() => setActive(r.id)}
-              className={`snap-start shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                isActive ? "bg-foreground text-background font-medium" : "bg-muted/40 text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              <span>{r.emoji}</span>
-              <span>{r.label}</span>
-            </button>
-          );
-        })}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{group.eyebrow}</div>
+          <h2 className="text-lg font-semibold leading-tight">{group.title}</h2>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1">
+          {group.rails.map((r) => {
+            const isActive = r.id === active;
+            const Icon = r.Icon;
+            return (
+              <button
+                key={r.id}
+                onClick={() => setActive(r.id)}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors border ${
+                  isActive
+                    ? "border-transparent bg-foreground text-background"
+                    : "border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+                <span>{r.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       {rail && <Rail rail={rail} />}
     </section>
@@ -86,7 +95,7 @@ function Rail({ rail }: { rail: CuratedRail }) {
 
   if (rail.requiresAuth && !user) {
     return (
-      <div className="rounded-2xl glass-card p-5 text-sm text-muted-foreground">
+      <div className="rounded-2xl glass-card p-6 text-sm text-muted-foreground">
         Sign in to see what investors are {rail.metric === "most_owned" ? "holding" : rail.metric === "most_bought" ? "buying" : "selling"}.
       </div>
     );

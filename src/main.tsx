@@ -3,6 +3,7 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
+import { initNative } from "./lib/native";
 
 // Service worker hygiene for Lovable preview iframes.
 // In iframes or on preview hostnames, unregister any SW so cached shells
@@ -23,3 +24,6 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </HelmetProvider>
 );
+
+// Initialize native plugins (no-op on web)
+initNative();

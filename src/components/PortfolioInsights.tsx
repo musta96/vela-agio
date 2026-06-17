@@ -200,11 +200,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
 
         {/* Always-visible compact KPI strip */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-t border-border divide-x divide-border">
-          <Kpi label="Ann. vol" value={stats ? `${(stats.vol * 100).toFixed(1)}%` : "—"} />
-          <Kpi label="VaR 95% (1d)" value={stats ? `${(stats.var95 * 100).toFixed(2)}%` : "—"} tone="bad" />
-          <Kpi label="Sharpe" value={stats ? stats.sharpe.toFixed(2) : "—"} tone={stats && stats.sharpe > 1 ? "good" : undefined} />
-          <Kpi label="Sortino" value={stats ? stats.sortino.toFixed(2) : "—"} />
-          <Kpi label="Max DD" value={stats ? `${(stats.maxDD * 100).toFixed(1)}%` : "—"} tone="bad" />
+          <Kpi label="Ann. vol" value={stats ? `${(stats.vol * 100).toFixed(1)}%` : "-"} />
+          <Kpi label="VaR 95% (1d)" value={stats ? `${(stats.var95 * 100).toFixed(2)}%` : "-"} tone="bad" />
+          <Kpi label="Sharpe" value={stats ? stats.sharpe.toFixed(2) : "-"} tone={stats && stats.sharpe > 1 ? "good" : undefined} />
+          <Kpi label="Sortino" value={stats ? stats.sortino.toFixed(2) : "-"} />
+          <Kpi label="Max DD" value={stats ? `${(stats.maxDD * 100).toFixed(1)}%` : "-"} tone="bad" />
           <Kpi label="HHI" value={hhi.toFixed(2)} sub={diversificationGrade} subClass={diversificationTone} />
         </div>
 
@@ -217,8 +217,8 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
                 <CardDescription className="text-xs">1Y daily, beta vs index</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
-                <Row label="Beta vs FTSE MIB" value={stats?.betaMib != null ? stats.betaMib.toFixed(2) : "—"} />
-                <Row label="Beta vs S&P 500" value={stats?.betaSpx != null ? stats.betaSpx.toFixed(2) : "—"} />
+                <Row label="Beta vs FTSE MIB" value={stats?.betaMib != null ? stats.betaMib.toFixed(2) : "-"} />
+                <Row label="Beta vs S&P 500" value={stats?.betaSpx != null ? stats.betaSpx.toFixed(2) : "-"} />
                 <Row label="Top-3 weight" value={`${(top3Weight * 100).toFixed(1)}%`} tone={top3Weight > 0.6 ? "bad" : undefined} />
                 <Row label="Diversification" value={diversificationGrade} tone={hhi < 0.25 ? "good" : hhi > 0.4 ? "bad" : undefined} />
               </CardContent>
@@ -289,7 +289,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
               <Card className="lg:col-span-3">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Correlation matrix</CardTitle>
-                  <CardDescription className="text-xs">1Y daily returns — red = concentration risk, green = diversifying</CardDescription>
+                  <CardDescription className="text-xs">1Y daily returns - red = concentration risk, green = diversifying</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">

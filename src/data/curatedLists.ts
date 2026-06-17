@@ -26,10 +26,10 @@ export interface CuratedRail {
   kind: RailKind;
   /** For "symbols" rails. */
   symbols?: string[];
-  /** For "screener" rails — Yahoo screener id + region. */
+  /** For "screener" rails - Yahoo screener id + region. */
   screener?: string;
   region?: string;
-  /** For "internal" rails — which metric. */
+  /** For "internal" rails - which metric. */
   metric?: "most_owned" | "most_bought" | "most_sold";
   /** Auth requirement. */
   requiresAuth?: boolean;
@@ -147,7 +147,7 @@ export const RAIL_GROUPS: RailGroup[] = [
   },
 ];
 
-/** Chip-grid "More lists" entries — link to dedicated theme pages or filtered search. */
+/** Chip-grid "More lists" entries - link to dedicated theme pages or filtered search. */
 export const MORE_LISTS: { id: string; label: string; Icon: LucideIcon; symbols: string[] }[] = [
   { id: "airlines",  label: "Airlines",         Icon: Plane,     symbols: basket("airlines") },
   { id: "insurance", label: "Insurance giants", Icon: Briefcase, symbols: basket("insurance-giants") },

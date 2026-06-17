@@ -16,7 +16,7 @@ interface State {
 
 /**
  * Top-level error boundary. Catches render-time exceptions and shows a
- * friendly fallback. The raw error is logged to the console only — it is
+ * friendly fallback. The raw error is logged to the console only - it is
  * NEVER rendered to the user (regulatory requirement: no raw error /
  * Edge-Function / Stream-failed strings ever visible).
  */
@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Console-only — do not surface raw text to the user.
+    // Console-only - do not surface raw text to the user.
     // eslint-disable-next-line no-console
     console.error(`[ErrorBoundary${this.props.label ? `:${this.props.label}` : ""}]`, error, info);
   }

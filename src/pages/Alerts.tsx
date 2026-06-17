@@ -72,7 +72,7 @@ const Alerts = () => {
   const [feedFilter, setFeedFilter] = useState<"All" | "Momentum" | "Macro" | "Fundamental" | "Sentiment" | "Risk">("All");
 
   const FEED: Array<{ icon: any; iconBg: string; title: string; tag: "Momentum"|"Macro"|"Fundamental"|"Sentiment"|"Risk"; meta: string; body: string }> = [
-    { icon: LineChart, iconBg: "bg-success/10 text-success", title: "ISP.MI · Breakout above 200-day MA", tag: "Momentum", meta: "Momentum · High confidence · 4 min ago", body: "Intesa Sanpaolo crossed €3.42 on 1.6× average volume. RSI 58 — still room to run. Banks sector +1.9% today." },
+    { icon: LineChart, iconBg: "bg-success/10 text-success", title: "ISP.MI · Breakout above 200-day MA", tag: "Momentum", meta: "Momentum · High confidence · 4 min ago", body: "Intesa Sanpaolo crossed €3.42 on 1.6× average volume. RSI 58 - still room to run. Banks sector +1.9% today." },
     { icon: Landmark, iconBg: "bg-primary/10 text-primary", title: "ECB rate decision tomorrow 14:15 CET", tag: "Macro", meta: "Macro event · Medium impact · 18 min ago", body: "Consensus expects a hold. EUR/USD historically prints ±55 bps within 30 min of the press conference." },
     { icon: Gem, iconBg: "bg-primary/10 text-primary", title: "LVMH earnings beat +12% EPS", tag: "Fundamental", meta: "Fundamental · Medium confidence · 1 hr ago", body: "Luxury sector showing relative strength. Possible rotation opportunity into FR0000121014." },
     { icon: AlertTriangle, iconBg: "bg-amber-500/15 text-amber-600", title: "Concentration alert · your book", tag: "Risk", meta: "Risk · High · 3 hr ago", body: "Single-name UCG.MI now >55% of portfolio risk. Consider trimming 15-20%." },
@@ -327,7 +327,7 @@ const Alerts = () => {
               />
             </div>
             <div>
-              <Label className="text-xs">{currentKind.thresholdLabel ?? "—"}</Label>
+              <Label className="text-xs">{currentKind.thresholdLabel ?? "-"}</Label>
               <Input
                 inputMode="decimal"
                 value={threshold}

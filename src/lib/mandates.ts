@@ -6,10 +6,10 @@ export type MandateAction = "grant" | "revoke" | "view" | "switch_context" | "ex
 
 export const CLIENT_ROLE_LABEL: Record<ClientRole, string> = {
   principal: "Principal / Owner",
-  family_view: "Family — view only",
-  advisor_ro: "Advisor — read only",
-  accountant: "Accountant — tax views",
-  broker_ro: "Broker — read only aggregation",
+  family_view: "Family - view only",
+  advisor_ro: "Advisor - read only",
+  accountant: "Accountant - tax views",
+  broker_ro: "Broker - read only aggregation",
 };
 
 /** Append-only audit row. Best-effort; failures only surface via console. */

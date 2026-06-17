@@ -30,10 +30,10 @@ export const MarketRegimeBanner = ({ symbol = "FTSEMIB.MI", label = "FTSE MIB" }
       : "text-destructive border-destructive/30 bg-destructive/10";
 
   const advice =
-    r.regime === "strong-trend" ? "Trend-following favored — let winners run."
-    : r.regime === "trending" ? "Trend setups favored — buy pullbacks, sell rallies."
-    : r.regime === "ranging" ? "Mean-reversion preferred — fade extremes."
-    : "Choppy — reduce size or stand aside.";
+    r.regime === "strong-trend" ? "Trend-following favored - let winners run."
+    : r.regime === "trending" ? "Trend setups favored - buy pullbacks, sell rallies."
+    : r.regime === "ranging" ? "Mean-reversion preferred - fade extremes."
+    : "Choppy - reduce size or stand aside.";
 
   return (
     <Card className="p-4 mb-6 flex items-center gap-3 flex-wrap">
@@ -42,7 +42,7 @@ export const MarketRegimeBanner = ({ symbol = "FTSEMIB.MI", label = "FTSE MIB" }
         <p className="text-xs text-muted-foreground">{label} regime</p>
         <div className="flex items-center gap-2 mt-0.5">
           <Badge variant="outline" className={tone}>{r.regime.replace("-", " ").toUpperCase()}</Badge>
-          <span className="text-xs text-muted-foreground">ADX {r.adx?.toFixed(1) ?? "—"} · σ {r.vol.toFixed(1)}%</span>
+          <span className="text-xs text-muted-foreground">ADX {r.adx?.toFixed(1) ?? "-"} · σ {r.vol.toFixed(1)}%</span>
         </div>
       </div>
       <p className="text-sm text-muted-foreground ml-auto">{advice}</p>

@@ -31,10 +31,10 @@ const TickerStats = ({ symbol, bars, color }: { symbol: string; bars: OHLCBar[];
         <CardDescription>{entry?.name || symbol}</CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 text-sm">
-        <Stat label="Composite" value={tech?.score?.toString() ?? "—"} tone={tech ? (tech.score > 15 ? "good" : tech.score < -15 ? "bad" : "neutral") : "neutral"} />
-        <Stat label="Vol (ann.)" value={risk ? `${(risk.vol * 100).toFixed(1)}%` : "—"} />
-        <Stat label="Sharpe" value={risk ? risk.sharpe.toFixed(2) : "—"} tone={risk && risk.sharpe > 1 ? "good" : "neutral"} />
-        <Stat label="Max DD" value={risk ? `${(risk.maxDD * 100).toFixed(1)}%` : "—"} tone="bad" />
+        <Stat label="Composite" value={tech?.score?.toString() ?? "-"} tone={tech ? (tech.score > 15 ? "good" : tech.score < -15 ? "bad" : "neutral") : "neutral"} />
+        <Stat label="Vol (ann.)" value={risk ? `${(risk.vol * 100).toFixed(1)}%` : "-"} />
+        <Stat label="Sharpe" value={risk ? risk.sharpe.toFixed(2) : "-"} tone={risk && risk.sharpe > 1 ? "good" : "neutral"} />
+        <Stat label="Max DD" value={risk ? `${(risk.maxDD * 100).toFixed(1)}%` : "-"} tone="bad" />
       </CardContent>
     </Card>
   );
@@ -111,7 +111,7 @@ const Compare = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Compare Stocks — Side-by-Side Fundamental & Technical Analysis" description="Compare multiple stocks side-by-side: valuation, growth, profitability, technicals, and AI verdicts in one consolidated view." path="/compare" />
+      <SEO title="Compare Stocks - Side-by-Side Fundamental & Technical Analysis" description="Compare multiple stocks side-by-side: valuation, growth, profitability, technicals, and AI verdicts in one consolidated view." path="/compare" />
       <TopNav />
       <main>
       <div className="container mx-auto px-6 py-8 space-y-6">

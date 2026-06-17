@@ -100,7 +100,7 @@ const SentimentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="News Sentiment Dashboard — AI Market Sentiment Analysis" description="Real-time AI sentiment analysis on news, analyst opinions, and market drivers for FTSE MIB, EU, and US equities." path="/sentiment" />
+      <SEO title="News Sentiment Dashboard - AI Market Sentiment Analysis" description="Real-time AI sentiment analysis on news, analyst opinions, and market drivers for FTSE MIB, EU, and US equities." path="/sentiment" />
       <TopNav />
       <main>
 
@@ -135,7 +135,7 @@ const SentimentDashboard = () => {
                       className="w-full text-left px-4 py-2 hover:bg-accent/30 flex items-center justify-between"
                       onClick={() => handleSelect(s)}
                     >
-                      <span><span className="font-semibold">{s.symbol}</span> <span className="text-muted-foreground">— {s.name}</span></span>
+                      <span><span className="font-semibold">{s.symbol}</span> <span className="text-muted-foreground">- {s.name}</span></span>
                       <Badge variant="outline">{s.market}</Badge>
                     </button>
                   ))}
@@ -210,11 +210,11 @@ const SentimentDashboard = () => {
                           : result.momentum.trend === "deteriorating" ? "text-destructive"
                           : "text-foreground"
                         }`}>
-                          {result.momentum.d7 !== null ? (result.momentum.d7 > 0 ? "+" : "") + result.momentum.d7.toFixed(0) : "—"}
+                          {result.momentum.d7 !== null ? (result.momentum.d7 > 0 ? "+" : "") + result.momentum.d7.toFixed(0) : "-"}
                         </div>
                         <span className="text-xs text-muted-foreground">7d</span>
                         <div className="text-lg font-semibold text-muted-foreground">
-                          {result.momentum.d30 !== null ? (result.momentum.d30 > 0 ? "+" : "") + result.momentum.d30.toFixed(0) : "—"}
+                          {result.momentum.d30 !== null ? (result.momentum.d30 > 0 ? "+" : "") + result.momentum.d30.toFixed(0) : "-"}
                         </div>
                         <span className="text-xs text-muted-foreground">30d</span>
                       </div>
@@ -254,7 +254,7 @@ const SentimentDashboard = () => {
                         <span className="text-muted-foreground truncate pr-2">{labels[idx]}</span>
                         <span className="flex items-center gap-2">
                           <span className={`font-bold ${v !== null && v !== undefined ? scoreColor(v) : "text-muted-foreground"}`}>
-                            {v ?? "—"}
+                            {v ?? "-"}
                           </span>
                           <Badge variant="outline" className="text-[10px]">{c}</Badge>
                         </span>
@@ -280,7 +280,7 @@ const SentimentDashboard = () => {
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
                         {Math.abs(result.divergence) < 10
-                          ? "Aligned — retail and institutional read the story similarly."
+                          ? "Aligned - retail and institutional read the story similarly."
                           : result.divergence > 0
                           ? "Retail is more bullish than institutional. Watch for crowded longs."
                           : "Retail is more bearish than institutional. Possible capitulation / contrarian setup."}

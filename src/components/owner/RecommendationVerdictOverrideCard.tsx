@@ -77,8 +77,8 @@ export function RecommendationVerdictOverrideCard({ userId }: { userId: string }
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="inherit">Inherit global setting</SelectItem>
-              <SelectItem value="on">Force ON — show verdicts</SelectItem>
-              <SelectItem value="off">Force OFF — descriptive only</SelectItem>
+              <SelectItem value="on">Force ON - show verdicts</SelectItem>
+              <SelectItem value="off">Force OFF - descriptive only</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -1,4 +1,4 @@
-// Lightweight portfolio optimizers — all free, pure JS.
+// Lightweight portfolio optimizers - all free, pure JS.
 // Inputs: matrix of asset returns (rows = time, cols = assets).
 
 export type Matrix = number[][];
@@ -29,7 +29,7 @@ export function covMatrix(returns: Matrix): Matrix {
   return cov;
 }
 
-// Inverse-variance / risk-parity (volatility-weighted) — closed form.
+// Inverse-variance / risk-parity (volatility-weighted) - closed form.
 export function riskParity(cov: Matrix): number[] {
   const inv = cov.map((row, i) => 1 / Math.max(1e-8, Math.sqrt(row[i])));
   const s = inv.reduce((a, b) => a + b, 0);
@@ -55,7 +55,7 @@ export function meanVariance(returns: Matrix, riskFree = 0): number[] {
   return w;
 }
 
-// Hierarchical Risk Parity — simplified (single-cluster recursive bisection on covariance order).
+// Hierarchical Risk Parity - simplified (single-cluster recursive bisection on covariance order).
 export function hrp(cov: Matrix): number[] {
   const n = cov.length;
   const order = Array.from({ length: n }, (_, i) => i)

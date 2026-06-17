@@ -16,7 +16,7 @@ vi.mock("react-i18next", () => ({
 import { CopilotChat } from "@/components/CopilotChat";
 import { MemoryRouter } from "react-router-dom";
 
-describe("CopilotChat — ai_opt_out 403 handling", () => {
+describe("CopilotChat - ai_opt_out 403 handling", () => {
   beforeEach(() => {
     // Mock the streamed edge function call to reject with the canonical
     // 403 ai_opt_out response. The chat must NOT retry and MUST surface a

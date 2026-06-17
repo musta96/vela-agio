@@ -105,8 +105,8 @@ export default function Landing() {
       `}</style>
 
       <SEO
-        title={seo.title || "Vela.ai — Market Intelligence Simplified"}
-        description={seo.description || "Industrial-grade AI to decode market velocity. Research like the elite — alpha signals, real-time flows and risk shielding."}
+        title={seo.title || "Vela.ai - Market Intelligence Simplified"}
+        description={seo.description || "Industrial-grade AI to decode market velocity. Research like the elite - alpha signals, real-time flows and risk shielding."}
         path="/"
       />
 
@@ -246,7 +246,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FULL FEATURE GRID — Everything you need */}
+      {/* FULL FEATURE GRID - Everything you need */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Platform</div>
@@ -279,7 +279,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* AUDIENCES — investors vs professionals */}
+      {/* AUDIENCES - investors vs professionals */}
       <section id="who-its-for" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
           {(audiences.items || []).map((a: any, i: number) => {
@@ -315,7 +315,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* STEPS — From signup to insight in 60 seconds */}
+      {/* STEPS - From signup to insight in 60 seconds */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{steps.eyebrow || "How it works"}</div>
@@ -353,7 +353,7 @@ export default function Landing() {
         <div className="text-center max-w-3xl mx-auto">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{trust.eyebrow || "Built for Trust"}</div>
           <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            {trust.title || "Security, compliance and transparency aren't add-ons — they're the foundation."}
+            {trust.title || "Security, compliance and transparency aren't add-ons - they're the foundation."}
           </h2>
           {trust.subtitle && <p className="mt-4 text-base sm:text-lg" style={{ color: "#3d4f66" }}>{trust.subtitle}</p>}
         </div>
@@ -377,7 +377,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PRICING — gated by owner feature flag */}
+      {/* PRICING - gated by owner feature flag */}
       {pricingEnabled ? (
         <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
           <PricingSection />

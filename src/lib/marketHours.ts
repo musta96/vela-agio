@@ -70,7 +70,7 @@ function nowInTz(tz: string) {
 
 export function getMarketStatus(marketId: MarketId, at: Date = new Date()): {
   status: MarketStatus;
-  label: string;          // "Open", "Closed — opens Mon 09:00 CET"
+  label: string;          // "Open", "Closed - opens Mon 09:00 CET"
   short: string;          // "Open", "Closed"
   market: MarketInfo;
 } {
@@ -82,16 +82,16 @@ export function getMarketStatus(marketId: MarketId, at: Date = new Date()): {
   const isHoliday = m.holidays2026.includes(mmdd);
 
   if (isWeekend) {
-    return { status: "closed", short: "Closed", label: `Closed — weekend`, market: m };
+    return { status: "closed", short: "Closed", label: `Closed - weekend`, market: m };
   }
   if (isHoliday) {
-    return { status: "closed", short: "Closed", label: `Closed — holiday`, market: m };
+    return { status: "closed", short: "Closed", label: `Closed - holiday`, market: m };
   }
   if (minutes < m.openMin) {
-    return { status: "pre", short: "Pre-open", label: `Pre-open — opens ${fmtTime(m.openMin)}`, market: m };
+    return { status: "pre", short: "Pre-open", label: `Pre-open - opens ${fmtTime(m.openMin)}`, market: m };
   }
   if (minutes >= m.closeMin) {
-    return { status: "post", short: "After-hours", label: `Closed — opens tomorrow ${fmtTime(m.openMin)}`, market: m };
+    return { status: "post", short: "After-hours", label: `Closed - opens tomorrow ${fmtTime(m.openMin)}`, market: m };
   }
   return { status: "open", short: "Open", label: `Open until ${fmtTime(m.closeMin)}`, market: m };
 }

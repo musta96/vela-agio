@@ -291,7 +291,7 @@ export const STOCK_CATALOG: CatalogEntry[] = [
   { symbol: "FTSEMIB.MI", name: "FTSE MIB Index", market: "ETF", currency: "EUR" },
 
   // --- Borsa Italiana dual-listed US single stocks (XMIL "1xxxx.MI") ---
-  // Issued by various banks (Société Générale, UniCredit, Vontobel) — same underlying
+  // Issued by various banks (Société Générale, UniCredit, Vontobel) - same underlying
   // economic exposure as the US share but priced and settled in EUR on the Milan exchange.
   { symbol: "1PLTR.MI", name: "Palantir Technologies (Milan listing)", market: "FTSE MIB", currency: "EUR" },
   { symbol: "1NVDA.MI", name: "NVIDIA (Milan listing)", market: "FTSE MIB", currency: "EUR" },

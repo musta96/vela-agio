@@ -33,7 +33,7 @@ export default function LegalDoc() {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title={doc ? `${doc.title} — Vela.ai` : "Legal — Vela.ai"}
+        title={doc ? `${doc.title} - Vela.ai` : "Legal - Vela.ai"}
         description={doc?.title || "Legal document"}
         path={`/legal/${kind}`}
       />

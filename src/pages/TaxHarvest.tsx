@@ -20,7 +20,7 @@ const JURISDICTIONS = [
   { code: "FR", name: "France", capitalGainsRate: 0.30, currency: "EUR", note: "Flat tax (PFU) 30% on gains; losses offset gains for 10 years." },
   { code: "DE", name: "Germany", capitalGainsRate: 0.26375, currency: "EUR", note: "Abgeltungsteuer 25% + Soli 5.5%. €1,000 sparer-pauschbetrag." },
   { code: "ES", name: "Spain", capitalGainsRate: 0.23, currency: "EUR", note: "Progressive 19-28%; default 23%. 2-month wash-sale rule." },
-  { code: "NL", name: "Netherlands", capitalGainsRate: 0.36, currency: "EUR", note: "Box 3 wealth tax — no harvesting in classic sense." },
+  { code: "NL", name: "Netherlands", capitalGainsRate: 0.36, currency: "EUR", note: "Box 3 wealth tax - no harvesting in classic sense." },
   { code: "GB", name: "United Kingdom", capitalGainsRate: 0.20, currency: "GBP", note: "CGT 10/20%; £3,000 annual allowance; 30-day bed-and-breakfast rule." },
   { code: "CH", name: "Switzerland", capitalGainsRate: 0, currency: "CHF", note: "Private capital gains generally tax-free for non-professional investors." },
   { code: "US", name: "United States", capitalGainsRate: 0.20, currency: "USD", note: "Short ≤1y at ordinary rates; long-term 0/15/20%. 30-day wash-sale rule." },
@@ -29,13 +29,13 @@ const JURISDICTIONS = [
   { code: "SG", name: "Singapore", capitalGainsRate: 0, currency: "SGD", note: "No capital gains tax on personal investments." },
   { code: "AE", name: "UAE", capitalGainsRate: 0, currency: "AED", note: "No personal capital gains tax." },
   { code: "PT", name: "Portugal", capitalGainsRate: 0.28, currency: "EUR", note: "Flat 28% (or progressive if elected). NHR regime may apply." },
-  { code: "OTHER", name: "Other / not listed", capitalGainsRate: 0.20, currency: "EUR", note: "Default 20% placeholder — please consult a local tax advisor." },
+  { code: "OTHER", name: "Other / not listed", capitalGainsRate: 0.20, currency: "EUR", note: "Default 20% placeholder - please consult a local tax advisor." },
 ];
 
 export default function TaxHarvest() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  // Single source of truth — shares the same numbers as Dashboard / Portfolio / Risk.
+  // Single source of truth - shares the same numbers as Dashboard / Portfolio / Risk.
   const { positions, losers: pfLosers } = usePortfolio();
   const [residence, setResidence] = useState<string>("IT");
   const [taxResidence, setTaxResidence] = useState<string>("IT");

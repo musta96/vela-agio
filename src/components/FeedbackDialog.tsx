@@ -32,7 +32,7 @@ export function FeedbackDialog({ open, onOpenChange, source = "settings", defaul
     setBusy(true);
     try {
       const { id } = await submitTicket({ subject: subject.trim(), message: message.trim(), category, source });
-      toast.success("Thanks — we got your ticket", { description: "You can track it in Settings → Support." });
+      toast.success("Thanks - we got your ticket", { description: "You can track it in Settings → Support." });
       reset();
       onOpenChange(false);
       onSubmitted?.(id);
@@ -46,7 +46,7 @@ export function FeedbackDialog({ open, onOpenChange, source = "settings", defaul
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Send feedback</DialogTitle>
-          <DialogDescription>Bug, idea, or question — we read every one.</DialogDescription>
+          <DialogDescription>Bug, idea, or question - we read every one.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-[1fr_auto] gap-2">

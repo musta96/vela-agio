@@ -124,7 +124,7 @@ const Risk = () => {
   return (
     <div className="p-6 sm:p-8 space-y-6">
       <SEO
-        title="Portfolio Risk Engine — VaR, Stress Tests, Factor Exposure"
+        title="Portfolio Risk Engine - VaR, Stress Tests, Factor Exposure"
         description="Pro-grade risk analytics for your portfolio: VaR, CVaR, Monte Carlo stress, factor exposure, concentration, and beta."
         path="/risk"
       />
@@ -156,7 +156,7 @@ const Risk = () => {
           </Card>
         ) : (
           <>
-            {/* Top metrics — v2 unified KPI strip */}
+            {/* Top metrics - v2 unified KPI strip */}
             <div className="bg-card border border-border rounded-2xl divide-y md:divide-y-0 md:divide-x divide-border grid grid-cols-2 md:grid-cols-4">
               {[
                 { l: "Portfolio value", v: `€${totalVal.toFixed(0)}`, t: "" },
@@ -189,7 +189,7 @@ const Risk = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4 text-warning" /> Stress scenarios</CardTitle>
-                <CardDescription>Simulated P/L under historical and hypothetical shocks (portfolio beta = {risk.beta?.toFixed(2) ?? "—"}).</CardDescription>
+                <CardDescription>Simulated P/L under historical and hypothetical shocks (portfolio beta = {risk.beta?.toFixed(2) ?? "-"}).</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -296,7 +296,7 @@ const Risk = () => {
                               <td className="py-2 pr-3 text-muted-foreground">{p.name}</td>
                               <td className="py-2 pr-3 text-right font-mono">€{p.value.toFixed(0)}</td>
                               <td className="py-2 pr-3 text-right font-mono">{((p.value / totalVal) * 100).toFixed(1)}%</td>
-                              <td className="py-2 pr-3 text-right font-mono">{vol ? `${vol.toFixed(1)}%` : "—"}</td>
+                              <td className="py-2 pr-3 text-right font-mono">{vol ? `${vol.toFixed(1)}%` : "-"}</td>
                             </tr>
                           );
                         })}

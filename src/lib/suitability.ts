@@ -1,5 +1,5 @@
 /**
- * MiFID II suitability — single source of truth for scoring, profile mapping,
+ * MiFID II suitability - single source of truth for scoring, profile mapping,
  * SRI (1–7) and target allocation. Imported by both the questionnaire page
  * and the Settings summary card so the two surfaces can never disagree.
  *
@@ -25,7 +25,7 @@ export const SECTIONS: SuitabilitySection[] = [
   {
     id: "knowledge",
     title: "1. Knowledge & Experience",
-    description: "MiFID II appropriateness — your familiarity with financial instruments.",
+    description: "MiFID II appropriateness - your familiarity with financial instruments.",
     questions: [
       { key: "edu", q: "Highest finance/economics education", opts: [
         { label: "None", score: 0 },
@@ -172,7 +172,7 @@ export function sanitizeAnswers(raw: Record<string, unknown> | null | undefined)
 }
 
 export type SuitabilityResult = {
-  /** Raw answer map after sanitisation — only core questions, clamped. */
+  /** Raw answer map after sanitisation - only core questions, clamped. */
   answers: Record<string, number>;
   /** Sum of clamped answer scores, always in `[0, MAX_SCORE]`. */
   score: number;

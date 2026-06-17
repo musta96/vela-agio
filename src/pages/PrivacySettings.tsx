@@ -142,7 +142,7 @@ const PrivacySettings = () => {
 
   return (
     <div className="container max-w-3xl py-8 space-y-6">
-      <SEO title="Privacy & Data — Vela.ai" description="Manage cookies, export your data, and delete your account." path="/privacy-settings" />
+      <SEO title="Privacy & Data - Vela.ai" description="Manage cookies, export your data, and delete your account." path="/privacy-settings" />
 
       <div>
         <h1 className="text-2xl font-bold">Privacy & data</h1>
@@ -203,7 +203,7 @@ const PrivacySettings = () => {
           When AI is enabled, your prompts, portfolio snapshot and selected page context are sent
           to the AI provider you configured (Lovable AI Gateway by default, or your own key) to
           generate the Copilot answer, the daily briefing and AI commentary. Turn this off if you
-          do not want any AI processing on your account — Vela.ai's data and analytics features
+          do not want any AI processing on your account - Vela.ai's data and analytics features
           will keep working without AI.
         </p>
       </Card>
@@ -214,7 +214,7 @@ const PrivacySettings = () => {
           <h2 className="font-semibold">Download your data</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          GDPR Article 20 — get a copy of everything we store about you in JSON.
+          GDPR Article 20 - get a copy of everything we store about you in JSON.
           Encrypted broker credentials are excluded for security.
         </p>
         <Button onClick={downloadData} disabled={exporting} className="gap-2">

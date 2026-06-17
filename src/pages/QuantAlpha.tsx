@@ -63,14 +63,14 @@ export default function QuantAlpha() {
       <SEO title="Quant Alpha | Vela.ai" description="Composite multi-factor alpha scoring" path="/quant" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center gap-3"><Sigma className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Quant Alpha — Composite Score</h1></div>
+        <div className="flex items-center gap-3"><Sigma className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Quant Alpha - Composite Score</h1></div>
         <div className="flex gap-2">
           <Input value={tickers} onChange={(e) => setTickers(e.target.value)} />
           <Button onClick={run} disabled={loading}>{loading ? "Scoring…" : "Score"}</Button>
         </div>
         {scores.length > 0 && (
           <Card>
-            <CardHeader><CardTitle>Ranking — Value + Quality + Momentum + Low-Vol (z-scores)</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Ranking - Value + Quality + Momentum + Low-Vol (z-scores)</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-6 text-xs font-semibold border-b pb-1">
                 <div>Symbol</div><div className="text-right">Value</div><div className="text-right">Quality</div><div className="text-right">Momentum</div><div className="text-right">Low-Vol</div><div className="text-right">Composite</div>

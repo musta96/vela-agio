@@ -6,15 +6,15 @@ import { useTranslation } from "react-i18next";
 
 const Q_EN = [
   { title: "Investment horizon", sub: "When do you expect to need most of this money?", opts: [["⏳ <3y", 1], ["📅 3-7y", 2], ["🌱 7-15y", 3], ["🌳 >15y", 4]], why: "Horizon defines how much volatility you can absorb." },
-  { title: "Reaction to a 20% drawdown", sub: "Markets occasionally fall hard. What's your honest reaction?", opts: [["😱 Sell all", 1], ["😟 Sell some", 2], ["🧘 Hold", 3], ["🤑 Buy more", 4]], why: "Behaviour matters more than theory — we tune alerts to your nerves." },
-  { title: "Experience with markets", sub: "Be honest — we adapt explanations to your level. You can change this later.", opts: [["🌱 None", 1], ["📈 Some ETFs", 2], ["🎯 Active investor", 3], ["🎓 Professional", 4]], why: "Experience adjusts how much jargon we use, which signals we surface, and the default complexity of the Risk Engine." },
+  { title: "Reaction to a 20% drawdown", sub: "Markets occasionally fall hard. What's your honest reaction?", opts: [["😱 Sell all", 1], ["😟 Sell some", 2], ["🧘 Hold", 3], ["🤑 Buy more", 4]], why: "Behaviour matters more than theory - we tune alerts to your nerves." },
+  { title: "Experience with markets", sub: "Be honest - we adapt explanations to your level. You can change this later.", opts: [["🌱 None", 1], ["📈 Some ETFs", 2], ["🎯 Active investor", 3], ["🎓 Professional", 4]], why: "Experience adjusts how much jargon we use, which signals we surface, and the default complexity of the Risk Engine." },
   { title: "Income stability", sub: "How predictable is your cash inflow?", opts: [["🎲 Variable", 1], ["💼 Stable", 3], ["🏦 Very stable + savings", 4]], why: "Stable income lets you tolerate equity drawdowns more comfortably." },
   { title: "Primary goal", sub: "What do you ultimately want from this portfolio?", opts: [["🛡️ Capital preservation", 1], ["💵 Income", 2], ["⚖️ Balanced growth", 3], ["🚀 Aggressive growth", 4]], why: "Goal anchors the model portfolio we propose." },
 ] as const;
 const Q_IT = [
   { title: "Orizzonte di investimento", sub: "Quando prevedi di usare la maggior parte di questi soldi?", opts: [["⏳ <3 anni", 1], ["📅 3-7 anni", 2], ["🌱 7-15 anni", 3], ["🌳 >15 anni", 4]], why: "L'orizzonte definisce quanta volatilità puoi assorbire." },
   { title: "Reazione a un drawdown del 20%", sub: "I mercati a volte crollano. Qual è la tua reazione onesta?", opts: [["😱 Vendo tutto", 1], ["😟 Vendo in parte", 2], ["🧘 Tengo", 3], ["🤑 Compro ancora", 4]], why: "Il comportamento conta più della teoria." },
-  { title: "Esperienza con i mercati", sub: "Sii onesto — adattiamo le spiegazioni al tuo livello. Puoi cambiarla in futuro.", opts: [["🌱 Nessuna", 1], ["📈 Qualche ETF", 2], ["🎯 Investitore attivo", 3], ["🎓 Professionista", 4]], why: "L'esperienza regola il livello di gergo e i segnali mostrati." },
+  { title: "Esperienza con i mercati", sub: "Sii onesto - adattiamo le spiegazioni al tuo livello. Puoi cambiarla in futuro.", opts: [["🌱 Nessuna", 1], ["📈 Qualche ETF", 2], ["🎯 Investitore attivo", 3], ["🎓 Professionista", 4]], why: "L'esperienza regola il livello di gergo e i segnali mostrati." },
   { title: "Stabilità del reddito", sub: "Quanto è prevedibile il tuo flusso di cassa?", opts: [["🎲 Variabile", 1], ["💼 Stabile", 3], ["🏦 Molto stabile + risparmi", 4]], why: "Un reddito stabile permette di tollerare drawdown azionari." },
   { title: "Obiettivo principale", sub: "Cosa vuoi davvero da questo portafoglio?", opts: [["🛡️ Preservazione capitale", 1], ["💵 Reddito", 2], ["⚖️ Crescita bilanciata", 3], ["🚀 Crescita aggressiva", 4]], why: "L'obiettivo ancora il portafoglio modello che proponiamo." },
 ] as const;
@@ -70,7 +70,7 @@ export default function Onboarding() {
         )}
       </div>
 
-      {/* Progress bar — 5 segments */}
+      {/* Progress bar - 5 segments */}
       {!done && (
         <div className="grid grid-cols-5 gap-2">
           {Q.map((_, i) => (
@@ -137,7 +137,7 @@ export default function Onboarding() {
           )}
         </div>
 
-        {/* Right rail — live profile preview */}
+        {/* Right rail - live profile preview */}
         <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl p-6 h-fit space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Your profile preview</h3>

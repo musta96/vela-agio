@@ -112,7 +112,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <SEO
-        title="Sign In or Create Account — Vela.ai"
+        title="Sign In or Create Account - Vela.ai"
         description="Sign in or create your Vela.ai account to save watchlists, portfolios, and access AI-powered trading insights."
         path="/auth"
       />
@@ -167,7 +167,7 @@ const Auth = () => {
                 <div className="flex items-start gap-2">
                   <Checkbox id="ack-advice" checked={ackNotAdvice} onCheckedChange={(v) => setAckNotAdvice(v === true)} className="mt-0.5" />
                   <Label htmlFor="ack-advice" className="text-xs font-normal leading-relaxed text-muted-foreground">
-                    I understand Vela.ai is an <strong>educational research platform only</strong>. Nothing on the platform — including AI outputs, scores, alerts, suggestions, optimizer results, backtests or copilot responses — constitutes investment, legal, accounting or tax advice.
+                    I understand Vela.ai is an <strong>educational research platform only</strong>. Nothing on the platform - including AI outputs, scores, alerts, suggestions, optimizer results, backtests or copilot responses - constitutes investment, legal, accounting or tax advice.
                   </Label>
                 </div>
                 <div className="flex items-start gap-2">

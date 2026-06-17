@@ -178,7 +178,7 @@ export function exportBacktestPdf(result: BacktestResult, chartDataUrl?: string)
     head: [["Date", "Type", "Price", "Shares"]],
     body: result.trades.length
       ? result.trades.map((t) => [t.date, t.type, t.price.toFixed(2), t.shares.toFixed(2)])
-      : [["—", "—", "—", "No trades executed"]],
+      : [["-", "-", "-", "No trades executed"]],
     theme: "grid",
     headStyles: { fillColor: [15, 27, 61] },
     styles: { fontSize: 9 },

@@ -40,8 +40,8 @@ export function useEmailReveal() {
 
 export function MaskedEmail({ email, className }: { email: string | null | undefined; className?: string }) {
   const { revealed } = useEmailReveal();
-  if (!email) return <span className={className}>—</span>;
-  return <span className={className} title={revealed ? email : "Email masked — toggle reveal in the header"}>{revealed ? email : maskEmail(email)}</span>;
+  if (!email) return <span className={className}>-</span>;
+  return <span className={className} title={revealed ? email : "Email masked - toggle reveal in the header"}>{revealed ? email : maskEmail(email)}</span>;
 }
 
 export function EmailRevealToggle() {
@@ -54,7 +54,7 @@ export function EmailRevealToggle() {
       onClick={() => {
         if (revealed) { setRevealed(false); return; }
         const reason = window.prompt(
-          "Reveal user emails — please type a brief reason (logged to the audit trail):",
+          "Reveal user emails - please type a brief reason (logged to the audit trail):",
           ""
         );
         if (!reason || reason.trim().length < 4) return;

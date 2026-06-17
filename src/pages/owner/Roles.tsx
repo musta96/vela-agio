@@ -56,7 +56,7 @@ export default function OwnerRoles() {
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold">{selected} — permissions</h3>
+            <h3 className="font-semibold">{selected} - permissions</h3>
             <Button variant="outline" size="sm">Duplicate role</Button>
           </div>
           <div className="grid sm:grid-cols-2 gap-x-8 gap-y-6">

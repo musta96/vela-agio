@@ -22,7 +22,7 @@ function instructionsFor(browser: BrowserKind): { title: string; steps: Step[]; 
           { n: 1, body: <>Tap the <Share className="inline h-4 w-4 mx-1" /> <strong>Share</strong> button in Safari's bottom toolbar.</> },
           { n: 2, body: <>Scroll the share sheet and tap <Plus className="inline h-4 w-4 mx-1" /> <strong>Add to Home Screen</strong>.</> },
           { n: 3, body: <>Confirm the name and tap <strong>Add</strong> in the top-right corner.</> },
-          { n: 4, body: <>Open Vela.ai from your Home Screen — it'll launch full-screen.</> },
+          { n: 4, body: <>Open Vela.ai from your Home Screen - it'll launch full-screen.</> },
         ],
       };
     case "ios-chrome":
@@ -33,7 +33,7 @@ function instructionsFor(browser: BrowserKind): { title: string; steps: Step[]; 
           { n: 2, body: <>Tap <Plus className="inline h-4 w-4 mx-1" /> <strong>Add to Home Screen</strong>.</> },
           { n: 3, body: <>Tap <strong>Add</strong>.</> },
         ],
-        warning: "On iOS, Chrome uses Safari's installer under the hood — no Chrome account sync for installed apps.",
+        warning: "On iOS, Chrome uses Safari's installer under the hood - no Chrome account sync for installed apps.",
       };
     case "ios-firefox":
     case "ios-other":
@@ -43,7 +43,7 @@ function instructionsFor(browser: BrowserKind): { title: string; steps: Step[]; 
           { n: 1, body: <>Open this page in <strong>Safari</strong> (other iOS browsers can't install web apps).</> },
           { n: 2, body: <>In Safari, tap <Share className="inline h-4 w-4 mx-1" /> <strong>Share</strong> → <Plus className="inline h-4 w-4 mx-1" /> <strong>Add to Home Screen</strong>.</> },
         ],
-        warning: "iOS requires Safari to install web apps — Firefox and others won't show the option.",
+        warning: "iOS requires Safari to install web apps - Firefox and others won't show the option.",
       };
     case "android-chrome":
       return {
@@ -88,7 +88,7 @@ function instructionsFor(browser: BrowserKind): { title: string; steps: Step[]; 
         steps: [
           { n: 1, body: <>Click the <Download className="inline h-4 w-4 mx-1" /> <strong>install</strong> icon at the right edge of the address bar.</> },
           { n: 2, body: <>Click <strong>Install</strong> in the popup.</> },
-          { n: 3, body: <>Vela.ai opens in its own window — pin it to your taskbar / dock.</> },
+          { n: 3, body: <>Vela.ai opens in its own window - pin it to your taskbar / dock.</> },
         ],
       };
     case "desktop-safari":
@@ -152,7 +152,7 @@ export default function Install() {
             </div>
             <div>
               <h1 className="text-xl font-semibold">Install Vela.ai</h1>
-              <p className="text-sm text-muted-foreground">Add Vela to your home screen — opens like a real app, works offline.</p>
+              <p className="text-sm text-muted-foreground">Add Vela to your home screen - opens like a real app, works offline.</p>
             </div>
           </div>
 

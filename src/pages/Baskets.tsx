@@ -111,8 +111,8 @@ const BasketDetail = ({ basket, onBack }: { basket: ThematicBasket; onBack: () =
                   return (
                     <tr key={s} className="border-b border-border/40">
                       <td className="py-2 pr-3 font-mono font-semibold">{s}</td>
-                      <td className="py-2 pr-3 text-right font-mono">{q?.price ? q.price.toFixed(2) : "—"}</td>
-                      <td className={`py-2 pr-3 text-right font-mono ${q && q.change >= 0 ? "text-success" : "text-destructive"}`}>{q?.change != null ? `${q.change >= 0 ? "+" : ""}${q.change.toFixed(2)}%` : "—"}</td>
+                      <td className="py-2 pr-3 text-right font-mono">{q?.price ? q.price.toFixed(2) : "-"}</td>
+                      <td className={`py-2 pr-3 text-right font-mono ${q && q.change >= 0 ? "text-success" : "text-destructive"}`}>{q?.change != null ? `${q.change >= 0 ? "+" : ""}${q.change.toFixed(2)}%` : "-"}</td>
                       <td className="py-2 pr-3 text-right">
                         <Link to={`/stock/${encodeURIComponent(s)}`} className="text-primary text-xs inline-flex items-center gap-1 hover:underline">Open <ExternalLink className="h-3 w-3" /></Link>
                       </td>
@@ -132,7 +132,7 @@ const Baskets = () => {
   const [active, setActive] = useState<ThematicBasket | null>(null);
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Thematic Baskets — Curated AI, Defense, Energy & Income Themes" description="Curated thematic baskets of stocks and ETFs across AI, defense, luxury, energy, and Italian banks with live performance." path="/baskets" />
+      <SEO title="Thematic Baskets - Curated AI, Defense, Energy & Income Themes" description="Curated thematic baskets of stocks and ETFs across AI, defense, luxury, energy, and Italian banks with live performance." path="/baskets" />
       <TopNav />
       <main className="container mx-auto px-6 py-8">
         {active ? <BasketDetail basket={active} onBack={() => setActive(null)} /> : (

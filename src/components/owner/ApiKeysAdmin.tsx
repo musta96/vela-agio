@@ -32,7 +32,7 @@ export function ApiKeysAdmin({ apiKeys, users, reload }: { apiKeys: ApiKey[]; us
     <div className="space-y-3">
       <Card className="p-4">
         <h3 className="font-semibold flex items-center gap-2"><KeyRound className="h-4 w-4" /> User-stored API keys</h3>
-        <p className="text-xs text-muted-foreground">Keys (e.g. external AI providers, broker tokens) are stored encrypted. You can see who has one and revoke it — you cannot read the secret.</p>
+        <p className="text-xs text-muted-foreground">Keys (e.g. external AI providers, broker tokens) are stored encrypted. You can see who has one and revoke it - you cannot read the secret.</p>
       </Card>
       <Card className="p-3">
         <Input placeholder="Filter by email or provider…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
@@ -50,7 +50,7 @@ export function ApiKeysAdmin({ apiKeys, users, reload }: { apiKeys: ApiKey[]; us
                 <TableRow key={k.id}>
                   <TableCell className="text-sm">{u?.email || <span className="font-mono text-xs text-muted-foreground">{k.user_id.slice(0, 8)}</span>}</TableCell>
                   <TableCell><Badge variant="outline" className="text-[10px]">{k.provider}</Badge></TableCell>
-                  <TableCell className="text-xs font-mono text-muted-foreground">{k.hint || "—"}</TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{k.hint || "-"}</TableCell>
                   <TableCell className="text-[10px] text-muted-foreground">{new Date(k.created_at).toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="ghost" className="text-destructive gap-1" onClick={() => revoke(k.id, u?.email || k.user_id, k.provider)}>

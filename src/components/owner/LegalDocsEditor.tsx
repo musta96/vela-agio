@@ -106,7 +106,7 @@ function EditDialog({ doc, isNew, onClose, onSave }: { doc: Doc; isNew: boolean;
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{isNew ? "New legal document" : `Edit — ${doc.title}`}</DialogTitle>
+          <DialogTitle>{isNew ? "New legal document" : `Edit - ${doc.title}`}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">

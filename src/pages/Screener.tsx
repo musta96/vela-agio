@@ -110,13 +110,13 @@ const Screener = () => {
     }
   };
 
-  const fmtPct = (v?: number) => (v == null ? "—" : `${(v * 100).toFixed(1)}%`);
-  const fmtNum = (v?: number, d = 2) => (v == null ? "—" : v.toFixed(d));
-  const fmtCap = (v?: number) => (v == null ? "—" : v > 1e9 ? `${(v / 1e9).toFixed(1)}B` : `${(v / 1e6).toFixed(0)}M`);
+  const fmtPct = (v?: number) => (v == null ? "-" : `${(v * 100).toFixed(1)}%`);
+  const fmtNum = (v?: number, d = 2) => (v == null ? "-" : v.toFixed(d));
+  const fmtCap = (v?: number) => (v == null ? "-" : v > 1e9 ? `${(v / 1e9).toFixed(1)}B` : `${(v / 1e6).toFixed(0)}M`);
 
   return (
     <div className="p-6 sm:p-8 space-y-6">
-      <SEO title="Natural-Language Stock Screener — Powered by AI" description="Describe what you want in plain English. AI translates your query into filters and screens stocks across global markets in seconds." path="/screener" />
+      <SEO title="Natural-Language Stock Screener - Powered by AI" description="Describe what you want in plain English. AI translates your query into filters and screens stocks across global markets in seconds." path="/screener" />
       <PageHeader
         icon={Filter}
         title="AI Stock Screener"
@@ -145,7 +145,7 @@ const Screener = () => {
           <Textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. FTSE MIB banks with P/E below 12, dividend yield above 5%, and ROE above 10% — rank by 12-month momentum."
+            placeholder="e.g. FTSE MIB banks with P/E below 12, dividend yield above 5%, and ROE above 10% - rank by 12-month momentum."
             className="min-h-[96px] bg-background border-border resize-none"
           />
 
@@ -256,13 +256,13 @@ const Screener = () => {
                     <td className="px-5 py-3 font-bold tabular-nums">{r.symbol}</td>
                     <td className="px-3 py-3 text-muted-foreground">{r.name}</td>
                     <td className="px-3 py-3">
-                      <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs">{r.sector ?? "—"}</span>
+                      <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs">{r.sector ?? "-"}</span>
                     </td>
-                    <td className="px-3 py-3 text-right tabular-nums">€{r.price != null ? r.price.toFixed(2) : "—"}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">€{r.price != null ? r.price.toFixed(2) : "-"}</td>
                     <td className={`px-3 py-3 text-right tabular-nums font-medium ${(r.revGrowth ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{fmtPct(r.revGrowth)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{fmtNum(r.pe)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.divYield != null ? (r.divYield * 100).toFixed(1) : "—"}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.roe != null ? (r.roe * 100).toFixed(1) : "—"}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{r.divYield != null ? (r.divYield * 100).toFixed(1) : "-"}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{r.roe != null ? (r.roe * 100).toFixed(1) : "-"}</td>
                     <td className="px-3 py-3 text-center"><ScoreBadge score={scoreFor(r)} /></td>
                     <td className="px-5 py-3 text-right">
                       <div className="inline-flex gap-1">

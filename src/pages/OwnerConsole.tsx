@@ -57,7 +57,7 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
   { key: "emails_paused", label: "Pause outbound email", description: "No transactional or marketing email is sent." },
   { key: "signups_disabled", label: "Disable new signups", description: "Existing users keep working; new registrations are blocked." },
   { key: "live_trading_disabled", label: "Block live trading", description: "Prevents any real-money order from being submitted." },
-  { key: "data_feeds_frozen", label: "Freeze data feeds", description: "Stops new market data ingestion — shows stale prices." },
+  { key: "data_feeds_frozen", label: "Freeze data feeds", description: "Stops new market data ingestion - shows stale prices." },
 ];
 
 export default function OwnerConsole() {
@@ -190,7 +190,7 @@ export default function OwnerConsole() {
             <PanicModeCard active={anyKillActive} onPanic={(reason) => act("panic_mode", { enabled: true, reason })} onLift={(reason) => act("panic_mode", { enabled: false, reason })} />
             <Card className="p-4 border-destructive/40 bg-destructive/5">
               <div className="flex items-center gap-2 text-destructive font-semibold">
-                <AlertTriangle className="h-4 w-4" /> Critical controls — changes take effect instantly for every user.
+                <AlertTriangle className="h-4 w-4" /> Critical controls - changes take effect instantly for every user.
               </div>
             </Card>
             <div className="grid md:grid-cols-2 gap-3">
@@ -231,8 +231,8 @@ export default function OwnerConsole() {
                     <TableRow key={s.id}>
                       <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString()}</TableCell>
                       <TableCell className="text-xs">{s.signal_type}</TableCell>
-                      <TableCell className="text-xs font-mono">{s.symbol || "—"}</TableCell>
-                      <TableCell className="text-xs">{s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "—"}</TableCell>
+                      <TableCell className="text-xs font-mono">{s.symbol || "-"}</TableCell>
+                      <TableCell className="text-xs">{s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "-"}</TableCell>
                       <TableCell>
                         <Badge variant={s.status === "retracted" ? "destructive" : s.status === "flagged" ? "outline" : "secondary"} className="text-[10px]">{s.status}</Badge>
                       </TableCell>
@@ -295,7 +295,7 @@ export default function OwnerConsole() {
                         {!u.roles?.length && <span className="text-muted-foreground">viewer</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : "-"}</TableCell>
                       <TableCell>
                         {u.suspended ? <Badge variant="destructive" className="text-[10px]">suspended</Badge>
                           : u.email_confirmed_at ? <Badge className="bg-success/20 text-success text-[10px]">active</Badge>
@@ -324,7 +324,7 @@ export default function OwnerConsole() {
                     <TableRow key={f.key}>
                       <TableCell className="text-sm font-medium">{f.label}<div className="text-[10px] text-muted-foreground font-mono">{f.key}</div></TableCell>
                       <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{f.category}</Badge></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{f.description || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{f.description || "-"}</TableCell>
                       <TableCell className="text-right">
                         <Switch checked={f.enabled} onCheckedChange={(v) => act("set_feature_flag", { key: f.key, label: f.label, enabled: v, category: f.category, description: f.description })} />
                       </TableCell>
@@ -405,7 +405,7 @@ export default function OwnerConsole() {
                       <TableCell className="text-xs"><MaskedEmail email={i.actor_email} /></TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{i.category}</Badge></TableCell>
                       <TableCell className="text-xs">{i.action}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{i.reason || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{i.reason || "-"}</TableCell>
                     </TableRow>
                   ))}
                   {incidents.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No incidents logged.</TableCell></TableRow>}
@@ -484,7 +484,7 @@ export default function OwnerConsole() {
             <Card>
               <div className="p-4 border-b border-border">
                 <h3 className="font-semibold text-sm">Consent ledger ({consents.length})</h3>
-                <p className="text-xs text-muted-foreground">Per-user record of accepted T&C / Privacy versions — auditable for regulators.</p>
+                <p className="text-xs text-muted-foreground">Per-user record of accepted T&C / Privacy versions - auditable for regulators.</p>
               </div>
               <Table>
                 <TableHeader><TableRow>
@@ -499,8 +499,8 @@ export default function OwnerConsole() {
                         <TableCell className="text-xs">{u?.email ? <MaskedEmail email={u.email} /> : c.user_id.slice(0,8)}</TableCell>
                         <TableCell className="text-xs font-mono">{c.tos_version}</TableCell>
                         <TableCell className="text-xs font-mono">{c.privacy_version}</TableCell>
-                        <TableCell className="text-xs">{c.marketing_opt_in ? "yes" : "—"}</TableCell>
-                        <TableCell className="text-[10px] text-muted-foreground font-mono">{(c as any).ip || "—"}</TableCell>
+                        <TableCell className="text-xs">{c.marketing_opt_in ? "yes" : "-"}</TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground font-mono">{(c as any).ip || "-"}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -526,14 +526,14 @@ export default function OwnerConsole() {
         <Button size="sm" variant="outline" onClick={() => act("run_healthchecks")} className="gap-2"><Zap className="h-3.5 w-3.5" />Run checks now</Button>
       </Card>
       <div className="grid md:grid-cols-3 gap-3">
-        {health.length === 0 && <Card className="p-4 col-span-full text-xs text-muted-foreground text-center">No checks run yet — click "Run checks now".</Card>}
+        {health.length === 0 && <Card className="p-4 col-span-full text-xs text-muted-foreground text-center">No checks run yet - click "Run checks now".</Card>}
         {health.map((h) => (
           <Card key={h.service} className={`p-4 ${h.status === "ok" ? "border-success/30" : h.status === "degraded" ? "border-amber-400/30" : "border-destructive/40"}`}>
             <div className="flex items-center justify-between mb-1">
               <span className="font-medium text-sm">{h.service}</span>
               <Badge variant={h.status === "ok" ? "secondary" : h.status === "degraded" ? "outline" : "destructive"} className="text-[10px]">{h.status}</Badge>
             </div>
-            <div className="text-[11px] text-muted-foreground">{h.latency_ms != null ? `${h.latency_ms}ms` : "—"} · {h.detail || ""}</div>
+            <div className="text-[11px] text-muted-foreground">{h.latency_ms != null ? `${h.latency_ms}ms` : "-"} · {h.detail || ""}</div>
             <div className="text-[10px] text-muted-foreground mt-1">{new Date(h.last_checked).toLocaleString()}</div>
           </Card>
         ))}
@@ -545,10 +545,10 @@ export default function OwnerConsole() {
       <h3 className="font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> Roles & access</h3>
       <p className="text-xs text-muted-foreground">Available sub-roles: <code className="font-mono">admin</code>, <code className="font-mono">support</code>, <code className="font-mono">compliance</code>, <code className="font-mono">engineer</code>, <code className="font-mono">analyst</code>, <code className="font-mono">pm</code>, <code className="font-mono">viewer</code>. Manage per-user from the Users table.</p>
       <div className="grid md:grid-cols-2 gap-2 text-xs">
-        <div><strong>admin</strong> — full owner powers, kill switches, GDPR execute.</div>
-        <div><strong>support</strong> — user detail, reset password, impersonate (audited).</div>
-        <div><strong>compliance</strong> — audit/consent/erasure queue, export.</div>
-        <div><strong>engineer</strong> — feature flags, health checks, retract signals.</div>
+        <div><strong>admin</strong> - full owner powers, kill switches, GDPR execute.</div>
+        <div><strong>support</strong> - user detail, reset password, impersonate (audited).</div>
+        <div><strong>compliance</strong> - audit/consent/erasure queue, export.</div>
+        <div><strong>engineer</strong> - feature flags, health checks, retract signals.</div>
       </div>
       <p className="text-[10px] text-amber-500 mt-2">⚠️ 2FA enforcement for these roles must be enabled in Cloud → Users → Auth Settings.</p>
     </Card>
@@ -564,12 +564,12 @@ export default function OwnerConsole() {
   const platformAlerts = [
     ...signals.filter(s => (s.confidence ?? 1) < 0.4 || s.status === "flagged").slice(0, 3).map(s => ({
       icon: <Bot className="h-4 w-4 text-amber-500" />, kind: "Signal governance",
-      title: `AI signal flagged — Low confidence (${s.confidence != null ? s.confidence.toFixed(2) : "—"}) on ${s.symbol || "?"}.`,
+      title: `AI signal flagged - Low confidence (${s.confidence != null ? s.confidence.toFixed(2) : "-"}) on ${s.symbol || "?"}.`,
       cta: "Review", section: "ai" as const, when: s.created_at,
     })),
     ...incidents.slice(0, 2).map(i => ({
       icon: <AlertCircle className="h-4 w-4 text-amber-500" />, kind: i.category,
-      title: `${i.action}${i.reason ? ` — ${i.reason}` : ""}`, cta: "View", section: "audit" as const, when: i.ts,
+      title: `${i.action}${i.reason ? ` - ${i.reason}` : ""}`, cta: "View", section: "audit" as const, when: i.ts,
     })),
   ].slice(0, 5);
   const activeAlerts = platformAlerts.length;
@@ -601,7 +601,7 @@ export default function OwnerConsole() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* User management — spans 2 cols */}
+        {/* User management - spans 2 cols */}
         <Card className="lg:col-span-2 p-0 overflow-hidden">
           <div className="p-4 flex items-center justify-between flex-wrap gap-2 border-b border-border">
             <h3 className="font-semibold">User management</h3>
@@ -637,7 +637,7 @@ export default function OwnerConsole() {
                             : <span className="inline-flex items-center gap-1 text-xs text-amber-500"><CircleDot className="h-2.5 w-2.5 fill-amber-500" />Trial</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? relTime(u.last_sign_in_at) : "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? relTime(u.last_sign_in_at) : "-"}</TableCell>
                     </TableRow>
                   ))}
                   {filteredUsers.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6 text-xs">No users.</TableCell></TableRow>}
@@ -697,9 +697,9 @@ export default function OwnerConsole() {
             <Badge variant="outline" className="text-[10px]">soon</Badge>
           </div>
           <div className="grid grid-cols-3 gap-3 text-xs">
-            <div><div className="text-[10px] text-muted-foreground uppercase">ARR</div><div className="font-semibold tabular-nums">—</div></div>
-            <div><div className="text-[10px] text-muted-foreground uppercase">Churn $</div><div className="font-semibold tabular-nums">—</div></div>
-            <div><div className="text-[10px] text-muted-foreground uppercase">New MRR</div><div className="font-semibold tabular-nums">—</div></div>
+            <div><div className="text-[10px] text-muted-foreground uppercase">ARR</div><div className="font-semibold tabular-nums">-</div></div>
+            <div><div className="text-[10px] text-muted-foreground uppercase">Churn $</div><div className="font-semibold tabular-nums">-</div></div>
+            <div><div className="text-[10px] text-muted-foreground uppercase">New MRR</div><div className="font-semibold tabular-nums">-</div></div>
           </div>
           <p className="text-[10px] text-muted-foreground mt-3">Wire Stripe / Paddle to populate revenue charts.</p>
         </Card>
@@ -765,7 +765,7 @@ export default function OwnerConsole() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <SEO title="Owner Console — Vela.ai" description="Internal admin" path="/owner" />
+      <SEO title="Owner Console - Vela.ai" description="Internal admin" path="/owner" />
       <EmailRevealProvider>
       <OwnerSidebar
         section={section}
@@ -932,7 +932,7 @@ function KillSwitchCard({ label, description, enabled, reason, updatedAt, expire
             {enabled && <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />} {label}
           </div>
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
-          {updatedAt && <p className="text-[10px] text-muted-foreground mt-2">Last change {new Date(updatedAt).toLocaleString()}{reason ? ` — “${reason}”` : ""}</p>}
+          {updatedAt && <p className="text-[10px] text-muted-foreground mt-2">Last change {new Date(updatedAt).toLocaleString()}{reason ? ` - “${reason}”` : ""}</p>}
           {expiresAt && <p className="text-[10px] text-amber-500 mt-1">Auto-lifts at {new Date(expiresAt).toLocaleString()}</p>}
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -940,7 +940,7 @@ function KillSwitchCard({ label, description, enabled, reason, updatedAt, expire
             <Switch checked={enabled} onClick={(e) => { e.preventDefault(); setOpen(true); }} />
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{enabled ? "Disable" : "Enable"} — {label}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{enabled ? "Disable" : "Enable"} - {label}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{description}</p>
             <Textarea placeholder="Reason (recorded in incident log)" value={draftReason} onChange={(e) => setDraftReason(e.target.value)} />
             {!enabled && (
@@ -1021,7 +1021,7 @@ function UserActionsMenu({ user, act, onExport, onView }: { user: UserRow; act: 
       <Dialog open={roleOpen} onOpenChange={setRoleOpen}>
         <DialogTrigger asChild><Button size="sm" variant="ghost" className="gap-1"><Shield className="h-3.5 w-3.5" /> Roles</Button></DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>Roles — <MaskedEmail email={user.email} /></DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Roles - <MaskedEmail email={user.email} /></DialogTitle></DialogHeader>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Current roles:</p>
             <div className="flex flex-wrap gap-1">
@@ -1135,15 +1135,15 @@ function AiGovernanceConfig({ config, onSave }: { config: AiConfig; onSave: (val
           <p className="text-[10px] text-muted-foreground">Keys are signal_type names; values are appended to every output of that type.</p>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Rate limit / user / day — Free</label>
+          <label className="text-xs font-medium">Rate limit / user / day - Free</label>
           <Input value={rateFree} onChange={(e) => setRateFree(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Rate limit — Pro</label>
+          <label className="text-xs font-medium">Rate limit - Pro</label>
           <Input value={ratePro} onChange={(e) => setRatePro(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Rate limit — Team</label>
+          <label className="text-xs font-medium">Rate limit - Team</label>
           <Input value={rateTeam} onChange={(e) => setRateTeam(e.target.value)} />
         </div>
       </div>
@@ -1245,10 +1245,10 @@ function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestEr
           <div className="p-4 space-y-4 text-xs">
             <div className="grid grid-cols-2 gap-2">
               <DetailKv label="Created" value={new Date(data.auth?.created_at || user.created_at).toLocaleString()} />
-              <DetailKv label="Last sign-in" value={data.auth?.last_sign_in_at ? new Date(data.auth.last_sign_in_at).toLocaleString() : "—"} />
-              <DetailKv label="Provider" value={(data.auth?.app_metadata?.provider) || "—"} />
+              <DetailKv label="Last sign-in" value={data.auth?.last_sign_in_at ? new Date(data.auth.last_sign_in_at).toLocaleString() : "-"} />
+              <DetailKv label="Provider" value={(data.auth?.app_metadata?.provider) || "-"} />
               <DetailKv label="Roles" value={(data.roles || []).join(", ") || "viewer"} />
-              <DetailKv label="Country" value={data.profile?.country_residence || "—"} />
+              <DetailKv label="Country" value={data.profile?.country_residence || "-"} />
               <DetailKv label="Suspended" value={data.suspension ? "yes" : "no"} />
             </div>
             <DetailSection title={`Portfolios (${data.portfolios?.length || 0})`}>

@@ -69,8 +69,8 @@ export default function Peers() {
                 <div key={p.symbol} className="grid grid-cols-6 text-sm py-1 border-b font-mono">
                   <div>{p.symbol}</div>
                   <div className="truncate">{p.name}</div>
-                  <div className="text-right">{p.pe ? p.pe.toFixed(1) : "—"}</div>
-                  <div className="text-right">{p.ps ? p.ps.toFixed(1) : "—"}</div>
+                  <div className="text-right">{p.pe ? p.pe.toFixed(1) : "-"}</div>
+                  <div className="text-right">{p.ps ? p.ps.toFixed(1) : "-"}</div>
                   <div className={`text-right ${p.ret1y >= 0 ? "text-bull" : "text-bear"}`}>{(p.ret1y * 100).toFixed(1)}%</div>
                   <div className="text-right font-semibold">{p.rank}</div>
                 </div>

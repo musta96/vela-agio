@@ -37,7 +37,7 @@ const _LEGACY_SECTIONS: { id: string; title: string; description: string; questi
   {
     id: "knowledge",
     title: "1. Knowledge & Experience",
-    description: "MiFID II appropriateness — your familiarity with financial instruments.",
+    description: "MiFID II appropriateness - your familiarity with financial instruments.",
     questions: [
       { key: "edu", q: "Highest finance/economics education", opts: [
         { label: "None", score: 0 },
@@ -158,16 +158,16 @@ const KNOWLEDGE_LEVELS = [
 const SOURCE_OF_FUNDS = ["Salary / employment", "Business income", "Inheritance", "Sale of property", "Sale of business", "Investment proceeds", "Gift", "Other"];
 const SOURCE_OF_WEALTH = ["Employment", "Business ownership", "Inheritance", "Real estate", "Investments", "Other"];
 const CLIENT_CATEGORIES = [
-  { value: "retail",        label: "Retail (default — highest protection)" },
+  { value: "retail",        label: "Retail (default - highest protection)" },
   { value: "professional",  label: "Professional on request (MiFID II Annex II)" },
   { value: "eligible",      label: "Eligible counterparty (institutional)" },
 ];
 
 // PROFILES, SECTIONS, MAX_SCORE and TOTAL_QUESTIONS are imported from
-// `@/lib/suitability`. Do not redeclare here — the Settings page and unit
+// `@/lib/suitability`. Do not redeclare here - the Settings page and unit
 // tests must read the same constants for scores to agree.
 
-// Re-assessment cadence — ESMA expects at least annual review for advised clients
+// Re-assessment cadence - ESMA expects at least annual review for advised clients
 const REASSESS_MONTHS = 12;
 
 export default function Suitability() {
@@ -344,7 +344,7 @@ export default function Suitability() {
         .maybeSingle();
       if (data) {
         const a = (data.answers as Record<string, any>) ?? {};
-        // Only keep numeric values for known core questions — strips legacy
+        // Only keep numeric values for known core questions - strips legacy
         // `__`-prefixed extension fields that used to inflate score/answered.
         setAns(sanitizeAnswers(a));
         setClientCategory(a.__clientCategory ?? "retail");
@@ -381,7 +381,7 @@ export default function Suitability() {
   const handleSave = async () => {
     if (!user) { toast.error("Please sign in"); return; }
     if (!complete) { toast.error("Please answer all questions"); return; }
-    if (errors.length) { toast.error(`${errors.length} blocking error${errors.length > 1 ? "s" : ""} — fix them before saving`); return; }
+    if (errors.length) { toast.error(`${errors.length} blocking error${errors.length > 1 ? "s" : ""} - fix them before saving`); return; }
     if (!attestation) { toast.error("Please confirm the accuracy attestation"); return; }
     setSaving(true);
     const extendedAnswers = {
@@ -498,10 +498,10 @@ export default function Suitability() {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
 
-    doc.setFontSize(16); doc.text("MiFID II Suitability — Audit Record", 40, 50);
+    doc.setFontSize(16); doc.text("MiFID II Suitability - Audit Record", 40, 50);
     doc.setFontSize(9); doc.setTextColor(120);
     doc.text(`Generated ${new Date(p.generated_at).toLocaleString()}`, 40, 66);
-    doc.text(`User: ${p.user_email ?? p.user_id ?? "—"}`, 40, 78);
+    doc.text(`User: ${p.user_email ?? p.user_id ?? "-"}`, 40, 78);
     if (p.saved_at) doc.text(`Profile last saved: ${new Date(p.saved_at).toLocaleString()}`, 40, 90);
     doc.setTextColor(0);
 
@@ -526,7 +526,7 @@ export default function Suitability() {
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 14,
       head: [["Section", "Question", "Answer", "Score"]],
-      body: p.core_answers.map((a) => [a.section.replace(/^\d+\.\s*/, ""), a.question, a.answer ?? "—", a.score ?? "—"]),
+      body: p.core_answers.map((a) => [a.section.replace(/^\d+\.\s*/, ""), a.question, a.answer ?? "-", a.score ?? "-"]),
       styles: { fontSize: 8, cellPadding: 4 }, headStyles: { fillColor: [30, 41, 59] },
     });
 
@@ -544,11 +544,11 @@ export default function Suitability() {
       startY: (doc as any).lastAutoTable.finalY + 14,
       head: [["KYC / AML", ""]],
       body: [
-        ["Source of funds", p.mifid.source_of_funds.join(", ") || "—"],
-        ["Source of wealth", p.mifid.source_of_wealth.join(", ") || "—"],
-        ["PEP", p.mifid.is_pep ? `Yes — ${p.mifid.pep_details || "no detail"}` : "No"],
+        ["Source of funds", p.mifid.source_of_funds.join(", ") || "-"],
+        ["Source of wealth", p.mifid.source_of_wealth.join(", ") || "-"],
+        ["PEP", p.mifid.is_pep ? `Yes - ${p.mifid.pep_details || "no detail"}` : "No"],
         ["US person (FATCA)", p.mifid.us_person ? "Yes" : "No"],
-        ["CRS tax residencies", p.mifid.crs_residencies || "—"],
+        ["CRS tax residencies", p.mifid.crs_residencies || "-"],
         ["Dependents", String(p.mifid.dependents)],
         ["Liquidity need (months)", String(p.mifid.liquidity_need_months)],
         ["Max single position", `${p.mifid.max_single_position_pct}%`],
@@ -565,8 +565,8 @@ export default function Suitability() {
         ["Min. sustainable (%)", String(p.sfdr.sustainable_min_pct)],
         ["Min. EU taxonomy (%)", String(p.sfdr.taxonomy_min_pct)],
         ["PAI considered", p.sfdr.pai_considered ? "Yes" : "No"],
-        ["Objectives", p.objectives.join(", ") || "—"],
-        ["Excluded sectors", p.excluded_sectors.join(", ") || "—"],
+        ["Objectives", p.objectives.join(", ") || "-"],
+        ["Excluded sectors", p.excluded_sectors.join(", ") || "-"],
       ],
       styles: { fontSize: 8 }, headStyles: { fillColor: [240, 240, 240], textColor: 20 },
       columnStyles: { 0: { cellWidth: 160, fontStyle: "bold" } },
@@ -593,10 +593,10 @@ export default function Suitability() {
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i); doc.setFontSize(7); doc.setTextColor(150);
       doc.text(
-        `Vela.ai — MiFID II suitability audit · Page ${i}/${pages} · ${p.attestation ? "Attested by user" : "Draft (not attested)"}`,
+        `Vela.ai - MiFID II suitability audit · Page ${i}/${pages} · ${p.attestation ? "Attested by user" : "Draft (not attested)"}`,
         40, doc.internal.pageSize.getHeight() - 20,
       );
-      doc.text("Informational only — not investment advice.", pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: "right" });
+      doc.text("Informational only - not investment advice.", pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: "right" });
     }
 
     doc.save(`suitability-audit-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -613,7 +613,7 @@ export default function Suitability() {
             <Shield className="h-6 w-6 text-primary" />
             <div>
               <h1 className="text-3xl font-bold">Investor Suitability Profile</h1>
-              <p className="text-sm text-muted-foreground">MiFID II · IDD · SFDR — used to tailor AI recommendations</p>
+              <p className="text-sm text-muted-foreground">MiFID II · IDD · SFDR - used to tailor AI recommendations</p>
             </div>
           </div>
           {savedAt && (
@@ -710,7 +710,7 @@ export default function Suitability() {
               </Card>
             ))}
 
-            {/* Product knowledge matrix — MiFID II appropriateness per instrument class */}
+            {/* Product knowledge matrix - MiFID II appropriateness per instrument class */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">5. Product Knowledge & Experience</CardTitle>
@@ -750,10 +750,10 @@ export default function Suitability() {
               </CardContent>
             </Card>
 
-            {/* AML / KYC — source of funds & wealth, PEP, FATCA/CRS */}
+            {/* AML / KYC - source of funds & wealth, PEP, FATCA/CRS */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">6. AML / KYC — Source of Funds & Tax Status</CardTitle>
+                <CardTitle className="text-lg">6. AML / KYC - Source of Funds & Tax Status</CardTitle>
                 <CardDescription>EU AMLD5/6 · FATCA · CRS · 4MLD PEP screening.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -796,13 +796,13 @@ export default function Suitability() {
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="crs" className="text-sm font-medium">CRS — other tax residencies (comma-separated)</Label>
+                  <Label htmlFor="crs" className="text-sm font-medium">CRS - other tax residencies (comma-separated)</Label>
                   <Input id="crs" maxLength={200} value={crsResidencies} onChange={e => setCrsResidencies(e.target.value)} className="mt-2" placeholder="e.g. CH, US" />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Capacity to bear losses — quantitative */}
+            {/* Capacity to bear losses - quantitative */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">7. Capacity, Liquidity & Concentration</CardTitle>
@@ -851,7 +851,7 @@ export default function Suitability() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">9. Sustainability Preferences (SFDR)</CardTitle>
-                <CardDescription>EU MiFID II amendment 2022/1288 — required since Aug 2022. Three sustainability dimensions.</CardDescription>
+                <CardDescription>EU MiFID II amendment 2022/1288 - required since Aug 2022. Three sustainability dimensions.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -974,7 +974,7 @@ export default function Suitability() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">11. Attestation</CardTitle>
-                <CardDescription>Required before saving — records date, version and warnings acknowledged.</CardDescription>
+                <CardDescription>Required before saving - records date, version and warnings acknowledged.</CardDescription>
               </CardHeader>
               <CardContent>
                 <label className="flex items-start gap-2 text-sm cursor-pointer">
@@ -1005,7 +1005,7 @@ export default function Suitability() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              This questionnaire follows ESMA guidelines on the MiFID II suitability assessment and SFDR sustainability preferences. It is informational only and does not constitute investment advice. Your answers are stored privately and used to tailor AI-generated insights inside Vela.ai — they are never shared with brokers or third parties.
+              This questionnaire follows ESMA guidelines on the MiFID II suitability assessment and SFDR sustainability preferences. It is informational only and does not constitute investment advice. Your answers are stored privately and used to tailor AI-generated insights inside Vela.ai - they are never shared with brokers or third parties.
             </p>
           </>
         )}

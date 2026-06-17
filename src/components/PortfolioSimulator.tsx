@@ -95,7 +95,7 @@ export const PortfolioSimulator = ({ open, onClose, portfolioId, portfolioName, 
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><FlaskConical className="h-5 w-5 text-primary" /> Monte-Carlo simulation — {portfolioName}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><FlaskConical className="h-5 w-5 text-primary" /> Monte-Carlo simulation - {portfolioName}</DialogTitle>
           <DialogDescription>
             Simulates thousands of possible future paths using historical drift &amp; volatility (geometric Brownian motion). Results in {baseCurrency}.
           </DialogDescription>

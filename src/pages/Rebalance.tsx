@@ -71,7 +71,7 @@ export default function Rebalance() {
               );
             })}
             <div className="mt-3 text-sm text-muted-foreground">Total NAV: <span className="font-mono">${total.toFixed(0)}</span></div>
-            <p className="mt-2 text-[11px] text-muted-foreground">Educational drift analysis only — Vela does not place orders or recommend specific trades. Discuss with a licensed advisor before acting.</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">Educational drift analysis only - Vela does not place orders or recommend specific trades. Discuss with a licensed advisor before acting.</p>
           </CardContent>
         </Card>
       </main>

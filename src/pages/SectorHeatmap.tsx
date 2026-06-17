@@ -75,7 +75,7 @@ const SectorHeatmap = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Sector Heatmap — Industry Performance at a Glance" description="Visualize sector and industry performance across FTSE MIB, EU, and US markets with a color-coded heatmap and rotation insights." path="/sectors" />
+      <SEO title="Sector Heatmap - Industry Performance at a Glance" description="Visualize sector and industry performance across FTSE MIB, EU, and US markets with a color-coded heatmap and rotation insights." path="/sectors" />
       <TopNav />
       <main>
       <div className="container mx-auto px-6 py-8 space-y-6">
@@ -116,7 +116,7 @@ const SectorHeatmap = () => {
                       {([d.p1m, d.p3m, d.p6m, d.pYTD]).map((v, i) => (
                         <td key={i} className="py-1 pr-1 text-right">
                           <span className={`inline-block min-w-[64px] px-2 py-1 rounded font-mono text-xs ${tone(v)}`}>
-                            {v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`}
+                            {v == null ? "-" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`}
                           </span>
                         </td>
                       ))}

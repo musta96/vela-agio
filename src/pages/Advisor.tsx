@@ -61,7 +61,7 @@ const URGENCY: Record<string, string> = {
 export default function Advisor() {
   const enabled = useFlag("advisor", true);
   const { user, loading: authLoading } = useAuth();
-  // Single portfolio source of truth — keeps Coach in sync with Dashboard / Portfolio / Risk / Tax.
+  // Single portfolio source of truth - keeps Coach in sync with Dashboard / Portfolio / Risk / Tax.
   const portfolio = usePortfolio();
   const [riskProfile, setRiskProfile] = useState("balanced");
   const [goals, setGoals] = useState("Retire in 20 years, prefer income, avoid 30%+ drawdowns.");
@@ -115,7 +115,7 @@ export default function Advisor() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Portfolio Coach — Educational Research" description="Educational analysis of your portfolio: concentration, valuation, news, and ideas to research further. Not investment advice." path="/advisor" />
+      <SEO title="Portfolio Coach - Educational Research" description="Educational analysis of your portfolio: concentration, valuation, news, and ideas to research further. Not investment advice." path="/advisor" />
       <TopNav />
       <div className="container mx-auto p-4 sm:p-6 space-y-6 max-w-6xl">
         <PageHeader
@@ -172,7 +172,7 @@ export default function Advisor() {
                 {running ? "Analyzing…" : "Run analysis"}
               </Button>
               {!loadingHoldings && !holdings.length && (
-                <span className="text-xs text-muted-foreground">No holdings yet — <Link to="/portfolio" className="text-primary underline">add some</Link> to get started.</span>
+                <span className="text-xs text-muted-foreground">No holdings yet - <Link to="/portfolio" className="text-primary underline">add some</Link> to get started.</span>
               )}
             </div>
           </CardContent>
@@ -257,7 +257,7 @@ export default function Advisor() {
               <TabsContent value="macro" className="space-y-3">
                 <ContextCard icon={<AlertTriangle className="h-4 w-4 text-primary" />} title="Politics & geopolitics" body={result.macro_context?.politics} />
                 <ContextCard icon={<Scale className="h-4 w-4 text-primary" />} title="Regulation (planned & passed)" body={result.macro_context?.regulation} />
-                <ContextCard icon={<CloudSun className="h-4 w-4 text-primary" />} title={`Weather signals${result._meta?.weather ? ` — ${result._meta.weather}` : ""}`} body={result.macro_context?.weather} />
+                <ContextCard icon={<CloudSun className="h-4 w-4 text-primary" />} title={`Weather signals${result._meta?.weather ? ` - ${result._meta.weather}` : ""}`} body={result.macro_context?.weather} />
               </TabsContent>
             </Tabs>
 
@@ -277,7 +277,7 @@ function Block({ label, value }: { label: string; value?: string }) {
   return (
     <div className="rounded-md border border-border p-3 bg-card/40">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-sm mt-1">{value ?? "—"}</div>
+      <div className="text-sm mt-1">{value ?? "-"}</div>
     </div>
   );
 }
@@ -285,7 +285,7 @@ function ContextCard({ icon, title, body }: { icon: React.ReactNode; title: stri
   return (
     <Card><CardContent className="p-4">
       <div className="flex items-center gap-2 font-medium mb-1">{icon}{title}</div>
-      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{body || "—"}</p>
+      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{body || "-"}</p>
     </CardContent></Card>
   );
 }

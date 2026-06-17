@@ -114,7 +114,7 @@ export function VersionsPanel({ onRestored }: { onRestored: () => void }) {
     <div className="space-y-4">
       <Card className="p-3 space-y-2">
         <div className="flex items-center gap-2"><History className="h-4 w-4" /><span className="font-medium text-sm">Take a snapshot</span></div>
-        <Input placeholder="Label (e.g. v2 — Q3 launch copy)" value={label} onChange={(e) => setLabel(e.target.value)} className="h-8" />
+        <Input placeholder="Label (e.g. v2 - Q3 launch copy)" value={label} onChange={(e) => setLabel(e.target.value)} className="h-8" />
         <Textarea placeholder="Optional note / change log" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="text-sm" />
         <Button size="sm" onClick={snapshot} className="gap-1.5"><Save className="h-3.5 w-3.5" />Snapshot current state</Button>
       </Card>
@@ -314,7 +314,7 @@ export function SeoPanel() {
           <div className="text-[10px] text-muted-foreground mt-0.5">{(seo.description || "").length}/160</div>
         </div>
         <div className="border-t pt-3 space-y-3">
-          <div className="text-xs font-medium">Social (Open Graph) — leave blank to reuse SEO above</div>
+          <div className="text-xs font-medium">Social (Open Graph) - leave blank to reuse SEO above</div>
           <Input placeholder="OG title" value={seo.ogTitle || ""} onChange={(e) => setSeo({ ...seo, ogTitle: e.target.value })} className="h-8" />
           <Textarea placeholder="OG description" value={seo.ogDescription || ""} onChange={(e) => setSeo({ ...seo, ogDescription: e.target.value })} rows={2} className="text-sm" />
           <Input placeholder="OG image URL (1200×630)" value={seo.ogImage || ""} onChange={(e) => setSeo({ ...seo, ogImage: e.target.value })} className="h-8" />

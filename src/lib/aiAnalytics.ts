@@ -10,7 +10,7 @@ export type AIEventType =
 /**
  * In-memory dedupe / rate-limit so a repeated 402 storm doesn't flood
  * ai_event_log. Only applies to `ai_access_denied_shown` (clicks are always
- * recorded — they're rare and conversion-critical).
+ * recorded - they're rare and conversion-critical).
  *
  * Rules:
  *   - Same (eventType + reason) key: suppress if logged in the last 60s.

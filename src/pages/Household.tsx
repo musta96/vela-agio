@@ -74,7 +74,7 @@ export default function Household() {
           suitabilityCompletedAt: completedAt,
           suitabilityDue,
           holdings: hs.map((h: any) => ({
-            symbol: h.symbol ?? "—",
+            symbol: h.symbol ?? "-",
             value: Number(h.shares || 0) * Number(h.avg_price || 0),
           })),
         };
@@ -181,7 +181,7 @@ export default function Household() {
                     <div><Badge variant="outline" className="gap-1"><Target className="h-3 w-3" /> {c.goalsCount} goals</Badge></div>
                     <div className="text-muted-foreground">Target €{Math.round(c.totalTarget).toLocaleString()}</div>
                     <div className="text-muted-foreground">{c.holdingsCount} holdings · €{Math.round(c.marketValue).toLocaleString()}</div>
-                    <div className="flex items-center gap-1 text-muted-foreground"><ShieldAlert className="h-3 w-3" /> {c.riskProfile ?? "—"}</div>
+                    <div className="flex items-center gap-1 text-muted-foreground"><ShieldAlert className="h-3 w-3" /> {c.riskProfile ?? "-"}</div>
                     <div className="flex md:justify-end">
                       <Button size="sm" variant="outline" className="gap-1" onClick={() => enterContext(c)}>
                         <Eye className="h-3.5 w-3.5" /> Switch in

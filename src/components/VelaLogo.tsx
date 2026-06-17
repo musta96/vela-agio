@@ -7,7 +7,7 @@ interface VelaLogoProps {
 }
 
 /**
- * Vela.ai brand mark — circular hull (Mist) containing a two-tone sail
+ * Vela.ai brand mark - circular hull (Mist) containing a two-tone sail
  * (Ocean + Seafoam) angled with the wind. Optional wordmark to the right.
  */
 export const VelaLogo = ({ className, withWordmark = true, size = 28 }: VelaLogoProps) => {
@@ -22,9 +22,9 @@ export const VelaLogo = ({ className, withWordmark = true, size = 28 }: VelaLogo
         aria-hidden={withWordmark ? "true" : undefined}
       >
         <circle cx="32" cy="32" r="30" fill="hsl(var(--muted))" />
-        {/* main sail — Ocean */}
+        {/* main sail - Ocean */}
         <polygon points="20,48 20,14 46,48" fill="hsl(var(--primary))" />
-        {/* secondary sail — Seafoam / Teal */}
+        {/* secondary sail - Seafoam / Teal */}
         <polygon points="24,48 44,20 44,48" fill="hsl(var(--accent))" />
         {/* waterline */}
         <rect x="14" y="48" width="36" height="2" rx="1" fill="hsl(var(--primary) / 0.6)" />

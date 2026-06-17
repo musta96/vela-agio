@@ -54,7 +54,7 @@ export default function Earnings() {
                     {e.history.slice(0, 4).map((h: any, i: number) => (
                       <div key={i} className="flex justify-between font-mono text-xs">
                         <span>{h.period}</span>
-                        <span className={h.surprisePct > 0 ? "text-bull" : "text-bear"}>{h.surprisePct != null ? `${(h.surprisePct * 100).toFixed(1)}%` : "—"}</span>
+                        <span className={h.surprisePct > 0 ? "text-bull" : "text-bear"}>{h.surprisePct != null ? `${(h.surprisePct * 100).toFixed(1)}%` : "-"}</span>
                       </div>
                     ))}
                   </div>

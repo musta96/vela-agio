@@ -24,7 +24,7 @@ interface Props {
 }
 
 const fmtPct = (n: number) => `${(n * 100).toFixed(2)}%`;
-const fmtNum = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "—");
+const fmtNum = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "-");
 
 export const RiskPanel = ({ bars, weeklyBars, benchBars, benchLabel, currencySign }: Props) => {
   const [equity, setEquity] = useState(10000);
@@ -102,7 +102,7 @@ export const RiskPanel = ({ bars, weeklyBars, benchBars, benchLabel, currencySig
           <Stat label="Expected shortfall" value={fmtPct(risk.es95)} tone="bad" hint="Avg loss in the worst 5% of days" />
           <Stat
             label={`Beta vs ${benchLabel}`}
-            value={risk.beta != null ? fmtNum(risk.beta) : "—"}
+            value={risk.beta != null ? fmtNum(risk.beta) : "-"}
             tone={risk.beta != null && Math.abs(risk.beta) > 1.3 ? "bad" : "neutral"}
           />
         </CardContent>
@@ -180,7 +180,7 @@ export const RiskPanel = ({ bars, weeklyBars, benchBars, benchLabel, currencySig
           <CardContent className="space-y-2">
             <Badge variant="outline" className={regimeTone}>{regime.regime.replace("-", " ").toUpperCase()}</Badge>
             <p className="text-xs text-muted-foreground">
-              ADX {regime.adx != null ? regime.adx.toFixed(1) : "—"} · σ {regime.vol.toFixed(1)}%
+              ADX {regime.adx != null ? regime.adx.toFixed(1) : "-"} · σ {regime.vol.toFixed(1)}%
             </p>
             <p className="text-xs text-muted-foreground">
               {regime.regime === "strong-trend"
@@ -189,7 +189,7 @@ export const RiskPanel = ({ bars, weeklyBars, benchBars, benchLabel, currencySig
                 ? "Trend is forming; trend setups favored."
                 : regime.regime === "ranging"
                 ? "Mean-reversion plays preferred; fade extremes."
-                : "Choppy / unclear — reduce position size."}
+                : "Choppy / unclear - reduce position size."}
             </p>
           </CardContent>
         </Card>
@@ -215,12 +215,12 @@ export const RiskPanel = ({ bars, weeklyBars, benchBars, benchLabel, currencySig
                   {mtf.direction.toUpperCase()}{mtf.agree ? " · CONFIRMED" : " · MIXED"}
                 </Badge>
                 <p className="text-xs text-muted-foreground">
-                  Daily score {techDaily?.score ?? "—"} · Weekly score {techWeekly?.score ?? "—"}
+                  Daily score {techDaily?.score ?? "-"} · Weekly score {techWeekly?.score ?? "-"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {mtf.agree
-                    ? "Both timeframes agree — higher-conviction setup."
-                    : "Timeframes diverge — wait for alignment or trade smaller size."}
+                    ? "Both timeframes agree - higher-conviction setup."
+                    : "Timeframes diverge - wait for alignment or trade smaller size."}
                 </p>
               </>
             ) : (
@@ -254,7 +254,7 @@ export const RiskPanel = ({ bars, weeklyBars, benchBars, benchLabel, currencySig
                   {rs.current > 0 ? "+" : ""}{rs.current.toFixed(2)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  20-bar slope: {rs.slope != null ? `${rs.slope >= 0 ? "+" : ""}${rs.slope.toFixed(2)}` : "—"}
+                  20-bar slope: {rs.slope != null ? `${rs.slope >= 0 ? "+" : ""}${rs.slope.toFixed(2)}` : "-"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Filters out tickers that only rise because the index rises.

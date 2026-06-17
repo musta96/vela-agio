@@ -38,7 +38,7 @@ function toRows(history: any[] | undefined, keys: string[]): Row[] {
   if (!Array.isArray(history)) return [];
   return history
     .map((h) => {
-      const year = h?.endDate?.fmt?.slice(0, 4) ?? "—";
+      const year = h?.endDate?.fmt?.slice(0, 4) ?? "-";
       const values: Record<string, number | null> = {};
       keys.forEach((k) => {
         let v = pick(h, k);
@@ -56,7 +56,7 @@ function toRows(history: any[] | undefined, keys: string[]): Row[] {
 }
 
 function fmt(v: number | null) {
-  if (v == null || !Number.isFinite(v)) return "—";
+  if (v == null || !Number.isFinite(v)) return "-";
   const abs = Math.abs(v);
   if (abs >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
   if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
@@ -77,7 +77,7 @@ function detectRedFlags(series: { income: Row[]; balance: Row[]; cash: Row[] }):
   const gm2 = (last(series.income, "grossProfit", 1) ?? 0) / (rev2 || 1);
   const gm1 = (last(series.income, "grossProfit") ?? 0) / (rev1 || 1);
   if (rev1 != null && rev2 != null && gm1 < gm2 - 0.03)
-    flags.push("Gross margin compressed >3pp YoY — pricing/cost pressure.");
+    flags.push("Gross margin compressed >3pp YoY - pricing/cost pressure.");
 
   const cfo2 = last(series.cash, "totalCashFromOperatingActivities", 1);
   const cfo1 = last(series.cash, "totalCashFromOperatingActivities");
@@ -92,7 +92,7 @@ function detectRedFlags(series: { income: Row[]; balance: Row[]; cash: Row[] }):
 
   const ni1 = last(series.income, "netIncome");
   if (ni1 != null && cfo1 != null && ni1 > 0 && cfo1 < ni1 * 0.5)
-    flags.push("Net income meaningfully exceeds operating cash flow — quality of earnings concern.");
+    flags.push("Net income meaningfully exceeds operating cash flow - quality of earnings concern.");
 
   return flags;
 }
@@ -184,7 +184,7 @@ export function FinancialStatementsPanel({ symbol }: { symbol: string }) {
                         <td key={r.year} className="text-right font-mono py-2">{fmt(r.values[m])}</td>
                       ))}
                       <td className={`text-right font-mono py-2 ${d == null ? "" : d >= 0 ? "text-success" : "text-destructive"}`}>
-                        {d == null ? "—" : `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`}
+                        {d == null ? "-" : `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`}
                       </td>
                     </tr>
                   );

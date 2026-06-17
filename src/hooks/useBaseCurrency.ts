@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 /**
  * Single source of truth for the user's preferred base currency
  * (`profiles.base_currency`). Every net-worth / dashboard surface
- * MUST consume this — never hard-code a currency string.
+ * MUST consume this - never hard-code a currency string.
  *
  * Fallback chain: profile → localStorage override → "EUR".
  */

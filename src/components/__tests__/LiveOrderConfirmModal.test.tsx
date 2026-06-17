@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/react";
 
-// Hoisted mocks — must exist before the component imports them.
+// Hoisted mocks - must exist before the component imports them.
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ gt: () => ({ order: () => ({ limit: () => Promise.resolve({ data: [] }) }) }) }) }) }) }),
@@ -27,7 +27,7 @@ vi.mock("@/hooks/use-toast", () => ({
 import { LiveOrderConfirmModal } from "@/components/LiveOrderConfirmModal";
 import { supabase } from "@/integrations/supabase/client";
 
-describe("LiveOrderConfirmModal — live_trading kill-switch", () => {
+describe("LiveOrderConfirmModal - live_trading kill-switch", () => {
   beforeEach(() => {
     flagMock.mockReset();
     (supabase.functions.invoke as any).mockClear?.();

@@ -66,7 +66,7 @@ describe("header tokens", () => {
   it("AuthButton avatar fallback is opaque (readable in dark mode)", () => {
     const src = safeRead(path.join(ROOT, "AuthButton.tsx"))!;
     // AvatarFallback shows when the image is missing or slow. It MUST use a
-    // semantic, opaque token so initials stay readable on both themes —
+    // semantic, opaque token so initials stay readable on both themes -
     // never transparent / bg-white/X / sidebar tokens.
     const fallbackMatch = src.match(/<AvatarFallback[\s\S]*?className="([^"]+)"/);
     expect(fallbackMatch, "AvatarFallback not found").not.toBeNull();
@@ -80,7 +80,7 @@ describe("header tokens", () => {
   it("AuthButton has a tooltip surfacing the full name/email on hover", () => {
     const src = safeRead(path.join(ROOT, "AuthButton.tsx"))!;
     // Compact avatar trigger only makes sense if the full identity is
-    // reachable via tooltip + dropdown — guard both.
+    // reachable via tooltip + dropdown - guard both.
     expect(src).toMatch(/<TooltipContent[\s\S]*?\{user\.email/);
     expect(src).toMatch(/<DropdownMenuLabel/);
   });

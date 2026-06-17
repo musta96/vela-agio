@@ -133,7 +133,7 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
         {
           role: "assistant",
           content:
-            "The AI copilot is temporarily unavailable. Your data is unaffected — please try again in a moment.",
+            "The AI copilot is temporarily unavailable. Your data is unaffected - please try again in a moment.",
         },
       ]);
     } finally { setBusy(false); }
@@ -212,7 +212,7 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
         onOpenChange={setFeedbackOpen}
         source="helper_bot"
         defaultCategory="feedback"
-        contextMessage={lastUser ? `From helper bot. Last user message:\n\n"${lastUser.slice(0, 500)}"\n\n— My feedback —\n` : ""}
+        contextMessage={lastUser ? `From helper bot. Last user message:\n\n"${lastUser.slice(0, 500)}"\n\n- My feedback -\n` : ""}
       />
     </div>
   );

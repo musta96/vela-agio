@@ -113,7 +113,7 @@ const TechnicalAnalysis = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
-      <SEO title="Technical Analysis — RSI, MACD & Trend Signals" description="Analyze stocks with RSI, MACD, moving averages, and trend signals. Spot breakouts and reversals across FTSE MIB, EU, and US markets." path="/technical" />
+      <SEO title="Technical Analysis - RSI, MACD & Trend Signals" description="Analyze stocks with RSI, MACD, moving averages, and trend signals. Spot breakouts and reversals across FTSE MIB, EU, and US markets." path="/technical" />
       <TopNav />
       <main>
 
@@ -142,7 +142,7 @@ const TechnicalAnalysis = () => {
                 onClick={() => setPickerOpen((o) => !o)}
               >
                 <span className="truncate">
-                  {selected ? `${selected.symbol} — ${selected.name}` : "Pick a stock or ETF…"}
+                  {selected ? `${selected.symbol} - ${selected.name}` : "Pick a stock or ETF…"}
                 </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>

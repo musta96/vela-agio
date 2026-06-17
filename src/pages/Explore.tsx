@@ -14,12 +14,12 @@ import { RailGroup } from "@/components/explore/RailGroup";
 import { CategoryChips } from "@/components/explore/CategoryChips";
 
 /**
- * Discovery hub à la Trading 212. Sticky search bar at the top — typing
+ * Discovery hub à la Trading 212. Sticky search bar at the top - typing
  * expands the full search experience. When the search is empty we show a
  * spotlight strip and a column of curated 3-tab rails (Most owned / bought
  * / sold, themes, movers, regions, crypto/FX/commodities, bonds/futures…).
  *
- * Coverage uses Yahoo Finance for live quotes — supports stocks, ETFs,
+ * Coverage uses Yahoo Finance for live quotes - supports stocks, ETFs,
  * funds, bonds (mainly via ETFs/yield indices), crypto, FX, commodities,
  * futures and indices across every exchange Yahoo tracks.
  */
@@ -85,7 +85,7 @@ export default function Explore() {
 
   return (
     <>
-      <SEO title="Explore — Stocks, ETFs, Crypto, FX & more" description="Discover what's trending: most bought, most owned, top movers, themes (Big tech, EU defence, Quantum), crypto, FX, commodities, bonds and futures across global exchanges." path="/explore" />
+      <SEO title="Explore - Stocks, ETFs, Crypto, FX & more" description="Discover what's trending: most bought, most owned, top movers, themes (Big tech, EU defence, Quantum), crypto, FX, commodities, bonds and futures across global exchanges." path="/explore" />
       <div className="px-4 sm:px-8 py-4 sm:py-6 max-w-7xl mx-auto">
         {/* Sticky search bar */}
         <div className="sticky top-0 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-2 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -94,7 +94,7 @@ export default function Explore() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search any ticker — AAPL, Eni, Bitcoin, EUR/USD, Gold…"
+              placeholder="Search any ticker - AAPL, Eni, Bitcoin, EUR/USD, Gold…"
               className="border-0 shadow-none focus-visible:ring-0 px-0 text-base bg-transparent h-auto"
             />
             {q && (
@@ -131,7 +131,7 @@ export default function Explore() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold tabular-nums">{h.symbol}</span>
-                          <Badge variant="outline" className="text-[10px]">{h.type || "—"}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{h.type || "-"}</Badge>
                           {h.exchange && <span className="text-xs text-muted-foreground">{h.exchange}</span>}
                           {h.currency && <span className="text-xs text-muted-foreground">· {h.currency}</span>}
                         </div>
@@ -156,7 +156,7 @@ export default function Explore() {
               <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Discover</div>
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Explore the market</h1>
               <p className="text-sm text-muted-foreground max-w-xl">
-                Stocks, ETFs, crypto, FX, commodities, bonds and futures — curated rails refreshed throughout the day.
+                Stocks, ETFs, crypto, FX, commodities, bonds and futures - curated rails refreshed throughout the day.
               </p>
             </header>
             <SpotlightStrip />

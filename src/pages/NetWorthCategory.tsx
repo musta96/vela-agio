@@ -328,7 +328,7 @@ export default function NetWorthCategory() {
 
   return (
     <div className="p-6 sm:p-8 space-y-6">
-      <SEO title={`${meta.label} — Net Worth — Vela.ai`} description={meta.description} path={`/net-worth/${category}`} />
+      <SEO title={`${meta.label} - Net Worth - Vela.ai`} description={meta.description} path={`/net-worth/${category}`} />
 
       <div>
         <button onClick={() => navigate("/net-worth")} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-2">
@@ -358,7 +358,7 @@ export default function NetWorthCategory() {
         </div>
       </div>
 
-      {/* KPI strip — Subtotal / Accounts / contextual stat */}
+      {/* KPI strip - Subtotal / Accounts / contextual stat */}
       <div className="bg-card border border-border rounded-2xl divide-x divide-border grid grid-cols-3 overflow-hidden">
         <div className="p-5 flex flex-col gap-1.5">
           <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtotal</span>
@@ -383,7 +383,7 @@ export default function NetWorthCategory() {
               : "Diversification"}
           </span>
           <div className="text-2xl font-bold tracking-tight tabular-nums">
-            {category === "cash" ? "2.1%" : category === "liabilities" ? "2.9%" : "—"}
+            {category === "cash" ? "2.1%" : category === "liabilities" ? "2.9%" : "-"}
           </div>
         </div>
       </div>
@@ -463,7 +463,7 @@ export default function NetWorthCategory() {
                   || (a.details?.vehicle_type as string)
                   || (a.details?.collectible_type as string)
                   || (a.details?.debt_type as string)
-                  || "—";
+                  || "-";
                 const gain = a.purchase_price ? v - Number(a.purchase_price) : 0;
                 const gainPct = a.purchase_price ? (gain / Number(a.purchase_price)) * 100 : 0;
                 return (
@@ -476,19 +476,19 @@ export default function NetWorthCategory() {
                     {category === "liabilities" ? (
                       <>
                         <td className="px-3 py-4 tabular-nums">{fmt(v, a.currency)}</td>
-                        <td className="px-3 py-4 text-right tabular-nums">{a.details?.interest_rate != null ? `${a.details.interest_rate}%` : "—"}</td>
-                        <td className="px-3 py-4 text-right tabular-nums text-xs text-muted-foreground">{a.details?.maturity_date || "—"}</td>
-                        <td className="px-3 py-4 text-right tabular-nums">{a.details?.monthly_payment ? `${fmt(a.details.monthly_payment, a.currency)}/mo` : "—"}</td>
+                        <td className="px-3 py-4 text-right tabular-nums">{a.details?.interest_rate != null ? `${a.details.interest_rate}%` : "-"}</td>
+                        <td className="px-3 py-4 text-right tabular-nums text-xs text-muted-foreground">{a.details?.maturity_date || "-"}</td>
+                        <td className="px-3 py-4 text-right tabular-nums">{a.details?.monthly_payment ? `${fmt(a.details.monthly_payment, a.currency)}/mo` : "-"}</td>
                       </>
                     ) : (
                       <>
                         <td className="px-3 py-4 text-muted-foreground">{a.currency}</td>
                         <td className="px-3 py-4 text-right tabular-nums font-medium">{fmt(v, a.currency)}</td>
                         <td className={`px-3 py-4 text-right tabular-nums ${gain >= 0 ? "text-success" : "text-destructive"}`}>
-                          {a.purchase_price ? `${gain >= 0 ? "+" : ""}${fmt(gain, a.currency)}` : "—"}
+                          {a.purchase_price ? `${gain >= 0 ? "+" : ""}${fmt(gain, a.currency)}` : "-"}
                         </td>
                         <td className={`px-3 py-4 text-right tabular-nums ${gain >= 0 ? "text-success" : "text-destructive"}`}>
-                          {a.purchase_price ? `${gain >= 0 ? "+" : ""}${gainPct.toFixed(1)}%` : "—"}
+                          {a.purchase_price ? `${gain >= 0 ? "+" : ""}${gainPct.toFixed(1)}%` : "-"}
                         </td>
                       </>
                     )}

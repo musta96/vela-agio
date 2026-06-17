@@ -92,7 +92,7 @@ export default function OrderHistory() {
   return (
     <BrokerRequiredOverlay>
     <div className="p-6 sm:p-8 space-y-6">
-      <SEO title="Order & Trade History — Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
+      <SEO title="Order & Trade History - Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
       <PageHeader
         icon={History}
         title="Orders"
@@ -197,10 +197,10 @@ export default function OrderHistory() {
                     <TableCell><Badge variant={r.side === "buy" ? "default" : "destructive"}>{r.side.toUpperCase()}</Badge></TableCell>
                     <TableCell className="uppercase text-xs">{r.type}</TableCell>
                     <TableCell className="text-right font-mono">{Number(r.qty).toLocaleString()}</TableCell>
-                    <TableCell className="text-right font-mono">{r.limit_price ? Number(r.limit_price).toFixed(2) : "—"}</TableCell>
+                    <TableCell className="text-right font-mono">{r.limit_price ? Number(r.limit_price).toFixed(2) : "-"}</TableCell>
                     <TableCell className="uppercase text-xs">{r.time_in_force}</TableCell>
                     <TableCell><Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>{r.status}</Badge></TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={r.rationale ?? ""}>{r.rationale ?? "—"}</TableCell>
+                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={r.rationale ?? ""}>{r.rationale ?? "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

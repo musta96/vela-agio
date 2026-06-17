@@ -237,11 +237,11 @@ const NetWorth = () => {
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0">
-      <SEO title="Net Worth Tracker — Vela.ai" description="Track every asset and liability in one customisable dashboard." path="/net-worth" />
+      <SEO title="Net Worth Tracker - Vela.ai" description="Track every asset and liability in one customisable dashboard." path="/net-worth" />
       <PageHeader
         icon={Wallet}
         title="Net Worth"
-        description="A complete picture of what you own and what you owe — live-linked to your Vela portfolios."
+        description="A complete picture of what you own and what you owe - live-linked to your Vela portfolios."
         actions={
           <>
             <Button variant="outline" size="sm" onClick={refreshQuotes} disabled={quotesLoading}>
@@ -257,7 +257,7 @@ const NetWorth = () => {
         }
       />
 
-        {/* KPI strip — single card with divided cells (mockup pattern) */}
+        {/* KPI strip - single card with divided cells (mockup pattern) */}
         <div className="bg-card border border-border rounded-2xl divide-x divide-border grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
           <div className="p-5 flex flex-col gap-2">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Net Worth</span>
@@ -396,7 +396,7 @@ const NetWorth = () => {
                     return (
                       <tr key={k} className="hover:bg-muted/30 transition-colors">
                         <td className="px-5 py-3 font-semibold">{meta.label}</td>
-                        <td className="px-3 py-3 text-muted-foreground">{list.length === 0 ? "—" : list.map((a) => a.name).slice(0, 2).join(" + ")}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{list.length === 0 ? "-" : list.map((a) => a.name).slice(0, 2).join(" + ")}</td>
                         <td className={`px-3 py-3 text-right tabular-nums ${k === "liabilities" ? "text-destructive" : ""}`}>
                           {k === "liabilities" && v > 0 ? "−" : ""}{fmt(v)}
                         </td>
@@ -439,7 +439,7 @@ const NetWorth = () => {
 
           {/* ACCOUNTS */}
           <TabsContent value="accounts" className="space-y-6 mt-4">
-            {/* Category navigation grid — always visible so users see all categories and can drill in */}
+            {/* Category navigation grid - always visible so users see all categories and can drill in */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {CATEGORY_ORDER.map((k) => {
                 const Icon = CATEGORIES[k].icon;
@@ -547,7 +547,7 @@ const NetWorth = () => {
               <Card className="p-10 text-center">
                 <Wallet className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                 <h3 className="font-semibold mb-1">Start tracking your net worth</h3>
-                <p className="text-sm text-muted-foreground mb-4">Add cash accounts, link your Vela portfolios, then add real estate, vehicles, watches — anything you own.</p>
+                <p className="text-sm text-muted-foreground mb-4">Add cash accounts, link your Vela portfolios, then add real estate, vehicles, watches - anything you own.</p>
                 <Button onClick={() => setEditing({ category: "cash", currency: "EUR", include_in_total: true, manual_value: 0, linked_portfolio_ids: [] })}>
                   <Plus className="h-4 w-4" /> Add your first account
                 </Button>
@@ -599,7 +599,7 @@ const NetWorth = () => {
                         <TableCell className="text-right tabular-nums text-destructive">−{fmt(h.liabilities)}</TableCell>
                         <TableCell className="text-right tabular-nums font-semibold">{fmt(h.net)}</TableCell>
                         <TableCell className={`text-right tabular-nums ${delta >= 0 ? "text-success" : "text-destructive"}`}>
-                          {prev ? `${delta >= 0 ? "+" : ""}${fmt(delta)}` : "—"}
+                          {prev ? `${delta >= 0 ? "+" : ""}${fmt(delta)}` : "-"}
                         </TableCell>
                       </TableRow>
                     );
@@ -703,7 +703,7 @@ const NetWorth = () => {
       <Dialog open={!!valueDialog} onOpenChange={(o) => !o && setValueDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update value — {valueDialog?.name}</DialogTitle>
+            <DialogTitle>Update value - {valueDialog?.name}</DialogTitle>
             <DialogDescription>Records today's value as a snapshot and updates the account.</DialogDescription>
           </DialogHeader>
           <Input type="number" value={valueInput} onChange={(e) => setValueInput(e.target.value)} />

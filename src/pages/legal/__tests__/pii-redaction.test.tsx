@@ -27,11 +27,11 @@ const FORBIDDEN_PII = [
 ].filter(Boolean) as string[];
 
 function html(node: HTMLElement) {
-  // Include head metas too — JSON-LD lives in <head>.
+  // Include head metas too - JSON-LD lives in <head>.
   return (document.head.innerHTML + node.innerHTML).toLowerCase();
 }
 
-describe("legal pages — PII redaction", () => {
+describe("legal pages - PII redaction", () => {
   it.each([
     ["Terms",      <Terms />],
     ["Cookies",    <Cookies />],

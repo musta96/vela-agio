@@ -82,7 +82,7 @@ export const AlertSettingsDialog = ({ symbol, name, currentPrice }: Props) => {
       return;
     }
     upsertRule(rule);
-    toast({ title: "Alert saved", description: `${symbol} — conditions active` });
+    toast({ title: "Alert saved", description: `${symbol} - conditions active` });
     setOpen(false);
   };
 

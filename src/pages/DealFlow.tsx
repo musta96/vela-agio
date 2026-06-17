@@ -36,7 +36,7 @@ export default function DealFlow() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Deal Flow — M&A, IPO, LBO | Vela.ai" description="Track live M&A, IPO and LBO deal flow with AI summaries" path="/dealflow" />
+      <SEO title="Deal Flow - M&A, IPO, LBO | Vela.ai" description="Track live M&A, IPO and LBO deal flow with AI summaries" path="/dealflow" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 max-w-6xl">
         <div className="flex items-center justify-between mb-6">
@@ -74,7 +74,7 @@ export default function DealFlow() {
                 {(data.ipos ?? []).length === 0 && <Card className="p-6 text-sm text-muted-foreground">No upcoming IPOs found. Add a Finnhub key in Settings for full calendar coverage.</Card>}
                 {(data.ipos ?? []).map((i, idx) => (
                   <Card key={idx} className="p-3 flex items-center gap-3">
-                    <div className="font-mono text-sm font-bold w-20">{i.symbol ?? "—"}</div>
+                    <div className="font-mono text-sm font-bold w-20">{i.symbol ?? "-"}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{i.name}</div>
                       <div className="text-xs text-muted-foreground">{i.exchange} · {i.date} {i.priceRange && `· $${i.priceRange}`}</div>

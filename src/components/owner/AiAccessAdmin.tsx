@@ -14,9 +14,9 @@ type UsageRow = { user_id: string; cnt: number };
 
 const CAP_LABEL: Record<Cap, string> = {
   none: "None (no AI)",
-  flash: "Flash — cheap (Gemini Flash)",
-  mid: "Mid — balanced (GPT-5 mini)",
-  premium: "Premium — best (GPT-5 / Gemini Pro)",
+  flash: "Flash - cheap (Gemini Flash)",
+  mid: "Mid - balanced (GPT-5 mini)",
+  premium: "Premium - best (GPT-5 / Gemini Pro)",
 };
 
 export function AiAccessAdmin() {
@@ -39,7 +39,7 @@ export function AiAccessAdmin() {
       const c = ((ctrl.value as any)?.model_cap ?? "flash") as Cap;
       setCap(c);
     }
-    // Usage rollup — RLS lets admins read everything.
+    // Usage rollup - RLS lets admins read everything.
     const monthStart = new Date();
     monthStart.setUTCDate(1);
     monthStart.setUTCHours(0, 0, 0, 0);
@@ -71,7 +71,7 @@ export function AiAccessAdmin() {
         key: "ai_beta_override",
         enabled,
         value: { model_cap: cap },
-        reason: enabled ? `Beta override — all users get ${CAP_LABEL[cap]}` : null,
+        reason: enabled ? `Beta override - all users get ${CAP_LABEL[cap]}` : null,
       }, { onConflict: "key" });
     setSaving(false);
     if (error) toast.error("Could not save", { description: error.message });
@@ -88,7 +88,7 @@ export function AiAccessAdmin() {
           <h2 className="text-base font-semibold">AI access control</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-5">
-          By default, Lovable AI features are gated to paid subscribers. Toggle the beta override to grant access to <strong>every</strong> signed-in user — useful for free trials, launch promos and load testing. Costs are billed to your Lovable workspace.
+          By default, Lovable AI features are gated to paid subscribers. Toggle the beta override to grant access to <strong>every</strong> signed-in user - useful for free trials, launch promos and load testing. Costs are billed to your Lovable workspace.
         </p>
         <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
           <div>
@@ -112,7 +112,7 @@ export function AiAccessAdmin() {
           <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}</Button>
         </div>
         <p className="text-[11px] text-muted-foreground mt-3">
-          Free users can also unlock AI for free by adding their own API key (OpenAI / Anthropic / Gemini / OpenRouter) in <code className="text-foreground">Settings → AI provider</code> — no cost to you.
+          Free users can also unlock AI for free by adding their own API key (OpenAI / Anthropic / Gemini / OpenRouter) in <code className="text-foreground">Settings → AI provider</code> - no cost to you.
         </p>
       </Card>
 

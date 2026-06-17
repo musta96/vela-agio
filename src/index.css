@@ -8,7 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Vela.ai — LIGHT theme
+    /* Vela.ai - LIGHT theme
        Cream/sand base preserved from mockup v2, paired with glass surfaces
        that mirror the landing page language.                           */
     --background: 45 23% 93%;            /* Sand */
@@ -85,7 +85,7 @@ All colors MUST be HSL.
     --shadow-glass: 0 8px 32px -8px hsl(211 91% 17% / 0.1);
     --glow-primary: 0 0 40px hsl(210 70% 54% / 0.35);
 
-    /* Sidebar — dark Navy in both themes */
+    /* Sidebar - dark Navy in both themes */
     --sidebar-background: 212 87% 12%;
     --sidebar-foreground: 210 76% 95%;
     --sidebar-primary: 210 70% 54%;
@@ -97,7 +97,7 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Vela.ai — DARK theme (default)
+    /* Vela.ai - DARK theme (default)
        Matches landing page cinematic navy + glassmorphism.            */
     --background: 222 47% 6%;
     --foreground: 210 40% 96%;
@@ -166,7 +166,7 @@ All colors MUST be HSL.
     --shadow-glass: 0 8px 32px -8px hsl(0 0% 0% / 0.5);
     --glow-primary: 0 0 40px hsl(210 80% 60% / 0.4);
 
-    /* Sidebar — even darker glass in dark mode */
+    /* Sidebar - even darker glass in dark mode */
     --sidebar-background: 222 47% 5%;
     --sidebar-foreground: 210 40% 92%;
     --sidebar-primary: 210 80% 60%;

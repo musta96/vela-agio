@@ -42,7 +42,7 @@ export function BrokerRequiredOverlay({ children }: { children: React.ReactNode 
             <h2 className="font-semibold text-lg">Connect a broker to continue</h2>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            This area shows live broker orders and trade history. You need to link a brokerage account first — Vela.ai supports Interactive Brokers, Schwab, Robinhood, Questrade and 20+ more, read-only by default.
+            This area shows live broker orders and trade history. You need to link a brokerage account first - Vela.ai supports Interactive Brokers, Schwab, Robinhood, Questrade and 20+ more, read-only by default.
           </p>
           <div className="flex gap-2">
             <Button asChild className="flex-1 gap-1.5">

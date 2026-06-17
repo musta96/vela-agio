@@ -65,37 +65,89 @@ export default function Macro() {
           </>
         }
       />
-      {GROUPS.map((g) => (
-        <section key={g.title} className="space-y-3">
-          <h2 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-            {t(`pages.macro.groups.${g.title}`, g.title)}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {g.symbols.map(({ s, label }) => {
-              const q = quotes[s];
-              const chg = q?.change ?? 0;
-              const trend: "up" | "down" | "flat" = chg > 0.05 ? "up" : chg < -0.05 ? "down" : "flat";
-              return (
-                <div
-                  key={s}
-                  className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm text-muted-foreground">{label}</span>
-                    <ChangePill pct={chg} className="text-xs" />
-                  </div>
-                  <div className="text-2xl font-bold tracking-tight tabular-nums">
-                    {q?.price != null
-                      ? (g.title === "Rates" ? `${q.price.toFixed(2)}%` : q.price.toFixed(g.title === "FX" ? 4 : 2))
-                      : "-"}
-                  </div>
-                  <MiniSparkline trend={trend} width={220} height={32} className="w-full" />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+      {GROUPS.map((g) => {
+        const fmt = (price: number | null | undefined) =>
+          price == null ? "-" : g.title === "Rates" ? `${price.toFixed(2)}%` : price.toFixed(g.title === "FX" ? 4 : 2);
+        const heatColor = (chg: number) => {
+          const c = Math.max(-3, Math.min(3, chg));
+          const hue = c >= 0 ? 142 : 0;
+          const sat = Math.min(70, Math.abs(c) * 22 + 12);
+          const light = 16 + (3 - Math.min(3, Math.abs(c))) * 6;
+          return `hsl(${hue} ${sat}% ${light}%)`;
+        };
+        return (
+          <section key={g.title} className="space-y-3">
+            <h2 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              {t(`pages.macro.groups.${g.title}`, g.title)}
+            </h2>
+
+            {view === "tiles" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {g.symbols.map(({ s, label }) => {
+                  const q = quotes[s];
+                  const chg = q?.change ?? 0;
+                  const trend: "up" | "down" | "flat" = chg > 0.05 ? "up" : chg < -0.05 ? "down" : "flat";
+                  return (
+                    <div key={s} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <ChangePill pct={chg} className="text-xs" />
+                      </div>
+                      <div className="text-2xl font-bold tracking-tight tabular-nums">{fmt(q?.price)}</div>
+                      <MiniSparkline trend={trend} width={220} height={32} className="w-full" />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === "list" && (
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                <ul className="divide-y divide-border/60">
+                  {g.symbols.map(({ s, label }) => {
+                    const q = quotes[s];
+                    const chg = q?.change ?? 0;
+                    return (
+                      <li key={s} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">{label}</div>
+                          <div className="text-[11px] text-muted-foreground font-mono">{s}</div>
+                        </div>
+                        <div className="text-base font-semibold tabular-nums">{fmt(q?.price)}</div>
+                        <ChangePill pct={chg} className="text-xs min-w-[64px] justify-end" />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {view === "heatmap" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {g.symbols.map(({ s, label }) => {
+                  const q = quotes[s];
+                  const chg = q?.change ?? 0;
+                  return (
+                    <div
+                      key={s}
+                      className="rounded-xl p-4 flex flex-col justify-between min-h-[96px] border border-border/50 text-foreground"
+                      style={{ background: q?.price != null ? heatColor(chg) : "hsl(var(--muted))" }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-white/90 truncate">{label}</span>
+                        <span className="text-[11px] font-semibold tabular-nums text-white">
+                          {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="text-xl font-bold tabular-nums text-white">{fmt(q?.price)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })}
       {/* Authoritative macro series (P5 #25) */}
       <section className="space-y-3">
         <h2 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">

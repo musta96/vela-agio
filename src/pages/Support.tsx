@@ -110,7 +110,7 @@ export default function Support() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-surface-glass/70 border-b border-border/40">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <LogoMark className="w-7 h-7" />
+            <VelaLogo className="w-7 h-7" withWordmark={false} />
             <span className="font-semibold text-lg tracking-tight">Vela</span>
           </Link>
           <div className="flex items-center gap-3">

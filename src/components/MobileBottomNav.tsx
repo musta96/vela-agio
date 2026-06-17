@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Compass, Briefcase, Eye, Sparkles } from "lucide-react";
+import { Home, Compass, Briefcase, Eye, Sparkles, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const ITEMS = [
   { to: "/dashboard", label: "Home", icon: Home },
@@ -16,6 +17,7 @@ const ITEMS = [
  */
 export function MobileBottomNav() {
   const { pathname } = useLocation();
+  const { setOpenMobile } = useSidebar();
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
 
   return (
@@ -42,6 +44,16 @@ export function MobileBottomNav() {
             </li>
           );
         })}
+        <li className="flex-1">
+          <button
+            onClick={() => setOpenMobile(true)}
+            className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors w-full text-muted-foreground hover:text-foreground"
+            aria-label="More menu"
+          >
+            <Menu className="h-5 w-5" />
+            <span>More</span>
+          </button>
+        </li>
       </ul>
     </nav>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { generateStockReport, generateDeepAnalysisReport } from "@/lib/pdfReports";
 import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert, Lightbulb, Briefcase } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,45 @@ import { useToast } from "@/hooks/use-toast";
 import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
 import { FinancialStatementsPanel } from "@/components/stock/FinancialStatementsPanel";
 import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
+
+function BackLink() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const hasHistory = (location.key && location.key !== "default") || (typeof window !== "undefined" && window.history.length > 1);
+  // Infer label from referrer pathname
+  let label = "Back";
+  if (typeof document !== "undefined" && document.referrer) {
+    try {
+      const ref = new URL(document.referrer);
+      if (ref.origin === window.location.origin) {
+        const p = ref.pathname;
+        if (p.startsWith("/related")) label = "Back to Related";
+        else if (p.startsWith("/explore")) label = "Back to Explore";
+        else if (p.startsWith("/watchlist")) label = "Back to Watchlist";
+        else if (p.startsWith("/portfolio")) label = "Back to Portfolio";
+        else if (p.startsWith("/screener")) label = "Back to Screener";
+        else if (p.startsWith("/movers")) label = "Back to Movers";
+        else if (p.startsWith("/peers")) label = "Back to Peers";
+        else if (p.startsWith("/compare")) label = "Back to Compare";
+        else if (p.startsWith("/dashboard")) label = "Back to Dashboard";
+        else if (p.startsWith("/stock/")) label = "Back";
+        else if (p !== "/" && p.length > 1) {
+          const name = p.slice(1).split("/")[0];
+          label = "Back to " + name.charAt(0).toUpperCase() + name.slice(1);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => (hasHistory ? navigate(-1) : navigate("/dashboard"))}
+      className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
+    >
+      <ArrowLeft className="h-4 w-4" /> {label}
+    </button>
+  );
+}
 
 interface SentimentArticle {
   title: string;

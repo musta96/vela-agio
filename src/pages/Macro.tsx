@@ -37,7 +37,7 @@ export default function Macro() {
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0">
-      <SEO title="Macro Dashboard | Vela.ai" description="Rates, FX, commodities, credit, vol" path="/macro" />
+      <SEO title="Macro Dashboard | Vela.ai" description="Real-time macro dashboard with rates, FX, commodities, indices, volatility and crypto prices for global market context." path="/macro" />
       <PageHeader
         icon={Globe2}
         title={t("pages.macro.title")}

@@ -63,15 +63,27 @@ export function AdvisoryAccessCard() {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("advisory_consents").insert({
-      user_id: user.id,
-      granted_to: id,
-      scope,
-      mandate_ref: mandateRef.trim() || null,
+    const { data, error } = await supabase.functions.invoke("grant-advisory-consent", {
+      body: {
+        granted_to: id,
+        scope,
+        mandate_ref: mandateRef.trim() || null,
+      },
     });
     setSaving(false);
-    if (error) {
-      toast.error("Could not grant access", { description: error.message });
+    const errMsg = error?.message || (data && (data as { error?: string }).error);
+    if (errMsg) {
+      const friendly =
+        errMsg === "granted_to_not_staff"
+          ? "That ID is not a registered advisor on this platform."
+          : errMsg === "cannot_grant_to_self"
+          ? "You cannot grant a mandate to yourself."
+          : errMsg === "invalid_scope"
+          ? "Invalid scope."
+          : errMsg === "invalid_granted_to"
+          ? "Invalid advisor ID."
+          : errMsg;
+      toast.error("Could not grant access", { description: friendly });
       return;
     }
     toast.success("Mandate active", { description: "Your advisor can now view the agreed scope. Revoke any time." });

@@ -24,16 +24,19 @@ export function useRecommendationVerdicts(): { enabled: boolean; loading: boolea
     let active = true;
     (async () => {
       const [flagRes, profRes] = await Promise.all([
-        supabase.from("feature_flags").select("enabled").eq("key", "show_recommendation_verdicts").maybeSingle(),
+        (supabase as any).rpc("get_enabled_feature_flags"),
         user
           ? supabase.from("profiles").select("recommendation_verdicts_override").eq("user_id", user.id).maybeSingle()
           : Promise.resolve({ data: null } as any),
       ]);
       if (!active) return;
       const override = (profRes?.data as any)?.recommendation_verdicts_override as string | undefined;
+      const flagRow = Array.isArray(flagRes.data)
+        ? flagRes.data.find((f: any) => f.key === "show_recommendation_verdicts")
+        : null;
       if (override === "on") setEnabled(true);
       else if (override === "off") setEnabled(false);
-      else setEnabled(!!(flagRes.data as any)?.enabled);
+      else setEnabled(!!flagRow?.enabled);
       setLoading(false);
     })();
     return () => { active = false; };

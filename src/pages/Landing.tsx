@@ -68,6 +68,7 @@ export default function Landing() {
   const audiences = get("audiences").content;
   const steps = get("how").content;
   const launch = get("launch").content;
+  const blogs = get("blogs").content;
   const footer = get("footer").content;
   const year = new Date().getFullYear();
   const footerCopy = (footer.copyright || "").replace("{{year}}", String(year));

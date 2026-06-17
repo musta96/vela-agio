@@ -115,7 +115,7 @@ export default function BestWealthTrackingApps() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SEO
-        title="Best Wealth Tracking Apps (2026): Vela vs Monarch, Empower, Kubera, YNAB | Vela"
+        title="Best Wealth Tracking Apps (2026) | Vela"
         description="A 2026 comparison of the best wealth tracking apps for investors. Vela vs Monarch, Empower, Kubera, YNAB and the discontinued Mint — features, pricing, and which fits your goals."
         path="/blog/best-wealth-tracking-apps"
       />

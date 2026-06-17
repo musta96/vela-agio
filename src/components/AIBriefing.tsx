@@ -31,7 +31,7 @@ function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((p, i) =>
     p.startsWith("**") && p.endsWith("**")
-      ? <strong key={i} className="text-[hsl(var(--sidebar-foreground))]">{p.slice(2, -2)}</strong>
+      ? <strong key={i} className="text-foreground">{p.slice(2, -2)}</strong>
       : <span key={i}>{p}</span>
   );
 }
@@ -137,7 +137,7 @@ export function AIBriefing() {
   }, [user, active?.id]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl glass-card-strong gradient-hero glow-primary p-5 sm:p-6 text-[hsl(var(--sidebar-foreground))]">
+    <div className="relative overflow-hidden rounded-2xl glass-card-strong gradient-hero glow-primary p-5 sm:p-6 text-foreground">
       <div className="pointer-events-none absolute inset-0 gradient-accent opacity-[0.06]" aria-hidden />
       <div className="relative flex gap-4">
         <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gradient-accent text-white shadow-[var(--glow-primary)]">
@@ -209,7 +209,7 @@ export function AIBriefing() {
           {briefing && (
             <>
               {briefing.headline && (
-                <p className="mt-2 text-[13px] font-medium text-[hsl(var(--sidebar-foreground))]">{briefing.headline}</p>
+                <p className="mt-2 text-[13px] font-medium text-foreground">{briefing.headline}</p>
               )}
               {briefing.body && (
                 <p className="mt-1.5 text-[13px] leading-relaxed text-foreground/85">

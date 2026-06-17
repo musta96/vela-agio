@@ -76,7 +76,7 @@ export function PlansEditor() {
       return toast({
         title: "Create failed",
         description: error.message + (error.code === "42501"
-          ? " — your account is missing the 'admin' role required to manage plans."
+          ? " - your account is missing the 'admin' role required to manage plans."
           : ""),
         variant: "destructive",
       });

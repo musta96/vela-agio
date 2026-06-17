@@ -14,7 +14,7 @@ const COPY: Record<NonNullable<Props["variant"]>, { label: string; body: string 
   },
   data: {
     label: "Market data",
-    body: "Quotes and fundamentals may be delayed or incomplete. Informational only — not a trading venue.",
+    body: "Quotes and fundamentals may be delayed or incomplete. Informational only - not a trading venue.",
   },
   tax: {
     label: "Not tax advice",

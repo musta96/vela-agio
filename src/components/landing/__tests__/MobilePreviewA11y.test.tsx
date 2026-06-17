@@ -8,7 +8,7 @@ function activatePreviewMode() {
   window.history.replaceState({}, "", "/?preview=mobile");
 }
 
-describe("MobilePreview — keyboard & focus a11y", () => {
+describe("MobilePreview - keyboard & focus a11y", () => {
   beforeEach(() => activatePreviewMode());
 
   it("renders all viewport CTAs with accessible names and tap-target size", () => {
@@ -35,7 +35,7 @@ describe("MobilePreview — keyboard & focus a11y", () => {
     for (const btn of buttons) {
       await user.tab();
       expect(document.activeElement).toBe(btn);
-      // shadcn Button ships focus-visible:ring utilities — verify they're present.
+      // shadcn Button ships focus-visible:ring utilities - verify they're present.
       expect(btn.className).toMatch(/focus-visible:(ring|outline)/);
     }
   });

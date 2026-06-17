@@ -51,7 +51,7 @@ function isInsideSkipped(node: Node): boolean {
 // Cache strategy
 // ---------------------------------------------------------------------------
 // Bump CACHE_VERSION whenever the translation prompt, model, or any string
-// post-processing changes — that invalidates all previously cached
+// post-processing changes - that invalidates all previously cached
 // translations app-wide. Entries also expire after TTL_MS so long-lived
 // installs eventually refresh.
 //
@@ -101,7 +101,7 @@ function writeCache(lang: string, text: string, value: string) {
     const payload = JSON.stringify({ v: CACHE_VERSION, t: value, ts: Date.now(), h: hash32(text) });
     localStorage.setItem(cacheKey(lang, text), payload);
   } catch {
-    // Quota exceeded — evict ~25% of our entries (oldest first) and retry once.
+    // Quota exceeded - evict ~25% of our entries (oldest first) and retry once.
     try { evictOldest(0.25); } catch { /* ignore */ }
     try {
       const payload = JSON.stringify({ v: CACHE_VERSION, t: value, ts: Date.now(), h: hash32(text) });
@@ -132,7 +132,7 @@ function sweepStale() {
       const expired = typeof p?.ts === "number" && now - p.ts > TTL_MS;
       if (p?.v !== CACHE_VERSION || expired) localStorage.removeItem(k);
     } catch {
-      // Pre-v2 entries were stored as plain strings — wipe them.
+      // Pre-v2 entries were stored as plain strings - wipe them.
       try { localStorage.removeItem(k); } catch { /* ignore */ }
     }
   }

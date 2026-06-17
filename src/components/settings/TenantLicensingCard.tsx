@@ -108,7 +108,7 @@ export function TenantLicensingCard() {
             </div>
           )}
           {!licensed && (
-            <Badge variant="outline" className="text-[10px]">Consumer mode — educational only, no personalised recommendations</Badge>
+            <Badge variant="outline" className="text-[10px]">Consumer mode - educational only, no personalised recommendations</Badge>
           )}
         </div>
         <div className="flex justify-end">

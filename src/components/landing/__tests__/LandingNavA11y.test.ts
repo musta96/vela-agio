@@ -13,7 +13,7 @@ const navStart = SRC.indexOf("{/* NAV */}");
 const navEnd = SRC.indexOf("</header>");
 const HEADER = navStart >= 0 && navEnd > navStart ? SRC.slice(navStart, navEnd) : "";
 
-describe("Landing nav — focus & tap-target contract", () => {
+describe("Landing nav - focus & tap-target contract", () => {
   it("locates the header block in source", () => {
     expect(HEADER.length).toBeGreaterThan(0);
   });

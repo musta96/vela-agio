@@ -80,7 +80,7 @@ export function calmar(rets: number[]): number {
   return cagr / Math.abs(maxDD);
 }
 
-/** Historical Value-at-Risk (95% by default) — negative percent loss. */
+/** Historical Value-at-Risk (95% by default) - negative percent loss. */
 export function valueAtRisk(rets: number[], confidence = 0.95): number {
   if (rets.length < 20) return 0;
   const sorted = [...rets].sort((a, b) => a - b);
@@ -88,7 +88,7 @@ export function valueAtRisk(rets: number[], confidence = 0.95): number {
   return sorted[idx];
 }
 
-/** Expected Shortfall / CVaR — mean loss beyond VaR. */
+/** Expected Shortfall / CVaR - mean loss beyond VaR. */
 export function expectedShortfall(rets: number[], confidence = 0.95): number {
   if (rets.length < 20) return 0;
   const sorted = [...rets].sort((a, b) => a - b);

@@ -29,7 +29,7 @@ export const StockCard = ({ stock }: StockCardProps) => {
     const added = toggle(stock.symbol, stock.name);
     toast({
       title: added ? "Added to watchlist" : "Removed from watchlist",
-      description: `${stock.symbol} — ${stock.name}`,
+      description: `${stock.symbol} - ${stock.name}`,
     });
   };
 

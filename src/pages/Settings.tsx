@@ -93,7 +93,7 @@ function ProfileTab() {
         </div>
         <div className="text-xs text-muted-foreground mb-4">
           {mifid?.completed_at
-            ? `Completed on ${new Date(mifid.completed_at).toLocaleDateString()} · Score ${displayScore ?? "—"} / ${recomputed.maxScore} · ${recomputed.profile.name} (SRI ${recomputed.sri}/7)`
+            ? `Completed on ${new Date(mifid.completed_at).toLocaleDateString()} · Score ${displayScore ?? "-"} / ${recomputed.maxScore} · ${recomputed.profile.name} (SRI ${recomputed.sri}/7)`
             : "Takes around 5 minutes."}
         </div>
         <Button asChild size="sm" variant={mifid?.completed_at ? "outline" : "default"}>
@@ -283,8 +283,8 @@ const Settings = () => {
   const { mode, setMode } = useTheme();
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
-      <SEO title="Settings — Account, Preferences & Integrations" description="Manage your account, fiscal residency, currencies, broker connections and data." path="/settings" />
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
+      <SEO title="Settings - Account, Preferences & Integrations" description="Manage your account, fiscal residency, currencies, broker connections and data." path="/settings" />
       <PageHeader
         icon={SettingsIcon}
         title="Settings"

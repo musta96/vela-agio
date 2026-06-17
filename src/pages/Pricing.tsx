@@ -141,7 +141,7 @@ export default function Pricing() {
               Launch Offer · Free Access
             </span>
             <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Vela.ai is completely free during launch.</h3>
-            <p className="mt-3 text-white/85 max-w-2xl mx-auto">Full access to institutional-grade intelligence — no credit card, no plans, no limits. Founding members keep preferred pricing forever when paid tiers launch.</p>
+            <p className="mt-3 text-white/85 max-w-2xl mx-auto">Full access to institutional-grade intelligence - no credit card, no plans, no limits. Founding members keep preferred pricing forever when paid tiers launch.</p>
             <div className="mt-7 flex justify-center">
               <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
                 Get Started Free <ArrowRight className="h-4 w-4" />

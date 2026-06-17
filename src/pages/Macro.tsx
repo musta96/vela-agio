@@ -36,7 +36,7 @@ export default function Macro() {
   const [view, setView] = useState<"tiles" | "list" | "heatmap">("tiles");
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Macro Dashboard | Vela.ai" description="Rates, FX, commodities, credit, vol" path="/macro" />
       <PageHeader
         icon={Globe2}
@@ -87,7 +87,7 @@ export default function Macro() {
                   <div className="text-2xl font-bold tracking-tight tabular-nums">
                     {q?.price != null
                       ? (g.title === "Rates" ? `${q.price.toFixed(2)}%` : q.price.toFixed(g.title === "FX" ? 4 : 2))
-                      : "—"}
+                      : "-"}
                   </div>
                   <MiniSparkline trend={trend} width={220} height={32} className="w-full" />
                 </div>
@@ -121,7 +121,7 @@ export default function Macro() {
                     ? <span className="text-sm font-normal text-muted-foreground">Not covered</span>
                     : last
                       ? `${last.v.toFixed(2)}${s.unit === "%" ? "%" : ""}`
-                      : "—"}
+                      : "-"}
                 </div>
                 {last && (
                   <span className="text-[11px] text-muted-foreground">as of {last.t}</span>

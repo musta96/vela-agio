@@ -116,14 +116,14 @@ export function BrokerSyncCard() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Broker connection — risk acknowledgement</DialogTitle>
+            <DialogTitle>Broker connection - risk acknowledgement</DialogTitle>
             <DialogDescription>
               Before linking a brokerage account, you must read and confirm the following. This acknowledgement is recorded in our audit log.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="rounded-md border border-border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground space-y-2">
-              <p><strong>No investment advice.</strong> Vela.ai is an educational research tool. Nothing on this platform — including AI outputs, scores, alerts, suggestions, optimizer results, backtests or copilot responses — constitutes investment, legal, accounting or tax advice. You are solely responsible for every decision and action taken on your brokerage account.</p>
+              <p><strong>No investment advice.</strong> Vela.ai is an educational research tool. Nothing on this platform - including AI outputs, scores, alerts, suggestions, optimizer results, backtests or copilot responses - constitutes investment, legal, accounting or tax advice. You are solely responsible for every decision and action taken on your brokerage account.</p>
               <p><strong>Read-only by default; you control orders.</strong> Broker connections are read-only unless you explicitly enable live trading. If you do enable live trading, every order requires an explicit confirmation from you. We do not initiate trades autonomously.</p>
               <p><strong>Market & technology risk.</strong> Securities trading carries the risk of partial or total loss. Past performance is not indicative of future results. Data may be delayed, incomplete or inaccurate. Software may fail. Network outages may prevent orders from reaching the broker.</p>
               <p><strong>Your liability.</strong> By connecting a broker you accept full and sole responsibility for the use of this platform, all orders submitted (whether by you, our software, or third-party integrations you authorise), and any resulting financial outcome. To the maximum extent permitted by law, Vela.ai, its operators and affiliates disclaim all liability for direct, indirect, incidental, consequential or punitive losses arising from your use of the platform or broker integrations.</p>
@@ -146,7 +146,7 @@ export function BrokerSyncCard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
             <Button onClick={connect} disabled={!(ack1 && ack2 && ack3)}>
-              I accept — continue to broker
+              I accept - continue to broker
             </Button>
           </DialogFooter>
         </DialogContent>

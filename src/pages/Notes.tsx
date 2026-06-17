@@ -40,7 +40,7 @@ export default function Notes() {
               <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-2" />
             </div>
             <Input placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
-            <Textarea rows={5} placeholder="Body — supports markdown-like text" value={body} onChange={(e) => setBody(e.target.value)} />
+            <Textarea rows={5} placeholder="Body - supports markdown-like text" value={body} onChange={(e) => setBody(e.target.value)} />
             <Button onClick={add}>Save</Button>
           </CardContent>
         </Card>

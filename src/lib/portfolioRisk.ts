@@ -86,7 +86,7 @@ export function computePortfolioRisk(positions: PortfolioPosition[], benchmarkBa
   };
 }
 
-/** Stress scenarios — return $ impact on portfolio given a one-period shock. */
+/** Stress scenarios - return $ impact on portfolio given a one-period shock. */
 export interface StressScenario {
   name: string;
   description: string;

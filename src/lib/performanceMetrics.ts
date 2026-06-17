@@ -12,7 +12,7 @@ export interface CashFlow {
 
 /**
  * Time-Weighted Return over a series of period returns (decimal, e.g. 0.012).
- * Removes the impact of contributions/withdrawals — apples-to-apples vs. benchmark.
+ * Removes the impact of contributions/withdrawals - apples-to-apples vs. benchmark.
  */
 export function timeWeightedReturn(periodReturns: number[]): number {
   if (!periodReturns.length) return 0;

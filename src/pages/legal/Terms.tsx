@@ -6,11 +6,11 @@ export default function Terms() {
     <LegalLayout title="Terms of Service" updated="May 2026">
       <p>
         By creating a Vela.ai account or using the service, you agree to these Terms. Read them
-        carefully — they include important disclaimers about investment information and limits on
+        carefully - they include important disclaimers about investment information and limits on
         our liability.
       </p>
 
-      <h2>1. What Vela.ai is — and is not</h2>
+      <h2>1. What Vela.ai is - and is not</h2>
       <p>
         Vela.ai is an <strong>information and analysis tool</strong> for self-directed investors.
         It aggregates public market data, runs analytical models, and provides AI-generated

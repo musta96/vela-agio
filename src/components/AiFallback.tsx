@@ -20,7 +20,7 @@ export function AiFallback({ title = "AI summary unavailable", onRetry }: Props)
         {title}
       </div>
       <p className="text-xs text-muted-foreground">
-        We couldn't generate this AI summary right now. Your data is unaffected — only the AI commentary is missing. Please try again in a moment.
+        We couldn't generate this AI summary right now. Your data is unaffected - only the AI commentary is missing. Please try again in a moment.
       </p>
       {onRetry && (
         <div>

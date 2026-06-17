@@ -69,7 +69,7 @@ export default function MobilePreview() {
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Mobile QA mode — viewport: {width}×{Math.min(window.innerHeight - 140, 844)}px
+        Mobile QA mode - viewport: {width}×{Math.min(window.innerHeight - 140, 844)}px
       </p>
     </div>
   );

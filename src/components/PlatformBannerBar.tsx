@@ -5,7 +5,7 @@ export function PlatformBannerBar() {
   const { banners, isOn } = usePlatformControls();
   const items = [
     ...(isOn("ai_signals_halted") ? [{ id: "ai", message: "AI signal generation is currently halted by an admin.", severity: "warning" as const }] : []),
-    ...(isOn("data_feeds_frozen") ? [{ id: "df", message: "Market data feeds are frozen — prices may be stale.", severity: "warning" as const }] : []),
+    ...(isOn("data_feeds_frozen") ? [{ id: "df", message: "Market data feeds are frozen - prices may be stale.", severity: "warning" as const }] : []),
     ...banners,
   ];
   if (items.length === 0) return null;

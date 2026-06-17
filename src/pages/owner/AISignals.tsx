@@ -82,7 +82,7 @@ export default function OwnerAISignals() {
                 <tr key={r.id} className="hover:bg-muted/20">
                   <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{format(new Date(r.created_at), "MMM d, HH:mm")}</td>
                   <td className="px-4 py-3"><Badge variant="outline" className="font-mono text-[11px]">{r.signal_type}</Badge></td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.symbol || "—"}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.symbol || "-"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">

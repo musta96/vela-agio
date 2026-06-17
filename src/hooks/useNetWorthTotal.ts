@@ -61,7 +61,7 @@ async function convert(amount: number, from: string, base: string): Promise<numb
     const fromUsd = await fetchFx(`USD${b}`);
     if (toUsd && fromUsd) return amount * toUsd * fromUsd;
   }
-  return amount; // fall back to raw — better than zero
+  return amount; // fall back to raw - better than zero
 }
 
 /**
@@ -150,7 +150,7 @@ export function useNetWorthTotal(baseCurrencyOverride?: string) {
     liabilities: converted.liabilities,
     byCategory: converted.byCategory,
     accountCount: accounts.length,
-    /** Per-account value in BASE currency — async resolved via convert() */
+    /** Per-account value in BASE currency - async resolved via convert() */
     convertValue: (amount: number, from: string) => convert(amount, from, baseCurrency),
     rawValueOf,
   };

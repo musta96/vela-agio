@@ -7,13 +7,13 @@ export type LandingTemplate = {
   sections: LandingSectionRow[];
 };
 
-// SaaS — feature-led, social proof, FAQ
+// SaaS - feature-led, social proof, FAQ
 const saas: LandingSectionRow[] = DEFAULT_SECTIONS.map((s) => {
   if (s.key === "hero") return { ...s, content: { ...s.content,
     eyebrow: "New: AI workspace for teams",
     title: "Ship faster with one workspace.",
     titleAccent: "Built for modern SaaS teams.",
-    subtitle: "One place to plan, build and measure — replacing five tools your team already pays for.",
+    subtitle: "One place to plan, build and measure - replacing five tools your team already pays for.",
   }};
   if (s.key === "stats") return { ...s, content: { items: [
     { k: "10k+", v: "Teams onboard" }, { k: "99.99%", v: "Uptime SLA" },
@@ -22,7 +22,7 @@ const saas: LandingSectionRow[] = DEFAULT_SECTIONS.map((s) => {
   return s;
 });
 
-// Trading / fintech — the current default
+// Trading / fintech - the current default
 const trading: LandingSectionRow[] = DEFAULT_SECTIONS;
 
 // Portfolio / personal brand
@@ -47,14 +47,14 @@ const portfolio: LandingSectionRow[] = [
   }},
   { key: "cta", kind: "cta", sort_order: 90, enabled: true, content: {
     title: "Let's build something together",
-    subtitle: "Send a short brief — I reply within two business days.",
+    subtitle: "Send a short brief - I reply within two business days.",
     primaryCta: { label: "Email me", href: "mailto:hello@example.com" },
     secondaryCta: { label: "View résumé", href: "#" },
   }},
 ];
 
 export const LANDING_TEMPLATES: LandingTemplate[] = [
-  { id: "trading", name: "Trading / Fintech", description: "Current Vela.ai default — full feature grid, audiences, pricing, FAQ.", sections: trading },
+  { id: "trading", name: "Trading / Fintech", description: "Current Vela.ai default - full feature grid, audiences, pricing, FAQ.", sections: trading },
   { id: "saas", name: "SaaS / Product", description: "Team-led messaging with social proof and FAQ, no audience split.", sections: saas },
   { id: "portfolio", name: "Personal portfolio", description: "Minimal: hero, selected work, contact CTA.", sections: portfolio },
 ];

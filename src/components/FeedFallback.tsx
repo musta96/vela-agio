@@ -18,7 +18,7 @@ export function FeedFallback({ label = "data", onRetry }: Props) {
       <Inbox className="h-6 w-6 text-muted-foreground" />
       <p className="text-sm font-medium">No {label} available right now</p>
       <p className="text-xs text-muted-foreground max-w-sm">
-        We couldn't reach the data provider. This is usually temporary — please try again shortly.
+        We couldn't reach the data provider. This is usually temporary - please try again shortly.
       </p>
       {onRetry && (
         <Button size="sm" variant="outline" onClick={onRetry}>

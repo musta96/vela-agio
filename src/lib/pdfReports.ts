@@ -176,9 +176,9 @@ export function generatePortfolioReport({ holdings, analytics }: PortfolioReport
         ["Sharpe ratio", analytics.sharpe.toFixed(2)],
         ["Sortino ratio", analytics.sortino.toFixed(2)],
         ["Max drawdown", pct(analytics.maxDD, 1)],
-        ["Beta vs FTSE MIB", analytics.betaMib != null ? analytics.betaMib.toFixed(2) : "—"],
-        ["Beta vs S&P 500", analytics.betaSpx != null ? analytics.betaSpx.toFixed(2) : "—"],
-        ["Concentration (HHI)", `${analytics.hhi.toFixed(2)} — ${analytics.diversification}`],
+        ["Beta vs FTSE MIB", analytics.betaMib != null ? analytics.betaMib.toFixed(2) : "-"],
+        ["Beta vs S&P 500", analytics.betaSpx != null ? analytics.betaSpx.toFixed(2) : "-"],
+        ["Concentration (HHI)", `${analytics.hhi.toFixed(2)} - ${analytics.diversification}`],
         ["Top-3 weight", pct(analytics.top3Weight, 1)],
       ],
       headStyles: { fillColor: BRAND.primary, textColor: 255 },
@@ -288,7 +288,7 @@ function kvTable(doc: jsPDF, startY: number, title: string, obj: Record<string, 
 
 export function generateStockReport(input: StockReportInput) {
   const doc = new jsPDF();
-  const subtitle = `${input.symbol}${input.name ? ` — ${input.name}` : ""}`;
+  const subtitle = `${input.symbol}${input.name ? ` - ${input.name}` : ""}`;
   header(doc, "Stock Deep Dive", subtitle);
 
   let y = 56;
@@ -361,16 +361,16 @@ export interface ComparisonReportInput {
 
 export function generateComparisonReport({ tickers, period = "1Y" }: ComparisonReportInput) {
   const doc = new jsPDF({ orientation: tickers.length > 2 ? "landscape" : "portrait" });
-  header(doc, "Stock Comparison Report", `${tickers.map((t) => t.symbol).join(" vs ")} — ${period}`);
+  header(doc, "Stock Comparison Report", `${tickers.map((t) => t.symbol).join(" vs ")} - ${period}`);
 
   const fmtPct = (v?: number | null, mult = 100) =>
-    v == null || !isFinite(v as number) ? "—" : `${(v as number) >= 0 ? "+" : ""}${((v as number) * mult).toFixed(2)}%`;
-  const fmtNum = (v?: number | null, d = 2) => (v == null || !isFinite(v as number) ? "—" : (v as number).toFixed(d));
+    v == null || !isFinite(v as number) ? "-" : `${(v as number) >= 0 ? "+" : ""}${((v as number) * mult).toFixed(2)}%`;
+  const fmtNum = (v?: number | null, d = 2) => (v == null || !isFinite(v as number) ? "-" : (v as number).toFixed(d));
 
   const head = [["Metric", ...tickers.map((t) => t.symbol)]];
   const body = [
-    ["Name", ...tickers.map((t) => t.name ?? "—")],
-    ["Last price", ...tickers.map((t) => (t.price != null ? t.price.toFixed(2) : "—"))],
+    ["Name", ...tickers.map((t) => t.name ?? "-")],
+    ["Last price", ...tickers.map((t) => (t.price != null ? t.price.toFixed(2) : "-"))],
     ["Day change", ...tickers.map((t) => fmtPct(t.change, 1))],
     [`Total return (${period})`, ...tickers.map((t) => fmtPct(t.perf1Y))],
     ["Composite score", ...tickers.map((t) => fmtNum(t.composite, 0))],
@@ -410,7 +410,7 @@ export function generateComparisonReport({ tickers, period = "1Y" }: ComparisonR
   autoTable(doc, {
     startY: y,
     head: [["Rank", "Symbol", "Name", "Composite"]],
-    body: scored.map((t, i) => [String(i + 1), t.symbol, t.name ?? "—", t._score.toFixed(1)]),
+    body: scored.map((t, i) => [String(i + 1), t.symbol, t.name ?? "-", t._score.toFixed(1)]),
     headStyles: { fillColor: BRAND.accent, textColor: 255 },
     styles: { fontSize: 10 },
   });
@@ -506,7 +506,7 @@ function bullets(doc: jsPDF, y: number, items: string[], color: [number, number,
 
 export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
   const doc = new jsPDF();
-  const subtitle = `${input.symbol}${input.name ? ` — ${input.name}` : ""}`;
+  const subtitle = `${input.symbol}${input.name ? ` - ${input.name}` : ""}`;
   header(doc, "Deep Stock Analysis", subtitle);
 
   let y = 50;
@@ -526,10 +526,10 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
   doc.text("ANALYST TARGET", 160, y + 6);
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(12);
-  doc.text(f.price != null ? `${sym}${Number(f.price).toFixed(2)}` : "—", 14, y + 14);
-  doc.text(f.marketCap != null ? `${sym}${(f.marketCap / 1e9).toFixed(2)}B` : "—", 60, y + 14);
-  doc.text(String(f.sector ?? "—").slice(0, 18), 110, y + 14);
-  doc.text(f.targetMeanPrice != null ? `${sym}${Number(f.targetMeanPrice).toFixed(2)}` : "—", 160, y + 14);
+  doc.text(f.price != null ? `${sym}${Number(f.price).toFixed(2)}` : "-", 14, y + 14);
+  doc.text(f.marketCap != null ? `${sym}${(f.marketCap / 1e9).toFixed(2)}B` : "-", 60, y + 14);
+  doc.text(String(f.sector ?? "-").slice(0, 18), 110, y + 14);
+  doc.text(f.targetMeanPrice != null ? `${sym}${Number(f.targetMeanPrice).toFixed(2)}` : "-", 160, y + 14);
   y += 30;
 
   // Thesis
@@ -564,7 +564,7 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
         rows.push([
           k.toUpperCase(),
           `${sym}${Number(s.price).toFixed(2)}`,
-          s.probability != null ? `${(s.probability * 100).toFixed(0)}%` : "—",
+          s.probability != null ? `${(s.probability * 100).toFixed(0)}%` : "-",
           s.rationale ?? "",
         ]);
     });
@@ -608,7 +608,7 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
         `${sym}${input.valuation.dcf.perShare.toFixed(2)}`,
         input.valuation.dcf.upside != null
           ? `${input.valuation.dcf.upside >= 0 ? "+" : ""}${(input.valuation.dcf.upside * 100).toFixed(1)}%`
-          : "—",
+          : "-",
       ]);
     if (input.valuation.ddm)
       rows.push([
@@ -616,7 +616,7 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
         `${sym}${input.valuation.ddm.perShare.toFixed(2)}`,
         input.valuation.ddm.upside != null
           ? `${input.valuation.ddm.upside >= 0 ? "+" : ""}${(input.valuation.ddm.upside * 100).toFixed(1)}%`
-          : "—",
+          : "-",
       ]);
     autoTable(doc, {
       startY: y,
@@ -671,13 +671,13 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
   if (input.liquidity) {
     y = section(doc, y, "Liquidity profile");
     const rows = [
-      ["Tier", input.liquidity.tier ?? "—"],
-      ["Avg daily volume", input.liquidity.avgVolume?.toLocaleString() ?? "—"],
+      ["Tier", input.liquidity.tier ?? "-"],
+      ["Avg daily volume", input.liquidity.avgVolume?.toLocaleString() ?? "-"],
       [
         "Avg daily $-volume",
         input.liquidity.avgDollarVolume != null
           ? `${sym}${(input.liquidity.avgDollarVolume / 1e6).toFixed(2)}M`
-          : "—",
+          : "-",
       ],
     ];
     autoTable(doc, {
@@ -729,7 +729,7 @@ export function generateDeepAnalysisReport(input: DeepAnalysisReportInput) {
 }
 
 // =====================================================================
-// Goals plan PDF — deep version with inputs, percentiles, year table,
+// Goals plan PDF - deep version with inputs, percentiles, year table,
 // success probability and actionable interpretation.
 // =====================================================================
 
@@ -846,7 +846,7 @@ export function generateGoalsPlanReport(
         fmt(input.paths.p10[idx]),
         fmt(input.paths.median[idx]),
         fmt(input.paths.p90[idx]),
-        input.paths.median[idx] >= input.target ? "Reached" : "—",
+        input.paths.median[idx] >= input.target ? "Reached" : "-",
       ]);
     }
     autoTable(doc, {
@@ -861,7 +861,7 @@ export function generateGoalsPlanReport(
 
   // Interpretation page
   doc.addPage();
-  header(doc, "Interpretation", "Educational guidance — not financial advice");
+  header(doc, "Interpretation", "Educational guidance - not financial advice");
 
   let iy = 56;
   doc.setFontSize(11);
@@ -893,7 +893,7 @@ export function generateGoalsPlanReport(
   const levers = [
     extraMonthly > 0
       ? `Increase monthly contribution by roughly ${fmt(extraMonthly)} to close the median gap of ${fmt(Math.max(0, gap))}.`
-      : `Median outcome already clears the target — consider locking in gains as the horizon shortens.`,
+      : `Median outcome already clears the target - consider locking in gains as the horizon shortens.`,
     `Extending the horizon by 2-3 years typically lifts success probability by 10-20 percentage points at the same contribution.`,
     `Lowering volatility (more bonds / diversification) trims the downside p10 but also reduces the p90 upside.`,
     `Re-run this plan whenever income, target, or market regime changes materially.`,
@@ -948,7 +948,7 @@ export interface ConsolidatedReportInput {
 function bucketByKey<T>(items: T[], key: (it: T) => string, val: (it: T) => number) {
   const totals = new Map<string, number>();
   for (const it of items) {
-    const k = key(it) || "—";
+    const k = key(it) || "-";
     totals.set(k, (totals.get(k) ?? 0) + Math.max(0, val(it)));
   }
   const sum = Array.from(totals.values()).reduce((s, v) => s + v, 0) || 1;

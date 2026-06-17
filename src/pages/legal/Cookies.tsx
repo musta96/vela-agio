@@ -24,14 +24,14 @@ export default function Cookies() {
         GDPR these do not require consent.
       </p>
       <ul>
-        <li><code>sb-access-token</code>, <code>sb-refresh-token</code> — Lovable Cloud auth (session lifetime)</li>
-        <li><code>vela_consent</code> — your cookie choices (12 months)</li>
-        <li><code>vela_active_portfolio</code> — last selected portfolio (12 months)</li>
+        <li><code>sb-access-token</code>, <code>sb-refresh-token</code> - Lovable Cloud auth (session lifetime)</li>
+        <li><code>vela_consent</code> - your cookie choices (12 months)</li>
+        <li><code>vela_active_portfolio</code> - last selected portfolio (12 months)</li>
       </ul>
 
       <h2>2. Analytics (consent required)</h2>
       <p>
-        Aggregated, anonymized usage data — which pages you visit, which features you use, error
+        Aggregated, anonymized usage data - which pages you visit, which features you use, error
         rates. Helps us prioritize improvements. Disabled by default.
       </p>
 

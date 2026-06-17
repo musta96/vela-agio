@@ -17,7 +17,7 @@ const profileRow: { ai_provider: string; ai_model: string | null } = {
  * We don't render the whole component because Radix Select + VaultHealthCard
  * pull in browser APIs (clipboard, ResizeObserver-deep portals) that are
  * brittle in jsdom. The persistence layer is what we actually want to lock
- * down — the UI binding is exercised manually in /settings.
+ * down - the UI binding is exercised manually in /settings.
  */
 function makeClient() {
   return {
@@ -66,7 +66,7 @@ describe("Settings → AI provider persistence", () => {
     expect(loaded.ai_model).toBe("claude-sonnet-4-5");
   });
 
-  it("survives a refresh — a new client mount reads what the previous one wrote", async () => {
+  it("survives a refresh - a new client mount reads what the previous one wrote", async () => {
     const first = makeClient();
     await saveProfile(first, "gemini", "gemini-2.5-pro");
     // Simulate a hard refresh by constructing a brand-new client.

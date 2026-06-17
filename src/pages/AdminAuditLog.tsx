@@ -100,10 +100,10 @@ const AdminAuditLog = () => {
                   {rows.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="text-xs whitespace-nowrap">{new Date(r.ts).toLocaleString()}</TableCell>
-                      <TableCell className="text-xs">{r.actor_email ?? r.actor_id ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{r.actor_email ?? r.actor_id ?? "-"}</TableCell>
                       <TableCell><Badge variant="outline">{r.action}</Badge></TableCell>
                       <TableCell className="text-xs">{r.entity}{r.entity_id ? `/${r.entity_id}` : ""}</TableCell>
-                      <TableCell className="text-xs font-mono max-w-md truncate">{r.payload ? JSON.stringify(r.payload) : "—"}</TableCell>
+                      <TableCell className="text-xs font-mono max-w-md truncate">{r.payload ? JSON.stringify(r.payload) : "-"}</TableCell>
                     </TableRow>
                   ))}
                   {rows.length === 0 && !loading && (

@@ -200,8 +200,8 @@ const BacktestingModule = () => {
   };
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
-      <SEO title="Strategy Backtesting — Test Trading Strategies on Historical Data" description="Backtest custom trading strategies on FTSE MIB, EU, and US stocks. Measure returns, drawdown, Sharpe ratio, and benchmark performance." path="/backtest" />
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
+      <SEO title="Strategy Backtesting - Test Trading Strategies on Historical Data" description="Backtest custom trading strategies on FTSE MIB, EU, and US stocks. Measure returns, drawdown, Sharpe ratio, and benchmark performance." path="/backtest" />
       <PageHeader
           icon={Target}
           title="Strategy Backtesting"
@@ -236,7 +236,7 @@ const BacktestingModule = () => {
                         {suggestions.map(s => (
                           <button key={s.symbol} className="w-full text-left px-3 py-2 hover:bg-accent/30 text-sm"
                                   onClick={() => addHolding(s.symbol, s.name)}>
-                            <span className="font-semibold">{s.symbol}</span> — {s.name}
+                            <span className="font-semibold">{s.symbol}</span> - {s.name}
                           </button>
                         ))}
                       </div>

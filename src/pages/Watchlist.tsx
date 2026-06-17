@@ -24,7 +24,7 @@ const Watchlist = () => {
 
   const handleRemove = (symbol: string, name: string) => {
     remove(symbol);
-    toast({ title: "Removed from watchlist", description: `${symbol} — ${name}` });
+    toast({ title: "Removed from watchlist", description: `${symbol} - ${name}` });
   };
 
   const armed = rules.filter((r) => r.enabled).length;
@@ -33,8 +33,8 @@ const Watchlist = () => {
   );
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
-      <SEO title="Watchlist — Live Quotes & Price Alerts for Your Stocks" description="Monitor your favorite FTSE MIB, EU, and US stocks with live quotes, custom alerts, and one-click access to deep analysis." path="/watchlist" />
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
+      <SEO title="Watchlist - Live Quotes & Price Alerts for Your Stocks" description="Monitor your favorite FTSE MIB, EU, and US stocks with live quotes, custom alerts, and one-click access to deep analysis." path="/watchlist" />
       <PageHeader
         icon={Eye}
         title="Watchlist"
@@ -92,7 +92,7 @@ const Watchlist = () => {
                       <div className="text-xs text-muted-foreground truncate">{item.name}</div>
                     </Link>
                     <div className="text-right tabular-nums font-semibold text-sm w-20">
-                      {q ? `€${q.price.toFixed(2)}` : "—"}
+                      {q ? `€${q.price.toFixed(2)}` : "-"}
                     </div>
                     <div className="w-16 text-right">
                       {q && <ChangePill pct={change} />}
@@ -129,7 +129,7 @@ const Watchlist = () => {
                 </div>
                 <p className="font-semibold mb-1.5">Nothing firing right now</p>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Set price, % move, RSI or sentiment conditions on any watched stock — you'll get a toast and a browser notification.
+                  Set price, % move, RSI or sentiment conditions on any watched stock - you'll get a toast and a browser notification.
                 </p>
                 <Button size="sm" className="gap-1.5">
                   <Plus className="h-3.5 w-3.5" /> Create alert

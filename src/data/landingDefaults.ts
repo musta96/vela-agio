@@ -19,7 +19,7 @@ export type LandingSectionRow = {
   content: any;
 };
 
-// Default content blocks — used when the DB has no rows for that key.
+// Default content blocks - used when the DB has no rows for that key.
 // Editing these in the Owner Console writes overrides to the landing_sections table.
 export const DEFAULT_SECTIONS: LandingSectionRow[] = [
   {
@@ -28,7 +28,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       eyebrow: "New: AI Portfolio Coach",
       title: "Research markets like a pro.",
       titleAccent: "Without becoming one.",
-      subtitle: "Vela.ai is an educational research platform for FTSE MIB, European and US markets. AI copilot, portfolio coach, optimizer and compliance tools — built for individual investors and professionals alike.",
+      subtitle: "Vela.ai is an educational research platform for FTSE MIB, European and US markets. AI copilot, portfolio coach, optimizer and compliance tools - built for individual investors and professionals alike.",
       primaryCta: { label: "Start free", href: "/auth" },
       secondaryCta: { label: "See features", href: "#features" },
       note: "No credit card. Free forever plan. Cancel anytime.",
@@ -46,14 +46,14 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       { k: "8 000+", v: "Instruments covered" },
       { k: "20 yrs", v: "Historical backtests" },
       { k: "<150 ms", v: "AI response latency" },
-      { k: "100 %", v: "Educational — never advice" },
+      { k: "100 %", v: "Educational - never advice" },
     ]},
   },
   {
     key: "features", kind: "features", sort_order: 30, enabled: true,
     content: {
       title: "Everything you need to research the markets",
-      subtitle: "One workspace for live data, AI insight, portfolio modelling and compliance — replacing a dozen browser tabs.",
+      subtitle: "One workspace for live data, AI insight, portfolio modelling and compliance - replacing a dozen browser tabs.",
       items: [
         { icon: "Brain", title: "AI Research Copilot", desc: "Ask anything about a stock, sector or your portfolio. Get cited, jargon-free answers powered by the latest LLMs." },
         { icon: "LineChart", title: "Live Markets & Charts", desc: "FTSE MIB, pan-European, US stocks, ETFs and crypto. Real-time quotes, intraday, VWAP and 50+ technical indicators." },
@@ -99,19 +99,19 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
     content: {
       eyebrow: "Launch Offer · Free Access",
       title: "Vela.ai is completely free during launch.",
-      subtitle: "Get full access to institutional-grade intelligence — no credit card, no plans, no limits. Founding members keep preferred pricing forever when we introduce paid tiers.",
+      subtitle: "Get full access to institutional-grade intelligence - no credit card, no plans, no limits. Founding members keep preferred pricing forever when we introduce paid tiers.",
       primaryCta: { label: "Get Started Free", href: "/auth" },
     },
   },
   {
     key: "trust", kind: "trust", sort_order: 70, enabled: true,
     content: {
-      title: "Security, compliance and transparency aren't add-ons — they're the foundation.",
+      title: "Security, compliance and transparency aren't add-ons - they're the foundation.",
       subtitle: "",
       eyebrow: "Built for Trust",
       items: [
         { icon: "Lock", title: "Privacy by design", desc: "GDPR-compliant. EU-hosted. Encrypted at rest and in transit. One-click data export and deletion." },
-        { icon: "Shield", title: "Regulatory aware", desc: "Educational tool only — no advice. MiFID II suitability tooling for advisor seats. SEC & CONSOB filings indexed." },
+        { icon: "Shield", title: "Regulatory aware", desc: "Educational tool only - no advice. MiFID II suitability tooling for advisor seats. SEC & CONSOB filings indexed." },
         { icon: "FileText", title: "Transparent methods", desc: "Every score, model and backtest links to its methodology page. No black-box magic." },
       ],
     },
@@ -122,7 +122,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       { q: "Is Vela.ai an investment advisor?", a: "No. Vela.ai is an educational research and personal-research platform. We do not provide personalised investment advice, recommendations to buy or sell, or portfolio management services. All outputs are for information and educational purposes only." },
       { q: "Where does the market data come from?", a: "We aggregate public market data, regulatory filings (e.g. SEC EDGAR, CONSOB) and reputable news sources. Real-time depth is available on paid tiers; delayed quotes are free." },
       { q: "Is my data safe?", a: "Yes. Data is encrypted in transit and at rest, hosted in the EU, and protected with row-level security. You can export or delete all of your data at any time (GDPR Art. 17 & 20)." },
-      { q: "Do I need to connect a brokerage?", a: "No. You can manually track portfolios, import CSV, or — on Pro and above — connect supported brokers in read-only mode." },
+      { q: "Do I need to connect a brokerage?", a: "No. You can manually track portfolios, import CSV, or - on Pro and above - connect supported brokers in read-only mode." },
       { q: "Which markets are covered?", a: "FTSE MIB and pan-European equities, US stocks and ETFs, major crypto, FX and key macro indicators." },
     ]},
   },

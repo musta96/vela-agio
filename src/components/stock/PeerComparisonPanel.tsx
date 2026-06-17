@@ -23,7 +23,7 @@ function num(v: any): number | null {
 }
 
 function fmt(v: number | null, opts: { pct?: boolean; mc?: boolean } = {}) {
-  if (v == null || !Number.isFinite(v)) return "—";
+  if (v == null || !Number.isFinite(v)) return "-";
   if (opts.mc) {
     const a = Math.abs(v);
     if (a >= 1e12) return `${(v / 1e12).toFixed(2)}T`;
@@ -161,7 +161,7 @@ export function PeerComparisonPanel({ symbol }: { symbol: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Industry trends & drivers</CardTitle>
-            <CardDescription>Descriptive cross-sectional read-out — not advice.</CardDescription>
+            <CardDescription>Descriptive cross-sectional read-out - not advice.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="text-sm list-disc pl-5 space-y-1">

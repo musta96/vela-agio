@@ -64,8 +64,8 @@ export default function OwnerUserProfile() {
       <div className="flex items-start gap-4 mb-6">
         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-accent grid place-items-center text-lg font-bold text-primary-foreground">{initials}</div>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">{p?.display_name || "—"}</h1>
-          <p className="text-sm text-muted-foreground">User · Pro plan since {p?.created_at ? format(new Date(p.created_at), "d MMM yyyy") : "—"}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{p?.display_name || "-"}</h1>
+          <p className="text-sm text-muted-foreground">User · Pro plan since {p?.created_at ? format(new Date(p.created_at), "d MMM yyyy") : "-"}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Eye className="h-4 w-4 mr-1.5" />Impersonate</Button>
@@ -76,7 +76,7 @@ export default function OwnerUserProfile() {
       </div>
 
       <KpiStrip items={[
-        { label: "Plan", value: "Pro", sub: `Since ${p?.created_at ? format(new Date(p.created_at), "MMM yyyy") : "—"}` },
+        { label: "Plan", value: "Pro", sub: `Since ${p?.created_at ? format(new Date(p.created_at), "MMM yyyy") : "-"}` },
         { label: "Total spend", value: "€245", sub: "5 invoices" },
         { label: "API calls", value: "4,820", sub: "This month" },
         { label: "Signals viewed", value: "312", sub: "Last 30 days" },
@@ -87,11 +87,11 @@ export default function OwnerUserProfile() {
           <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">Account details</h3><Button variant="outline" size="sm">Edit</Button></div>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             {[
-              ["Full name", p?.display_name || "—"],
-              ["User ID", p?.user_id ? `#${p.user_id.slice(0,4)}` : "—"],
-              ["Country", p?.country_residence || "—"],
+              ["Full name", p?.display_name || "-"],
+              ["User ID", p?.user_id ? `#${p.user_id.slice(0,4)}` : "-"],
+              ["Country", p?.country_residence || "-"],
               ["2FA", "✓ Enabled"],
-              ["Joined", p?.created_at ? format(new Date(p.created_at), "d MMMM yyyy") : "—"],
+              ["Joined", p?.created_at ? format(new Date(p.created_at), "d MMMM yyyy") : "-"],
               ["Last login", "2 minutes ago"],
             ].map(([k, v]) => (
               <div key={String(k)}><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">{k}</dt><dd className="mt-1">{v as any}</dd></div>
@@ -113,7 +113,7 @@ export default function OwnerUserProfile() {
           </ul>
         </div>
 
-        {/* Advisory data — gated by user consent (MiFID-aligned) */}
+        {/* Advisory data - gated by user consent (MiFID-aligned) */}
         <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export default function OwnerUserProfile() {
               </span>
             ) : (
               <span className="text-[11px] rounded-full bg-muted text-muted-foreground border border-border px-2 py-0.5">
-                Locked — no advisory mandate
+                Locked - no advisory mandate
               </span>
             )}
           </div>
@@ -137,9 +137,9 @@ export default function OwnerUserProfile() {
                 {consent.mandate_ref ? ` · Mandate ref: ${consent.mandate_ref}` : ""}. All views are audited.
               </p>
               <div className="grid grid-cols-3 gap-4 text-sm">
-                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Portfolios</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.portfolios ?? "—"}</dd></div>
-                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Holdings</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.holdings ?? "—"}</dd></div>
-                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Net-worth accounts</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.nw_accounts ?? "—"}</dd></div>
+                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Portfolios</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.portfolios ?? "-"}</dd></div>
+                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Holdings</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.holdings ?? "-"}</dd></div>
+                <div><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Net-worth accounts</dt><dd className="mt-1 text-lg font-semibold">{advisoryData?.nw_accounts ?? "-"}</dd></div>
               </div>
             </>
           ) : (
@@ -160,7 +160,7 @@ export default function OwnerUserProfile() {
           <dl className="text-sm space-y-2">
             <div className="flex justify-between"><dt className="text-muted-foreground">Current plan</dt><dd>PRO · €49/mo</dd></div>
             <div className="flex justify-between"><dt className="text-muted-foreground">Next billing</dt><dd>26 Jun 2025</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Payment method</dt><dd>Visa — 4242</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Payment method</dt><dd>Visa - 4242</dd></div>
           </dl>
           <div className="flex gap-2 mt-4">
             <Button variant="outline" size="sm">Issue refund</Button>

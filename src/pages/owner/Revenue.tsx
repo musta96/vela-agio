@@ -87,11 +87,11 @@ export default function OwnerRevenue() {
       )}
 
       <KpiStrip items={[
-        { label: "MRR",         value: kpis ? fmtEUR(kpis.mrr)  : "—", sub: kpis ? `${trendUp ? "+" : ""}${trendDelta}% vs prev` : undefined, tone: trendUp ? "up" : "down" },
-        { label: "ARR",         value: kpis ? fmtEUR(kpis.arr)  : "—" },
-        { label: "ARPU",        value: kpis ? `€${kpis.arpu.toFixed(2)}` : "—" },
-        { label: "Paid users",  value: kpis ? kpis.paid.toLocaleString() : "—" },
-        { label: "Churn (30d)", value: kpis ? `${kpis.churn_pct_30d.toFixed(1)}%` : "—" },
+        { label: "MRR",         value: kpis ? fmtEUR(kpis.mrr)  : "-", sub: kpis ? `${trendUp ? "+" : ""}${trendDelta}% vs prev` : undefined, tone: trendUp ? "up" : "down" },
+        { label: "ARR",         value: kpis ? fmtEUR(kpis.arr)  : "-" },
+        { label: "ARPU",        value: kpis ? `€${kpis.arpu.toFixed(2)}` : "-" },
+        { label: "Paid users",  value: kpis ? kpis.paid.toLocaleString() : "-" },
+        { label: "Churn (30d)", value: kpis ? `${kpis.churn_pct_30d.toFixed(1)}%` : "-" },
       ]} />
 
       <div className="grid lg:grid-cols-3 gap-6 mt-8">
@@ -242,7 +242,7 @@ export default function OwnerRevenue() {
           </table>
         </div>
         <p className="mt-3 text-[11px] text-muted-foreground">
-          AI cost is the sum of `cost_cents` recorded by edge functions (BYO-key requests are excluded — heavy users supply their own key).
+          AI cost is the sum of `cost_cents` recorded by edge functions (BYO-key requests are excluded - heavy users supply their own key).
         </p>
       </div>
     </>

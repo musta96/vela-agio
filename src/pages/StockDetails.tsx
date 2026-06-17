@@ -273,7 +273,7 @@ const StockDetails = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title={`${symbol} — ${entry?.name ?? "Stock"} Analysis & Live Price`}
+        title={`${symbol} - ${entry?.name ?? "Stock"} Analysis & Live Price`}
         description={`Live price, fundamentals, technical signals, sentiment, and AI verdict for ${entry?.name ?? sym} (${symbol}). Risk and valuation insights in one view.`}
         path={`/stock/${symbol}`}
       />
@@ -300,7 +300,7 @@ const StockDetails = () => {
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-3xl font-bold">{sym}{name ? ` — ${name}` : ""}</h1>
+                <h1 className="text-3xl font-bold">{sym}{name ? ` - ${name}` : ""}</h1>
                 {market && <Badge variant="outline">{market}</Badge>}
                 {!entry && <Badge variant="secondary">Unverified ticker</Badge>}
                 <Button size="icon" variant="ghost" aria-label={isWatched(sym) ? "Remove from watchlist" : "Add to watchlist"} onClick={() => toggle(sym, name)}>
@@ -334,7 +334,7 @@ const StockDetails = () => {
                           }
                         : undefined,
                       aiVerdict: sentiment
-                        ? { verdict: sentiment.label ?? "—", confidence: sentiment.score, rationale: (sentiment as any).summary }
+                        ? { verdict: sentiment.label ?? "-", confidence: sentiment.score, rationale: (sentiment as any).summary }
                         : undefined,
                     })
                   }
@@ -381,7 +381,7 @@ const StockDetails = () => {
               <p className="text-muted-foreground">{name}</p>
             </div>
             <div className="text-right">
-              <div className="text-4xl font-bold">{sign}{price ? price.toFixed(2) : "—"}</div>
+              <div className="text-4xl font-bold">{sign}{price ? price.toFixed(2) : "-"}</div>
               {live && (
                 <div className={`flex items-center gap-1 justify-end mt-1 ${isPositive ? "text-success" : "text-destructive"}`}>
                   {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -435,11 +435,11 @@ const StockDetails = () => {
                 else if (s.signal === "bearish") cons.push(`${s.name}: ${s.reason}`);
               });
               if (sentiment) {
-                if (sentiment.score >= 60) pros.push(`News sentiment positive (${Math.round(sentiment.score)}/100) — ${sentiment.summary}`);
-                else if (sentiment.score <= 40) cons.push(`News sentiment negative (${Math.round(sentiment.score)}/100) — ${sentiment.summary}`);
+                if (sentiment.score >= 60) pros.push(`News sentiment positive (${Math.round(sentiment.score)}/100) - ${sentiment.summary}`);
+                else if (sentiment.score <= 40) cons.push(`News sentiment negative (${Math.round(sentiment.score)}/100) - ${sentiment.summary}`);
               }
               if (tech?.volume?.spike) pros.push("Volume spike confirms current move.");
-              if (tech?.volume?.weak) cons.push("Thin volume — move lacks conviction.");
+              if (tech?.volume?.weak) cons.push("Thin volume - move lacks conviction.");
 
               const nearestSupport = tech?.levels.filter((l) => l.type === "support" && l.price < tech.lastClose).sort((a, b) => b.price - a.price)[0];
               const nearestResistance = tech?.levels.filter((l) => l.type === "resistance" && l.price > tech.lastClose).sort((a, b) => a.price - b.price)[0];
@@ -524,7 +524,7 @@ const StockDetails = () => {
                       </p>
                     )}
                     <p className="text-[10px] text-muted-foreground italic">
-                      Educational signal — not investment advice. Always confirm with your own research and risk rules.
+                      Educational signal - not investment advice. Always confirm with your own research and risk rules.
                     </p>
                   </CardContent>
                 </Card>
@@ -978,9 +978,9 @@ const StockDetails = () => {
                       <div className="p-3 rounded-lg border border-border/50">
                         <p className="text-sm font-semibold mb-2">Wall Street consensus</p>
                         <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div><p className="text-xs text-muted-foreground">Low</p><p className="font-mono">{sign}{deep.fundamentals.targetLowPrice?.toFixed(2) ?? "—"}</p></div>
-                          <div><p className="text-xs text-muted-foreground">Mean</p><p className="font-mono font-bold">{sign}{deep.fundamentals.targetMeanPrice?.toFixed(2) ?? "—"}</p></div>
-                          <div><p className="text-xs text-muted-foreground">High</p><p className="font-mono">{sign}{deep.fundamentals.targetHighPrice?.toFixed(2) ?? "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Low</p><p className="font-mono">{sign}{deep.fundamentals.targetLowPrice?.toFixed(2) ?? "-"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Mean</p><p className="font-mono font-bold">{sign}{deep.fundamentals.targetMeanPrice?.toFixed(2) ?? "-"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">High</p><p className="font-mono">{sign}{deep.fundamentals.targetHighPrice?.toFixed(2) ?? "-"}</p></div>
                         </div>
                         {deep.fundamentals.recommendationKey && (
                           <p className="text-xs text-muted-foreground mt-2">Rating: <span className="font-semibold capitalize">{deep.fundamentals.recommendationKey.replace(/_/g, " ")}</span> · {deep.fundamentals.numberOfAnalystOpinions ?? 0} analysts</p>
@@ -1100,7 +1100,7 @@ const StockDetails = () => {
                 {sentLoading && !sentiment ? (
                   <div className="py-8 text-center"><RefreshCw className="h-6 w-6 animate-spin text-primary mx-auto" /></div>
                 ) : !sentiment || sentiment.articles.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No sources yet — load sentiment first.</p>
+                  <p className="text-muted-foreground text-sm">No sources yet - load sentiment first.</p>
                 ) : (
                   <div className="space-y-2">
                     {sentiment.articles.map((a, i) => (
@@ -1164,7 +1164,7 @@ const StockDetails = () => {
           </div>
           {!user && (
             <p className="text-xs text-muted-foreground">
-              Not signed in — this will be saved locally on this device only.
+              Not signed in - this will be saved locally on this device only.
             </p>
           )}
         </div>

@@ -21,7 +21,7 @@ export function LegalFooter() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 text-[11px] text-muted-foreground">
-          <div>© {new Date().getFullYear()} Vela.ai — Made in Italy</div>
+          <div>© {new Date().getFullYear()} Vela.ai - Made in Italy</div>
           <nav className="flex flex-wrap gap-x-4 gap-y-1">
             <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground">Terms</Link>

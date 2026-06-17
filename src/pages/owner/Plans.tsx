@@ -67,7 +67,7 @@ export default function OwnerPlans() {
     <>
       <OwnerPageHeader
         title="Plans & pricing"
-        subtitle="Live data from billing provider — create products, add prices, archive plans"
+        subtitle="Live data from billing provider - create products, add prices, archive plans"
         actions={
           <>
             <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
@@ -114,7 +114,7 @@ export default function OwnerPlans() {
       )}
 
       <p className="text-[11px] text-muted-foreground mt-6">
-        Prices are immutable in the billing provider — to change an amount, add a new price and archive the old one.
+        Prices are immutable in the billing provider - to change an amount, add a new price and archive the old one.
       </p>
     </>
   );
@@ -168,7 +168,7 @@ function PlanRow({ env, product, prices, onArchive, onReactivate, onChange }: {
           <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Prices</span>
           <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}><Plus className="h-3.5 w-3.5 mr-1" />Add price</Button>
         </div>
-        {prices.length === 0 && !adding && <p className="text-xs text-muted-foreground">No prices yet — add one to make this plan purchasable.</p>}
+        {prices.length === 0 && !adding && <p className="text-xs text-muted-foreground">No prices yet - add one to make this plan purchasable.</p>}
         <div className="space-y-1.5">
           {prices.map((pr) => (
             <div key={pr.id} className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2">

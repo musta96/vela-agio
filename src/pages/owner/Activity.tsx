@@ -79,7 +79,7 @@ export default function OwnerActivity() {
                   <span className="font-mono text-[11px] text-muted-foreground w-16">{format(new Date(r.ts), "HH:mm:ss")}</span>
                   <span className={`h-1.5 w-1.5 rounded-full ${CAT_COLOR[cat] || "bg-muted"}`} />
                   <span className="font-medium">{r.action}</span>
-                  {r.entity_id && <span className="text-muted-foreground">— <span className="font-mono text-[11px]">{r.entity_id}</span></span>}
+                  {r.entity_id && <span className="text-muted-foreground">- <span className="font-mono text-[11px]">{r.entity_id}</span></span>}
                   <span className="ml-auto text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-muted">{cat}</span>
                 </li>
               );

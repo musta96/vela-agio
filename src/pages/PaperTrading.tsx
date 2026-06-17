@@ -88,7 +88,7 @@ export default function PaperTrading() {
   const liveSymbols = useMemo(() => Array.from(new Set(trades.map((t) => t.symbol))), [trades]);
   const { quotes } = useLiveQuotes(liveSymbols, 60_000);
 
-  // Derive positions (net qty + average cost basis) — simple weighted avg
+  // Derive positions (net qty + average cost basis) - simple weighted avg
   const positions = useMemo(() => {
     const map = new Map<string, { symbol: string; name: string; qty: number; cost: number; currency: string }>();
     for (const t of [...trades].reverse()) {
@@ -154,14 +154,14 @@ export default function PaperTrading() {
 
   return (
     <>
-      <SEO title="Paper Trading Lab — Vela" description="Practice strategies with virtual cash. No real money is ever moved." path="/paper-trading" />
+      <SEO title="Paper Trading Lab - Vela" description="Practice strategies with virtual cash. No real money is ever moved." path="/paper-trading" />
       <div className="px-6 sm:px-8 py-6 max-w-7xl mx-auto">
-        <PageHeader icon={FlaskConical} title="Paper Trading Lab" description="Practice with virtual cash against live market data. Trades are simulated — no real orders are placed and no real money is ever moved." />
+        <PageHeader icon={FlaskConical} title="Paper Trading Lab" description="Practice with virtual cash against live market data. Trades are simulated - no real orders are placed and no real money is ever moved." />
 
         <Alert className="mb-4 border-amber-500/40 bg-amber-500/5">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-xs">
-            <strong>Simulation only.</strong> Results do not represent actual performance. Simulated trading ignores slippage, partial fills, taxes and market impact. Past simulated performance is not indicative of future real-world results. For educational use only — not investment advice (MIFID II disclosure).
+            <strong>Simulation only.</strong> Results do not represent actual performance. Simulated trading ignores slippage, partial fills, taxes and market impact. Past simulated performance is not indicative of future real-world results. For educational use only - not investment advice (MIFID II disclosure).
           </AlertDescription>
         </Alert>
 
@@ -208,7 +208,7 @@ export default function PaperTrading() {
                 <Label className="text-xs">Instrument</Label>
                 <div className="flex items-center gap-2 mb-2">
                   <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Input value={selected ? `${selected.symbol} — ${selected.name}` : q} onChange={(e) => { setSelected(null); setQ(e.target.value); }} placeholder="Search ticker or name…" />
+                  <Input value={selected ? `${selected.symbol} - ${selected.name}` : q} onChange={(e) => { setSelected(null); setQ(e.target.value); }} placeholder="Search ticker or name…" />
                 </div>
                 {!selected && hits.length > 0 && (
                   <Card className="mb-2 max-h-52 overflow-y-auto divide-y divide-border">
@@ -254,7 +254,7 @@ export default function PaperTrading() {
                             <td className="py-2"><div className="font-semibold">{p.symbol}</div><div className="text-[10px] text-muted-foreground truncate">{p.name}</div></td>
                             <td className="text-right tabular-nums">{p.qty}</td>
                             <td className="text-right tabular-nums">{fmt(avg, p.currency)}</td>
-                            <td className="text-right tabular-nums">{last ? fmt(last, p.currency) : "—"}</td>
+                            <td className="text-right tabular-nums">{last ? fmt(last, p.currency) : "-"}</td>
                             <td className={`text-right tabular-nums font-semibold ${pl >= 0 ? "text-success" : "text-destructive"}`}>
                               {pl >= 0 ? "+" : ""}{fmt(pl, p.currency)} <span className="text-[10px] font-normal">({plp.toFixed(2)}%)</span>
                             </td>

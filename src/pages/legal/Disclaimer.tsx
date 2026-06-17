@@ -9,7 +9,7 @@ export default function Disclaimer() {
         buy or sell any security, derivative, currency, or other financial instrument.
       </p>
 
-      <h2>No advice — informazioni, non consulenza</h2>
+      <h2>No advice - informazioni, non consulenza</h2>
       <p>
         All analyses, scores, screeners, AI commentary, backtest results, intrinsic-value
         estimates, sentiment scores, and "smart picks" are <strong>educational and informational

@@ -28,7 +28,7 @@ export function VaultHealthCard() {
   };
   const copy = async (v: string) => {
     try { await navigator.clipboard.writeText(v); toast.success("Copied to clipboard"); }
-    catch { toast.error("Copy failed — select and copy manually"); }
+    catch { toast.error("Copy failed - select and copy manually"); }
   };
 
   return (

@@ -13,7 +13,7 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 // anything hits the broker.
 export function LiveOrderConfirmModal() {
   const { user } = useAuth();
-  // Master kill-switch — until the operating entity is incorporated and
+  // Master kill-switch - until the operating entity is incorporated and
   // licensed, the modal never mounts and we never poll for intents.
   const liveTradingEnabled = useFlag("live_trading", false);
   const [intent, setIntent] = useState<any | null>(null);

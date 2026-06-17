@@ -63,7 +63,7 @@ export default function OwnerAuditLog() {
                 <td className="px-4 py-3">{r.actor_email || <span className="text-muted-foreground">system</span>}</td>
                 <td className="px-4 py-3"><Badge variant="outline" className="font-mono text-[11px]">{r.action}</Badge></td>
                 <td className="px-4 py-3 text-muted-foreground">{r.entity}{r.entity_id ? ` · ${r.entity_id.slice(0,8)}` : ""}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{r.ip || "—"}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{r.ip || "-"}</td>
               </tr>
             ))}
             {!filtered.length && (

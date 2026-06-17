@@ -1,5 +1,5 @@
 // Country-aware amortization & capital gains heuristics for Net Worth assets.
-// These are simplified rules suitable for personal planning — not tax advice.
+// These are simplified rules suitable for personal planning - not tax advice.
 
 export type CountryCode = "IT" | "US" | "UK" | "FR" | "DE" | "ES" | "CH" | "OTHER";
 
@@ -23,7 +23,7 @@ const RULES: Record<string, Partial<Record<CountryCode, AmortizationRule>>> = {
     FR:    { ratePerYear: 0.02,  usefulLifeYears: 50,   salvageFraction: 0.15, note: "France: amortissement linéaire ~2%/an pour structure, hors terrain." },
     DE:    { ratePerYear: 0.02,  usefulLifeYears: 50,   salvageFraction: 0.15, note: "Germany: AfA 2%/yr for residential (pre-2023 builds), land excluded." },
     ES:    { ratePerYear: 0.03,  usefulLifeYears: 33,   salvageFraction: 0.20, note: "Spain: amortización 3%/año sobre construcción, suelo excluido." },
-    CH:    { ratePerYear: 0.015, usefulLifeYears: 66,   salvageFraction: 0.20, note: "Switzerland: cantonal — ~1.5%/yr typical, land excluded." },
+    CH:    { ratePerYear: 0.015, usefulLifeYears: 66,   salvageFraction: 0.20, note: "Switzerland: cantonal - ~1.5%/yr typical, land excluded." },
     OTHER: { ratePerYear: 0.025, usefulLifeYears: 40,   salvageFraction: 0.20, note: "Generic: ~2.5%/yr on structure, land excluded." },
   },
   vehicles: {
@@ -38,11 +38,11 @@ const RULES: Record<string, Partial<Record<CountryCode, AmortizationRule>>> = {
   },
   collectibles: {
     IT:    { ratePerYear: 0, usefulLifeYears: 0, salvageFraction: 1, note: "Italy: opere d'arte e collezionismo non si ammortizzano; possibili plusvalenze tassate al 26%." },
-    OTHER: { ratePerYear: 0, usefulLifeYears: 0, salvageFraction: 1, note: "Collectibles generally do not depreciate — capital gains apply on sale." },
+    OTHER: { ratePerYear: 0, usefulLifeYears: 0, salvageFraction: 1, note: "Collectibles generally do not depreciate - capital gains apply on sale." },
   },
   private_equity: {
     IT:    { ratePerYear: 0, usefulLifeYears: 0, salvageFraction: 1, note: "Italy: partecipazioni non ammortizzabili; eventuali svalutazioni a fair value." },
-    OTHER: { ratePerYear: 0, usefulLifeYears: 0, salvageFraction: 1, note: "Equity stakes do not amortize — value at fair market." },
+    OTHER: { ratePerYear: 0, usefulLifeYears: 0, salvageFraction: 1, note: "Equity stakes do not amortize - value at fair market." },
   },
 };
 
@@ -55,7 +55,7 @@ export const CGT_RATES: Record<CountryCode, { equity: number; crypto: number; re
   DE:    { equity: 0.2638, crypto: 0, realEstate: 0, collectibles: 0, note: "Germany: Abgeltungsteuer 25% + Soli ≈ 26.38%; crypto/property tax-free after 1y/10y holding." },
   ES:    { equity: 0.23, crypto: 0.23, realEstate: 0.23, collectibles: 0.23, note: "Spain: 19–28% scale; modelled at ~23% effective." },
   CH:    { equity: 0, crypto: 0, realEstate: 0.20, collectibles: 0, note: "Switzerland: private capital gains generally tax-free; real-estate cantonal." },
-  OTHER: { equity: 0.20, crypto: 0.20, realEstate: 0.20, collectibles: 0.20, note: "Generic 20% placeholder — set your fiscal residency in Profile for accurate rules." },
+  OTHER: { equity: 0.20, crypto: 0.20, realEstate: 0.20, collectibles: 0.20, note: "Generic 20% placeholder - set your fiscal residency in Profile for accurate rules." },
 };
 
 export function normalizeCountry(code?: string | null): CountryCode {
@@ -144,7 +144,7 @@ export function estimateCapitalGainsTax(opts: {
     rate = 0; rationale = "Italia: vendita dopo 5 anni esente da plusvalenza (immobili non-prima-casa).";
   }
   if (country === "DE" && category === "real_estate" && holdingYears >= 10) {
-    rate = 0; rationale = "Germany: Spekulationsfrist 10 years — no tax after holding period.";
+    rate = 0; rationale = "Germany: Spekulationsfrist 10 years - no tax after holding period.";
   }
   if (country === "DE" && category === "crypto" && holdingYears >= 1) {
     rate = 0; rationale = "Germany: crypto tax-free after 1-year holding period.";

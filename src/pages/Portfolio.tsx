@@ -288,13 +288,13 @@ const Portfolio = () => {
     }
 
     const stockInfo = STOCK_CATALOG.find(s => s.symbol === newStock.symbol);
-    // Custom (off-catalog) symbols are allowed — fall back to user-entered name + currency.
+    // Custom (off-catalog) symbols are allowed - fall back to user-entered name + currency.
     const resolvedName = stockInfo?.name || newDisplayName.trim() || newStock.symbol;
     const resolvedCurrency = (stockInfo?.currency || newCurrency || "EUR").toUpperCase();
     if (!stockInfo && !newDisplayName.trim()) {
       toast({
         title: "Name required for custom symbol",
-        description: `"${newStock.symbol}" isn't in our catalog — please provide a display name and currency.`,
+        description: `"${newStock.symbol}" isn't in our catalog - please provide a display name and currency.`,
         variant: "destructive",
       });
       return;
@@ -348,7 +348,7 @@ const Portfolio = () => {
       console.log("[Portfolio] handleAddStock backend upsert ok");
     }
 
-    console.log("[Portfolio] handleAddStock success — appending to portfolio", added);
+    console.log("[Portfolio] handleAddStock success - appending to portfolio", added);
     setPortfolio([...portfolio, added]);
     setNewStock({ symbol: "", name: "", shares: "", avgPrice: "" });
     setNewDisplayName("");
@@ -514,7 +514,7 @@ const Portfolio = () => {
   return (
     <div>
       {/* Navigation */}
-      <SEO title="Portfolio Tracker — Live P/L, Allocation & Risk Insights" description="Track your stock portfolio with live prices, P/L, allocation breakdown, sector exposure, and AI-driven risk insights." path="/portfolio" />
+      <SEO title="Portfolio Tracker - Live P/L, Allocation & Risk Insights" description="Track your stock portfolio with live prices, P/L, allocation breakdown, sector exposure, and AI-driven risk insights." path="/portfolio" />
       <main>
 
       {/* Portfolio Header */}
@@ -536,7 +536,7 @@ const Portfolio = () => {
                 )}
               </h1>
               <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm mt-1">
-              {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "—"}
+              {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "-"}
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
               ) : (
@@ -630,7 +630,7 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* KPI strip — mockup v2 */}
+        {/* KPI strip - mockup v2 */}
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
           <div className="p-5 flex flex-col gap-1.5">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total value</span>
@@ -709,7 +709,7 @@ const Portfolio = () => {
                 >
                   <span className="truncate">
                     {selectedCatalog
-                      ? `${selectedCatalog.symbol} — ${selectedCatalog.name}`
+                      ? `${selectedCatalog.symbol} - ${selectedCatalog.name}`
                       : "Search stock or ETF…"}
                   </span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -787,7 +787,7 @@ const Portfolio = () => {
                                         {c.verified ? <Badge className="text-[10px]">verified</Badge> : <Badge variant="secondary" className="text-[10px]">unverified</Badge>}
                                         {typeof c.confidence === 'number' && <span className="text-[10px] text-muted-foreground">{Math.round(c.confidence * 100)}%</span>}
                                       </div>
-                                      <p className="truncate text-xs text-muted-foreground">{c.name}{c.reason ? ` — ${c.reason}` : ''}</p>
+                                      <p className="truncate text-xs text-muted-foreground">{c.name}{c.reason ? ` - ${c.reason}` : ''}</p>
                                     </div>
                                   </button>
                                 ))}
@@ -861,7 +861,7 @@ const Portfolio = () => {
               {isCustomSymbol && (
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
                   <p className="text-xs text-muted-foreground">
-                    Custom symbol <span className="font-mono text-foreground">{newStock.symbol}</span> —
+                    Custom symbol <span className="font-mono text-foreground">{newStock.symbol}</span> -
                     please enter a display name. Quote-fetch uses Yahoo Finance.
                   </p>
                   <Input
@@ -893,18 +893,18 @@ const Portfolio = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="EUR">EUR — Euro</SelectItem>
-                    <SelectItem value="USD">USD — US Dollar</SelectItem>
-                    <SelectItem value="GBP">GBP — British Pound</SelectItem>
-                    <SelectItem value="GBp">GBp — Pence sterling</SelectItem>
-                    <SelectItem value="CHF">CHF — Swiss Franc</SelectItem>
-                    <SelectItem value="SEK">SEK — Swedish Krona</SelectItem>
-                    <SelectItem value="NOK">NOK — Norwegian Krone</SelectItem>
-                    <SelectItem value="DKK">DKK — Danish Krone</SelectItem>
-                    <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
-                    <SelectItem value="CAD">CAD — Canadian Dollar</SelectItem>
-                    <SelectItem value="AUD">AUD — Australian Dollar</SelectItem>
-                    <SelectItem value="HKD">HKD — Hong Kong Dollar</SelectItem>
+                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                    <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                    <SelectItem value="GBp">GBp - Pence sterling</SelectItem>
+                    <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                    <SelectItem value="SEK">SEK - Swedish Krona</SelectItem>
+                    <SelectItem value="NOK">NOK - Norwegian Krone</SelectItem>
+                    <SelectItem value="DKK">DKK - Danish Krone</SelectItem>
+                    <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                    <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                    <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                    <SelectItem value="HKD">HKD - Hong Kong Dollar</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] text-muted-foreground mt-1">
@@ -1032,7 +1032,7 @@ const Portfolio = () => {
           )}
         </div>
 
-        {/* Bottom row — Allocation / Risk / Italian capital gains (mockup v2) */}
+        {/* Bottom row - Allocation / Risk / Italian capital gains (mockup v2) */}
         <div className="grid lg:grid-cols-3 gap-6 mt-8">
           <Card className="p-6 rounded-2xl">
             <h3 className="text-sm font-semibold mb-4">Allocation by sector</h3>
@@ -1117,7 +1117,7 @@ const Portfolio = () => {
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit {editing?.symbol} — {editing?.name}</DialogTitle>
+            <DialogTitle>Edit {editing?.symbol} - {editing?.name}</DialogTitle>
             <DialogDescription>
               Update values directly, or record a buy/sell transaction to auto-recompute your average price.
             </DialogDescription>

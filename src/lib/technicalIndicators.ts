@@ -446,19 +446,19 @@ export function analyze(bars: OHLCBar[]): AnalysisSummary | null {
     let reason = "RSI in neutral zone (40–60).";
     if (r > 70) {
       sig = "bearish";
-      reason = "Overbought — pullback risk.";
+      reason = "Overbought - pullback risk.";
       score -= 15;
     } else if (r < 30) {
       sig = "bullish";
-      reason = "Oversold — bounce potential.";
+      reason = "Oversold - bounce potential.";
       score += 15;
     } else if (r > 55) {
       sig = "bullish";
-      reason = "RSI above midline — buyers in control.";
+      reason = "RSI above midline - buyers in control.";
       score += 5;
     } else if (r < 45) {
       sig = "bearish";
-      reason = "RSI below midline — sellers in control.";
+      reason = "RSI below midline - sellers in control.";
       score -= 5;
     }
     sigs.push({ name: "RSI (14)", value: r.toFixed(1), signal: sig, reason });
@@ -494,11 +494,11 @@ export function analyze(bars: OHLCBar[]): AnalysisSummary | null {
     let reason = "Price within Bollinger Bands.";
     if (last >= bbLast.upper) {
       sig = "bearish";
-      reason = "Touching upper band — stretched to the upside.";
+      reason = "Touching upper band - stretched to the upside.";
       score -= 5;
     } else if (last <= bbLast.lower) {
       sig = "bullish";
-      reason = "Touching lower band — stretched to the downside.";
+      reason = "Touching lower band - stretched to the downside.";
       score += 5;
     }
     sigs.push({
@@ -542,14 +542,14 @@ export function analyze(bars: OHLCBar[]): AnalysisSummary | null {
     let reason = `Volume ${(vol.ratio).toFixed(2)}× 20-day average.`;
     if (vol.spike && up) {
       volSig = "bullish";
-      reason = `Volume spike on green candle (${vol.ratio.toFixed(2)}× avg) — strong demand confirms move.`;
+      reason = `Volume spike on green candle (${vol.ratio.toFixed(2)}× avg) - strong demand confirms move.`;
       score += 12;
     } else if (vol.spike && !up) {
       volSig = "bearish";
-      reason = `Volume spike on red candle (${vol.ratio.toFixed(2)}× avg) — distribution / selling pressure.`;
+      reason = `Volume spike on red candle (${vol.ratio.toFixed(2)}× avg) - distribution / selling pressure.`;
       score -= 12;
     } else if (vol.weak) {
-      reason = `Thin volume (${vol.ratio.toFixed(2)}× avg) — weak conviction behind the move.`;
+      reason = `Thin volume (${vol.ratio.toFixed(2)}× avg) - weak conviction behind the move.`;
     } else if (vol.ratio >= 1.2 && up) {
       volSig = "bullish";
       score += 5;
@@ -566,14 +566,14 @@ export function analyze(bars: OHLCBar[]): AnalysisSummary | null {
 
     // OBV trend confirms price direction
     let obvSig: Signal = "neutral";
-    let obvReason = "OBV is flat — no clear accumulation or distribution.";
+    let obvReason = "OBV is flat - no clear accumulation or distribution.";
     if (vol.obvSlopePct > 5) {
       obvSig = "bullish";
-      obvReason = `OBV up ${vol.obvSlopePct.toFixed(1)}% over 20 bars — accumulation underway.`;
+      obvReason = `OBV up ${vol.obvSlopePct.toFixed(1)}% over 20 bars - accumulation underway.`;
       score += 8;
     } else if (vol.obvSlopePct < -5) {
       obvSig = "bearish";
-      obvReason = `OBV down ${vol.obvSlopePct.toFixed(1)}% over 20 bars — distribution underway.`;
+      obvReason = `OBV down ${vol.obvSlopePct.toFixed(1)}% over 20 bars - distribution underway.`;
       score -= 8;
     }
     sigs.push({

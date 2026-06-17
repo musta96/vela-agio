@@ -34,9 +34,9 @@ const SECTORS = [
 ];
 
 const SIGNALS = [
-  { tone: "pos", title: "ISP.MI — Breakout above 200-day MA on rising volume. RSI 58, room to run.", meta: "Momentum · High confidence · 4 min ago" },
-  { tone: "info", title: "ECB decision — Tomorrow 14:15 CET. Rate hold expected. Volatility spike likely in EUR/USD.", meta: "Macro event · Medium impact · 18 min ago" },
-  { tone: "warn", title: "LVMH — Earnings beat +12% EPS. Luxury sector rotation opportunity into FR0000121014.", meta: "Fundamental · Medium confidence · 1 hr ago" },
+  { tone: "pos", title: "ISP.MI - Breakout above 200-day MA on rising volume. RSI 58, room to run.", meta: "Momentum · High confidence · 4 min ago" },
+  { tone: "info", title: "ECB decision - Tomorrow 14:15 CET. Rate hold expected. Volatility spike likely in EUR/USD.", meta: "Macro event · Medium impact · 18 min ago" },
+  { tone: "warn", title: "LVMH - Earnings beat +12% EPS. Luxury sector rotation opportunity into FR0000121014.", meta: "Fundamental · Medium confidence · 1 hr ago" },
 ];
 
 function fmtMoney(v: number, ccy = "EUR") {
@@ -109,7 +109,7 @@ export default function Index() {
   }, [holdings]);
   const { quotes } = useLiveQuotes(syms, 30000);
 
-  // Portfolio metrics — delegated to the shared hook so every page (Dashboard,
+  // Portfolio metrics - delegated to the shared hook so every page (Dashboard,
   // Portfolio, Risk, Tax, Coach) reports the SAME numbers.
   const portfolio = {
     value: portfolioData.marketValue,
@@ -135,8 +135,8 @@ export default function Index() {
   return (
     <>
       <SEO title="Dashboard · Vela.ai" description="Real-time market intelligence, AI signals, portfolio snapshot and macro briefing." path="/" />
-      <div className="p-6 sm:p-8 space-y-6">
-        {/* Greeting row — icon chip + title, range + refresh on right */}
+      <div className="p-4 sm:p-8 space-y-6 min-w-0">
+        {/* Greeting row - icon chip + title, range + refresh on right */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-4 min-w-0">
             <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -165,7 +165,7 @@ export default function Index() {
 
         <OnboardingChecklist />
 
-        {/* KPI strip — 5 cells: portfolio, P&L, net worth, sentiment, signals */}
+        {/* KPI strip - 5 cells: portfolio, P&L, net worth, sentiment, signals */}
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {(() => {
             const empty = portfolio.count === 0;
@@ -173,19 +173,19 @@ export default function Index() {
             const cards = [
               {
                 label: "Portfolio value",
-                value: empty ? "—" : fmtMoney(portfolio.value),
+                value: empty ? "-" : fmtMoney(portfolio.value),
                 chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
                 sub: empty ? "Add a holding to track" : portfolio.hasPrice ? "vs last close" : "cost basis (no live price)",
               },
               {
                 label: "Today's P&L",
-                value: empty ? "—" : `${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`,
+                value: empty ? "-" : `${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`,
                 chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
-                sub: empty ? "—" : "vs yesterday",
+                sub: empty ? "-" : "vs yesterday",
               },
               {
                 label: "Net worth",
-                value: netWorth.accountCount === 0 ? "—" : fmtMoney(netWorth.total),
+                value: netWorth.accountCount === 0 ? "-" : fmtMoney(netWorth.total),
                 chg: 0,
                 sub: netWorth.accountCount === 0 ? "Add accounts in Net Worth" : `${netWorth.accountCount} accounts · FX-adjusted`,
               },
@@ -197,7 +197,7 @@ export default function Index() {
               },
               {
                 label: "Active signals",
-                value: activeSignalCount == null ? "—" : String(activeSignalCount),
+                value: activeSignalCount == null ? "-" : String(activeSignalCount),
                 chg: 0,
                 sub: activeSignalCount ? "alert rules" : "set up alerts",
               },
@@ -215,7 +215,7 @@ export default function Index() {
           ))}
         </div>
 
-        {/* Main bento — AI briefing hero (wide dark navy) + right rail */}
+        {/* Main bento - AI briefing hero (wide dark navy) + right rail */}
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-12 lg:col-span-8">
             <AIBriefing />
@@ -329,8 +329,8 @@ export default function Index() {
                       <div className="text-[11px] text-muted-foreground truncate">{w.name}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-semibold tabular-nums text-foreground">{price != null ? fmtMoney(price, ccy) : "—"}</div>
-                      {q ? <div className={`text-[11px] font-semibold tabular-nums ${chg >= 0 ? "text-success" : "text-destructive"}`}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</div> : <span className="text-[11px] text-muted-foreground">—</span>}
+                      <div className="text-sm font-semibold tabular-nums text-foreground">{price != null ? fmtMoney(price, ccy) : "-"}</div>
+                      {q ? <div className={`text-[11px] font-semibold tabular-nums ${chg >= 0 ? "text-success" : "text-destructive"}`}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</div> : <span className="text-[11px] text-muted-foreground">-</span>}
                     </div>
                     <MiniSparkline trend={trend} width={64} height={22} />
                   </button>
@@ -402,7 +402,7 @@ export default function Index() {
             </div>
             {(() => {
               // Single source of truth: useNetWorthTotal() byCategory, same as
-              // /net-worth. Skip the liabilities bucket — it's already netted
+              // /net-worth. Skip the liabilities bucket - it's already netted
               // out of the total but should not appear as a positive slice.
               const byCat = netWorth.byCategory || {};
               const slices = CATEGORY_ORDER
@@ -433,7 +433,7 @@ export default function Index() {
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net worth</span>
                       <span className="text-sm font-bold tabular-nums text-foreground">
-                        {netWorth.accountCount === 0 ? "—" : fmtMoney(netWorth.total, netWorth.currency)}
+                        {netWorth.accountCount === 0 ? "-" : fmtMoney(netWorth.total, netWorth.currency)}
                       </span>
                     </div>
                   </div>

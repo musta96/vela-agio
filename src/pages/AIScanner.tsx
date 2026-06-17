@@ -96,14 +96,14 @@ export default function AIScanner() {
                     <TableRow key={r.symbol}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell><Link to={`/stock/${encodeURIComponent(r.symbol)}`} className="font-mono font-semibold text-primary hover:underline">{r.symbol}</Link></TableCell>
-                      <TableCell><Badge variant={r.score && r.score >= 70 ? "default" : "secondary"}>{r.score ?? "—"}</Badge></TableCell>
-                      <TableCell className="text-right font-mono">{r.price ?? "—"}</TableCell>
-                      <TableCell className={`text-right font-mono ${(r.ret1m ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{r.ret1m ?? "—"}%</TableCell>
-                      <TableCell className={`text-right font-mono ${(r.ret3m ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{r.ret3m ?? "—"}%</TableCell>
-                      <TableCell className="text-right font-mono">{r.rsi14 ?? "—"}</TableCell>
-                      <TableCell className="text-right font-mono">{r.vol_ann_pct ?? "—"}%</TableCell>
-                      <TableCell className="max-w-sm text-xs">{r.thesis ?? "—"}</TableCell>
-                      <TableCell className="max-w-xs text-xs text-muted-foreground">{r.risk ?? "—"}</TableCell>
+                      <TableCell><Badge variant={r.score && r.score >= 70 ? "default" : "secondary"}>{r.score ?? "-"}</Badge></TableCell>
+                      <TableCell className="text-right font-mono">{r.price ?? "-"}</TableCell>
+                      <TableCell className={`text-right font-mono ${(r.ret1m ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{r.ret1m ?? "-"}%</TableCell>
+                      <TableCell className={`text-right font-mono ${(r.ret3m ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{r.ret3m ?? "-"}%</TableCell>
+                      <TableCell className="text-right font-mono">{r.rsi14 ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">{r.vol_ann_pct ?? "-"}%</TableCell>
+                      <TableCell className="max-w-sm text-xs">{r.thesis ?? "-"}</TableCell>
+                      <TableCell className="max-w-xs text-xs text-muted-foreground">{r.risk ?? "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

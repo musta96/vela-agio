@@ -71,7 +71,7 @@ export default function OwnerUsers() {
                   <td className="px-4 py-3"><input type="checkbox" /></td>
                   <td><Link to={`/owner/users/${r.user_id}`} className="flex items-center gap-2.5">
                     <div className="h-8 w-8 rounded-full bg-primary/15 grid place-items-center text-[10px] font-bold text-primary">{initials}</div>
-                    <div><div className="font-medium hover:underline">{r.display_name || "—"}</div><div className="text-xs text-muted-foreground font-mono">#{r.user_id.slice(0, 4)}</div></div>
+                    <div><div className="font-medium hover:underline">{r.display_name || "-"}</div><div className="text-xs text-muted-foreground font-mono">#{r.user_id.slice(0, 4)}</div></div>
                   </Link></td>
                   <td><span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted">PRO</span></td>
                   <td><span className="inline-flex items-center gap-1 text-xs">
@@ -79,7 +79,7 @@ export default function OwnerUsers() {
                     {r.suspended ? "Suspended" : "Active"}
                   </span></td>
                   <td>€49/mo</td>
-                  <td className="text-xs">{r.country_residence || "—"}</td>
+                  <td className="text-xs">{r.country_residence || "-"}</td>
                   <td className="text-xs text-muted-foreground">{format(new Date(r.created_at), "d MMM yy")}</td>
                   <td className="text-xs text-muted-foreground">2 min ago</td>
                   <td />

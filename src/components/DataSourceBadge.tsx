@@ -12,7 +12,7 @@ const LABEL: Record<string, string> = {
 };
 
 function timeAgo(ts?: number): string {
-  if (!ts) return "—";
+  if (!ts) return "-";
   const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;

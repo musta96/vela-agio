@@ -7,7 +7,7 @@ import type { LiveQuote } from "@/hooks/useLiveQuotes";
 import { currencySign } from "@/data/stockCatalog";
 
 /**
- * Benchmark strip — quiet glass tiles, no emoji. Each tile shows the
+ * Benchmark strip - quiet glass tiles, no emoji. Each tile shows the
  * instrument, its price (when available) and an arrow-tinted change.
  */
 export function SpotlightStrip() {
@@ -45,11 +45,11 @@ export function SpotlightStrip() {
             </div>
             <div className="mt-1.5 flex items-baseline justify-between gap-2">
               <span className="text-base font-semibold tabular-nums">
-                {q ? `${currencySign(q.currency)}${q.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
+                {q ? `${currencySign(q.currency)}${q.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "-"}
               </span>
               <span className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${color}`}>
                 {ch != null && <Arrow className="h-3 w-3" strokeWidth={2.5} />}
-                {ch == null ? "—" : `${Math.abs(ch).toFixed(2)}%`}
+                {ch == null ? "-" : `${Math.abs(ch).toFixed(2)}%`}
               </span>
             </div>
           </button>

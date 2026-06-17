@@ -29,7 +29,11 @@ export function PageHeader({ icon: Icon, title, description, actions, className 
           ) : null}
         </div>
       </div>
-      {actions ? <div className="flex items-center gap-2 shrink-0">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -29,7 +29,7 @@ export interface PositionMetrics {
 export interface UsePortfolioResult {
   holdings: Holding[];
   positions: PositionMetrics[];
-  /** Σ shares × (livePrice ?? avg_price) — single source of truth. */
+  /** Σ shares × (livePrice ?? avg_price) - single source of truth. */
   marketValue: number;
   /** Σ shares × avg_price */
   costBasis: number;

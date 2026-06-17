@@ -1,6 +1,6 @@
 // Catalog of supported third-party API providers.
 // Keys themselves are stored ENCRYPTED in Lovable Cloud via the `keys-vault` edge
-// function — never in localStorage. This file only describes what we support.
+// function - never in localStorage. This file only describes what we support.
 
 export type ApiKeyCategory = "ai" | "market" | "social";
 
@@ -186,7 +186,7 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
   { id: "EOD_HISTORICAL_API_KEY", label: "EOD Historical Data", description: "70+ exchanges, fundamentals, dividends, splits.", category: "market", signupUrl: "https://eodhistoricaldata.com/cp/dashboard" },
   { id: "MARKETSTACK_API_KEY", label: "Marketstack", description: "Real-time and historical global equities.", category: "market", signupUrl: "https://marketstack.com/dashboard" },
   { id: "QUANDL_API_KEY", label: "Nasdaq Data Link (Quandl)", description: "Premium datasets: futures, macro, alternative data.", category: "market", signupUrl: "https://data.nasdaq.com/account/profile" },
-  { id: "FRED_API_KEY", label: "FRED (St. Louis Fed)", description: "Free macro time series — rates, CPI, GDP, M2.", category: "market", signupUrl: "https://fred.stlouisfed.org/docs/api/api_key.html" },
+  { id: "FRED_API_KEY", label: "FRED (St. Louis Fed)", description: "Free macro time series - rates, CPI, GDP, M2.", category: "market", signupUrl: "https://fred.stlouisfed.org/docs/api/api_key.html" },
   { id: "TRADING_ECONOMICS_API_KEY", label: "Trading Economics", description: "Global macro indicators and calendar.", category: "market", signupUrl: "https://tradingeconomics.com/api/" },
   { id: "INTRINIO_API_KEY", label: "Intrinio", description: "US fundamentals, options chains, SEC filings.", category: "market", signupUrl: "https://intrinio.com/account/api-keys" },
   { id: "STOCKDATA_API_KEY", label: "StockData.org", description: "Stocks, news and sentiment.", category: "market", signupUrl: "https://www.stockdata.org/" },
@@ -197,7 +197,7 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
   { id: "PLAID_CLIENT_ID", label: "Plaid Client ID", description: "Plaid Investments aggregator for brokerage sync.", category: "market", signupUrl: "https://dashboard.plaid.com/" },
   { id: "PLAID_SECRET", label: "Plaid Secret", description: "Paired with Plaid client id.", category: "market", signupUrl: "https://dashboard.plaid.com/", serverOnly: true },
 
-  // --- Private markets / research (per-user only — no caching/redistribution) ---
+  // --- Private markets / research (per-user only - no caching/redistribution) ---
   { id: "CRUNCHBASE_API_KEY", label: "Crunchbase", description: "Private company funding rounds and deal flow.", category: "market", signupUrl: "https://data.crunchbase.com/docs/using-the-api" },
   { id: "PITCHBOOK_API_KEY", label: "PitchBook", description: "M&A, PE/VC deal flow (enterprise).", category: "market", signupUrl: "https://pitchbook.com/" },
   { id: "CBINSIGHTS_API_KEY", label: "CB Insights", description: "Tech market intelligence.", category: "market", signupUrl: "https://www.cbinsights.com/" },

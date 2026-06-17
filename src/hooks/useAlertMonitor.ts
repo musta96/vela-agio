@@ -103,10 +103,10 @@ export function useAlertMonitor() {
           if (error || !data || typeof data.score !== "number") continue;
           const score = data.score as number;
           if (typeof rule.sentimentAbove === "number" && score >= rule.sentimentAbove) {
-            fire(rule, "sentiment-bullish", `Sentiment ${score}/100 — ${data.label || "bullish"}`, score, rule.sentimentAbove, toast);
+            fire(rule, "sentiment-bullish", `Sentiment ${score}/100 - ${data.label || "bullish"}`, score, rule.sentimentAbove, toast);
           }
           if (typeof rule.sentimentBelow === "number" && score <= rule.sentimentBelow) {
-            fire(rule, "sentiment-bearish", `Sentiment ${score}/100 — ${data.label || "bearish"}`, score, rule.sentimentBelow, toast);
+            fire(rule, "sentiment-bearish", `Sentiment ${score}/100 - ${data.label || "bearish"}`, score, rule.sentimentBelow, toast);
           }
         } catch {
           // ignore transient errors

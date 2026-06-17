@@ -58,7 +58,7 @@ export default function Intraday() {
         </div>
         <div className="grid lg:grid-cols-3 gap-4">
           <Card className="lg:col-span-2">
-            <CardHeader><CardTitle>{symbol} — 1-min bars with VWAP</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{symbol} - 1-min bars with VWAP</CardTitle></CardHeader>
             <CardContent>
               {loading ? <div className="text-muted-foreground">Loading…</div> : (
                 <ResponsiveContainer width="100%" height={340}>

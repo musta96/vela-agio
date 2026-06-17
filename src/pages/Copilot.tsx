@@ -18,7 +18,7 @@ const CONTEXT_PILLS = ["Portfolio", "Watchlist", "Risk Engine", "Macro feed"];
 
 export default function Copilot() {
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="AI Copilot | Vela.ai" description="Chat with your portfolio-aware investment copilot" path="/copilot" />
       <PageHeader
         icon={Sparkles}

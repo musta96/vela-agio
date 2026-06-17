@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
@@ -75,6 +76,19 @@ export default function Landing() {
 
   return (
     <div className="vela-landing min-h-screen relative">
+      {Array.isArray(faq.items) && faq.items.length > 0 && (
+        <Helmet>
+          <script type="application/ld+json">{JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: faq.items.map((f: any) => ({
+              "@type": "Question",
+              name: f.q,
+              acceptedAnswer: { "@type": "Answer", text: f.a },
+            })),
+          })}</script>
+        </Helmet>
+      )}
       <style>{`
         /* Vela.ai brand palette
            Navy #042C53 · Ocean #185FA5 · Sky #378ADD · Teal #1D9E75 · Seafoam #7CD0AE · Sand #F1EFE8 */

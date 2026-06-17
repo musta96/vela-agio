@@ -41,7 +41,7 @@ export default function Education() {
         <p className="text-muted-foreground">{t("pages.learn.subtitle")}</p>
         <div className="grid sm:grid-cols-2 gap-3">
           {ITEMS.map(i => (
-            <Card key={i.term}><CardHeader className="pb-2"><CardTitle className="text-base">{i.term}</CardTitle></CardHeader><CardContent><p className="text-sm leading-relaxed">{i.body}</p></CardContent></Card>
+            <Card key={i.term}><CardHeader className="pb-2"><CardTitle asChild className="text-base"><h2>{i.term}</h2></CardTitle></CardHeader><CardContent><p className="text-sm leading-relaxed">{i.body}</p></CardContent></Card>
           ))}
         </div>
       </main>

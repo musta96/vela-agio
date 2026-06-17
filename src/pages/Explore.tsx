@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
-import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Compass, Search, ExternalLink, Info } from "lucide-react";
+import { Search, ExternalLink, Info, X } from "lucide-react";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { ASSET_CLASSES, REGIONS, type AssetClass, type RegionKey } from "@/data/marketTaxonomy";
+import { RAIL_GROUPS } from "@/data/curatedLists";
+import { SpotlightStrip } from "@/components/explore/SpotlightStrip";
+import { RailGroup } from "@/components/explore/RailGroup";
+import { CategoryChips } from "@/components/explore/CategoryChips";
 
 /**
- * Universal Instrument Explorer. Search across ~150k instruments via the
- * `symbol-search` edge function (Yahoo Finance autocomplete). Client-side
- * filters by asset class, region/exchange and currency.
+ * Discovery hub à la Trading 212. Sticky search bar at the top — typing
+ * expands the full search experience. When the search is empty we show a
+ * spotlight strip and a column of curated 3-tab rails (Most owned / bought
+ * / sold, themes, movers, regions, crypto/FX/commodities, bonds/futures…).
  *
- * Note: bond coverage is limited (mostly via mutual funds and ETFs); OTC
- * single-name bonds aren't indexed by Yahoo. We disclose that on-page.
+ * Coverage uses Yahoo Finance for live quotes — supports stocks, ETFs,
+ * funds, bonds (mainly via ETFs/yield indices), crypto, FX, commodities,
+ * futures and indices across every exchange Yahoo tracks.
  */
 
 type Hit = {
@@ -76,67 +81,87 @@ export default function Explore() {
     });
   }, [hits, assetFilter, regionFilter]);
 
+  const searchActive = q.trim().length >= 2;
+
   return (
     <>
-      <SEO title="Explore Instruments — Vela" description="Search 150,000+ stocks, ETFs, funds, bonds, crypto, FX and indices across global exchanges." path="/explore" />
-      <div className="px-6 sm:px-8 py-6 max-w-7xl mx-auto">
-        <PageHeader icon={Compass} title="Explore Instruments" description="Search across ~150,000 instruments worldwide — stocks, ETFs, mutual funds, bonds, crypto, FX, futures and indices." />
-
-        <Card className="p-4 mb-4">
-          <div className="flex items-center gap-2">
+      <SEO title="Explore — Stocks, ETFs, Crypto, FX & more" description="Discover what's trending: most bought, most owned, top movers, themes (Big tech, EU defence, Quantum), crypto, FX, commodities, bonds and futures across global exchanges." path="/explore" />
+      <div className="px-4 sm:px-8 py-4 sm:py-6 max-w-7xl mx-auto">
+        {/* Sticky search bar */}
+        <div className="sticky top-0 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-2 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center gap-2 rounded-full glass-card px-4 py-2.5">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any ticker or name — AAPL, Eni, MSCI World, Bitcoin, EUR/USD…" className="border-0 shadow-none focus-visible:ring-0 px-0 text-base" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search any ticker — AAPL, Eni, Bitcoin, EUR/USD, Gold…"
+              className="border-0 shadow-none focus-visible:ring-0 px-0 text-base bg-transparent h-auto"
+            />
+            {q && (
+              <button onClick={() => setQ("")} aria-label="Clear search" className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2 mt-3">
-            <Badge variant={assetFilter === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setAssetFilter("all")}>All assets</Badge>
-            {ASSET_CLASSES.map((c) => (
-              <Badge key={c.key} variant={assetFilter === c.key ? "default" : "outline"} className="cursor-pointer" onClick={() => setAssetFilter(c.key)}>{c.label}</Badge>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Badge variant={regionFilter === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setRegionFilter("all")}>All regions</Badge>
-            {REGIONS.filter((r) => r.key !== "global").map((r) => (
-              <Badge key={r.key} variant={regionFilter === r.key ? "default" : "outline"} className="cursor-pointer" onClick={() => setRegionFilter(r.key)}>{r.label}</Badge>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="overflow-hidden">
-          {loading && <div className="px-6 py-10 text-sm text-muted-foreground text-center">Searching…</div>}
-          {!loading && q.trim().length < 2 && (
-            <div className="px-6 py-10 text-sm text-muted-foreground text-center">Type at least 2 characters to start exploring.</div>
-          )}
-          {!loading && q.trim().length >= 2 && filtered.length === 0 && (
-            <div className="px-6 py-10 text-sm text-muted-foreground text-center">No matches for those filters.</div>
-          )}
-          {filtered.length > 0 && (
-            <ul className="divide-y divide-border">
-              {filtered.map((h) => (
-                <li key={`${h.symbol}-${h.exchange}`} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/50">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold tabular-nums">{h.symbol}</span>
-                      <Badge variant="outline" className="text-[10px]">{h.type || "—"}</Badge>
-                      {h.exchange && <span className="text-xs text-muted-foreground">{h.exchange}</span>}
-                      {h.currency && <span className="text-xs text-muted-foreground">· {h.currency}</span>}
-                    </div>
-                    <div className="text-sm text-foreground truncate">{h.name}</div>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/stock/${encodeURIComponent(h.symbol)}`)} className="gap-1.5">
-                    Open <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <div className="mt-4 text-xs text-muted-foreground flex items-start gap-2">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <p>
-            Coverage uses Yahoo Finance's universal symbol index. Single-name OTC bonds and many illiquid private instruments are not indexed and may not appear. Data is delayed and provided for informational purposes only — not investment advice.
-          </p>
         </div>
+
+        {searchActive ? (
+          <div className="mt-3">
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Badge variant={assetFilter === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setAssetFilter("all")}>All</Badge>
+              {ASSET_CLASSES.map((c) => (
+                <Badge key={c.key} variant={assetFilter === c.key ? "default" : "outline"} className="cursor-pointer" onClick={() => setAssetFilter(c.key)}>{c.label}</Badge>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Badge variant={regionFilter === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setRegionFilter("all")}>All regions</Badge>
+              {REGIONS.filter((r) => r.key !== "global").map((r) => (
+                <Badge key={r.key} variant={regionFilter === r.key ? "default" : "outline"} className="cursor-pointer" onClick={() => setRegionFilter(r.key)}>{r.label}</Badge>
+              ))}
+            </div>
+            <Card className="overflow-hidden glass-card">
+              {loading && <div className="px-6 py-10 text-sm text-muted-foreground text-center">Searching…</div>}
+              {!loading && filtered.length === 0 && (
+                <div className="px-6 py-10 text-sm text-muted-foreground text-center">No matches for those filters.</div>
+              )}
+              {filtered.length > 0 && (
+                <ul className="divide-y divide-border">
+                  {filtered.map((h) => (
+                    <li key={`${h.symbol}-${h.exchange}`} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/50">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold tabular-nums">{h.symbol}</span>
+                          <Badge variant="outline" className="text-[10px]">{h.type || "—"}</Badge>
+                          {h.exchange && <span className="text-xs text-muted-foreground">{h.exchange}</span>}
+                          {h.currency && <span className="text-xs text-muted-foreground">· {h.currency}</span>}
+                        </div>
+                        <div className="text-sm text-foreground truncate">{h.name}</div>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/stock/${encodeURIComponent(h.symbol)}`)} className="gap-1.5">
+                        Open <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+            <div className="mt-4 text-xs text-muted-foreground flex items-start gap-2">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <p>Coverage uses Yahoo Finance's universal symbol index across global exchanges including NYSE, NASDAQ, TSX, LSE, Euronext, Xetra, Borsa Italiana, SIX, Tokyo, HKEX, ASX, Singapore, Korea, India, Brazil and more. Single-name OTC bonds and options chains aren't included on the free tier. Data is delayed.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-6">
+            <SpotlightStrip />
+            {RAIL_GROUPS.map((g) => <RailGroup key={g.id} group={g} />)}
+            <CategoryChips onBrowse={(key) => { setQ(" "); setAssetFilter(key as AssetClass); setTimeout(() => setQ(""), 0); }} />
+            <div className="text-xs text-muted-foreground flex items-start gap-2">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <p>Lists are informational, refreshed throughout the day, and not investment advice. Crypto, FX and commodities are inherently more volatile than equities.</p>
+            </div>
+          </div>
+        )}
+
         <AiDisclaimerStrip />
       </div>
     </>

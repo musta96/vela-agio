@@ -9,6 +9,7 @@ CORE
 - /portfolio      Portfolio — add/edit holdings (manual or AI-resolved tickers), P&L, charts, broker sync via SnapTrade.
 - /watchlist      Watchlist — track tickers without owning them; quick AI sentiment per row.
 - /macro          Macro — FRED / TradingEconomics global indicators, rates, CPI, GDP, yield curve.
+- /explore        Explore (discovery hub) — sticky search across 150k+ symbols (stocks, ETFs, crypto, FX, commodities, bonds via ETFs/yields, futures, indices) plus Trading 212–style rails: Most owned/bought/sold, Big tech, EU defence, Quantum, GLP-1, Luxury, REITs, Italian banks, Top movers, Most traded, US greats, UK's biggest, European giants, Nikkei, Hang Seng, FTSE MIB, Crypto top 10, Forex majors, Commodities, Government bonds, US index futures, Most shorted, High dividend, Small-cap gainers, Growth tech, Undervalued.
 
 ANALYSIS
 - /screener       Screener — natural-language + rule-based stock filter across 60+ metrics.

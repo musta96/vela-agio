@@ -91,7 +91,7 @@ export default function OrderHistory() {
 
   return (
     <BrokerRequiredOverlay>
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Order & Trade History - Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
       <PageHeader
         icon={History}

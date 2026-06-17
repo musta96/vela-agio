@@ -33,7 +33,7 @@ const Watchlist = () => {
   );
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Watchlist - Live Quotes & Price Alerts for Your Stocks" description="Monitor your favorite FTSE MIB, EU, and US stocks with live quotes, custom alerts, and one-click access to deep analysis." path="/watchlist" />
       <PageHeader
         icon={Eye}

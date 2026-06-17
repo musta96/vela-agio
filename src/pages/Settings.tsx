@@ -283,7 +283,7 @@ const Settings = () => {
   const { mode, setMode } = useTheme();
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Settings - Account, Preferences & Integrations" description="Manage your account, fiscal residency, currencies, broker connections and data." path="/settings" />
       <PageHeader
         icon={SettingsIcon}

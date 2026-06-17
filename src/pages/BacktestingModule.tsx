@@ -200,7 +200,7 @@ const BacktestingModule = () => {
   };
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Strategy Backtesting - Test Trading Strategies on Historical Data" description="Backtest custom trading strategies on FTSE MIB, EU, and US stocks. Measure returns, drawdown, Sharpe ratio, and benchmark performance." path="/backtest" />
       <PageHeader
           icon={Target}

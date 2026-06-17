@@ -166,7 +166,7 @@ const Alerts = () => {
   };
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO
         title="Alerts & Notifications"
         description="Configure server-side alerts on price moves, technical signals, AI picks, and portfolio risk. Get a daily morning digest by email."

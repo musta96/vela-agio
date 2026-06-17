@@ -122,7 +122,7 @@ const Risk = () => {
   const fmtPct = (v: number, d = 2) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`;
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO
         title="Portfolio Risk Engine - VaR, Stress Tests, Factor Exposure"
         description="Pro-grade risk analytics for your portfolio: VaR, CVaR, Monte Carlo stress, factor exposure, concentration, and beta."

@@ -52,7 +52,7 @@ export default function Onboarding() {
   const cur = Q[step];
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Onboarding | Vela.ai" description="Risk profile and model portfolio" path="/onboarding" />
       {/* Hero header with progress */}
       <div className="flex flex-wrap items-start justify-between gap-3">

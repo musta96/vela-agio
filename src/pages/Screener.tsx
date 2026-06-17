@@ -115,7 +115,7 @@ const Screener = () => {
   const fmtCap = (v?: number) => (v == null ? "-" : v > 1e9 ? `${(v / 1e9).toFixed(1)}B` : `${(v / 1e6).toFixed(0)}M`);
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Natural-Language Stock Screener - Powered by AI" description="Describe what you want in plain English. AI translates your query into filters and screens stocks across global markets in seconds." path="/screener" />
       <PageHeader
         icon={Filter}

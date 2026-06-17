@@ -82,7 +82,7 @@ export default function TaxHarvest() {
   const sym = jur.currency === "EUR" ? "€" : jur.currency === "GBP" ? "£" : jur.currency === "USD" ? "$" : jur.currency + " ";
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Tax-Loss Harvesting | Vela.ai" description="Realise losses to offset capital gains" path="/tax-harvest" />
       <PageHeader
         icon={Receipt}

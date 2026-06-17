@@ -327,7 +327,7 @@ export default function NetWorthCategory() {
   const monthChangePct = 0.4; // placeholder for now
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title={`${meta.label} - Net Worth - Vela.ai`} description={meta.description} path={`/net-worth/${category}`} />
 
       <div>

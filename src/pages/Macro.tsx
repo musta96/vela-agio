@@ -36,7 +36,7 @@ export default function Macro() {
   const [view, setView] = useState<"tiles" | "list" | "heatmap">("tiles");
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Macro Dashboard | Vela.ai" description="Rates, FX, commodities, credit, vol" path="/macro" />
       <PageHeader
         icon={Globe2}

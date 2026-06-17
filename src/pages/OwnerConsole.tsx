@@ -597,7 +597,7 @@ export default function OwnerConsole() {
         <KpiTile label="Active 24h" value={stats.signedInLast24h.toLocaleString()} delta={`${stats.signedInLast7d} in 7d`} />
         <KpiTile label="Active signals today" value={liveSignalsToday.toLocaleString()} delta={`${flaggedSignals} flagged`} deltaTone={flaggedSignals ? "warn" : undefined} />
         <KpiTile label="Portfolios" value={stats.portfolios.toLocaleString()} delta={`${stats.holdings} holdings`} />
-        <KpiTile label="Open incidents" value={String(openIncidents)} delta={openIncidents ? "Investigate" : "All clear"} deltaTone={openIncidents ? "warn" : "up"} />
+        <KpiTile label="Active kill switches" value={String(openIncidents)} delta={openIncidents ? "Review controls" : "All clear"} deltaTone={openIncidents ? "warn" : "up"} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

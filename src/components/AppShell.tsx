@@ -114,8 +114,7 @@ export default function AppShell() {
           </header>
 
           <main
-            className="flex-1 min-w-0 overflow-x-hidden md:pb-0"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}
+            className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-0"
           >
             <ErrorBoundary label="route">
               <Outlet />

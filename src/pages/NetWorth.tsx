@@ -370,7 +370,8 @@ const NetWorth = () => {
                   ))}
                 </div>
               </div>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+              <table className="w-full text-sm min-w-[820px]">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
                     <th className="px-5 py-3">Category</th>
@@ -413,6 +414,7 @@ const NetWorth = () => {
                   })}
                 </tbody>
               </table>
+              </div>
             </Card>
 
             <Card className="p-5">

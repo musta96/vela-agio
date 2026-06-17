@@ -101,16 +101,21 @@ export default function AppShell() {
               <kbd className="ml-auto hidden md:inline-flex items-center text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">⌘K</kbd>
             </button>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
               <MarketStatusPill />
               <NotificationBell />
-              <LanguageSwitcher />
-              <ThemeToggle />
+              {/* Secondary controls — hidden on phones; available from the "More" sheet via bottom nav. */}
+              <div className="hidden md:flex items-center gap-2">
+                <LanguageSwitcher />
+                <ThemeToggle />
+              </div>
               <AuthButton />
             </div>
           </header>
 
-          <main className="flex-1 min-w-0 pb-16 md:pb-0 overflow-x-hidden">
+          <main
+            className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-0"
+          >
             <ErrorBoundary label="route">
               <Outlet />
             </ErrorBoundary>

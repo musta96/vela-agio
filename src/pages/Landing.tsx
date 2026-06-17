@@ -573,9 +573,17 @@ export default function Landing() {
             <span className="text-xs" style={{ color: "#3d4f66" }}>{footerCopy || `© ${year} Vela Intelligence Systems. Smart money, amplified.`}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-6 gap-y-2 text-sm" style={{ color: "#3d4f66" }}>
-            {(footer.links || []).map((l: any) => (
-              <Link key={l.href} to={l.href} className="hover:underline">{l.label}</Link>
-            ))}
+            {(footer.links || []).map((l: any) => {
+              const href: string = l.href || "#";
+              if (href.startsWith("#")) {
+                return (
+                  <a key={href + l.label} href={href} className="hover:underline">{l.label}</a>
+                );
+              }
+              return (
+                <Link key={href + l.label} to={href} className="hover:underline">{l.label}</Link>
+              );
+            })}
           </div>
         </div>
       </footer>

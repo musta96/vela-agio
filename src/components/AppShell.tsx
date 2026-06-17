@@ -41,6 +41,7 @@ function CloseMobileSidebarOnNav() {
 function useHideOnScroll() {
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
+  const lastTouchY = useRef<number | null>(null);
   const downAccum = useRef(0);
   useEffect(() => {
     const getY = () =>
@@ -66,14 +67,38 @@ function useHideOnScroll() {
         if (downAccum.current > 16) setHidden(true);
       }
     };
-    const onTouchStart = () => { lastY.current = getY(); };
+    const reveal = () => {
+      downAccum.current = 0;
+      setHidden(false);
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      lastY.current = getY();
+      lastTouchY.current = event.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const touchY = event.touches[0]?.clientY;
+      if (touchY == null || lastTouchY.current == null) return;
+      const fingerDelta = touchY - lastTouchY.current;
+      lastTouchY.current = touchY;
+
+      // iOS can delay/coalesce scroll events during a flick. Reveal directly
+      // from the touch gesture whenever the user starts scrolling back up.
+      if (fingerDelta > 1) reveal();
+    };
+    const onTouchEnd = () => { lastTouchY.current = null; };
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("scroll", onScroll);
       window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
     };
   }, []);
   return hidden;

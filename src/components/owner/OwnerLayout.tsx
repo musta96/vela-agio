@@ -112,11 +112,11 @@ function TopBar() {
           All systems operational
         </span>
         <EmailRevealToggle />
-        <button className="relative h-9 w-9 grid place-items-center rounded-lg hover:bg-muted">
+        <button type="button" aria-label="Notifications" className="relative h-9 w-9 grid place-items-center rounded-lg hover:bg-muted">
           <Bell className="h-4 w-4" />
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
         </button>
-        <button className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted"><Cog className="h-4 w-4" /></button>
+        <button type="button" aria-label="Settings" className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted"><Cog className="h-4 w-4" /></button>
         <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground grid place-items-center text-xs font-semibold">{initials}</div>
       </div>
     </header>

@@ -157,7 +157,7 @@ function NotifyDialog({ doc, onSend }: { doc: Doc; onSend: (msg: string) => Prom
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="gap-1"><Send className="h-3.5 w-3.5" /></Button>
+        <Button size="sm" variant="ghost" aria-label="Send message" className="gap-1"><Send className="h-3.5 w-3.5" /></Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Notify all users</DialogTitle></DialogHeader>

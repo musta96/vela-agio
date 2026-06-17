@@ -236,7 +236,7 @@ const NetWorth = () => {
     .map((k) => ({ name: CATEGORIES[k].label, value: totals.byCat[k], color: CATEGORIES[k].color, key: k }));
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Net Worth Tracker — Vela.ai" description="Track every asset and liability in one customisable dashboard." path="/net-worth" />
       <PageHeader
         icon={Wallet}

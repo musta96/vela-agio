@@ -6,7 +6,7 @@
  */
 
 export type AssetClass =
-  | "equity" | "etf" | "mutual_fund" | "bond" | "crypto" | "fx" | "future" | "index";
+  | "equity" | "etf" | "mutual_fund" | "bond" | "crypto" | "fx" | "commodity" | "future" | "option" | "index";
 
 export const ASSET_CLASSES: { key: AssetClass; label: string; yahooTypes: string[] }[] = [
   { key: "equity",       label: "Stocks",       yahooTypes: ["EQUITY"] },
@@ -15,18 +15,20 @@ export const ASSET_CLASSES: { key: AssetClass; label: string; yahooTypes: string
   { key: "bond",         label: "Bonds",        yahooTypes: ["BOND"] },
   { key: "crypto",       label: "Crypto",       yahooTypes: ["CRYPTOCURRENCY"] },
   { key: "fx",           label: "FX",           yahooTypes: ["CURRENCY"] },
+  { key: "commodity",    label: "Commodities",  yahooTypes: ["FUTURE"] },
   { key: "future",       label: "Futures",      yahooTypes: ["FUTURE"] },
+  { key: "option",       label: "Options",      yahooTypes: ["OPTION"] },
   { key: "index",        label: "Indices",      yahooTypes: ["INDEX"] },
 ];
 
 export type RegionKey = "europe" | "italy" | "us" | "uk" | "asia" | "emerging" | "global";
 export const REGIONS: { key: RegionKey; label: string; exchangeSuffixes: string[] }[] = [
   { key: "italy",    label: "Italy",          exchangeSuffixes: [".MI"] },
-  { key: "europe",   label: "Europe",         exchangeSuffixes: [".MI", ".DE", ".PA", ".AS", ".BR", ".MC", ".LS", ".VI", ".HE", ".F", ".SW"] },
+  { key: "europe",   label: "Europe",         exchangeSuffixes: [".MI", ".DE", ".PA", ".AS", ".BR", ".MC", ".LS", ".IR", ".OL", ".ST", ".CO", ".VI", ".HE", ".F", ".SW", ".WA", ".PR", ".BD", ".AT", ".IS"] },
   { key: "uk",       label: "United Kingdom", exchangeSuffixes: [".L", ".IL"] },
-  { key: "us",       label: "United States",  exchangeSuffixes: [""] },
-  { key: "asia",     label: "Asia / Pacific", exchangeSuffixes: [".HK", ".T", ".SS", ".SZ", ".KS", ".KQ", ".TW", ".AX", ".NZ", ".SI"] },
-  { key: "emerging", label: "Emerging",       exchangeSuffixes: [".NS", ".BO", ".SA", ".MX", ".JK", ".IS"] },
+  { key: "us",       label: "United States",  exchangeSuffixes: ["", ".TO", ".V"] },
+  { key: "asia",     label: "Asia / Pacific", exchangeSuffixes: [".HK", ".T", ".SS", ".SZ", ".KS", ".KQ", ".TW", ".AX", ".NZ", ".SI", ".BK"] },
+  { key: "emerging", label: "Emerging",       exchangeSuffixes: [".NS", ".BO", ".SA", ".MX", ".BA", ".SN", ".JK", ".IS", ".SR", ".TA", ".JO", ".CA"] },
   { key: "global",   label: "Global",         exchangeSuffixes: [] },
 ];
 

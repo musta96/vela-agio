@@ -151,9 +151,18 @@ export default function Explore() {
             </div>
           </div>
         ) : (
-          <div className="mt-4 space-y-6">
+          <div className="mt-6 space-y-10">
+            <header className="space-y-1">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Discover</div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Explore the market</h1>
+              <p className="text-sm text-muted-foreground max-w-xl">
+                Stocks, ETFs, crypto, FX, commodities, bonds and futures — curated rails refreshed throughout the day.
+              </p>
+            </header>
             <SpotlightStrip />
-            {RAIL_GROUPS.map((g) => <RailGroup key={g.id} group={g} />)}
+            <div className="space-y-10">
+              {RAIL_GROUPS.map((g) => <RailGroup key={g.id} group={g} />)}
+            </div>
             <CategoryChips onBrowse={(key) => { setQ(" "); setAssetFilter(key as AssetClass); setTimeout(() => setQ(""), 0); }} />
             <div className="text-xs text-muted-foreground flex items-start gap-2">
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />

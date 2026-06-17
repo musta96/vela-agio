@@ -207,6 +207,7 @@ const App = () => (
             <Route path="/owner/signals" element={<OwnerAISignals />} />
             <Route path="/owner/security" element={<OwnerSecurity />} />
             <Route path="/owner/tickets" element={<OwnerTickets />} />
+            <Route path="/owner/blog" element={<OwnerBlog />} />
           </Route>
         </Routes>
         </PortfoliosProvider>

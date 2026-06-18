@@ -63,6 +63,7 @@ const NetWorth = () => {
   const { toast } = useToast();
 
   const [accounts, setAccounts] = useState<NWAccount[]>([]);
+  const [activeTab, setActiveTab] = useState<"overview" | "accounts" | "history">("overview");
   const [snapshots, setSnapshots] = useState<NWSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<NWAccount> | null>(null);

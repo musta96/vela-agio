@@ -86,11 +86,6 @@ export default function BlogPost() {
   );
   const safeGated = useMemo(() => (gatedHtml ? sanitizeHtml(gatedHtml) : ""), [gatedHtml]);
 
-  const needsGate =
-    !isFormOnly &&
-    !unlocked &&
-    ((hasInlineGate) || !!(post as any)?.has_gated);
-
   async function submitForm(e: React.FormEvent) {
     e.preventDefault();
     const parsed = emailSchema.safeParse(form.email);

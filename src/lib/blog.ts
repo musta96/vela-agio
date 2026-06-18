@@ -75,8 +75,9 @@ export const INLINE_GATE_MARKER = "<!--lovable:gate-->";
 /** Split content_html by the inline gate marker, if present. */
 export function splitByInlineGate(html: string): { before: string; after: string | null } {
   if (!html) return { before: "", after: null };
-  // Match the comment in any case, allow optional whitespace.
-  const re = /<!--\s*lovable:gate\s*-->/i;
+  // Match the marker, optionally wrapped in a <p> tag so that pasting it via the
+  // editor doesn't leave dangling tags on either side after splitting.
+  const re = /(?:<p[^>]*>\s*)?<!--\s*lovable:gate\s*-->(?:\s*<\/p>)?/i;
   const m = html.match(re);
   if (!m) return { before: html, after: null };
   const idx = m.index ?? -1;

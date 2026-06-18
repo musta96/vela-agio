@@ -166,6 +166,7 @@ export default function Landing() {
             <a href="#who-its-for" className="hover:text-[#042C53] transition">Who it's for</a>
             <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
             <a href="#faq" className="hover:text-[#042C53] transition">FAQ</a>
+            <Link to="/blog" className="hover:text-[#042C53] transition">Blog</Link>
           </nav>
           <div className="flex items-center gap-3 sm:gap-5">
             <Link

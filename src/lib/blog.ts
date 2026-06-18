@@ -18,6 +18,7 @@ export interface BlogPostRow {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  has_gated?: boolean;
 }
 
 export function slugify(input: string): string {

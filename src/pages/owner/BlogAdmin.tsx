@@ -42,10 +42,7 @@ export default function BlogAdmin() {
 
   async function refresh() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("blog_posts" as any)
-      .select("*")
-      .order("updated_at", { ascending: false });
+    const { data, error } = await supabase.rpc("admin_list_blog_posts" as any);
     if (error) { toast.error(error.message); setLoading(false); return; }
     const rows = ((data as any) || []) as BlogPostRow[];
     setPosts(rows);

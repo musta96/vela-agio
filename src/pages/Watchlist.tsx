@@ -75,7 +75,8 @@ const Watchlist = () => {
               <Button asChild size="sm"><Link to="/dashboard">Browse stocks</Link></Button>
             </div>
           ) : (
-            <ul className="divide-y divide-border">
+            <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+            <ul className="divide-y divide-border min-w-[680px]">
               {visible.map((item) => {
                 const q = quotes[item.symbol];
                 const change = q?.change ?? 0;
@@ -111,6 +112,7 @@ const Watchlist = () => {
                 );
               })}
             </ul>
+            </div>
           )}
         </div>
 

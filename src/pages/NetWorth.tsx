@@ -364,11 +364,6 @@ const NetWorth = () => {
             <Card className="overflow-hidden">
               <div className="px-5 py-4 flex items-center justify-between border-b border-border">
                 <h3 className="font-semibold">Category breakdown</h3>
-                <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
-                  {["Overview", "Accounts", "History"].map((t, i) => (
-                    <button key={t} className={`px-3 py-1 rounded-md ${i === 0 ? "bg-foreground text-background" : "text-muted-foreground"}`}>{t}</button>
-                  ))}
-                </div>
               </div>
               <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[820px]">

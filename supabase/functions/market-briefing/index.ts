@@ -103,7 +103,8 @@ Deno.serve(async (req) => {
       return { symbol: h.symbol, name: h.name, shares: h.shares, avgPrice: h.avg_price, price: e?.price, plPct: pl != null ? +pl.toFixed(2) : null };
     });
 
-    const sys = `You are Vela.ai's market-briefing analyst. Respond in ${langName}.
+    const sys = `You are Vela.ai's market-briefing analyst.
+CRITICAL LANGUAGE RULE: Every single word of every field (headline, body, highlights[].note) MUST be written in ${langName} only. Do NOT use any other language, alphabet, or script under any circumstance. Ticker symbols (e.g. AAPL, STLA) are the ONLY non-${langName} tokens allowed. If you cannot phrase something in ${langName}, omit it.
 Write a concise, personalised market briefing for THIS user based on their actual holdings, watchlist and live data provided.
 ${focus ? `USER FOCUS (give extra weight to these topics/sectors/tickers): ${focus}` : ''}
 

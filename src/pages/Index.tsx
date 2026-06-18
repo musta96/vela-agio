@@ -44,6 +44,14 @@ function fmtMoney(v: number, ccy = "EUR") {
   return `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
 }
 
+function fmtMoneyCompact(v: number, ccy = "EUR") {
+  const sym = ccy === "USD" ? "$" : "€";
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${sym}${(v / 1_000_000).toFixed(abs >= 10_000_000 ? 1 : 2)}M`;
+  if (abs >= 10_000) return `${sym}${(v / 1_000).toFixed(1)}k`;
+  return `${sym}${Math.round(v).toLocaleString()}`;
+}
+
 function ChangePill({ pct, className = "" }: { pct: number; className?: string }) {
   const positive = pct > 0.05;
   const negative = pct < -0.05;
@@ -432,8 +440,8 @@ export default function Index() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Net worth</span>
-                      <span className="text-sm font-bold tabular-nums text-foreground">
-                        {netWorth.accountCount === 0 ? "-" : fmtMoney(netWorth.total, netWorth.currency)}
+                      <span className="text-[13px] font-bold tabular-nums text-foreground leading-tight">
+                        {netWorth.accountCount === 0 ? "-" : fmtMoneyCompact(netWorth.total, netWorth.currency)}
                       </span>
                     </div>
                   </div>

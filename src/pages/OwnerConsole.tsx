@@ -7,6 +7,7 @@ import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
 import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
 import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
 import OwnerTickets from "@/pages/owner/Tickets";
+import OwnerBlogAdmin from "@/pages/owner/BlogAdmin";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -761,6 +762,7 @@ export default function OwnerConsole() {
     legal: <LegalDocsEditor docs={legal} reload={load} />,
     landing: <LandingEditor />,
     tickets: <OwnerTickets />,
+    blog: <OwnerBlogAdmin />,
   };
 
   return (
@@ -852,6 +854,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "audit", label: "Audit logs", icon: <ScrollText className="h-3.5 w-3.5" /> },
       { key: "comms", label: "Comms & CRM", icon: <Mail className="h-3.5 w-3.5" /> },
       { key: "landing", label: "Landing page", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
+      { key: "blog", label: "Blog & news", icon: <FileText className="h-3.5 w-3.5" /> },
       { key: "tickets", label: "Support tickets", icon: <LifeBuoy className="h-3.5 w-3.5" />, badge: openTickets || undefined },
     ]},
     { label: "AI & data", items: [

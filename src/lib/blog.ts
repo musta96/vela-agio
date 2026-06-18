@@ -1,5 +1,14 @@
 import DOMPurify from "dompurify";
 
+export interface LeadMagnetFields {
+  first_name?: boolean;
+  last_name?: boolean;
+  company?: boolean;
+  role?: boolean;
+  country?: boolean;
+  consent?: boolean;
+}
+
 export interface BlogPostRow {
   id: string;
   slug: string;
@@ -19,6 +28,13 @@ export interface BlogPostRow {
   created_at: string;
   updated_at: string;
   has_gated?: boolean;
+  // Lead-magnet fields (admin-readable; public reads only the safe subset)
+  lead_magnet_enabled?: boolean;
+  lead_magnet_layout?: 'with_article' | 'form_only';
+  lead_magnet_file_path?: string | null;
+  lead_magnet_file_name?: string | null;
+  lead_magnet_cta?: string | null;
+  lead_magnet_fields?: LeadMagnetFields | null;
 }
 
 export function slugify(input: string): string {
@@ -48,6 +64,33 @@ export function sanitizeHtml(html: string): string {
     ALLOWED_ATTR,
     ALLOW_DATA_ATTR: false,
   });
+}
+
+/**
+ * Inline gate marker. Authors can insert this anywhere in the public content
+ * to split it into a "before gate" half and a "after gate" half.
+ *
+ * Implemented as a plain text token wrapped in a paragraph so the rich-text
+ * editor (which strips HTML comments) preserves it through edits.
+ */
+export const INLINE_GATE_MARKER = "[[lovable-gate]]";
+
+/** Split content_html by the inline gate marker, if present. */
+export function splitByInlineGate(html: string): { before: string; after: string | null } {
+  if (!html) return { before: "", after: null };
+  // Match the text token, optionally wrapped in a <p> tag so that the rich-text
+  // editor's paragraph wrapping doesn't leave dangling tags on either side.
+  const re = /(?:<p[^>]*>\s*)?\[\[\s*lovable-gate\s*\]\](?:\s*<\/p>)?/i;
+  const m = html.match(re);
+  // Strip any stray markers from a half so the text never leaks to readers.
+  const stripStray = (s: string) => s.replace(/\[\[\s*lovable-gate\s*\]\]/gi, "");
+  if (!m) return { before: stripStray(html), after: null };
+  const idx = m.index ?? -1;
+  if (idx < 0) return { before: stripStray(html), after: null };
+  return {
+    before: stripStray(html.slice(0, idx)),
+    after: stripStray(html.slice(idx + m[0].length)),
+  };
 }
 
 export function readingMinutes(html: string): number {

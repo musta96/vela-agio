@@ -507,26 +507,47 @@ export type Database = {
       }
       blog_leads: {
         Row: {
+          company: string | null
+          consent: boolean
+          country: string | null
           created_at: string
           email: string
+          first_name: string | null
           id: string
+          kind: string
+          last_name: string | null
           post_id: string | null
+          role: string | null
           source: string | null
           user_agent: string | null
         }
         Insert: {
+          company?: string | null
+          consent?: boolean
+          country?: string | null
           created_at?: string
           email: string
+          first_name?: string | null
           id?: string
+          kind?: string
+          last_name?: string | null
           post_id?: string | null
+          role?: string | null
           source?: string | null
           user_agent?: string | null
         }
         Update: {
+          company?: string | null
+          consent?: boolean
+          country?: string | null
           created_at?: string
           email?: string
+          first_name?: string | null
           id?: string
+          kind?: string
+          last_name?: string | null
           post_id?: string | null
+          role?: string | null
           source?: string | null
           user_agent?: string | null
         }
@@ -550,6 +571,12 @@ export type Database = {
           excerpt: string | null
           gated_html: string | null
           id: string
+          lead_magnet_cta: string | null
+          lead_magnet_enabled: boolean
+          lead_magnet_fields: Json
+          lead_magnet_file_name: string | null
+          lead_magnet_file_path: string | null
+          lead_magnet_layout: string
           published: boolean
           published_at: string | null
           reading_minutes: number
@@ -569,6 +596,12 @@ export type Database = {
           excerpt?: string | null
           gated_html?: string | null
           id?: string
+          lead_magnet_cta?: string | null
+          lead_magnet_enabled?: boolean
+          lead_magnet_fields?: Json
+          lead_magnet_file_name?: string | null
+          lead_magnet_file_path?: string | null
+          lead_magnet_layout?: string
           published?: boolean
           published_at?: string | null
           reading_minutes?: number
@@ -588,6 +621,12 @@ export type Database = {
           excerpt?: string | null
           gated_html?: string | null
           id?: string
+          lead_magnet_cta?: string | null
+          lead_magnet_enabled?: boolean
+          lead_magnet_fields?: Json
+          lead_magnet_file_name?: string | null
+          lead_magnet_file_path?: string | null
+          lead_magnet_layout?: string
           published?: boolean
           published_at?: string | null
           reading_minutes?: number
@@ -2268,6 +2307,25 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_blog_leads: {
+        Args: never
+        Returns: {
+          company: string
+          consent: boolean
+          country: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          kind: string
+          last_name: string
+          post_id: string
+          post_slug: string
+          post_title: string
+          role: string
+          source: string
+        }[]
+      }
       admin_list_blog_posts: {
         Args: never
         Returns: {
@@ -2279,6 +2337,12 @@ export type Database = {
           excerpt: string | null
           gated_html: string | null
           id: string
+          lead_magnet_cta: string | null
+          lead_magnet_enabled: boolean
+          lead_magnet_fields: Json
+          lead_magnet_file_name: string | null
+          lead_magnet_file_path: string | null
+          lead_magnet_layout: string
           published: boolean
           published_at: string | null
           reading_minutes: number

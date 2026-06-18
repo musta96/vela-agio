@@ -44,6 +44,14 @@ function fmtMoney(v: number, ccy = "EUR") {
   return `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
 }
 
+function fmtMoneyCompact(v: number, ccy = "EUR") {
+  const sym = ccy === "USD" ? "$" : "€";
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${sym}${(v / 1_000_000).toFixed(abs >= 10_000_000 ? 1 : 2)}M`;
+  if (abs >= 10_000) return `${sym}${(v / 1_000).toFixed(1)}k`;
+  return `${sym}${Math.round(v).toLocaleString()}`;
+}
+
 function ChangePill({ pct, className = "" }: { pct: number; className?: string }) {
   const positive = pct > 0.05;
   const negative = pct < -0.05;

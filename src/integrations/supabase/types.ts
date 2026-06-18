@@ -559,6 +559,13 @@ export type Database = {
             referencedRelation: "blog_posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "blog_leads_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       blog_posts: {
@@ -2278,6 +2285,81 @@ export type Database = {
       }
     }
     Views: {
+      blog_posts_public: {
+        Row: {
+          author_name: string | null
+          category: string | null
+          content_html: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          excerpt: string | null
+          has_gated: boolean | null
+          id: string | null
+          lead_magnet_cta: string | null
+          lead_magnet_enabled: boolean | null
+          lead_magnet_fields: Json | null
+          lead_magnet_file_name: string | null
+          lead_magnet_layout: string | null
+          published: boolean | null
+          published_at: string | null
+          reading_minutes: number | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          author_name?: string | null
+          category?: string | null
+          content_html?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          has_gated?: never
+          id?: string | null
+          lead_magnet_cta?: string | null
+          lead_magnet_enabled?: boolean | null
+          lead_magnet_fields?: Json | null
+          lead_magnet_file_name?: string | null
+          lead_magnet_layout?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          reading_minutes?: number | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          author_name?: string | null
+          category?: string | null
+          content_html?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          has_gated?: never
+          id?: string | null
+          lead_magnet_cta?: string | null
+          lead_magnet_enabled?: boolean | null
+          lead_magnet_fields?: Json | null
+          lead_magnet_file_name?: string | null
+          lead_magnet_layout?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          reading_minutes?: number | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_api_keys_meta: {
         Row: {
           created_at: string | null

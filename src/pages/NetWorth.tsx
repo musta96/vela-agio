@@ -283,7 +283,7 @@ const NetWorth = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="accounts">Accounts</TabsTrigger>
@@ -362,8 +362,26 @@ const NetWorth = () => {
 
             {/* Category breakdown table (mockup pattern) */}
             <Card className="overflow-hidden">
-              <div className="px-5 py-4 flex items-center justify-between border-b border-border">
+              <div className="px-5 py-4 flex items-center justify-between gap-3 border-b border-border">
                 <h3 className="font-semibold">Category breakdown</h3>
+                <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
+                  {([
+                    { k: "overview", label: "Overview" },
+                    { k: "accounts", label: "Accounts" },
+                    { k: "history", label: "History" },
+                  ] as const).map((t) => (
+                    <button
+                      key={t.k}
+                      type="button"
+                      onClick={() => setActiveTab(t.k)}
+                      className={`px-3 py-1 rounded-md transition-colors ${
+                        activeTab === t.k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[820px]">

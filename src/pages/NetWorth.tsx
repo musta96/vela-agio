@@ -63,7 +63,7 @@ const NetWorth = () => {
   const { toast } = useToast();
 
   const [accounts, setAccounts] = useState<NWAccount[]>([]);
-  const [activeTab, setActiveTab] = useState<"overview" | "accounts" | "history">("overview");
+  const [breakdownTab, setBreakdownTab] = useState<"overview" | "accounts" | "history">("overview");
   const [snapshots, setSnapshots] = useState<NWSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<NWAccount> | null>(null);
@@ -284,15 +284,8 @@ const NetWorth = () => {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="accounts">Accounts</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-          </TabsList>
-
           {/* OVERVIEW */}
-          <TabsContent value="overview" className="space-y-6 mt-4">
+          <div className="space-y-6">
             {/* Chart + Allocation donut row (per mockup) */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
               <Card className="p-5">
@@ -451,10 +444,11 @@ const NetWorth = () => {
                 </div>
               )}
             </Card>
-          </TabsContent>
+          </div>
 
           {/* ACCOUNTS */}
-          <TabsContent value="accounts" className="space-y-6 mt-4">
+          <div className="space-y-6 mt-8">
+            <h2 className="text-lg font-semibold">Accounts</h2>
             {/* Category navigation grid - always visible so users see all categories and can drill in */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {CATEGORY_ORDER.map((k) => {
@@ -569,10 +563,11 @@ const NetWorth = () => {
                 </Button>
               </Card>
             )}
-          </TabsContent>
+          </div>
 
           {/* HISTORY */}
-          <TabsContent value="history" className="space-y-4 mt-4">
+          <div className="space-y-4 mt-8">
+            <h2 className="text-lg font-semibold">History</h2>
             <Card className="p-5">
               <h3 className="text-sm font-semibold mb-3">Monthly history</h3>
               {history.length === 0 ? (
@@ -623,8 +618,7 @@ const NetWorth = () => {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-        </Tabs>
+      </div>
 
       {/* Edit / Add account dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

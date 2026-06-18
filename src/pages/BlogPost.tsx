@@ -11,7 +11,7 @@ import { z } from "zod";
 const emailSchema = z.string().trim().email("Enter a valid email").max(255);
 
 const PUBLIC_SELECT =
-  "id,slug,title,excerpt,cover_image_url,content_html,category,tags,author_name,reading_minutes,seo_title,seo_description,published,published_at,created_at,updated_at,has_gated:gated_html,lead_magnet_enabled,lead_magnet_layout,lead_magnet_cta,lead_magnet_fields,lead_magnet_file_name";
+  "id,slug,title,excerpt,cover_image_url,content_html,category,tags,author_name,reading_minutes,seo_title,seo_description,published,published_at,created_at,updated_at,has_gated,lead_magnet_enabled,lead_magnet_layout,lead_magnet_cta,lead_magnet_fields,lead_magnet_file_name";
 
 interface LeadForm {
   email: string;

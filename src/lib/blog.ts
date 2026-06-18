@@ -82,12 +82,14 @@ export function splitByInlineGate(html: string): { before: string; after: string
   // editor's paragraph wrapping doesn't leave dangling tags on either side.
   const re = /(?:<p[^>]*>\s*)?\[\[\s*lovable-gate\s*\]\](?:\s*<\/p>)?/i;
   const m = html.match(re);
-  if (!m) return { before: html, after: null };
+  // Strip any stray markers from a half so the text never leaks to readers.
+  const stripStray = (s: string) => s.replace(/\[\[\s*lovable-gate\s*\]\]/gi, "");
+  if (!m) return { before: stripStray(html), after: null };
   const idx = m.index ?? -1;
-  if (idx < 0) return { before: html, after: null };
+  if (idx < 0) return { before: stripStray(html), after: null };
   return {
-    before: html.slice(0, idx),
-    after: html.slice(idx + m[0].length),
+    before: stripStray(html.slice(0, idx)),
+    after: stripStray(html.slice(idx + m[0].length)),
   };
 }
 

@@ -14,11 +14,14 @@ export default function Blog() {
     (async () => {
       const { data } = await supabase
         .from("blog_posts" as any)
-        .select("*")
+        .select("id,slug,title,excerpt,cover_image_url,content_html,category,tags,author_name,reading_minutes,seo_title,seo_description,published,published_at,created_at,updated_at,has_gated:gated_html")
         .eq("published", true)
         .order("published_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
-      if (!cancel) setPosts(((data as any) || []) as BlogPostRow[]);
+      if (!cancel) {
+        const rows = ((data as any) || []).map((r: any) => ({ ...r, has_gated: !!r.has_gated, gated_html: null }));
+        setPosts(rows as BlogPostRow[]);
+      }
     })();
     return () => { cancel = true; };
   }, []);
@@ -81,7 +84,7 @@ export default function Blog() {
               <div className="p-7 sm:p-10 flex flex-col justify-center">
                 <div className="flex items-center gap-3 text-[11px] font-bold tracking-[0.18em] uppercase" style={{ color: "#185FA5" }}>
                   {featured.category || "Featured"}
-                  {featured.gated_html && <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: "#1D9E75" }}><Lock className="h-3 w-3" /> Members</span>}
+                  {(featured as any).has_gated && <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: "#1D9E75" }}><Lock className="h-3 w-3" /> Members</span>}
                 </div>
                 <h2 className="mt-3 text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight group-hover:text-[#185FA5] transition-colors" style={{ color: "#042C53" }}>
                   {featured.title}
@@ -121,7 +124,7 @@ export default function Blog() {
                 <div className="p-5 flex flex-col flex-1">
                   <div className="flex items-center justify-between text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: "#185FA5" }}>
                     <span>{p.category || "Article"}</span>
-                    {p.gated_html && <span className="inline-flex items-center gap-1" style={{ color: "#1D9E75" }}><Lock className="h-3 w-3" /> Gated</span>}
+                    {(p as any).has_gated && <span className="inline-flex items-center gap-1" style={{ color: "#1D9E75" }}><Lock className="h-3 w-3" /> Gated</span>}
                   </div>
                   <h3 className="mt-2 text-lg font-bold leading-snug group-hover:text-[#185FA5] transition-colors" style={{ color: "#042C53" }}>
                     {p.title}

@@ -2268,6 +2268,34 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_blog_posts: {
+        Args: never
+        Returns: {
+          author_name: string | null
+          category: string | null
+          content_html: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          gated_html: string | null
+          id: string
+          published: boolean
+          published_at: string | null
+          reading_minutes: number
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       ai_credits_this_month: { Args: { _user_id: string }; Returns: number }
       ai_margin_summary: {
         Args: never
@@ -2304,6 +2332,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      unlock_blog_post: {
+        Args: { p_email: string; p_slug: string }
+        Returns: string
       }
     }
     Enums: {

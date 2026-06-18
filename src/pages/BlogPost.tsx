@@ -14,6 +14,7 @@ export default function BlogPost() {
   const { slug = "" } = useParams();
   const [post, setPost] = useState<BlogPostRow | null | undefined>(undefined);
   const [unlocked, setUnlocked] = useState(false);
+  const [gatedHtml, setGatedHtml] = useState<string>("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,12 +23,18 @@ export default function BlogPost() {
     (async () => {
       const { data } = await supabase
         .from("blog_posts" as any)
-        .select("*")
+        .select("id,slug,title,excerpt,cover_image_url,content_html,category,tags,author_name,reading_minutes,seo_title,seo_description,published,published_at,created_at,updated_at,has_gated:gated_html")
         .eq("slug", slug)
         .eq("published", true)
         .maybeSingle();
       if (!cancel) {
-        setPost((data as any) || null);
+        // gated_html is not selectable via column-level grant; surface presence via the alias.
+        const row = data as any;
+        if (row) {
+          row.gated_html = null;
+          row.has_gated = !!row.has_gated;
+        }
+        setPost(row || null);
         setUnlocked(isUnlocked(slug));
       }
     })();
@@ -35,7 +42,7 @@ export default function BlogPost() {
   }, [slug]);
 
   const safePublic = useMemo(() => post ? sanitizeHtml(post.content_html) : "", [post]);
-  const safeGated = useMemo(() => post?.gated_html ? sanitizeHtml(post.gated_html) : "", [post]);
+  const safeGated = useMemo(() => gatedHtml ? sanitizeHtml(gatedHtml) : "", [gatedHtml]);
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -43,13 +50,12 @@ export default function BlogPost() {
     if (!parsed.success) { toast.error(parsed.error.errors[0].message); return; }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("blog_leads" as any).insert({
-        post_id: post?.id ?? null,
-        email: parsed.data,
-        source: "blog-gate",
-        user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 240) : null,
+      const { data, error } = await supabase.rpc("unlock_blog_post" as any, {
+        p_slug: slug,
+        p_email: parsed.data,
       });
       if (error) throw error;
+      setGatedHtml(typeof data === "string" ? data : "");
       markUnlocked(slug);
       setUnlocked(true);
       toast.success("Unlocked. Enjoy the article.");
@@ -130,7 +136,7 @@ export default function BlogPost() {
           dangerouslySetInnerHTML={{ __html: safePublic }}
         />
 
-        {post.gated_html && (
+        {(post as any).has_gated && (
           <div className="mt-10">
             {unlocked ? (
               <div

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -63,7 +63,7 @@ const NetWorth = () => {
   const { toast } = useToast();
 
   const [accounts, setAccounts] = useState<NWAccount[]>([]);
-  const [activeTab, setActiveTab] = useState<"overview" | "accounts" | "history">("overview");
+  const [breakdownTab, setBreakdownTab] = useState<"overview" | "accounts" | "history">("overview");
   const [snapshots, setSnapshots] = useState<NWSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<NWAccount> | null>(null);
@@ -284,15 +284,8 @@ const NetWorth = () => {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="accounts">Accounts</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-          </TabsList>
-
           {/* OVERVIEW */}
-          <TabsContent value="overview" className="space-y-6 mt-4">
+          <div className="space-y-6">
             {/* Chart + Allocation donut row (per mockup) */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
               <Card className="p-5">
@@ -374,9 +367,9 @@ const NetWorth = () => {
                     <button
                       key={t.k}
                       type="button"
-                      onClick={() => setActiveTab(t.k)}
+                      onClick={() => setBreakdownTab(t.k)}
                       className={`px-3 py-1 rounded-md transition-colors ${
-                        activeTab === t.k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                        breakdownTab === t.k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {t.label}
@@ -384,6 +377,8 @@ const NetWorth = () => {
                   ))}
                 </div>
               </div>
+
+              {breakdownTab === "overview" && (
               <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[820px]">
                 <thead>
@@ -429,6 +424,59 @@ const NetWorth = () => {
                 </tbody>
               </table>
               </div>
+              )}
+
+              {breakdownTab === "accounts" && (
+              <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+              <table className="w-full text-sm min-w-[600px]">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
+                    <th className="px-5 py-3">Account</th>
+                    <th className="px-3 py-3">Category</th>
+                    <th className="px-3 py-3 text-right">Value</th>
+                    <th className="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {accounts.map((a) => (
+                    <tr key={a.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-3 font-medium">{a.name}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{CATEGORIES[a.category].label}</td>
+                      <td className="px-3 py-3 text-right tabular-nums font-medium">
+                        {a.is_liability ? "−" : ""}{fmt(computedAccountValue(a), a.currency)}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <RLink to={`/net-worth/${a.category}`} className="text-primary text-xs hover:underline">View →</RLink>
+                      </td>
+                    </tr>
+                  ))}
+                  {accounts.length === 0 && (
+                    <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">No accounts yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+              </div>
+              )}
+
+              {breakdownTab === "history" && (
+              <div className="p-5">
+                {history.length < 2 ? (
+                  <EmptyHint text='Click "Snapshot today" each month to build your history.' />
+                ) : (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={history}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                        <RTooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                        <Line type="monotone" dataKey="net" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={false} fill="hsl(var(--primary) / 0.1)" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+              )}
             </Card>
 
             <Card className="p-5">
@@ -451,10 +499,11 @@ const NetWorth = () => {
                 </div>
               )}
             </Card>
-          </TabsContent>
+          </div>
 
           {/* ACCOUNTS */}
-          <TabsContent value="accounts" className="space-y-6 mt-4">
+          <div className="space-y-6 mt-8">
+            <h2 className="text-lg font-semibold">Accounts</h2>
             {/* Category navigation grid - always visible so users see all categories and can drill in */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {CATEGORY_ORDER.map((k) => {
@@ -569,10 +618,11 @@ const NetWorth = () => {
                 </Button>
               </Card>
             )}
-          </TabsContent>
+          </div>
 
           {/* HISTORY */}
-          <TabsContent value="history" className="space-y-4 mt-4">
+          <div className="space-y-4 mt-8">
+            <h2 className="text-lg font-semibold">History</h2>
             <Card className="p-5">
               <h3 className="text-sm font-semibold mb-3">Monthly history</h3>
               {history.length === 0 ? (
@@ -623,8 +673,7 @@ const NetWorth = () => {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-        </Tabs>
+      </div>
 
       {/* Edit / Add account dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

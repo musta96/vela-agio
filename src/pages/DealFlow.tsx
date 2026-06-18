@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, ExternalLink, TrendingUp, Handshake, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { FeedFallback } from "@/components/FeedFallback";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,15 +74,23 @@ export default function DealFlow() {
               <div className="grid gap-2">
                 {(data.ipos ?? []).length === 0 && <Card className="p-6 text-sm text-muted-foreground">No upcoming IPOs found. Add a Finnhub key in Settings for full calendar coverage.</Card>}
                 {(data.ipos ?? []).map((i, idx) => (
-                  <Card key={idx} className="p-3 flex items-center gap-3">
-                    <div className="font-mono text-sm font-bold w-20">{i.symbol ?? "-"}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{i.name}</div>
-                      <div className="text-xs text-muted-foreground">{i.exchange} · {i.date} {i.priceRange && `· $${i.priceRange}`}</div>
-                    </div>
-                    {i.value && <Badge variant="outline">${(Number(i.value) / 1e6).toFixed(1)}M</Badge>}
-                    <Badge variant="secondary" className="text-[10px]">{i.source}</Badge>
-                  </Card>
+                  (() => {
+                    const inner = (
+                      <Card className="p-3 flex items-center gap-3 hover:bg-accent/40 transition-colors">
+                        <div className="font-mono text-sm font-bold w-16 shrink-0">{i.symbol ?? "-"}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{i.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{i.exchange} · {i.date} {i.priceRange && `· $${i.priceRange}`}</div>
+                        </div>
+                        {i.value && <Badge variant="outline" className="shrink-0">${(Number(i.value) / 1e6).toFixed(1)}M</Badge>}
+                      </Card>
+                    );
+                    return i.symbol ? (
+                      <Link key={idx} to={`/stock/${encodeURIComponent(i.symbol)}`} className="block">{inner}</Link>
+                    ) : (
+                      <div key={idx}>{inner}</div>
+                    );
+                  })()
                 ))}
               </div>
             )}

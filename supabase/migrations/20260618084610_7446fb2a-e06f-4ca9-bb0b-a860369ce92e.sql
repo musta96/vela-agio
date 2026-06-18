@@ -1,0 +1,1 @@
+GRANT SELECT ON public.blog_posts TO anon;

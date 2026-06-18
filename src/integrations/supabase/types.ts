@@ -538,13 +538,6 @@ export type Database = {
             referencedRelation: "blog_posts"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "blog_leads_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "blog_posts_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       blog_posts: {
@@ -2246,66 +2239,6 @@ export type Database = {
       }
     }
     Views: {
-      blog_posts_public: {
-        Row: {
-          author_name: string | null
-          category: string | null
-          content_html: string | null
-          cover_image_url: string | null
-          created_at: string | null
-          excerpt: string | null
-          has_gated: boolean | null
-          id: string | null
-          published: boolean | null
-          published_at: string | null
-          reading_minutes: number | null
-          seo_description: string | null
-          seo_title: string | null
-          slug: string | null
-          tags: string[] | null
-          title: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          author_name?: string | null
-          category?: string | null
-          content_html?: string | null
-          cover_image_url?: string | null
-          created_at?: string | null
-          excerpt?: string | null
-          has_gated?: never
-          id?: string | null
-          published?: boolean | null
-          published_at?: string | null
-          reading_minutes?: number | null
-          seo_description?: string | null
-          seo_title?: string | null
-          slug?: string | null
-          tags?: string[] | null
-          title?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          author_name?: string | null
-          category?: string | null
-          content_html?: string | null
-          cover_image_url?: string | null
-          created_at?: string | null
-          excerpt?: string | null
-          has_gated?: never
-          id?: string | null
-          published?: boolean | null
-          published_at?: string | null
-          reading_minutes?: number | null
-          seo_description?: string | null
-          seo_title?: string | null
-          slug?: string | null
-          tags?: string[] | null
-          title?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       user_api_keys_meta: {
         Row: {
           created_at: string | null
@@ -2335,6 +2268,34 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_blog_posts: {
+        Args: never
+        Returns: {
+          author_name: string | null
+          category: string | null
+          content_html: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          gated_html: string | null
+          id: string
+          published: boolean
+          published_at: string | null
+          reading_minutes: number
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       ai_credits_this_month: { Args: { _user_id: string }; Returns: number }
       ai_margin_summary: {
         Args: never

@@ -14,7 +14,7 @@ export default function Blog() {
     (async () => {
       const { data } = await supabase
         .from("blog_posts" as any)
-        .select("id,slug,title,excerpt,cover_image_url,content_html,category,tags,author_name,reading_minutes,seo_title,seo_description,published,published_at,created_at,updated_at,has_gated:gated_html")
+        .select("id,slug,title,excerpt,cover_image_url,content_html,category,tags,author_name,reading_minutes,seo_title,seo_description,published,published_at,created_at,updated_at,has_gated")
         .eq("published", true)
         .order("published_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });

@@ -570,6 +570,7 @@ export type Database = {
           created_at: string
           excerpt: string | null
           gated_html: string | null
+          has_gated: boolean | null
           id: string
           lead_magnet_cta: string | null
           lead_magnet_enabled: boolean
@@ -595,6 +596,7 @@ export type Database = {
           created_at?: string
           excerpt?: string | null
           gated_html?: string | null
+          has_gated?: boolean | null
           id?: string
           lead_magnet_cta?: string | null
           lead_magnet_enabled?: boolean
@@ -620,6 +622,7 @@ export type Database = {
           created_at?: string
           excerpt?: string | null
           gated_html?: string | null
+          has_gated?: boolean | null
           id?: string
           lead_magnet_cta?: string | null
           lead_magnet_enabled?: boolean
@@ -2336,6 +2339,7 @@ export type Database = {
           created_at: string
           excerpt: string | null
           gated_html: string | null
+          has_gated: boolean | null
           id: string
           lead_magnet_cta: string | null
           lead_magnet_enabled: boolean

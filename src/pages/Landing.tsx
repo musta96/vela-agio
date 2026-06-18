@@ -64,7 +64,7 @@ export default function Landing() {
     (async () => {
       const { data } = await (supabase as any)
         .from("blog_posts")
-        .select("*")
+        .select("id,slug,title,excerpt,cover_image_url,category,tags,author_name,reading_minutes,published,published_at,created_at,updated_at,has_gated")
         .eq("published", true)
         .order("published_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })

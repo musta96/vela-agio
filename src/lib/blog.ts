@@ -69,15 +69,18 @@ export function sanitizeHtml(html: string): string {
 /**
  * Inline gate marker. Authors can insert this anywhere in the public content
  * to split it into a "before gate" half and a "after gate" half.
+ *
+ * Implemented as a plain text token wrapped in a paragraph so the rich-text
+ * editor (which strips HTML comments) preserves it through edits.
  */
-export const INLINE_GATE_MARKER = "<!--lovable:gate-->";
+export const INLINE_GATE_MARKER = "[[lovable-gate]]";
 
 /** Split content_html by the inline gate marker, if present. */
 export function splitByInlineGate(html: string): { before: string; after: string | null } {
   if (!html) return { before: "", after: null };
-  // Match the marker, optionally wrapped in a <p> tag so that pasting it via the
-  // editor doesn't leave dangling tags on either side after splitting.
-  const re = /(?:<p[^>]*>\s*)?<!--\s*lovable:gate\s*-->(?:\s*<\/p>)?/i;
+  // Match the text token, optionally wrapped in a <p> tag so that the rich-text
+  // editor's paragraph wrapping doesn't leave dangling tags on either side.
+  const re = /(?:<p[^>]*>\s*)?\[\[\s*lovable-gate\s*\]\](?:\s*<\/p>)?/i;
   const m = html.match(re);
   if (!m) return { before: html, after: null };
   const idx = m.index ?? -1;

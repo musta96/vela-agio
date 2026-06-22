@@ -1,7 +1,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { isAiOptedOut, aiOptOutResponse } from '../_shared/ai-opt-out.ts';
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const PROXY = 'https://api.allorigins.win/raw?url=';
 
 async function newsFor(symbol: string) {
@@ -24,11 +24,12 @@ Deno.serve(async (req) => {
       items.forEach((n: any) => all.push({ symbol: s, ...n }));
     }
     if (!all.length) return new Response(JSON.stringify({ items: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const cfg = await resolveAIConfig(req.headers.get('Authorization'));
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: cfg.model,
         messages: [
           { role: 'system', content: `You are a sell-side news triage. Respond in ${langName} (the "reason" field). Classify materiality. Return STRICT JSON: {items:[{symbol,title,link,materiality:"high"|"medium"|"low",impact:"bullish"|"bearish"|"neutral",reason}]}.` },
           { role: 'user', content: `Triage these and keep only HIGH or MEDIUM materiality items: ${JSON.stringify(all).slice(0, 12000)}` },

@@ -1,4 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveAiAccess, aiDeniedResponse, modelForCap } from '../_shared/ai-access.ts';
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
@@ -102,13 +104,27 @@ Deno.serve(async (req) => {
       });
     }
     const symbols = body.symbols.slice(0, 40);
+    const auth = req.headers.get('Authorization');
+    const access = await resolveAiAccess(auth);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+    const cfg = access.source === 'byo'
+      ? await resolveAIConfig(auth)
+      : {
+          baseURL: 'https://ai.gateway.lovable.dev/v1',
+          model: modelForCap(access.modelCap, 'google/gemini-2.5-flash'),
+          headers: {
+            'Lovable-API-Key': LOVABLE_API_KEY,
+            'X-Lovable-AIG-SDK': 'direct-fetch',
+            'Content-Type': 'application/json',
+          },
+        };
 
     // 1. Translate NL query into structured filter + ranking
-    const ai = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const ai = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: cfg.model,
         messages: [
           {
             role: 'system',

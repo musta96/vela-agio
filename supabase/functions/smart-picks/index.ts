@@ -1,3 +1,6 @@
+import { resolveAiAccess, aiDeniedResponse } from "../_shared/ai-access.ts";
+import { resolveAIConfig } from "../_shared/ai-provider.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -105,6 +108,10 @@ Deno.serve(async (req) => {
     const minDividendYield: number | null = filters.minDividendYield != null ? Number(filters.minDividendYield) : null;
     const maxVolatility: number | null = filters.maxVolatility != null ? Number(filters.maxVolatility) : null;
     const maxDrawdown: number | null = filters.maxDrawdown != null ? Number(filters.maxDrawdown) : null; // positive number meaning allowed magnitude, e.g. 30 means drawdown >= -30%
+    const auth = req.headers.get("Authorization");
+    const access = await resolveAiAccess(auth);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+    const isByo = access.source === "byo";
 
     if (candidates.length === 0) {
       return new Response(JSON.stringify({ error: "candidates required" }), {
@@ -113,7 +120,7 @@ Deno.serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    if (!isByo && !LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -157,11 +164,22 @@ Deno.serve(async (req) => {
       `${v.symbol} (${v.name}, ${v.market}${v.sector ? `, ${v.sector}` : ""}): price=${v.price}, 1M=${v.ret1M}%, 3M=${v.ret3M}%, 6M=${v.ret6M}%, 1Y=${v.ret1Y}%, RSI=${v.rsi}, trend=${v.trendUp ? "up" : "down"} (SMA20 ${v.sma20} vs SMA50 ${v.sma50}), vol=${v.volatility}%, maxDD=${v.maxDrawdown}%${v.dividendYield != null ? `, divYield=${v.dividendYield}%` : ""}`
     ).join("\n");
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const cfg = isByo
+      ? await resolveAIConfig(auth)
+      : {
+          baseURL: "https://ai.gateway.lovable.dev/v1",
+          model: "google/gemini-3-flash-preview",
+          headers: {
+            "Lovable-API-Key": LOVABLE_API_KEY ?? "",
+            "X-Lovable-AIG-SDK": "direct-fetch",
+            "Content-Type": "application/json",
+          },
+        };
+    const aiRes = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: cfg.model,
         messages: [
           { role: "system", content: "You are a quantitative equity analyst combining technical signals, momentum, trend, and risk to identify the most promising opportunities. Be objective. This is for educational purposes, not financial advice." },
           { role: "user", content: `Rank the top ${topN} most promising opportunities for a ${riskProfile} investor with a ${horizon}-term horizon. For each pick provide: confidence 0-100, concise bull thesis (3 bullets), key risks (2 bullets), and a 1-sentence rationale citing the metrics.\n\nCandidates with technical metrics:\n${candidatesText}` },
@@ -199,7 +217,7 @@ Deno.serve(async (req) => {
     });
 
     if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    if (aiRes.status === 402) return new Response(JSON.stringify({ error: "AI credits depleted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (aiRes.status === 402) return new Response(JSON.stringify({ error: isByo ? "Your selected AI provider rejected the request because its quota or billing is unavailable. Check that provider account, or switch provider in Settings > Connections." : "Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (!aiRes.ok) {
       const t = await aiRes.text();
       console.error("AI error", aiRes.status, t);

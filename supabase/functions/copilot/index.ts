@@ -289,17 +289,22 @@ async function chatStep(cfg: any, messages: any[]) {
   });
   if (!r.ok) {
     const text = await r.text();
-    throw Object.assign(new Error(`AI ${r.status}: ${text.slice(0, 200)}`), { status: r.status });
+    throw Object.assign(new Error(`AI ${r.status}: ${text.slice(0, 200)}`), { status: r.status, source: cfg.source, provider: cfg.effectiveProvider });
   }
   return await r.json();
 }
 
 // Final streaming call (no more tools — model must respond in prose)
 async function chatStream(cfg: any, messages: any[]) {
-  return await fetch(`${cfg.baseURL}/chat/completions`, {
+  const r = await fetch(`${cfg.baseURL}/chat/completions`, {
     method: 'POST', headers: cfg.headers,
     body: JSON.stringify({ model: cfg.model, messages, stream: true }),
   });
+  if (!r.ok) {
+    const text = await r.text();
+    throw Object.assign(new Error(`AI ${r.status}: ${text.slice(0, 200)}`), { status: r.status, source: cfg.source, provider: cfg.effectiveProvider });
+  }
+  return r;
 }
 
 Deno.serve(async (req) => {
@@ -511,7 +516,15 @@ ${PLATFORM_MAP}`;
           send('data: [DONE]\n\n');
           controller.close();
         } catch (e: any) {
-          const status = e?.status === 429 ? 'Rate limit — please retry shortly.' : e?.status === 402 ? 'AI credits exhausted. Add credits in Settings → Workspace → Usage.' : `Error: ${e?.message ?? e}`;
+          const status = e?.status === 429 && e?.source === 'user'
+            ? 'Your selected AI provider is rate limiting this request. Try again shortly, choose a lighter model, or switch provider in Settings → Connections.'
+            : e?.status === 429
+            ? 'Lovable AI is rate limiting this request. Please retry shortly.'
+            : e?.status === 402 && e?.source === 'user'
+            ? 'Your selected AI provider rejected the request because its quota or billing is unavailable. Check that provider account, or switch provider in Settings → Connections.'
+            : e?.status === 402
+            ? 'Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings → Connections.'
+            : `Error: ${e?.message ?? e}`;
           send(sseChunk(status));
           send('data: [DONE]\n\n');
           controller.close();

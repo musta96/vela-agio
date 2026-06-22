@@ -63,7 +63,7 @@ const deniedPayload = {
   reason: "AI is a paid feature. Upgrade or add your own API key in Settings.",
   tier: "free",
   upgrade_url: "/pricing",
-  byo_url: "/settings#ai",
+  byo_url: "/settings?tab=Connections",
 };
 
 describe("AIBriefing - ai_access_denied fallback", () => {

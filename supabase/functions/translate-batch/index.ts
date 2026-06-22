@@ -36,7 +36,7 @@ Rules:
 - Return ONLY a JSON object: {"translations":[{"i":1,"t":"..."}, ...]} with one entry per input, in order.`;
     const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${LOVABLE_API_KEY}` },
+      headers: { 'content-type': 'application/json', 'Lovable-API-Key': LOVABLE_API_KEY, 'X-Lovable-AIG-SDK': 'direct-fetch' },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-lite',
         messages: [{ role: 'system', content: sys }, { role: 'user', content: numbered }],

@@ -3,9 +3,9 @@
 // API key from user_api_keys (if any). Falls back to Lovable AI Gateway.
 //
 // Returns a config you can use to call an OpenAI-compatible chat/completions
-// endpoint. For Lovable (default) and openai/groq/mistral/perplexity, the same
-// request shape works. Anthropic and Gemini fall back to Lovable for now and
-// surface a notice in `notice`.
+// endpoint. For Lovable (default) and BYO OpenAI-compatible providers, the same
+// request shape works. If a user selected a BYO provider but has not saved the
+// matching key, we fail closed instead of silently spending Lovable AI credits.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -15,6 +15,7 @@ export type ProviderId =
   | "groq"
   | "mistral"
   | "perplexity"
+  | "openrouter"
   | "anthropic"
   | "gemini";
 
@@ -34,7 +35,8 @@ const DEFAULT_MODELS: Record<ProviderId, string> = {
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-large-latest",
   perplexity: "llama-3.1-sonar-large-128k-online",
-  anthropic: "claude-3-5-sonnet-latest",
+  openrouter: "openai/gpt-4o-mini",
+  anthropic: "claude-sonnet-4-5",
   gemini: "gemini-2.0-flash",
 };
 
@@ -43,6 +45,7 @@ const PROVIDER_TO_KEY: Record<Exclude<ProviderId, "lovable">, string> = {
   groq: "GROQ_API_KEY",
   mistral: "MISTRAL_API_KEY",
   perplexity: "PERPLEXITY_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   gemini: "GEMINI_API_KEY",
 };
@@ -52,6 +55,9 @@ const OPENAI_COMPATIBLE: Record<string, string> = {
   groq: "https://api.groq.com/openai/v1",
   mistral: "https://api.mistral.ai/v1",
   perplexity: "https://api.perplexity.ai",
+  openrouter: "https://openrouter.ai/api/v1",
+  anthropic: "https://api.anthropic.com/v1",
+  gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
 };
 
 let cachedKey: CryptoKey | null = null;
@@ -86,7 +92,8 @@ function lovableConfig(model: string): AIConfig {
     model,
     baseURL: "https://ai.gateway.lovable.dev/v1",
     headers: {
-      Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY") ?? ""}`,
+      "Lovable-API-Key": Deno.env.get("LOVABLE_API_KEY") ?? "",
+      "X-Lovable-AIG-SDK": "direct-fetch",
       "Content-Type": "application/json",
     },
     source: "default",
@@ -136,11 +143,7 @@ export async function resolveAIConfig(authHeader: string | null): Promise<AIConf
       .eq("user_id", user.id)
       .eq("provider", keyName)
       .maybeSingle();
-    if (!row) {
-      const fb = lovableConfig(DEFAULT_MODELS.lovable);
-      fb.notice = `No ${keyName} saved — using default Lovable AI. Add it in Settings to use ${provider}.`;
-      return fb;
-    }
+    if (!row) throw new Error(`Selected AI provider ${provider} requires ${keyName}. Add it in Settings → Connections, or switch back to Lovable AI.`);
     const apiKey = await decrypt(row.ciphertext, row.iv);
 
     // OpenAI-compatible providers
@@ -158,13 +161,10 @@ export async function resolveAIConfig(authHeader: string | null): Promise<AIConf
       };
     }
 
-    // Anthropic + Gemini not yet adapted — fall back with notice
-    const fb = lovableConfig(DEFAULT_MODELS.lovable);
-    fb.notice = `Direct ${provider} streaming is coming soon — using default Lovable AI for now.`;
-    return fb;
+    throw new Error(`Unsupported AI provider: ${provider}`);
   } catch (e) {
     console.error("resolveAIConfig failed", e);
-    return fallback;
+    throw e;
   }
 }
 

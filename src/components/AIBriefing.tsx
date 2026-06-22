@@ -197,8 +197,8 @@ export function AIBriefing() {
                 >Upgrade plan</button>
                 <button
                   onClick={() => {
-                    trackAIEvent("ai_byo_cta_clicked", { url: denied.byo_url || "/settings#ai", tier: denied.tier, correlationId: (denied as any).correlationId });
-                    navigate(denied.byo_url || "/settings#ai");
+                    trackAIEvent("ai_byo_cta_clicked", { url: denied.byo_url || "/settings?tab=Connections", tier: denied.tier, correlationId: (denied as any).correlationId });
+                    navigate(denied.byo_url || "/settings?tab=Connections");
                   }}
                   className="rounded-full bg-foreground/10 px-3 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-foreground/15"
                 >Use my own API key</button>

@@ -79,7 +79,7 @@ export function PortfolioSuggestions({
       });
       if (error) throw error;
       if (data?.error === "rate_limited") { toast.error("Rate limited. Try again shortly."); return; }
-      if (data?.error === "credits_exhausted") { toast.error("AI credits exhausted."); return; }
+      if (data?.error === "credits_exhausted") { toast.error("AI credits are unavailable. Check Plans & billing or add your own key in Settings → Connections."); return; }
       setResult(data);
       try { sessionStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ }
     } catch (e: any) {

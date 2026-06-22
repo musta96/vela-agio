@@ -88,14 +88,17 @@ export async function resolveAiAccess(authHeader: string | null): Promise<AiAcce
       };
     }
 
-    // ---- 1) BYO key: prefer the provider the user picked in Connections.
+    // ---- 1) BYO key: use only the provider the user picked in Connections.
     const PROVIDER_TO_KEY: Record<string, string> = {
       openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", gemini: "GEMINI_API_KEY",
       openrouter: "OPENROUTER_API_KEY", perplexity: "PERPLEXITY_API_KEY",
       mistral: "MISTRAL_API_KEY", groq: "GROQ_API_KEY",
     };
-    const preferredKey = prof?.ai_provider ? PROVIDER_TO_KEY[prof.ai_provider as string] : null;
-    let keyRow: { provider: string } | null = null;
+    const selectedProvider = prof?.ai_provider as string | undefined;
+    const preferredKey = selectedProvider ? PROVIDER_TO_KEY[selectedProvider] : null;
+    if (selectedProvider && selectedProvider !== "lovable" && !preferredKey) {
+      return { ...denied, userId: user.id, reason: `Unsupported AI provider: ${selectedProvider}. Choose a supported provider in Settings → Connections.` };
+    }
     if (preferredKey) {
       const { data } = await admin
         .from("user_api_keys")
@@ -103,22 +106,12 @@ export async function resolveAiAccess(authHeader: string | null): Promise<AiAcce
         .eq("user_id", user.id)
         .eq("provider", preferredKey)
         .maybeSingle();
-      keyRow = data ?? null;
-    }
-    if (!keyRow) {
-      const { data } = await admin
-        .from("user_api_keys")
-        .select("provider")
-        .eq("user_id", user.id)
-        .in("provider", Object.values(PROVIDER_TO_KEY))
-        .limit(1)
-        .maybeSingle();
-      keyRow = data ?? null;
-    }
-    if (keyRow?.provider) {
+      if (!data?.provider) {
+        return { ...denied, userId: user.id, reason: `Selected AI provider ${selectedProvider} needs ${preferredKey}. Add it in Settings → Connections, or switch back to Lovable AI.` };
+      }
       return {
         allowed: true, source: "byo", tier: "byo", modelCap: "premium",
-        byoProvider: keyRow.provider, userId: user.id,
+        byoProvider: data.provider, userId: user.id,
       };
     }
 
@@ -248,7 +241,7 @@ export function aiDeniedResponse(access: AiAccess, corsHeaders: Record<string, s
       quotaUsed: access.quotaUsed,
       quotaLimit: access.quotaLimit,
       upgrade_url: "/pricing",
-      byo_url: "/settings#ai",
+      byo_url: "/settings?tab=Connections",
       opt_out_url: access.source === "opt_out" ? "/privacy-settings" : undefined,
     }),
     { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },

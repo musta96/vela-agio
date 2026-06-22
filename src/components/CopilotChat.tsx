@@ -90,7 +90,11 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
           lang: i18n.resolvedLanguage,
         }),
       });
-      if (!r.ok || !r.body) throw new Error("Stream failed");
+      if (!r.ok) {
+        const payload = await r.json().catch(() => null);
+        throw new Error(payload?.reason || payload?.error || "The AI request failed.");
+      }
+      if (!r.body) throw new Error("Stream failed");
       const reader = r.body.getReader(); const dec = new TextDecoder();
       let acc = ""; let buf = ""; const tools: ToolEvent[] = [];
       setMessages(m => [...m, { role: "assistant", content: "", tools: [] }]);
@@ -128,12 +132,15 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
     } catch (e: any) {
       // User-facing fallback only. Raw error is logged for monitoring.
       console.error("[copilot] stream failed", e);
+      const message = typeof e?.message === "string" ? e.message : "";
+      const isActionable = /AI|provider|quota|key|credits|billing|Privacy settings|Upgrade|Settings/i.test(message) && !message.includes("Stream failed");
       setMessages(m => [
         ...m,
         {
           role: "assistant",
-          content:
-            "The AI copilot is temporarily unavailable. Your data is unaffected - please try again in a moment.",
+          content: isActionable
+            ? message
+            : "The AI copilot is temporarily unavailable. Your data is unaffected - please try again in a moment.",
         },
       ]);
     } finally { setBusy(false); }

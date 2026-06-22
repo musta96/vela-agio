@@ -42,7 +42,7 @@ Never invent obviously wrong tickers.`;
       }),
     });
     if (r.status === 429) return new Response(JSON.stringify({ error: 'Rate limit' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (r.status === 402) return new Response(JSON.stringify({ error: 'Credits exhausted' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (r.status === 402) return new Response(JSON.stringify({ error: cfg.source === 'user' ? 'Your selected AI provider rejected the request because its quota or billing is unavailable. Check that provider account, or switch provider in Settings > Connections.' : 'Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections.' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (!r.ok) return new Response(JSON.stringify({ error: `AI ${r.status}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const j = await r.json();
     const raw = j?.choices?.[0]?.message?.content ?? '{}';

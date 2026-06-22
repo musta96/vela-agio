@@ -19,7 +19,7 @@ function aiAccessDeniedBody(access: Awaited<ReturnType<typeof resolveAiAccess>>,
     quotaUsed: access.quotaUsed,
     quotaLimit: access.quotaLimit,
     upgrade_url: '/pricing',
-    byo_url: '/settings#ai',
+    byo_url: '/settings?tab=Connections',
     fallback: true,
     correlationId,
   };
@@ -155,12 +155,12 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
         model,
       }));
       return new Response(
-        JSON.stringify(aiAccessDeniedBody(access, correlationId, 'AI credits are unavailable. Upgrade or add your own API key in Settings.')),
+        JSON.stringify(aiAccessDeniedBody(access, correlationId, access.source === 'byo' ? 'Your selected AI provider rejected the request because its quota or billing is unavailable. Check that provider account, or switch provider in Settings → Connections.' : 'Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings → Connections.')),
         { status: 200, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
       );
     }
     const j = await r.json();
-    logAiUsage({ userId: access.userId, feature: 'briefing', model, provider: 'lovable', success: r.ok });
+    logAiUsage({ userId: access.userId, feature: 'briefing', model, provider: access.source === 'byo' ? 'byo' : 'lovable', success: r.ok });
     let out: any = { headline: '', body: '', highlights: [] };
     try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
     out._meta = { symbols: symbols.length, hasFocus: !!focus, generatedAt: new Date().toISOString(), correlationId };

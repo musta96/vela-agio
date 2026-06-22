@@ -1,7 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { isAiOptedOut, aiOptOutResponse } from '../_shared/ai-opt-out.ts';
-
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -13,11 +12,12 @@ Deno.serve(async (req) => {
 
 PORTFOLIO: ${JSON.stringify(portfolio).slice(0, 6000)}
 RISK METRICS: ${JSON.stringify(risk).slice(0, 4000)}`;
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const cfg = await resolveAIConfig(req.headers.get('Authorization'));
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: cfg.model,
         messages: [
           { role: 'system', content: 'You are a senior buy-side portfolio manager. Return strict JSON.' },
           { role: 'user', content: prompt },

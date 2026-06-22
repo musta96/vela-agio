@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
 
 interface Bar { t: number; close: number }
 
@@ -47,19 +48,18 @@ function metrics(bars: Bar[]) {
   return { price: +last.toFixed(2), ret1m: +ret(21).toFixed(2), ret3m: +ret(63).toFixed(2), ret6m: +ret(Math.min(n - 1, 126)).toFixed(2), rsi14: +rsi.toFixed(1), sma20: +sma20.toFixed(2), sma50: +sma50.toFixed(2), vol_ann_pct: +vol.toFixed(1), above_sma50: last > sma50 };
 }
 
-async function rankWithAI(criteria: string, rows: any[]): Promise<{ ranked: any[]; commentary: string }> {
-  const key = Deno.env.get('LOVABLE_API_KEY');
-  if (!key) return { ranked: rows, commentary: 'AI gateway not configured.' };
+async function rankWithAI(authHeader: string | null, criteria: string, rows: any[]): Promise<{ ranked: any[]; commentary: string }> {
+  const cfg: AIConfig = await resolveAIConfig(authHeader);
   const prompt = `You are a buy-side analyst. The user's criteria: "${criteria || 'balanced quality + momentum, low volatility'}".
 Rank the following candidates from BEST to WORST fit. Return STRICT JSON only.
 Schema: { "ranked": [{ "symbol": string, "score": number, "thesis": string, "risk": string }], "commentary": string }
 Use score 0-100. Thesis <= 220 chars. Risk <= 120 chars. Commentary <= 400 chars.
 Candidates: ${JSON.stringify(rows).slice(0, 12000)}`;
   try {
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } }),
+      headers: cfg.headers,
+      body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } }),
     });
     if (!r.ok) return { ranked: rows, commentary: `AI error ${r.status}` };
     const j = await r.json();
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     list = list.slice(0, 25);
     const data = await Promise.all(list.map(async (s) => ({ symbol: s, ...(metrics(await fetchBars(s)) ?? {}) })));
     const valid = data.filter((d: any) => typeof d.price === 'number');
-    const { ranked, commentary } = await rankWithAI(criteria, valid);
+    const { ranked, commentary } = await rankWithAI(req.headers.get('Authorization'), criteria, valid);
     const top = ranked.slice(0, limit);
     return new Response(JSON.stringify({ universe, count: valid.length, top, commentary, generated_at: new Date().toISOString() }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {

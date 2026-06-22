@@ -129,6 +129,6 @@ export function creditsDeniedResponse(check: CreditCheck, corsHeaders: Record<st
     creditsUsed: check.used,
     creditsCap: check.cap,
     upgrade_url: "/pricing",
-    byo_url: "/settings#ai",
+    byo_url: "/settings?tab=Connections",
   }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }

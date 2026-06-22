@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { fetchAllByoNews } from "../_shared/data-provider.ts";
+import { resolveAIConfig } from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -251,6 +252,7 @@ Deno.serve(async (req) => {
     const auth = req.headers.get("Authorization");
     const access = await resolveAiAccess(auth);
     if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+    const isByo = access.source === "byo";
 
     const { symbol, name } = await req.json();
     if (!symbol || typeof symbol !== "string") {
@@ -260,7 +262,7 @@ Deno.serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    if (!isByo && !LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -290,14 +292,22 @@ Deno.serve(async (req) => {
       )
       .join("\n");
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const cfg = isByo
+      ? await resolveAIConfig(auth)
+      : {
+          baseURL: "https://ai.gateway.lovable.dev/v1",
+          model: modelForCap(access.modelCap, "google/gemini-3-flash-preview"),
+          headers: {
+            "Lovable-API-Key": LOVABLE_API_KEY ?? "",
+            "X-Lovable-AIG-SDK": "direct-fetch",
+            "Content-Type": "application/json",
+          },
+        };
+    const aiRes = await fetch(`${cfg.baseURL}/chat/completions`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: cfg.headers,
       body: JSON.stringify({
-        model: modelForCap(access.modelCap, "google/gemini-3-flash-preview"),
+        model: cfg.model,
         messages: [
           {
             role: "system",
@@ -372,7 +382,7 @@ Deno.serve(async (req) => {
       });
     }
     if (aiRes.status === 402) {
-      return new Response(JSON.stringify({ error: "AI credits depleted. Add credits in Settings > Workspace > Usage." }), {
+      return new Response(JSON.stringify({ error: isByo ? "Your selected AI provider rejected the request because its quota or billing is unavailable. Check that provider account, or switch provider in Settings > Connections." : "Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections." }), {
         status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -385,6 +395,7 @@ Deno.serve(async (req) => {
     }
 
     const aiJson = await aiRes.json();
+    await logAiUsage({ userId: access.userId, feature: "sentiment", model: cfg.model, provider: isByo ? "byo" : "lovable", success: true });
     const call = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
     let parsed: any = {};
     try { parsed = JSON.parse(call?.function?.arguments || "{}"); } catch {}

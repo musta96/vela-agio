@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveAIConfig } from '../_shared/ai-provider.ts';
 
 async function yahooMeta(symbol: string) {
   try {
@@ -33,14 +34,13 @@ const SECTOR_ETF: Record<string, { symbol: string; name: string }> = {
   'Communication Services': { symbol: 'XLC', name: 'Communication Services SPDR' },
 };
 
-async function aiSemantic(symbol: string, name: string, sector: string): Promise<{ symbol: string; name: string; reason: string }[]> {
-  const key = Deno.env.get('LOVABLE_API_KEY');
-  if (!key) return [];
+async function aiSemantic(authHeader: string | null, symbol: string, name: string, sector: string): Promise<{ symbol: string; name: string; reason: string }[]> {
+  const cfg = await resolveAIConfig(authHeader);
   const prompt = `For the company ${name} (${symbol}, ${sector || 'unknown sector'}), list 5-7 RELATED publicly traded instruments that an investor researching this name should also look at. Include suppliers, customers, key competitors and a thematic peer. Return STRICT JSON: {"items":[{"symbol":"YAHOO_TICKER","name":"COMPANY","reason":"short reason"}]}. Use Yahoo Finance tickers (e.g. AAPL, ASML.AS, ENI.MI).`;
   try {
-    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST', headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } }),
+    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
+      method: 'POST', headers: cfg.headers,
+      body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } }),
     });
     if (!r.ok) return [];
     const j = await r.json();
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     const sector = meta?.assetProfile?.sector ?? '';
     const industry = meta?.assetProfile?.industry ?? '';
     const name = meta?.price?.longName ?? meta?.price?.shortName ?? symbol;
-    const [peers, ai] = await Promise.all([yahooRecommendations(symbol), aiSemantic(symbol, name, sector)]);
+    const [peers, ai] = await Promise.all([yahooRecommendations(symbol), aiSemantic(req.headers.get('Authorization'), symbol, name, sector)]);
     const etf = SECTOR_ETF[sector] ?? null;
 
     const groups: Record<string, Array<{ symbol: string; name?: string; reason?: string }>> = {

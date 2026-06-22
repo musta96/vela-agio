@@ -36,7 +36,7 @@ const DEFAULT_MODELS: Record<ProviderId, string> = {
   mistral: "mistral-large-latest",
   perplexity: "llama-3.1-sonar-large-128k-online",
   openrouter: "openai/gpt-4o-mini",
-  anthropic: "claude-3-5-sonnet-latest",
+  anthropic: "claude-sonnet-4-5",
   gemini: "gemini-2.0-flash",
 };
 

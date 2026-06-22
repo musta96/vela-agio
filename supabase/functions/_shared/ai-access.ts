@@ -241,7 +241,7 @@ export function aiDeniedResponse(access: AiAccess, corsHeaders: Record<string, s
       quotaUsed: access.quotaUsed,
       quotaLimit: access.quotaLimit,
       upgrade_url: "/pricing",
-      byo_url: "/settings#ai",
+      byo_url: "/settings?tab=Connections",
       opt_out_url: access.source === "opt_out" ? "/privacy-settings" : undefined,
     }),
     { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },

@@ -111,7 +111,7 @@ export function AIAccessCard() {
 
           <div className="flex flex-wrap gap-2 pt-1">
             {status.source !== "byo" && (
-              <Button asChild size="sm" variant="outline"><Link to="/settings#ai">Use my own API key</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/settings?tab=Connections">Use my own API key</Link></Button>
             )}
             {status.source === "none" && (
               <Button asChild size="sm"><Link to="/pricing">Upgrade plan</Link></Button>

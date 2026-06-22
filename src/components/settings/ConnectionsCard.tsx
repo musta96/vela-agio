@@ -16,6 +16,7 @@ const AI_PROVIDERS = [
   { value: "openai", label: "OpenAI (your key)" },
   { value: "anthropic", label: "Anthropic Claude (your key)" },
   { value: "gemini", label: "Google Gemini (your key)" },
+  { value: "openrouter", label: "OpenRouter (your key)" },
   { value: "perplexity", label: "Perplexity (your key)" },
   { value: "mistral", label: "Mistral (your key)" },
   { value: "groq", label: "Groq (your key)" },
@@ -55,6 +56,12 @@ const AI_MODELS: Record<string, { value: string; label: string }[]> = {
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
     { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
   ],
+  openrouter: [
+    { value: "", label: "Auto · cheapest that fits the task" },
+    { value: "openai/gpt-4o-mini", label: "OpenAI GPT-4o Mini" },
+    { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
+    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  ],
   perplexity: [
     { value: "", label: "Auto · cheapest that fits the task" },
     { value: "llama-3.1-sonar-small-128k-online", label: "Sonar Small (online)" },
@@ -81,6 +88,7 @@ const PROVIDER_KEY_ID: Record<string, string | null> = {
   openai: "OPENAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   gemini: "GEMINI_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
   perplexity: "PERPLEXITY_API_KEY",
   mistral: "MISTRAL_API_KEY",
   groq: "GROQ_API_KEY",

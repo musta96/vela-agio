@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -281,7 +281,18 @@ const Settings = () => {
   const [tab, setTab] = useState<Tab>("Profile");
   const [baseCcy, setBaseCcy] = useState("EUR");
   const navigate = useNavigate();
+  const location = useLocation();
   const { mode, setMode } = useTheme();
+
+  useEffect(() => {
+    const rawTab = new URLSearchParams(location.search).get("tab");
+    const hashTab = location.hash.replace(/^#/, "");
+    const requested = rawTab || hashTab;
+    if (!requested) return;
+    const normalized = requested.toLowerCase().replace(/[-_]/g, " ");
+    const match = TABS.find(({ id }) => id.toLowerCase() === normalized || (!rawTab && normalized === "ai" && id === "Connections"));
+    if (match) setTab(match.id);
+  }, [location.search, location.hash]);
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0">
@@ -330,7 +341,10 @@ const Settings = () => {
               return (
                 <button
                   key={id}
-                  onClick={() => setTab(id)}
+                  onClick={() => {
+                    setTab(id);
+                    navigate(`/settings?tab=${encodeURIComponent(id)}`, { replace: true });
+                  }}
                   className={`text-left text-sm px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${active ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:bg-muted/60"}`}
                 >
                   <Icon className="h-4 w-4" /> {id}

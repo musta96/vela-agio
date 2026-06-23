@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Shield, Save, Sparkles } from "lucide-react";
+import { Shield, Save, Sparkles, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface PlanRow {
   id: string;
@@ -18,6 +18,8 @@ interface PlanRow {
   ai_monthly_quota: number;
 }
 
+interface MappingIssue { tier: string; issue: string; detail: string; }
+
 const MODEL_TIERS = ["none", "flash", "mid", "premium"] as const;
 
 export default function AdminAiQuotas() {
@@ -26,6 +28,8 @@ export default function AdminAiQuotas() {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [issues, setIssues] = useState<MappingIssue[] | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
@@ -43,8 +47,22 @@ export default function AdminAiQuotas() {
         .order("ai_monthly_quota", { ascending: true });
       setPlans(((data ?? []) as unknown) as PlanRow[]);
       setLoading(false);
+      await runValidation();
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  const runValidation = async () => {
+    setChecking(true);
+    const { data, error } = await (supabase as any).rpc("admin_check_ai_quota_mapping");
+    setChecking(false);
+    if (error) {
+      toast.error(`Validation failed: ${error.message}`);
+      setIssues(null);
+      return;
+    }
+    setIssues((data ?? []) as MappingIssue[]);
+  };
 
   const update = (id: string, field: keyof PlanRow, value: any) =>
     setPlans(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
@@ -56,8 +74,13 @@ export default function AdminAiQuotas() {
       .update({ ai_model_tier: p.ai_model_tier, ai_monthly_quota: Number(p.ai_monthly_quota) })
       .eq("id", p.id);
     setSaving(null);
-    if (error) toast.error(`Failed to save ${p.tier}: ${error.message}`);
-    else toast.success(`Saved ${p.name ?? p.tier} quota`);
+    if (error) {
+      // Surface the trigger's friendly mapping-conflict message verbatim.
+      toast.error(error.message || `Failed to save ${p.tier}`);
+      return;
+    }
+    toast.success(`Saved ${p.name ?? p.tier} quota`);
+    await runValidation();
   };
 
   if (authLoading || isAdmin === null) {
@@ -90,6 +113,49 @@ export default function AdminAiQuotas() {
             <code> 0</code> for no AI. Changes take effect on the next AI request.
           </p>
         </div>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                {issues === null
+                  ? <Sparkles className="h-4 w-4" />
+                  : issues.length === 0
+                    ? <CheckCircle2 className="h-4 w-4 text-success" />
+                    : <AlertTriangle className="h-4 w-4 text-destructive" />}
+                Tier → AI quota mapping
+              </CardTitle>
+              <CardDescription>
+                Each plan tier must map to exactly one AI credit cap and one model tier.
+              </CardDescription>
+            </div>
+            <Button size="sm" variant="outline" onClick={runValidation} disabled={checking}>
+              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${checking ? "animate-spin" : ""}`} />
+              Re-check
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {checking && issues === null ? (
+              <p className="text-sm text-muted-foreground">Checking mapping…</p>
+            ) : issues && issues.length === 0 ? (
+              <p className="text-sm text-success">All tiers map cleanly to one AI quota / model. ✓</p>
+            ) : issues && issues.length > 0 ? (
+              <ul className="space-y-2">
+                {issues.map((it, i) => (
+                  <li key={i} className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <div className="font-medium text-destructive flex items-center gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <span className="capitalize">{it.tier}</span>
+                      <code className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10">{it.issue}</code>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{it.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </CardContent>
+        </Card>
+
         {loading ? (
           <p className="text-muted-foreground text-sm">Loading plans…</p>
         ) : plans.length === 0 ? (

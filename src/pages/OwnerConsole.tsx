@@ -907,7 +907,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
               {g.items.map(it => {
                 const active = section === it.key;
                 return (
-                  <button key={it.key + g.label} onClick={() => setSection(it.key)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition ${active ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 hover:bg-muted/50"}`}>
+                  <button key={it.key + g.label} onClick={() => it.href ? navigate(it.href) : setSection(it.key)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition ${active ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 hover:bg-muted/50"}`}>
                     {it.icon}
                     <span className="flex-1 text-left">{it.label}</span>
                     {it.badge != null && <Badge variant="outline" className="text-[9px] h-4 px-1.5">{it.badge}</Badge>}

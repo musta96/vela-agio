@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus } from "lucide-react";
+import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { downloadTextAsPdf, userWantsPdf } from "@/lib/copilotPdf";
 
 type ToolEvent = { id: string; name: string; args?: any; result?: any; done: boolean };
 type Attachment = { name: string; mime: string; dataUrl: string };
 type Msg = { role: "user" | "assistant"; content: string; tools?: ToolEvent[]; attachments?: Attachment[] };
+type Thread = { id: string; title: string; updated_at: string };
 
 async function fileToDataUrl(f: File): Promise<Attachment> {
   return new Promise((res, rej) => {
@@ -22,7 +24,7 @@ async function fileToDataUrl(f: File): Promise<Attachment> {
   });
 }
 
-export function CopilotChat({ compact = false, initialIntro }: { compact?: boolean; initialIntro?: string }) {
+export function CopilotChat({ compact = false, initialIntro, showThreads = true }: { compact?: boolean; initialIntro?: string; showThreads?: boolean }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -35,6 +37,8 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
   const lastUser = [...messages].reverse().find(m => m.role === "user")?.content ?? "";
 
@@ -48,6 +52,65 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
       setCtx({ portfolio: p ?? [], watchlist: w ?? [] });
     })();
   }, [user]);
+
+  // Load thread list and the most recent thread's messages
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("copilot_threads")
+        .select("id,title,updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
+      const list = (data ?? []) as Thread[];
+      setThreads(list);
+      if (list[0]) await openThread(list[0].id);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const openThread = useCallback(async (id: string) => {
+    setThreadId(id);
+    const { data } = await (supabase as any)
+      .from("copilot_messages")
+      .select("role,content")
+      .eq("thread_id", id)
+      .order("created_at", { ascending: true });
+    const rows = (data ?? []) as { role: Msg["role"]; content: string }[];
+    if (rows.length === 0) {
+      setMessages([{ role: "assistant", content: intro }]);
+    } else {
+      setMessages(rows.map(r => ({ role: r.role, content: r.content })));
+    }
+  }, [intro]);
+
+  const ensureThread = useCallback(async (firstUserMsg: string): Promise<string | null> => {
+    if (!user) return null;
+    if (threadId) return threadId;
+    const title = firstUserMsg.trim().slice(0, 60) || "New conversation";
+    const { data, error } = await (supabase as any)
+      .from("copilot_threads")
+      .insert({ user_id: user.id, title })
+      .select("id,title,updated_at")
+      .single();
+    if (error || !data) return null;
+    setThreadId(data.id);
+    setThreads(prev => [data as Thread, ...prev]);
+    return data.id;
+  }, [user, threadId]);
+
+  const newThread = () => {
+    setThreadId(null);
+    setMessages([{ role: "assistant", content: intro }]);
+    setAttachments([]);
+    setInput("");
+  };
+
+  const deleteThread = async (id: string) => {
+    await (supabase as any).from("copilot_threads").delete().eq("id", id);
+    setThreads(prev => prev.filter(t => t.id !== id));
+    if (threadId === id) newThread();
+  };
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -70,6 +133,13 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
     setMessages(next);
     const sentAttachments = attachments;
     setAttachments([]);
+    const wantsPdf = userWantsPdf(text);
+    const tid = await ensureThread(text);
+    if (tid && user) {
+      await (supabase as any).from("copilot_messages").insert({
+        thread_id: tid, user_id: user.id, role: "user", content: userMsg.content,
+      });
+    }
     try {
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
       const { data: { session } } = await supabase.auth.getSession();
@@ -129,6 +199,16 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
           }
         }
       }
+      // Persist the assistant reply and auto-trigger PDF when asked
+      if (tid && user && acc) {
+        await (supabase as any).from("copilot_messages").insert({
+          thread_id: tid, user_id: user.id, role: "assistant", content: acc,
+        });
+        await (supabase as any).from("copilot_threads").update({ updated_at: new Date().toISOString() }).eq("id", tid);
+      }
+      if (wantsPdf && acc) {
+        try { downloadTextAsPdf(acc, `vela-${new Date().toISOString().slice(0,10)}.pdf`, text.slice(0, 80)); } catch {}
+      }
     } catch (e: any) {
       // User-facing fallback only. Raw error is logged for monitoring.
       console.error("[copilot] stream failed", e);
@@ -147,7 +227,39 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
   };
 
   return (
-    <div className={`flex flex-col h-full min-h-0 ${compact ? "" : ""}`}>
+    <div className={`flex h-full min-h-0 ${compact ? "" : ""}`}>
+      {showThreads && user && (
+        <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border bg-card/40">
+          <div className="p-2 border-b border-border">
+            <Button size="sm" variant="outline" className="w-full gap-2" onClick={newThread}>
+              <Plus className="h-3.5 w-3.5" /> New chat
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
+            {threads.length === 0 && (
+              <p className="text-xs text-muted-foreground px-2 py-3">No saved conversations yet.</p>
+            )}
+            {threads.map(th => (
+              <div
+                key={th.id}
+                className={`group flex items-center gap-1 rounded-md px-2 py-1.5 text-xs cursor-pointer hover:bg-muted/60 ${threadId === th.id ? "bg-muted" : ""}`}
+                onClick={() => openThread(th.id)}
+              >
+                <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="flex-1 truncate">{th.title}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteThread(th.id); }}
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                  aria-label="Delete conversation"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>
@@ -183,6 +295,17 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
               <div className={`rounded-lg px-3 py-2 prose prose-sm max-w-none ${m.role === "user" ? "prose-invert bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
                 <ReactMarkdown>{m.content || (m.tools && m.tools.length > 0 ? "_working..._" : "...")}</ReactMarkdown>
               </div>
+              {m.role === "assistant" && m.content && i > 0 && (
+                <div className="flex justify-start">
+                  <button
+                    onClick={() => downloadTextAsPdf(m.content, `vela-${new Date().toISOString().slice(0,10)}.pdf`)}
+                    className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                    title="Download this answer as PDF"
+                  >
+                    <FileDown className="h-3 w-3" /> Download as PDF
+                  </button>
+                </div>
+              )}
             </div>
             {m.role === "user" && <UserIcon className="h-5 w-5 text-muted-foreground shrink-0 mt-1" />}
           </div>
@@ -221,6 +344,7 @@ export function CopilotChat({ compact = false, initialIntro }: { compact?: boole
         defaultCategory="feedback"
         contextMessage={lastUser ? `From helper bot. Last user message:\n\n"${lastUser.slice(0, 500)}"\n\n- My feedback -\n` : ""}
       />
+      </div>
     </div>
   );
 }

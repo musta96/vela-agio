@@ -1242,8 +1242,9 @@ function BulkRetractCard({ onSubmit }: { onSubmit: (symbol: string, since: strin
   );
 }
 
-function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestErasure }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void }) {
+function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestErasure, onRevealPii }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void; onRevealPii: (reason: string) => Promise<void> | void }) {
   if (!user) return null;
+  const revealed = !!data?.pii_revealed;
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60" />
@@ -1266,21 +1267,62 @@ function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestEr
               <DetailKv label="Country" value={data.profile?.country_residence || "-"} />
               <DetailKv label="Suspended" value={data.suspension ? "yes" : "no"} />
             </div>
-            <DetailSection title={`Portfolios (${data.portfolios?.length || 0})`}>
-              {(data.portfolios || []).map((p: any) => <div key={p.id} className="flex justify-between border-b border-border/40 py-1"><span>{p.name}</span><span className="text-muted-foreground">{p.base_currency}</span></div>)}
-            </DetailSection>
-            <DetailSection title={`Holdings (${data.holdings?.length || 0})`}>
-              {(data.holdings || []).slice(0,10).map((h: any) => <div key={h.id} className="flex justify-between border-b border-border/40 py-1"><span className="font-mono">{h.symbol}</span><span className="text-muted-foreground">{h.shares} × {h.avg_price}</span></div>)}
-            </DetailSection>
-            <DetailSection title={`Brokers (${data.brokers?.length || 0})`}>
-              {(data.brokers || []).map((b: any) => <div key={b.id} className="flex justify-between border-b border-border/40 py-1"><span>{b.institution || b.source}</span><span className="text-muted-foreground">{b.currency} {b.total_value}</span></div>)}
-            </DetailSection>
-            <DetailSection title={`Recent AI signals (${data.signals?.length || 0})`}>
-              {(data.signals || []).slice(0,10).map((s: any) => <div key={s.id} className="flex justify-between border-b border-border/40 py-1"><span>{s.signal_type} <span className="font-mono">{s.symbol}</span></span><Badge variant="outline" className="text-[9px]">{s.status}</Badge></div>)}
-            </DetailSection>
-            <DetailSection title={`Recent orders (${data.orders?.length || 0})`}>
-              {(data.orders || []).slice(0,10).map((o: any) => <div key={o.id} className="flex justify-between border-b border-border/40 py-1"><span>{o.side} {o.qty} <span className="font-mono">{o.symbol}</span></span><Badge variant="outline" className="text-[9px]">{o.status}</Badge></div>)}
-            </DetailSection>
+            {/*
+              GDPR data-minimisation: financial PII (portfolios, holdings,
+              broker balances, AI signal history, orders) is hidden by default.
+              Owners can request a just-in-time reveal with a documented reason;
+              every reveal is server-side audited.
+            */}
+            {revealed ? (
+              <>
+                {data.pii_reveal && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-200 px-3 py-2 text-[11px]">
+                    <div className="font-semibold">PII revealed · audit-logged</div>
+                    <div className="opacity-90">By {data.pii_reveal.actor_email ?? "you"} at {new Date(data.pii_reveal.at).toLocaleString()}</div>
+                    <div className="opacity-90 italic">Reason: {data.pii_reveal.reason}</div>
+                  </div>
+                )}
+                <DetailSection title={`Portfolios (${data.portfolios?.length || 0})`}>
+                  {(data.portfolios || []).map((p: any) => <div key={p.id} className="flex justify-between border-b border-border/40 py-1"><span>{p.name}</span><span className="text-muted-foreground">{p.base_currency}</span></div>)}
+                </DetailSection>
+                <DetailSection title={`Holdings (${data.holdings?.length || 0})`}>
+                  {(data.holdings || []).slice(0,10).map((h: any) => <div key={h.id} className="flex justify-between border-b border-border/40 py-1"><span className="font-mono">{h.symbol}</span><span className="text-muted-foreground">{h.shares} × {h.avg_price}</span></div>)}
+                </DetailSection>
+                <DetailSection title={`Brokers (${data.brokers?.length || 0})`}>
+                  {(data.brokers || []).map((b: any) => <div key={b.id} className="flex justify-between border-b border-border/40 py-1"><span>{b.institution || b.source}</span><span className="text-muted-foreground">{b.currency} {b.total_value}</span></div>)}
+                </DetailSection>
+                <DetailSection title={`Recent AI signals (${data.signals?.length || 0})`}>
+                  {(data.signals || []).slice(0,10).map((s: any) => <div key={s.id} className="flex justify-between border-b border-border/40 py-1"><span>{s.signal_type} <span className="font-mono">{s.symbol}</span></span><Badge variant="outline" className="text-[9px]">{s.status}</Badge></div>)}
+                </DetailSection>
+                <DetailSection title={`Recent orders (${data.orders?.length || 0})`}>
+                  {(data.orders || []).slice(0,10).map((o: any) => <div key={o.id} className="flex justify-between border-b border-border/40 py-1"><span>{o.side} {o.qty} <span className="font-mono">{o.symbol}</span></span><Badge variant="outline" className="text-[9px]">{o.status}</Badge></div>)}
+                </DetailSection>
+              </>
+            ) : (
+              <div className="rounded-md border border-border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <Shield className="h-3.5 w-3.5" /> Financial PII hidden by default
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Portfolios, holdings, broker balances, AI signals, and order history
+                  are personal financial data under GDPR. They are not loaded unless
+                  there is a documented support purpose. Revealing them writes an
+                  entry to the audit log with your identity and the reason you give.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => {
+                    const r = prompt("Reason for revealing this user's financial data (≥5 chars, audit-logged):");
+                    if (r && r.trim().length >= 5) onRevealPii(r.trim());
+                    else if (r !== null) toast.error("A documented reason is required.");
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5" /> Reveal with audited reason
+                </Button>
+              </div>
+            )}
             <DetailSection title="Account overrides">
               <div className="space-y-2 py-1">
                 <OverrideRow

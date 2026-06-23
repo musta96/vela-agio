@@ -752,6 +752,15 @@ const Portfolio = () => {
             >
               <FileText className="h-4 w-4" /> {memoLoading ? "Building memo…" : "Investment Memo"}
             </Button>
+            <Button
+              variant="outline"
+              size="default"
+              className="gap-2"
+              onClick={() => setStrategyMemoOpen(true)}
+              title="Compose a strategy memo from a target allocation, thesis, goals and risk profile"
+            >
+              <FileText className="h-4 w-4" /> Generate Portfolio Memo
+            </Button>
             <Popover>
               <PopoverTrigger asChild>
                 <Button

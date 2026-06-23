@@ -121,6 +121,23 @@ const TOOLS = [
         risk_free_rate: { type: 'number', description: 'Annual rf for Sharpe. Default 0.04.' },
         lookback: { type: 'string', enum: ['1y','3y','5y'], description: 'Historical window for μ/σ estimation. Default 3y.' },
       }, required: ['symbols'] } } },
+  { type: 'function', function: { name: 'generate_portfolio_memo', description: 'Produce a FORMAL, downloadable portfolio-level investment memo PDF that covers an ENTIRE strategy (multiple instruments + weights). Use when the user asks for a "portfolio memo", "strategy memo", "investment memo for my portfolio", "single PDF for the whole allocation", or anything similar. The frontend renders a download card with the args you supply; do NOT repeat the memo body in your prose reply. Provide a thoughtful strategy thesis, goals, and risk profile.',
+      parameters: { type: 'object', properties: {
+        allocation: { type: 'object', description: 'Map of Yahoo-format ticker -> weight. Weights can sum to 1 or any positive total — they will be normalised, and the PDF will display a note when normalisation was applied.', additionalProperties: { type: 'number' } },
+        strategy_thesis: { type: 'string', description: 'Executive narrative for the strategy. 4-10 sentences, plain text, no markdown headings.' },
+        goals: { type: 'array', items: { type: 'string' }, description: 'Stated investor goals (e.g. "capital preservation", "retire by 60", "inflation hedge").' },
+        risk_profile: { type: 'string', enum: ['conservative','moderate','balanced','growth','aggressive'] },
+        portfolio_name: { type: 'string' },
+        currency: { type: 'string', description: 'Reporting currency. Defaults to "EUR".' },
+        macro_outlook: { type: 'string' },
+        catalysts: { type: 'array', items: { type: 'string' } },
+        risks: { type: 'array', items: { type: 'string' } },
+        custom_sections: { type: 'object', properties: {
+          executive_summary: { type: 'string' },
+          risk_assessment: { type: 'string' },
+          catalysts_and_risks: { type: 'string' },
+        } },
+      }, required: ['allocation','strategy_thesis','risk_profile'] } } },
 ];
 
 // ---------- Tool executors ----------

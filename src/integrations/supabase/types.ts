@@ -823,6 +823,36 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_catalog: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          key: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          key: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          key?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           category: string
@@ -1994,6 +2024,7 @@ export type Database = {
           created_at: string
           cta_href: string
           cta_label: string
+          feature_keys: string[]
           features: Json
           highlighted: boolean
           id: string
@@ -2017,6 +2048,7 @@ export type Database = {
           created_at?: string
           cta_href?: string
           cta_label?: string
+          feature_keys?: string[]
           features?: Json
           highlighted?: boolean
           id?: string
@@ -2040,6 +2072,7 @@ export type Database = {
           created_at?: string
           cta_href?: string
           cta_label?: string
+          feature_keys?: string[]
           features?: Json
           highlighted?: boolean
           id?: string
@@ -2461,12 +2494,25 @@ export type Database = {
         Args: { _admin: string; _client: string; _scope: string }
         Returns: boolean
       }
+      has_feature: {
+        Args: { _key: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      my_entitlements: {
+        Args: never
+        Returns: {
+          feature_keys: string[]
+          plan_name: string
+          plan_slug: string
+          tier: string
+        }[]
       }
       unlock_blog_post: {
         Args: { p_email: string; p_slug: string }

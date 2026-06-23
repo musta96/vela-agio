@@ -713,6 +713,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
       y,
     );
   }
+  if (customSections?.riskAssessment?.trim()) {
+    y += 2;
+    y = paragraph(doc, customSections.riskAssessment.trim(), y, "italic");
+  }
 
   // 5. Suitability mapping
   y = newPageIfNeeded(doc, y, 60);
@@ -850,6 +854,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   doc.addPage();
   y = 28;
   y = sectionTitle(doc, "9 · Key Catalysts & Risks", y);
+  if (customSections?.catalystsAndRisks?.trim()) {
+    y = paragraph(doc, customSections.catalystsAndRisks.trim(), y);
+    y += 2;
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...BRAND.bull);
@@ -885,7 +893,36 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   const bytes = new Uint8Array(ab);
   const blob = new Blob([bytes], { type: "application/pdf" });
   if (download) doc.save(filename);
-  return { filename, blob, bytes };
+
+  // Build the structured data payload (matches PortfolioMemoData).
+  const percentilesList: Array<{ p: number; terminal: number; deltaPct: number }> | null =
+    finals.length
+      ? [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95].map((p) => {
+          const v = quantile(finals, p);
+          return { p, terminal: v, deltaPct: notional > 0 ? (v - notional) / notional : 0 };
+        })
+      : null;
+  const data: PortfolioMemoData = {
+    allocation: positions.map((p) => ({
+      symbol: p.symbol,
+      assetClass: p.meta.assetClass,
+      sector: p.meta.sector,
+      geography: p.meta.geography,
+      rawWeight: p.rawWeight,
+      normalisedWeight: p.weight,
+    })),
+    byAssetClass: byAssetClass.map((b) => ({ label: b.label, weight: b.weight })),
+    correlation: { symbols: coMov.symbols, matrix: coMov.matrix },
+    percentiles: percentilesList,
+    scenarios: scenarioImpacts.map((s) => ({
+      scenario: s.scenario.name, pnl: s.pnl, pnlPct: s.pnlPct,
+    })),
+    meta: {
+      portfolioName, currency, notional, horizonDays, paths,
+      asOf, sumOfRawWeights, normalised,
+    },
+  };
+  return { filename, blob, bytes, data, normalisationNote };
 }
 
 export default generatePortfolioMemo;

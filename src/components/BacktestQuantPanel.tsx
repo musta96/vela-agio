@@ -104,6 +104,7 @@ export function BacktestQuantPanel({
   const [confidences, setConfidences] = useState<number[]>([0.95, 0.99]);
   const [openScenario, setOpenScenario] = useState<ScenarioImpact | null>(null);
   const [openVar, setOpenVar] = useState<{ confidence: number; varPct: number; cvarPct: number } | null>(null);
+  const [openFactor, setOpenFactor] = useState<FactorDrill | null>(null);
 
   const horizonLabel = useMemo(() => {
     const found = HORIZON_PRESETS.find((p) => p.days === horizonDays);
@@ -596,15 +597,65 @@ export function BacktestQuantPanel({
 
           {/* Factors & Correlations */}
           <TabsContent value="factors" className="space-y-4 pt-3">
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() =>
+                  exportFactorsCsv({
+                    basket: holdings.map((h) => ({ symbol: h.symbol, weight: h.weight, name: h.name })),
+                    factors: factorBreakdown,
+                    coMovement,
+                    strategy,
+                    range,
+                    currency,
+                  })
+                }
+                aria-label="Export factors CSV"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" /> CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() =>
+                  exportFactorsPdf({
+                    basket: holdings.map((h) => ({ symbol: h.symbol, weight: h.weight, name: h.name })),
+                    factors: factorBreakdown,
+                    coMovement,
+                    strategy,
+                    range,
+                    currency,
+                  })
+                }
+                aria-label="Export factors PDF"
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" /> PDF
+              </Button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               <Stat label="Asset-class HHI" value={factorBreakdown.hhi.assetClass.toFixed(2)} tone={factorBreakdown.hhi.assetClass > 0.4 ? "bear" : "muted"} />
               <Stat label="Sector HHI" value={factorBreakdown.hhi.sector.toFixed(2)} tone={factorBreakdown.hhi.sector > 0.4 ? "bear" : "muted"} />
               <Stat label="Geography HHI" value={factorBreakdown.hhi.geography.toFixed(2)} tone={factorBreakdown.hhi.geography > 0.4 ? "bear" : "muted"} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <FactorTable title="Asset class" rows={factorBreakdown.assetClass} />
-              <FactorTable title="Sector" rows={factorBreakdown.sector} />
-              <FactorTable title="Geography" rows={factorBreakdown.geography} />
+              <FactorTable
+                title="Asset class"
+                rows={factorBreakdown.assetClass}
+                onSelect={(key) => setOpenFactor({ type: "bucket", kind: "assetClass", key })}
+              />
+              <FactorTable
+                title="Sector"
+                rows={factorBreakdown.sector}
+                onSelect={(key) => setOpenFactor({ type: "bucket", kind: "sector", key })}
+              />
+              <FactorTable
+                title="Geography"
+                rows={factorBreakdown.geography}
+                onSelect={(key) => setOpenFactor({ type: "bucket", kind: "geography", key })}
+              />
             </div>
             <div className="rounded-lg border border-border p-3">
               <div className="flex items-center justify-between mb-2">
@@ -630,15 +681,26 @@ export function BacktestQuantPanel({
                           <td className="px-1 py-0.5 font-mono text-muted-foreground">{coMovement.symbols[i]}</td>
                           {row.map((v, j) => {
                             const intensity = Math.round(v * 255);
+                            const symA = coMovement.symbols[i];
+                            const symB = coMovement.symbols[j];
+                            const isSelf = symA === symB;
                             return (
                               <td
                                 key={j}
-                                className="w-7 h-7 text-center font-mono text-[10px]"
+                                className={`w-7 h-7 text-center font-mono text-[10px] ${isSelf ? "" : "cursor-pointer hover:outline hover:outline-2 hover:outline-primary/60"}`}
                                 style={{
                                   background: `hsl(var(--primary) / ${v.toFixed(2)})`,
                                   color: v > 0.55 ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))",
                                 }}
                                 title={`${coMovement.symbols[i]} ↔ ${coMovement.symbols[j]} ≈ ${v.toFixed(2)}`}
+                                onClick={isSelf ? undefined : () => setOpenFactor({ type: "pair", a: symA, b: symB })}
+                                role={isSelf ? undefined : "button"}
+                                tabIndex={isSelf ? -1 : 0}
+                                aria-label={isSelf ? undefined : `Open attribution for ${symA} vs ${symB}`}
+                                onKeyDown={(e) => {
+                                  if (isSelf) return;
+                                  if (e.key === "Enter" || e.key === " ") setOpenFactor({ type: "pair", a: symA, b: symB });
+                                }}
                               >
                                 {intensity > -1 ? v.toFixed(2) : ""}
                               </td>
@@ -652,7 +714,8 @@ export function BacktestQuantPanel({
               )}
               <p className="mt-2 text-[10px] text-muted-foreground italic">
                 Meta-derived proxy (asset class · sector · geography overlap). Use the Optimizer page for full
-                return-history Pearson correlation. Concentrated factor exposure here narrows Monte Carlo
+                return-history Pearson correlation. Click any factor row or matrix cell to open the per-holding
+                attribution. Concentrated factor exposure here narrows Monte Carlo
                 dispersion and amplifies macro-scenario tails.
               </p>
             </div>

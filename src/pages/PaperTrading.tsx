@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -38,12 +38,27 @@ function fmt(n: number, ccy = "EUR") {
 
 export default function PaperTrading() {
   const { user } = useAuth();
-  const { portfolios, create: createPortfolio } = usePortfolios();
+  const { portfolios, create: createPortfolio, refresh: refreshPortfolios } = usePortfolios();
   const { toast } = useToast();
 
   const sims = useMemo(() => portfolios.filter((p) => p.is_simulation), [portfolios]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  useEffect(() => { if (!activeId && sims[0]) setActiveId(sims[0].id); }, [sims, activeId]);
+  const LAST_KEY = "vela.paper.last_sim";
+  // Prefer the user's last-used sim from localStorage; otherwise the first one.
+  useEffect(() => {
+    if (activeId || sims.length === 0) return;
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem(LAST_KEY) : null;
+    const found = stored && sims.find((p) => p.id === stored);
+    setActiveId(found ? stored! : sims[0].id);
+  }, [sims, activeId]);
+  useEffect(() => {
+    if (activeId && typeof window !== "undefined") window.localStorage.setItem(LAST_KEY, activeId);
+  }, [activeId]);
+
+  // Refresh portfolio list on mount in case prior simulations weren't loaded yet.
+  useEffect(() => { refreshPortfolios?.(); }, [refreshPortfolios]);
+
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [cash, setCash] = useState<Cash | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -152,6 +167,80 @@ export default function PaperTrading() {
     if (activeId) refresh(activeId);
   }
 
+  function resumeLastSimulation() {
+    if (sims.length === 0) {
+      toast({ title: "No saved simulations", description: "Create a new paper portfolio to get started." });
+      return;
+    }
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem(LAST_KEY) : null;
+    const target = (stored && sims.find((p) => p.id === stored)?.id) || sims[0].id;
+    setActiveId(target);
+    refresh(target);
+    toast({ title: "Simulation resumed", description: "Loaded your last paper-trading session and positions." });
+  }
+
+  async function exportSimulation() {
+    if (!activeId) return;
+    const sim = sims.find((p) => p.id === activeId);
+    const payload = {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      portfolio: sim ? { name: sim.name, base_currency: sim.base_currency } : null,
+      cash: cash ? { currency: cash.currency, starting_cash: cash.starting_cash, cash: cash.cash } : null,
+      trades: trades.map((t) => ({
+        symbol: t.symbol, name: t.name, side: t.side, quantity: t.quantity,
+        price: t.price, currency: t.currency, executed_at: t.executed_at,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vela-paper-${(sim?.name || "simulation").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast({ title: "Simulation exported", description: "Keep the JSON file as a backup or share it across devices." });
+  }
+
+  async function importSimulation(file: File) {
+    if (!user) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const name = (data?.portfolio?.name || `Imported ${new Date().toLocaleDateString()}`).slice(0, 80);
+      const ccy = data?.cash?.currency || data?.portfolio?.base_currency || "EUR";
+      const startingCash = Number(data?.cash?.starting_cash ?? 0) || 0;
+      const remainingCash = Number(data?.cash?.cash ?? startingCash) || 0;
+      const trades: any[] = Array.isArray(data?.trades) ? data.trades : [];
+
+      const p = await createPortfolio({ name, is_simulation: true, base_currency: ccy });
+      if (!p) { toast({ title: "Import failed", description: "Could not create the simulation portfolio.", variant: "destructive" }); return; }
+
+      await (supabase as any).from("paper_cash").insert({
+        user_id: user.id, portfolio_id: p.id, currency: ccy,
+        starting_cash: startingCash, cash: remainingCash,
+      });
+      if (trades.length) {
+        await (supabase as any).from("paper_trades").insert(
+          trades.map((t) => ({
+            user_id: user.id, portfolio_id: p.id,
+            symbol: String(t.symbol), name: t.name ?? null,
+            side: t.side === "sell" ? "sell" : "buy",
+            quantity: Number(t.quantity) || 0,
+            price: Number(t.price) || 0,
+            currency: t.currency || ccy,
+            executed_at: t.executed_at || new Date().toISOString(),
+          })),
+        );
+      }
+      setActiveId(p.id);
+      await refresh(p.id);
+      toast({ title: "Simulation imported", description: `${name} restored with ${trades.length} trade(s).` });
+    } catch (e: any) {
+      toast({ title: "Import failed", description: e?.message || "Invalid backup file.", variant: "destructive" });
+    }
+  }
+
   return (
     <>
       <SEO title="Paper Trading Lab - Vela" description="Practice strategies with virtual cash. No real money is ever moved." path="/paper-trading" />
@@ -183,6 +272,26 @@ export default function PaperTrading() {
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" onClick={createSimulation}>+ New simulation</Button>
+              <Button variant="outline" size="sm" onClick={resumeLastSimulation} className="gap-1">
+                <RotateCcw className="h-3.5 w-3.5" /> Resume simulation
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportSimulation} disabled={!activeId} className="gap-1">
+                <Download className="h-3.5 w-3.5" /> Export
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1">
+                <Upload className="h-3.5 w-3.5" /> Import
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) importSimulation(f);
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+              />
             </Card>
 
             {sims.length > 1 && (

@@ -36,9 +36,9 @@ function cellStyle(rho: number): React.CSSProperties {
   const r = Math.max(-1, Math.min(1, rho));
   const intensity = Math.min(1, Math.abs(r));
   const opacity = 0.08 + intensity * 0.55;
-  const color = r >= 0 ? "var(--bear)" : "var(--bull)";
+  const token = r >= 0 ? "--bear" : "--bull";
   return {
-    backgroundColor: `hsl(${color} / ${opacity})`,
+    backgroundColor: `hsl(var(${token}) / ${opacity})`,
     color: intensity > 0.55 ? "hsl(var(--background))" : "hsl(var(--foreground))",
   };
 }

@@ -2,7 +2,14 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Layers, ShieldAlert, X } from "lucide-react";
+import { Download, Layers, ShieldAlert, X, PanelRightOpen } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   scenarioByAssetClassMatrix,
   varCvarByAssetClass,
@@ -28,10 +35,16 @@ export interface ScenarioVarBreakdownProps {
 export function ScenarioVarBreakdown({ positions, currency = "€", scenarioIds, onSelectAssetClass }: ScenarioVarBreakdownProps) {
   const [confidences, setConfidences] = useState<number[]>(DEFAULT_CONFIDENCES);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [drawerClass, setDrawerClass] = useState<string | null>(null);
 
   const select = (cls: string | null) => {
     setSelectedClass(cls);
     onSelectAssetClass?.(cls);
+  };
+
+  const openDrawer = (cls: string) => {
+    select(cls);
+    setDrawerClass(cls);
   };
 
   const scenarios = useMemo(
@@ -158,7 +171,7 @@ export function ScenarioVarBreakdown({ positions, currency = "€", scenarioIds,
                 return (
                   <tr
                     key={`${row.assetClass}-${idx}`}
-                    onClick={() => !isPortfolio && select(isSelected ? null : row.assetClass)}
+                    onClick={() => !isPortfolio && openDrawer(row.assetClass)}
                     className={[
                       "border-b border-border/40 transition-colors",
                       isPortfolio ? "font-semibold bg-muted/40" : "cursor-pointer hover:bg-muted/30",
@@ -173,6 +186,9 @@ export function ScenarioVarBreakdown({ positions, currency = "€", scenarioIds,
                         <Badge variant="outline" className="text-[10px] font-normal">{row.assetClass}</Badge>
                       )}
                       {isPortfolio && <span>Portfolio total</span>}
+                      {!isPortfolio && (
+                        <PanelRightOpen className="h-3 w-3 text-muted-foreground/60 opacity-0 group-hover:opacity-100" />
+                      )}
                     </td>
                     <td className="py-1.5 pr-3 text-right font-mono">{fmtMoney(row.value)}</td>
                     <td className="py-1.5 pr-3 text-right font-mono text-xs">{(row.weight * 100).toFixed(1)}%</td>
@@ -191,7 +207,7 @@ export function ScenarioVarBreakdown({ positions, currency = "€", scenarioIds,
               })}
             </tbody>
           </table>
-          <div className="mt-1 text-[10px] text-muted-foreground italic">Tip: click an asset class to drill into its scenario detail below.</div>
+          <div className="mt-1 text-[10px] text-muted-foreground italic">Tip: click an asset class to open the full scenario detail in a side panel.</div>
         </div>
 
         {/* Scenario pivot */}
@@ -293,6 +309,101 @@ export function ScenarioVarBreakdown({ positions, currency = "€", scenarioIds,
             </div>
           </div>
         )}
+
+        {/* Slide-over drawer: full scenario table for the selected class */}
+        <Sheet open={!!drawerClass} onOpenChange={(o) => { if (!o) setDrawerClass(null); }}>
+          <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+            {(() => {
+              const row = drawerClass ? matrix.rows.find((r) => r.assetClass === drawerClass) ?? null : null;
+              const vcv = drawerClass ? varCvar.byClass.find((r) => r.assetClass === drawerClass) ?? null : null;
+              if (!row) return null;
+              const sorted = [...row.cells].sort((a, b) => a.pnlPct - b.pnlPct);
+              return (
+                <>
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] font-normal">{row.assetClass}</Badge>
+                      <span className="text-sm font-medium">Scenario detail</span>
+                    </SheetTitle>
+                    <SheetDescription>
+                      Full P/L impact of every macro scenario on this asset class. Exposure {fmtMoney(row.value)}
+                      {vcv ? ` · weight ${(vcv.weight * 100).toFixed(1)}%` : ""}.
+                    </SheetDescription>
+                  </SheetHeader>
+
+                  {vcv && vcv.observations > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {confidences.map((c) => (
+                        <div key={`d-var-${c}`} className="rounded-md border border-border bg-muted/30 p-2">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">VaR {(c * 100).toFixed(c === 0.975 ? 1 : 0)}%</div>
+                          <div className="font-mono text-sm text-bear">{(vcv.varByConf[c] * 100).toFixed(2)}%</div>
+                          <div className="text-[10px] text-muted-foreground">CVaR {(vcv.cvarByConf[c] * 100).toFixed(2)}%</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-5">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                      All scenarios · ranked worst → best
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                            <th className="py-1.5 pr-3">Scenario</th>
+                            <th className="py-1.5 pr-3 text-right">P/L %</th>
+                            <th className="py-1.5 pr-3 text-right">P/L</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sorted.map((c) => {
+                            const isWorst = row.worst?.scenarioId === c.scenarioId;
+                            return (
+                              <tr key={c.scenarioId} className={`border-b border-border/40 ${isWorst ? "bg-warning/10" : ""}`}>
+                                <td className="py-1.5 pr-3">
+                                  <div className="flex items-center gap-2">
+                                    {isWorst && <span className="h-1.5 w-1.5 rounded-full bg-warning" />}
+                                    <span>{c.scenarioName}</span>
+                                  </div>
+                                </td>
+                                <td className={`py-1.5 pr-3 text-right font-mono ${c.pnlPct >= 0 ? "text-bull" : "text-bear"}`}>
+                                  {fmtPct(c.pnlPct, 2)}
+                                </td>
+                                <td className={`py-1.5 pr-3 text-right font-mono ${c.pnl >= 0 ? "text-bull" : "text-bear"}`}>
+                                  {fmtMoney(c.pnl)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Distribution</div>
+                    <div className="flex items-end gap-1.5 h-24">
+                      {sorted.map((c) => {
+                        const max = Math.max(0.01, ...sorted.map((x) => Math.abs(x.pnlPct)));
+                        const h = `${Math.max(4, (Math.abs(c.pnlPct) / max) * 100)}%`;
+                        const isWorst = row.worst?.scenarioId === c.scenarioId;
+                        const bg = c.pnlPct >= 0 ? "bg-bull/60" : "bg-bear/60";
+                        const ring = isWorst ? "ring-2 ring-warning" : "";
+                        return (
+                          <div key={c.scenarioId} className="flex-1 flex flex-col items-center gap-1" title={`${c.scenarioName}: ${fmtPct(c.pnlPct, 2)}`}>
+                            <div className={`w-full rounded-t ${bg} ${ring}`} style={{ height: h }} />
+                            <div className="text-[9px] text-muted-foreground truncate w-full text-center">{c.scenarioName.split(" ")[0]}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </SheetContent>
+        </Sheet>
       </CardContent>
     </Card>
   );

@@ -2,14 +2,6 @@ import { describe, it, expect } from "vitest";
 import { writeFileSync, mkdirSync } from "fs";
 import { generatePortfolioMemo } from "@/lib/generatePortfolioMemo";
 
-async function toBuffer(out: Blob): Promise<Buffer> {
-  // jsdom's Blob has no arrayBuffer(); Response() polyfills both browsers + jsdom.
-  if (typeof (out as Blob).arrayBuffer === "function") {
-    return Buffer.from(await out.arrayBuffer());
-  }
-  const ab = await new Response(out).arrayBuffer();
-  return Buffer.from(ab);
-}
 
 // Smoke test: generate a fully-populated memo with all 9 chapters firing
 // (simulation block supplied) and persist it to /mnt/documents for visual QA.
@@ -28,7 +20,7 @@ describe("generatePortfolioMemo", () => {
       eq.push({ t: Date.now() - (days - i) * 86_400_000, value: v });
     }
 
-    const { filename, blob } = generatePortfolioMemo({
+    const { filename, bytes } = generatePortfolioMemo({
       allocation: {
         "SWDA.MI": 0.30, "EQQQ.MI": 0.20, "AGG": 0.20, "GLD": 0.10,
         "BTC-USD": 0.05, "VNQ": 0.05, "AAPL": 0.05, "JPM": 0.05,
@@ -47,7 +39,7 @@ describe("generatePortfolioMemo", () => {
     });
 
     expect(filename).toMatch(/^vela-portfolio-memo-Vela_Balanced_Growth-\d{4}-\d{2}-\d{2}\.pdf$/);
-    const buf = await toBuffer(blob);
+    const buf = Buffer.from(bytes);
     expect(buf.length).toBeGreaterThan(20_000);
     expect(buf.slice(0, 4).toString()).toBe("%PDF");
 
@@ -58,14 +50,14 @@ describe("generatePortfolioMemo", () => {
   });
 
   it("falls back to qualitative risk + performance copy when no simulation supplied", async () => {
-    const { blob } = generatePortfolioMemo({
+    const { bytes } = generatePortfolioMemo({
       allocation: { "AAPL": 0.5, "AGG": 0.5 },
       strategyThesis: "Minimal two-sleeve test.",
       goals: ["test"],
       riskProfile: "balanced",
       download: false,
     });
-    const buf = await toBuffer(blob);
+    const buf = Buffer.from(bytes);
     expect(buf.slice(0, 4).toString()).toBe("%PDF");
     expect(buf.length).toBeGreaterThan(8_000);
   });

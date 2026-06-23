@@ -38,7 +38,7 @@ export function CopilotFab() {
             </Button>
           </div>
           <div className="flex-1 min-h-0">
-            <CopilotChat compact />
+            <CopilotChat compact showThreads={false} />
           </div>
         </div>
       )}

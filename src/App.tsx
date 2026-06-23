@@ -27,6 +27,7 @@ import Insider from "./pages/Insider";
 import Macro from "./pages/Macro";
 import Copilot from "./pages/Copilot";
 import Goals from "./pages/Goals";
+import PortfolioSimulations from "./pages/PortfolioSimulations";
 import EventStudy from "./pages/EventStudy";
 import TaxHarvest from "./pages/TaxHarvest";
 import Methodology from "./pages/Methodology";
@@ -152,6 +153,7 @@ const App = () => (
             <Route path="/macro" element={<Macro />} />
             <Route path="/copilot" element={<Copilot />} />
             <Route path="/goals" element={<Goals />} />
+            <Route path="/simulations" element={<PortfolioSimulations />} />
             <Route path="/event-study" element={<EventStudy />} />
             <Route path="/tax-harvest" element={<TaxHarvest />} />
             <Route path="/tax" element={<Navigate to="/tax-harvest" replace />} />

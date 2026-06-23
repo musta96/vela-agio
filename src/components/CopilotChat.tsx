@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare, Search, BrainCircuit, FileText } from "lucide-react";
+import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare, Search, BrainCircuit, FileText, Activity, ShieldAlert, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
@@ -366,6 +366,8 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                   {m.tools.map(tl => (
                     tl.name === "generate_investment_memo" && tl.done && tl.result?.memo ? (
                       <MemoArtifactCard key={tl.id} memo={tl.result.memo as InvestmentMemoData} />
+                    ) : tl.name === "run_portfolio_simulation" && tl.done && tl.result?.summary ? (
+                      <SimulationArtifactCard key={tl.id} result={tl.result} />
                     ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">
@@ -492,6 +494,61 @@ function MemoArtifactCard({ memo }: { memo: InvestmentMemoData }) {
       <Button size="sm" variant="default" className="w-full gap-1.5 h-8" onClick={onDownload}>
         <FileDown className="h-3.5 w-3.5" /> Download memo PDF
       </Button>
+    </div>
+  );
+}
+
+function SimulationArtifactCard({ result }: { result: any }) {
+  const s = result?.summary ?? {};
+  const href: string | undefined = result?.ui?.href;
+  const fmt = (v: number) => {
+    if (!Number.isFinite(v)) return "—";
+    if (Math.abs(v) >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+    if (Math.abs(v) >= 1e3) return `$${(v / 1e3).toFixed(1)}k`;
+    return `$${Math.round(v)}`;
+  };
+  const pct = (v: number, d = 1) => Number.isFinite(v) ? `${(v * 100).toFixed(d)}%` : "—";
+  return (
+    <div className="rounded-lg border border-border bg-card/70 p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <Activity className="h-3 w-3" /> Portfolio Simulation
+          </div>
+          <div className="font-semibold truncate">
+            {(s.symbols ?? []).join(" · ")}{" "}
+            <span className="font-mono text-muted-foreground">· {s.horizonYears}y · {s.runs?.toLocaleString?.()} paths</span>
+          </div>
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-2 py-0.5 border bg-primary/10 text-primary border-primary/30">
+          {pct(s.annualizedReturnPct)} CAGR
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-[11px]">
+        <div><div className="text-muted-foreground">Expected</div><div className="font-mono font-medium">{fmt(s.expected)}</div></div>
+        <div><div className="text-muted-foreground">Median</div><div className="font-mono font-medium">{fmt(s.median)}</div></div>
+        <div><div className="text-muted-foreground">Sharpe</div><div className="font-mono font-medium">{Number.isFinite(s.sharpe) ? s.sharpe.toFixed(2) : "—"}</div></div>
+        <div><div className="text-muted-foreground">P5</div><div className="font-mono font-medium">{fmt(s.p05)}</div></div>
+        <div><div className="text-muted-foreground">P95</div><div className="font-mono font-medium">{fmt(s.p95)}</div></div>
+        <div><div className="text-muted-foreground">P(loss)</div><div className="font-mono font-medium">{pct(s.probLoss)}</div></div>
+        <div className="col-span-3 grid grid-cols-2 gap-2 mt-1 pt-2 border-t border-border/60">
+          <div>
+            <div className="text-muted-foreground flex items-center gap-1"><ShieldAlert className="h-3 w-3 text-bear" /> VaR 95% / 99%</div>
+            <div className="font-mono font-medium text-bear">{fmt(s.var95)} / {fmt(s.var99)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground flex items-center gap-1"><ShieldAlert className="h-3 w-3 text-bear" /> CVaR 95% / 99%</div>
+            <div className="font-mono font-medium text-bear">{fmt(s.cvar95)} / {fmt(s.cvar99)}</div>
+          </div>
+        </div>
+      </div>
+      {href && (
+        <Link to={href}>
+          <Button size="sm" variant="default" className="w-full gap-1.5 h-8">
+            Open full simulation <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+      )}
     </div>
   );
 }

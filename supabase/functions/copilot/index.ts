@@ -111,6 +111,16 @@ const TOOLS = [
         peers: { type: 'array', items: { type: 'string' }, description: 'Optional peer / benchmark tickers to include in a cross-asset correlation matrix attached to the memo. Max 6. The focal symbol is added automatically.' },
         correlation_lookback: { type: 'string', enum: ['3mo', '1y', '3y'], description: 'Lookback window for the correlation matrix when peers are supplied. Defaults to 1y.' },
       }, required: ['symbol','recommendation','thesis'] } } },
+  { type: 'function', function: { name: 'run_portfolio_simulation', description: 'Run a correlated Monte Carlo simulation on a proposed portfolio. Fits annualised μ/σ from historical log-returns, builds a Pearson correlation matrix, Cholesky-decomposes the covariance and simulates GBM paths. Returns expected final value, percentiles, VaR/CVaR at 95% and 99%, probability of loss and probability of doubling. The frontend also renders a card with a link that auto-runs the full visual simulation (histogram, fan chart, CDF, tornado) on the dedicated /simulations page. Use when the user asks for "simulate", "monte carlo", "what could this portfolio look like", "downside risk on these weights", or "stress probabilities".',
+      parameters: { type: 'object', properties: {
+        symbols: { type: 'array', items: { type: 'string' }, description: 'Up to 8 Yahoo-format tickers.' },
+        weights: { type: 'array', items: { type: 'number' }, description: 'Aligned weights (auto-normalised). Defaults to equal weight.' },
+        horizon_years: { type: 'number', description: '1-30. Default 10.' },
+        runs: { type: 'number', description: '500-3000. Default 1500.' },
+        initial_value: { type: 'number', description: 'Starting portfolio value. Default 100000.' },
+        risk_free_rate: { type: 'number', description: 'Annual rf for Sharpe. Default 0.04.' },
+        lookback: { type: 'string', enum: ['1y','3y','5y'], description: 'Historical window for μ/σ estimation. Default 3y.' },
+      }, required: ['symbols'] } } },
 ];
 
 // ---------- Tool executors ----------
@@ -358,6 +368,139 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         memo,
         ui: { kind: 'memo_pdf', message: `Investment memo ready: ${name} (${sym}) — ${memo.recommendation.toUpperCase()}.` },
         disclaimer: 'Educational research only — not investment advice.',
+      };
+    }
+    case 'run_portfolio_simulation': {
+      // ---------- Inputs ----------
+      const rawSyms = Array.isArray(args.symbols) ? args.symbols : [];
+      const symbols = Array.from(new Set(rawSyms.map((s: any) => String(s).toUpperCase()).filter(Boolean))).slice(0, 8);
+      if (!symbols.length) return { error: 'symbols required' };
+      let weights: number[] = Array.isArray(args.weights)
+        ? args.weights.map((w: any) => Number(w)).filter((x: number) => Number.isFinite(x))
+        : [];
+      if (weights.length !== symbols.length) weights = symbols.map(() => 1 / symbols.length);
+      const wSum = weights.reduce((a, b) => a + b, 0) || 1;
+      weights = weights.map((w) => w / wSum);
+      const horizonYears = Math.min(30, Math.max(1, Number(args.horizon_years ?? 10)));
+      const runs = Math.min(3000, Math.max(500, Math.round(Number(args.runs ?? 1500))));
+      const initialValue = Math.max(1, Number(args.initial_value ?? 100000));
+      const riskFree = Number(args.risk_free_rate ?? 0.04);
+      const lookback = ['1y', '3y', '5y'].includes(String(args.lookback)) ? String(args.lookback) : '3y';
+
+      // ---------- Fetch & align price series ----------
+      const seriesAll = await Promise.all(symbols.map(async (s: string) => {
+        const r = await callEdge(ctx.authHeader, 'market-data', { action: 'ohlc', symbol: s, range: lookback, interval: '1d' });
+        const bars = ((r as any)?.bars ?? []) as Array<{ close: number }>;
+        const out: number[] = [];
+        for (let i = 1; i < bars.length; i++) {
+          const a = bars[i - 1]?.close, b = bars[i]?.close;
+          if (a > 0 && b > 0) out.push(Math.log(b / a));
+        }
+        return out;
+      }));
+      const T = Math.min(...seriesAll.map((s) => s.length));
+      if (T < 30) return { error: 'insufficient price history for one or more symbols' };
+      const aligned = seriesAll.map((s) => s.slice(s.length - T));
+      const n = symbols.length;
+
+      // ---------- Annualised μ, σ, ρ ----------
+      const means = aligned.map((s) => s.reduce((a, b) => a + b, 0) / T);
+      const sds = aligned.map((s, i) => Math.sqrt(s.reduce((a, b) => a + (b - means[i]) ** 2, 0) / Math.max(1, T - 1)));
+      const muAnn = means.map((m) => m * 252);
+      const sigAnn = sds.map((sg) => sg * Math.sqrt(252));
+      const corr: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+      for (let i = 0; i < n; i++) {
+        for (let j = i; j < n; j++) {
+          let c = 0;
+          for (let t = 0; t < T; t++) c += (aligned[i][t] - means[i]) * (aligned[j][t] - means[j]);
+          c /= Math.max(1, T - 1);
+          const denom = sds[i] * sds[j];
+          const rho = denom > 0 ? c / denom : (i === j ? 1 : 0);
+          corr[i][j] = corr[j][i] = Math.max(-1, Math.min(1, rho));
+        }
+      }
+      const cov: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cov[i][j] = sigAnn[i] * sigAnn[j] * corr[i][j];
+
+      // ---------- Monthly Cholesky-driven GBM ----------
+      const stepsPerYear = 12;
+      const dt = 1 / stepsPerYear;
+      const steps = Math.round(horizonYears * stepsPerYear);
+      const stepCov: number[][] = cov.map((row) => row.map((x) => x * dt));
+      const L: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j <= i; j++) {
+          let sum = 0;
+          for (let k = 0; k < j; k++) sum += L[i][k] * L[j][k];
+          if (i === j) L[i][j] = Math.sqrt(Math.max(stepCov[i][i] - sum, 1e-12));
+          else L[i][j] = (stepCov[i][j] - sum) / (L[j][j] || 1e-12);
+        }
+      }
+      const drift = muAnn.map((m, i) => (m - 0.5 * cov[i][i]) * dt);
+      const randn = (): number => {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      };
+      const finals = new Array<number>(runs);
+      const cumR = new Array<number>(n);
+      const z = new Array<number>(n);
+      for (let r = 0; r < runs; r++) {
+        for (let i = 0; i < n; i++) cumR[i] = 0;
+        for (let s = 0; s < steps; s++) {
+          for (let i = 0; i < n; i++) z[i] = randn();
+          for (let i = 0; i < n; i++) {
+            let lz = 0;
+            for (let k = 0; k <= i; k++) lz += L[i][k] * z[k];
+            cumR[i] += drift[i] + lz;
+          }
+        }
+        let pv = 0;
+        for (let i = 0; i < n; i++) pv += weights[i] * Math.exp(cumR[i]);
+        finals[r] = pv * initialValue;
+      }
+
+      // ---------- Summary stats ----------
+      const sorted = [...finals].sort((a, b) => a - b);
+      const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+      const expected = finals.reduce((a, b) => a + b, 0) / runs;
+      const var95 = Math.max(0, initialValue - q(0.05));
+      const var99 = Math.max(0, initialValue - q(0.01));
+      const tail95 = sorted.slice(0, Math.max(1, Math.floor(runs * 0.05)));
+      const tail99 = sorted.slice(0, Math.max(1, Math.floor(runs * 0.01)));
+      const cvar95 = Math.max(0, initialValue - tail95.reduce((a, b) => a + b, 0) / tail95.length);
+      const cvar99 = Math.max(0, initialValue - tail99.reduce((a, b) => a + b, 0) / tail99.length);
+      const probLoss = finals.filter((v) => v < initialValue).length / runs;
+      const probDouble = finals.filter((v) => v >= 2 * initialValue).length / runs;
+      const annReturn = Math.pow(Math.max(expected, 1e-9) / initialValue, 1 / horizonYears) - 1;
+      const logRetsAnn = finals.map((v) => Math.log(Math.max(v, 1e-9) / initialValue) / horizonYears);
+      const lm = logRetsAnn.reduce((a, b) => a + b, 0) / logRetsAnn.length;
+      const lv = logRetsAnn.reduce((a, b) => a + (b - lm) ** 2, 0) / Math.max(1, logRetsAnn.length - 1);
+      const realizedVol = Math.sqrt(lv);
+      const sharpe = realizedVol > 0 ? (annReturn - riskFree) / realizedVol : 0;
+
+      const wParam = encodeURIComponent(weights.map((w) => w.toFixed(4)).join(','));
+      const sParam = encodeURIComponent(symbols.join(','));
+      const href = `/simulations?symbols=${sParam}&weights=${wParam}&horizon=${horizonYears}&runs=${Math.min(5000, runs)}&lookback=${lookback}&initial=${Math.round(initialValue)}&auto=1`;
+
+      return {
+        ok: true,
+        artifact: 'portfolio_simulation',
+        summary: {
+          symbols, weights, horizonYears, runs, initialValue, lookback,
+          expected, median: q(0.5),
+          p05: q(0.05), p25: q(0.25), p75: q(0.75), p95: q(0.95),
+          var95, var99, cvar95, cvar99,
+          probLoss, probDouble,
+          annualizedReturnPct: annReturn, realizedVolPct: realizedVol, sharpe,
+        },
+        ui: {
+          kind: 'simulation',
+          message: `Monte Carlo over ${symbols.length} asset(s), ${horizonYears}y horizon, ${runs} paths. Expected final ≈ ${expected.toFixed(0)} (median ${q(0.5).toFixed(0)}, P5 ${q(0.05).toFixed(0)}, P95 ${q(0.95).toFixed(0)}). 95% VaR ${var95.toFixed(0)} / CVaR ${cvar95.toFixed(0)}.`,
+          href,
+        },
+        disclaimer: 'Educational simulation — log-normal GBM assumptions, no advice.',
       };
     }
     case 'add_watchlist': {

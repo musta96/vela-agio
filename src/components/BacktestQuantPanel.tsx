@@ -50,7 +50,13 @@ import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
 import { useStableMemo } from "@/lib/computeCache";
 import { getInstrumentMeta } from "@/lib/instrumentMeta";
 import { buildQuantShareUrl, decodeQuantParam } from "@/lib/quantShareLink";
-import { exportQuantCsv, exportQuantPdf } from "@/lib/quantPanelExport";
+import {
+  exportQuantCsv,
+  exportQuantPdf,
+  exportFactorsCsv,
+  exportFactorsPdf,
+} from "@/lib/quantPanelExport";
+import { bootstrapMonteCarloCached } from "@/lib/bootstrapMonteCarlo";
 
 export interface BacktestQuantPanelProps {
   /** Equity curve (t = ms, value = portfolio value, benchmark optional). */
@@ -64,56 +70,15 @@ export interface BacktestQuantPanelProps {
   range?: string;
 }
 
-/** Mulberry32 — deterministic PRNG keyed by `seed`. */
-function rng(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Bootstrap (sample with replacement) `paths` × `horizon` returns from `rets`. */
-function bootstrapMonteCarlo(
-  rets: number[],
-  startValue: number,
-  horizonDays: number,
-  paths: number,
-  seed = 42,
-): { finals: number[]; fan: { step: number; p05: number; p50: number; p95: number }[] } {
-  if (!rets.length || startValue <= 0) return { finals: [], fan: [] };
-  const rand = rng(seed);
-  const allPaths: number[][] = [];
-  const finals: number[] = [];
-  for (let p = 0; p < paths; p++) {
-    let v = startValue;
-    const path: number[] = [startValue];
-    for (let d = 0; d < horizonDays; d++) {
-      const r = rets[Math.floor(rand() * rets.length)];
-      v *= 1 + r;
-      path.push(v);
-    }
-    allPaths.push(path);
-    finals.push(v);
-  }
-  // Build fan chart at ~36 sample points along the horizon.
-  const samples = Math.min(36, horizonDays);
-  const stride = Math.max(1, Math.floor(horizonDays / samples));
-  const fan: { step: number; p05: number; p50: number; p95: number }[] = [];
-  for (let s = 0; s <= horizonDays; s += stride) {
-    const slice = allPaths.map((p) => p[s]);
-    fan.push({
-      step: s,
-      p05: quantile(slice, 0.05),
-      p50: quantile(slice, 0.50),
-      p95: quantile(slice, 0.95),
-    });
-  }
-  return { finals, fan };
-}
+/**
+ * Factor drill-down target. A clicked factor row carries the bucket kind +
+ * key (e.g. {kind:"sector", key:"Technology"}); a clicked correlation cell
+ * carries the pair of symbols. The drill-down sheet resolves the matching
+ * holdings and explains why each contributes.
+ */
+type FactorDrill =
+  | { type: "bucket"; kind: "assetClass" | "sector" | "geography"; key: string }
+  | { type: "pair"; a: string; b: string };
 
 const HORIZON_PRESETS: { label: "3M" | "6M" | "1Y" | "3Y"; days: number }[] = [
   { label: "3M", days: 63 },

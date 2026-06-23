@@ -79,9 +79,11 @@ export function useAiCredits(autoRefreshMs = 0) {
   const cached = readCache();
   const [status, setStatus] = useState<AiCreditsStatus | null>(cached?.value ?? null);
   const [loading, setLoading] = useState(!cached);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase.functions.invoke("ai-access-status");
       if (error) throw error;
@@ -91,6 +93,7 @@ export function useAiCredits(autoRefreshMs = 0) {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn("[useAiCredits] fetch failed", e);
+      setError((e as Error)?.message || "Failed to load AI credit status");
     } finally {
       setLoading(false);
     }
@@ -121,5 +124,5 @@ export function useAiCredits(autoRefreshMs = 0) {
     else if (pctUsed >= 80) void fireThreshold("warn80", used, limit as number);
   }, [hasCap, exhausted, pctUsed, used, limit]);
 
-  return { status, loading, refresh, unlimited, hasCap, used, limit, remaining, pctUsed, exhausted };
+  return { status, loading, error, refresh, unlimited, hasCap, used, limit, remaining, pctUsed, exhausted };
 }

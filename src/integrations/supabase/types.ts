@@ -2607,6 +2607,49 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      admin_referral_analytics: {
+        Args: never
+        Returns: {
+          active: boolean
+          beta_signups: number
+          code: string
+          code_id: string
+          created_at: string
+          expires_at: string
+          kind: string
+          label: string
+          last_redeemed_at: string
+          max_uses: number
+          paid_signups: number
+          percent_off: number
+          plan_id: string
+          plan_name: string
+          redemptions: number
+          stripe_coupon_id: string
+          unique_users: number
+          uses_count: number
+        }[]
+      }
+      admin_referral_redemption_log: {
+        Args: { _limit?: number }
+        Returns: {
+          code: string
+          code_id: string
+          code_label: string
+          current_plan_name: string
+          current_sub_status: string
+          has_beta_role: boolean
+          kind: string
+          percent_off: number
+          plan_id: string
+          plan_name: string
+          redeemed_at: string
+          redemption_id: string
+          stripe_coupon_id: string
+          user_email: string
+          user_id: string
+        }[]
+      }
       ai_credits_this_month: { Args: { _user_id: string }; Returns: number }
       ai_margin_summary: {
         Args: never
@@ -2652,9 +2695,11 @@ export type Database = {
       my_entitlements: {
         Args: never
         Returns: {
+          beta_active: boolean
           feature_keys: string[]
           plan_name: string
           plan_slug: string
+          source: string
           tier: string
         }[]
       }

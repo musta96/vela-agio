@@ -122,7 +122,12 @@ export default function PlansBilling() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
   const ent = useEntitlements();
-  const isBeta = ent.tier === "beta";
+  // Beta access only *adds* features on top of a paid sub — never replaces it.
+  // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
+  // `betaBonus`  = user has a real paid sub AND beta_tester role.
+  const isBetaOnly = ent.source === "beta";
+  const betaBonus = ent.source === "subscription" && ent.betaActive;
+  const isBeta = isBetaOnly; // back-compat with existing render branches below
 
   const loadSubscription = async () => {
     if (!user) { setLoading(false); return; }
@@ -260,6 +265,11 @@ export default function PlansBilling() {
                       ? <StatusBadge status={sub!.status} cancel={sub?.cancel_at_period_end} />
                       : <Badge variant="outline">Free</Badge>
                 )}
+                {!loading && betaBonus && (
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    + Beta access
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 {loading
@@ -294,6 +304,7 @@ export default function PlansBilling() {
               <Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" />
             </div>
           ) : (
+            <>
             <div className="grid sm:grid-cols-3 gap-4 text-sm">
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Plan</div>
@@ -324,6 +335,32 @@ export default function PlansBilling() {
                 </div>
               </div>
             </div>
+            {/* Exact entitlement status — sourced from my_entitlements() RPC */}
+            <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4 text-xs sm:text-sm">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Entitlement source</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {ent.source === "subscription" ? "Paid subscription" :
+                   ent.source === "beta" ? "Beta tester role" :
+                   ent.source === "anonymous" ? "Anonymous" : "Free tier"}
+                </Badge>
+                <Badge variant="outline" className="text-[10px]">Tier: {ent.tier}</Badge>
+                {ent.planName && <Badge variant="outline" className="text-[10px]">Plan: {ent.planName}</Badge>}
+                <Badge variant="outline" className="text-[10px]">
+                  {ent.featureKeys.size} feature{ent.featureKeys.size === 1 ? "" : "s"} unlocked
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                {betaBonus
+                  ? "Your paid subscription is fully active. The beta tester role adds extra unlocked features on top — your billing and plan are unchanged."
+                  : isBetaOnly
+                    ? "Your access is granted entirely by the beta tester role. If the beta program ends or your role is revoked, you'll return to the free tier."
+                    : isActive
+                      ? "Access is granted by your active paid subscription."
+                      : "You're on the free tier. Upgrade to unlock more features."}
+              </p>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

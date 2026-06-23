@@ -38,7 +38,7 @@ describe("generatePortfolioMemo", () => {
     });
 
     expect(filename).toMatch(/^vela-portfolio-memo-Vela_Balanced_Growth-\d{4}-\d{2}-\d{2}\.pdf$/);
-    const buf = Buffer.from(await blob.arrayBuffer());
+    const buf = await toBuffer(blob);
     expect(buf.length).toBeGreaterThan(20_000);
     expect(buf.slice(0, 4).toString()).toBe("%PDF");
 
@@ -56,7 +56,7 @@ describe("generatePortfolioMemo", () => {
       riskProfile: "balanced",
       download: false,
     });
-    const buf = Buffer.from(await blob.arrayBuffer());
+    const buf = await toBuffer(blob);
     expect(buf.slice(0, 4).toString()).toBe("%PDF");
     expect(buf.length).toBeGreaterThan(8_000);
   });

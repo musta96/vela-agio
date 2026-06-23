@@ -27,8 +27,13 @@ export default function Copilot() {
         description="Context-aware co-pilot. It knows your portfolio, watchlist and risk profile."
         actions={
           <>
-            <Button asChild variant="outline" size="sm" className="gap-2">
-              <Link to="/ai-usage"><History className="h-4 w-4" /> History</Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => window.dispatchEvent(new CustomEvent("copilot:open-history"))}
+            >
+              <History className="h-4 w-4" /> History
             </Button>
             <Button asChild variant="outline" size="sm" className="gap-2">
               <Link to="/settings?tab=AI"><SettingsIcon className="h-4 w-4" /> Settings</Link>

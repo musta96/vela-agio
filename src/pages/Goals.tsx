@@ -15,7 +15,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { generateGoalsPlanReport, buildGoalsPlanFilename } from "@/lib/pdfReports";
 import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
-import { quantile } from "@/lib/quantScenarios";
+import { quantile, histogram, MACRO_SCENARIOS } from "@/lib/quantScenarios";
+import { ScenarioPresetMenu } from "@/components/ScenarioPresetMenu";
+import { useStableMemo } from "@/lib/computeCache";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -51,6 +53,8 @@ export default function Goals() {
   const [target, setTarget] = useState(500000);
   const [mean, setMean] = useState(0.07);
   const [sd, setSd] = useState(0.15);
+  const [runs, setRuns] = useState<number>(800);
+  const [confidences, setConfidences] = useState<number[]>([0.95, 0.99]);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [includeAssumptions, setIncludeAssumptions] = useState(true);
@@ -131,13 +135,23 @@ export default function Goals() {
     }
   };
 
-  const sim = useMemo(() => monteCarlo(initial, monthly, years, mean, sd, 800), [initial, monthly, years, mean, sd]);
+  // Content-keyed memo: only reruns when one of these primitives changes.
+  const sim = useStableMemo(
+    () => monteCarlo(initial, monthly, years, mean, sd, runs),
+    { initial, monthly, years, mean, sd, runs },
+  );
   const successProb = useMemo(() => sim.finals.filter(v => v >= target).length / sim.finals.length, [sim, target]);
   const data = sim.p50.map((m, i) => ({ year: ((i + 1) / 12).toFixed(1), p10: sim.p10[i], median: m, p90: sim.p90[i] }));
 
   // Bear / bull alternate regimes for resilience comparison
-  const bearSim = useMemo(() => monteCarlo(initial, monthly, years, Math.max(-0.05, mean - 0.03), sd + 0.05, 500), [initial, monthly, years, mean, sd]);
-  const bullSim = useMemo(() => monteCarlo(initial, monthly, years, mean + 0.02, Math.max(0.05, sd - 0.03), 500), [initial, monthly, years, mean, sd]);
+  const bearSim = useStableMemo(
+    () => monteCarlo(initial, monthly, years, Math.max(-0.05, mean - 0.03), sd + 0.05, 500),
+    { initial, monthly, years, mean, sd, regime: "bear" },
+  );
+  const bullSim = useStableMemo(
+    () => monteCarlo(initial, monthly, years, mean + 0.02, Math.max(0.05, sd - 0.03), 500),
+    { initial, monthly, years, mean, sd, regime: "bull" },
+  );
   const bearProb = useMemo(() => bearSim.finals.filter(v => v >= target).length / bearSim.finals.length, [bearSim, target]);
   const bullProb = useMemo(() => bullSim.finals.filter(v => v >= target).length / bullSim.finals.length, [bullSim, target]);
   const baseStats = useMemo(() => ({
@@ -151,10 +165,38 @@ export default function Goals() {
     })(),
   }), [sim]);
 
+  // Confidence-level VaR/CVaR vs initial portfolio value, for the PDF & UI.
+  const confidenceMetrics = useMemo(() => {
+    const sorted = [...sim.finals].sort((a, b) => a - b);
+    return confidences.map((c) => {
+      const tail = sorted.slice(0, Math.max(1, Math.floor(sorted.length * (1 - c))));
+      const pctValue = quantile(sim.finals, 1 - c);
+      return {
+        confidence: c,
+        pctValue,
+        var: Math.max(0, initial - pctValue),
+        cvar: Math.max(0, initial - tail.reduce((s, x) => s + x, 0) / tail.length),
+      };
+    });
+  }, [sim, confidences, initial]);
+
+  // Histogram bins for embedding in PDF — computed once with stable memo.
+  const histBins = useStableMemo(
+    () => histogram(sim.finals, 28),
+    { len: sim.finals.length, first: sim.finals[0], last: sim.finals[sim.finals.length - 1] },
+  );
+
   const buildPdfInput = () => ({
     name, initial, monthly, years, target,
     expectedReturn: mean, volatility: sd, successProb,
     paths: { p10: sim.p10, median: sim.p50, p90: sim.p90 },
+    histogram: histBins,
+    confidenceMetrics,
+    scenarioSummary: [
+      { name: "Bear regime", description: `μ ${((mean - 0.03) * 100).toFixed(1)}% · σ ${((sd + 0.05) * 100).toFixed(1)}%`, successProb: bearProb, medianFinal: quantile(bearSim.finals, 0.5) },
+      { name: "Base case", description: `μ ${(mean * 100).toFixed(1)}% · σ ${(sd * 100).toFixed(1)}%`, successProb, medianFinal: baseStats.p50 },
+      { name: "Bull regime", description: `μ ${((mean + 0.02) * 100).toFixed(1)}% · σ ${(Math.max(0.05, sd - 0.03) * 100).toFixed(1)}%`, successProb: bullProb, medianFinal: quantile(bullSim.finals, 0.5) },
+    ],
   });
 
   const logExport = async (filename: string, action: "preview" | "download") => {
@@ -230,6 +272,17 @@ export default function Goals() {
 
         <div className="grid md:grid-cols-3 gap-4">
           <Card><CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Plan presets</Label>
+              <ScenarioPresetMenu
+                scope="mc"
+                current={{ initial, monthly, years, target, mean, sd, runs, confidences }}
+                onLoad={(p) => {
+                  setInitial(p.initial); setMonthly(p.monthly); setYears(p.years); setTarget(p.target);
+                  setMean(p.mean); setSd(p.sd); setRuns(p.runs); setConfidences(p.confidences);
+                }}
+              />
+            </div>
             <div><Label>Plan name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
             <div><Label>{t("pages.goals.initial")}</Label><Input type="number" value={initial} onChange={e => setInitial(+e.target.value)} /></div>
             <div><Label>{t("pages.goals.monthly")}</Label><Input type="number" value={monthly} onChange={e => setMonthly(+e.target.value)} /></div>
@@ -237,6 +290,32 @@ export default function Goals() {
             <div><Label>{t("pages.goals.target")}</Label><Input type="number" value={target} onChange={e => setTarget(+e.target.value)} /></div>
             <div><Label>{t("pages.goals.expectedReturn")}</Label><Input type="number" step="0.01" value={mean} onChange={e => setMean(+e.target.value)} /></div>
             <div><Label>{t("pages.goals.volatility")}</Label><Input type="number" step="0.01" value={sd} onChange={e => setSd(+e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div>
+                <Label className="text-xs">MC runs</Label>
+                <Input type="number" min={100} max={10000} step={100} value={runs} onChange={e => setRuns(Math.max(100, Math.min(10000, +e.target.value || 0)))} />
+              </div>
+              <div>
+                <Label className="text-xs">Confidence levels</Label>
+                <div className="flex items-center gap-1 mt-1">
+                  {[0.90, 0.95, 0.975, 0.99].map((c) => {
+                    const active = confidences.includes(c);
+                    return (
+                      <Button
+                        key={c}
+                        type="button"
+                        size="sm"
+                        variant={active ? "default" : "outline"}
+                        className="h-7 text-[11px] px-2"
+                        onClick={() => setConfidences((cur) => cur.includes(c) ? cur.filter(x => x !== c) : [...cur, c].sort())}
+                      >
+                        {(c * 100).toFixed(c === 0.975 ? 1 : 0)}%
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </CardContent></Card>
           <Card className="md:col-span-2"><CardHeader><CardTitle>{t("pages.goals.successProb")}: <span className={successProb >= 0.7 ? "text-bull" : successProb >= 0.4 ? "text-yellow-500" : "text-bear"}>{(successProb * 100).toFixed(0)}%</span></CardTitle></CardHeader><CardContent>
             <ResponsiveContainer width="100%" height={320}>
@@ -261,6 +340,30 @@ export default function Goals() {
                 <DistStat label="Median" value={baseStats.p50} />
                 <DistStat label="P95 (best 5%)" value={baseStats.p95} tone="good" />
               </div>
+              {confidenceMetrics.length > 0 && (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left border-b border-border/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <th className="py-1 pr-3">Confidence</th>
+                        <th className="py-1 pr-3 text-right">Percentile value</th>
+                        <th className="py-1 pr-3 text-right">VaR vs initial</th>
+                        <th className="py-1 pr-3 text-right">CVaR (tail avg)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {confidenceMetrics.map((m) => (
+                        <tr key={m.confidence} className="border-b border-border/30">
+                          <td className="py-1 pr-3 font-mono">{(m.confidence * 100).toFixed(m.confidence === 0.975 ? 1 : 0)}%</td>
+                          <td className="py-1 pr-3 text-right font-mono">€{Math.round(m.pctValue).toLocaleString()}</td>
+                          <td className="py-1 pr-3 text-right font-mono text-bear">€{Math.round(m.var).toLocaleString()}</td>
+                          <td className="py-1 pr-3 text-right font-mono text-bear">€{Math.round(m.cvar).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>

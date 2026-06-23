@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { meanVariance, riskParity, hrp, covMatrix, portfolioStats } from "@/lib/optimizer";
+import { CorrelationMatrix } from "@/components/CorrelationMatrix";
 import { Scale } from "lucide-react";
 
 export default function Optimizer() {
@@ -79,6 +80,9 @@ export default function Optimizer() {
               );
             })}
           </div>
+        )}
+        {returns.length > 0 && (
+          <CorrelationMatrix symbols={syms} returns={returns} />
         )}
       </main>
     </div>

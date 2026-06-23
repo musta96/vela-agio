@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { CorrelationMatrix } from "@/components/CorrelationMatrix";
 import { RefreshCw } from "lucide-react";
 
 export default function Rebalance() {
@@ -13,6 +14,8 @@ export default function Rebalance() {
   const [holdings, setHoldings] = useState<{ symbol: string; shares: number; avg_price: number }[]>([]);
   const [targets, setTargets] = useState<Record<string, number>>({});
   const [band, setBand] = useState(5);
+  const [corrSyms, setCorrSyms] = useState<string[]>([]);
+  const [corrReturns, setCorrReturns] = useState<number[][]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -24,6 +27,35 @@ export default function Rebalance() {
         setTargets(Object.fromEntries(h.map(x => [x.symbol, eq])));
       });
   }, [user]);
+
+  // Pull 1y of daily OHLC for every current holding so we can show a
+  // correlation matrix alongside the drift table. Concentrated holdings
+  // (high pairwise ρ) are the ones rebalancing rarely actually de-risks.
+  useEffect(() => {
+    let cancelled = false;
+    const syms = holdings.map(h => h.symbol);
+    if (!syms.length) { setCorrSyms([]); setCorrReturns([]); return; }
+    (async () => {
+      const series: number[][] = [];
+      for (const s of syms) {
+        const { data } = await supabase.functions.invoke("market-data", {
+          body: { action: "ohlc", symbol: s, range: "1y", interval: "1d" },
+        });
+        const bars = (data?.bars ?? []) as { close: number }[];
+        const rets: number[] = [];
+        for (let i = 1; i < bars.length; i++) rets.push(Math.log(bars[i].close / bars[i - 1].close));
+        series.push(rets);
+      }
+      if (cancelled) return;
+      const T = Math.min(...series.map(s => s.length));
+      if (!T || !isFinite(T)) { setCorrSyms(syms); setCorrReturns([]); return; }
+      const aligned: number[][] = [];
+      for (let t = 0; t < T; t++) aligned.push(series.map(s => s[s.length - T + t]));
+      setCorrSyms(syms);
+      setCorrReturns(aligned);
+    })();
+    return () => { cancelled = true; };
+  }, [holdings]);
 
   const { quotes } = useLiveQuotes(holdings.map(h => h.symbol), 60_000);
   const values = holdings.map(h => ({ ...h, value: h.shares * (quotes[h.symbol]?.price ?? h.avg_price) }));
@@ -74,6 +106,9 @@ export default function Rebalance() {
             <p className="mt-2 text-[11px] text-muted-foreground">Educational drift analysis only - Vela does not place orders or recommend specific trades. Discuss with a licensed advisor before acting.</p>
           </CardContent>
         </Card>
+        {corrReturns.length > 0 && (
+          <CorrelationMatrix symbols={corrSyms} returns={corrReturns} />
+        )}
       </main>
     </div>
   );

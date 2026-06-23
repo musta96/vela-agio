@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
 import { exportBacktestCsv, exportBacktestPdf } from "@/lib/backtestExport";
 import { BacktestQuantPanel } from "@/components/BacktestQuantPanel";
+import { decodeQuantParam } from "@/lib/quantShareLink";
 
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
@@ -54,9 +55,20 @@ const BacktestingModule = () => {
   const { toast } = useToast();
   const [params] = useSearchParams();
   const initialSym = params.get("symbol");
+  const initialQuant = decodeQuantParam(params.get("quant"));
 
-  const [mode, setMode] = useState<"single" | "portfolio">("single");
+  const [mode, setMode] = useState<"single" | "portfolio">(
+    initialQuant?.h && initialQuant.h.length > 1 ? "portfolio" : "single",
+  );
   const [holdings, setHoldings] = useState<Holding[]>(() => {
+    if (initialQuant?.h && initialQuant.h.length) {
+      const total = initialQuant.h.reduce((s, h) => s + (h.weight || 0), 0) || 1;
+      return initialQuant.h.map((h) => ({
+        symbol: h.symbol,
+        name: h.name ?? STOCK_CATALOG.find((c) => c.symbol === h.symbol)?.name,
+        weight: (h.weight || 0) / total,
+      }));
+    }
     if (initialSym) {
       const meta = STOCK_CATALOG.find(c => c.symbol === initialSym);
       return [{ symbol: initialSym, weight: 1, name: meta?.name }];
@@ -64,8 +76,8 @@ const BacktestingModule = () => {
     return [];
   });
   const [query, setQuery] = useState("");
-  const [strategy, setStrategy] = useState("buy_hold");
-  const [range, setRange] = useState("1Y");
+  const [strategy, setStrategy] = useState(initialQuant?.strategy ?? "buy_hold");
+  const [range, setRange] = useState(initialQuant?.range ?? "1Y");
   const [initialCapital, setInitialCapital] = useState("100000");
   const [benchmark, setBenchmark] = useState<string>("self");
   const [running, setRunning] = useState(false);
@@ -440,6 +452,8 @@ const BacktestingModule = () => {
                 <BacktestQuantPanel
                   equity={result.equity}
                   holdings={holdings}
+                  strategy={strategy}
+                  range={range}
                 />
               </div>
             )}

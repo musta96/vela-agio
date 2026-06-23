@@ -34,6 +34,25 @@ export function newCorrelationId(): string {
 
 export type CorrelationMatrix = Matrix;
 
+/**
+ * Slice a correlation matrix down to the subset of symbols whose index
+ * passes the predicate. Returns an aligned `{ symbols, matrix }` pair so
+ * downstream stats/breakdowns can be recomputed without re-running the
+ * full Pearson pipeline on the returns array.
+ */
+export function subsetCorrelation(
+  symbols: string[],
+  corr: CorrelationMatrix,
+  keep: (symbol: string, idx: number) => boolean,
+): { symbols: string[]; matrix: CorrelationMatrix; indices: number[] } {
+  const indices: number[] = [];
+  symbols.forEach((s, i) => { if (keep(s, i)) indices.push(i); });
+  const matrix: CorrelationMatrix = indices.map((i) =>
+    indices.map((j) => corr[i]?.[j] ?? 0),
+  );
+  return { symbols: indices.map((i) => symbols[i]), matrix, indices };
+}
+
 /** Pearson correlation matrix derived from a `cov` (or aligned returns). */
 export function correlationFromCov(cov: Matrix): CorrelationMatrix {
   const n = cov.length;

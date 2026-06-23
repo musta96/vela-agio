@@ -27,6 +27,7 @@ import {
   ScrollText, Scale, FileDown, Trash2, Ban, Shield, Flag, Database, Mail, TrendingUp,
   LayoutDashboard, KeyRound, CreditCard, Wallet, AlertCircle, Search, BellRing, Settings,
   CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X, Sparkles, LifeBuoy,
+  ListChecks, Gift,
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };

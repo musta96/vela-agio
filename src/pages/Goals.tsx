@@ -317,3 +317,33 @@ export default function Goals() {
     </div>
   );
 }
+
+function DistStat({ label, value, tone, hint }: { label: string; value: number; tone?: "good" | "bad"; hint?: string }) {
+  return (
+    <div className="rounded border border-border/50 p-2" title={hint}>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-sm font-bold font-mono ${tone === "good" ? "text-bull" : tone === "bad" ? "text-bear" : ""}`}>
+        €{value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </div>
+    </div>
+  );
+}
+
+function RegimeRow({ label, sub, prob, tone }: { label: string; sub: string; prob: number; tone?: "good" | "bad" }) {
+  const color = tone === "good" ? "text-bull" : tone === "bad" ? "text-bear" : "text-primary";
+  const barColor = tone === "good" ? "bg-bull" : tone === "bad" ? "bg-bear" : "bg-primary";
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between gap-2">
+        <div>
+          <div className="font-medium">{label}</div>
+          <div className="text-[11px] text-muted-foreground font-mono">{sub}</div>
+        </div>
+        <div className={`font-mono font-bold ${color}`}>{(prob * 100).toFixed(0)}%</div>
+      </div>
+      <div className="h-1.5 bg-muted rounded overflow-hidden">
+        <div className={`h-full ${barColor}`} style={{ width: `${Math.min(100, prob * 100)}%` }} />
+      </div>
+    </div>
+  );
+}

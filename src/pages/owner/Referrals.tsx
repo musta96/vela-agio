@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Plus, RefreshCw, Trash2, Link as LinkIcon, Sparkles, Tag } from "lucide-react";
+import { Copy, Plus, RefreshCw, Trash2, Link as LinkIcon, Sparkles, Tag, Download, BarChart3, ScrollText } from "lucide-react";
 
 type Code = {
   id: string;
@@ -30,6 +30,60 @@ type Code = {
 
 type Plan = { id: string; name: string; tier: string | null };
 
+type Analytics = {
+  code_id: string;
+  code: string;
+  label: string | null;
+  kind: "beta" | "discount";
+  active: boolean;
+  expires_at: string | null;
+  plan_id: string | null;
+  plan_name: string | null;
+  percent_off: number | null;
+  stripe_coupon_id: string | null;
+  max_uses: number | null;
+  uses_count: number;
+  redemptions: number;
+  unique_users: number;
+  paid_signups: number;
+  beta_signups: number;
+  last_redeemed_at: string | null;
+};
+
+type RedemptionRow = {
+  redemption_id: string;
+  redeemed_at: string;
+  code: string;
+  code_label: string | null;
+  kind: "beta" | "discount";
+  user_id: string;
+  user_email: string | null;
+  plan_name: string | null;
+  percent_off: number | null;
+  stripe_coupon_id: string | null;
+  current_sub_status: string | null;
+  current_plan_name: string | null;
+  has_beta_role: boolean;
+};
+
+function toCSV(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return "";
+  const cols = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    if (v == null) return "";
+    const s = typeof v === "string" ? v : JSON.stringify(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
+}
+function downloadCSV(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function rand(len = 8) {
   const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: len }, () => a[Math.floor(Math.random() * a.length)]).join("");
@@ -39,6 +93,10 @@ export default function OwnerReferralsPage() {
   const [rows, setRows] = useState<Code[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<Analytics[]>([]);
+  const [redemptions, setRedemptions] = useState<RedemptionRow[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [logLoading, setLogLoading] = useState(false);
 
   // new code form
   const [code, setCode] = useState(rand());
@@ -60,6 +118,23 @@ export default function OwnerReferralsPage() {
     setRows((c as any) || []);
     setPlans((p as any) || []);
     setLoading(false);
+    void loadAnalytics();
+    void loadLog();
+  }
+
+  async function loadAnalytics() {
+    setAnalyticsLoading(true);
+    const { data, error } = await supabase.rpc("admin_referral_analytics" as any);
+    if (error) toast.error(error.message);
+    setAnalytics(((data as any) || []) as Analytics[]);
+    setAnalyticsLoading(false);
+  }
+  async function loadLog() {
+    setLogLoading(true);
+    const { data, error } = await supabase.rpc("admin_referral_redemption_log" as any, { _limit: 1000 });
+    if (error) toast.error(error.message);
+    setRedemptions(((data as any) || []) as RedemptionRow[]);
+    setLogLoading(false);
   }
   useEffect(() => { load(); }, []);
 
@@ -104,6 +179,36 @@ export default function OwnerReferralsPage() {
   function copy(text: string) {
     navigator.clipboard.writeText(text);
     toast.success("Copied");
+  }
+
+  // --- Aggregations for the analytics panel ---
+  const totalRedemptions = analytics.reduce((s, a) => s + Number(a.redemptions || 0), 0);
+  const totalPaidSignups = analytics.reduce((s, a) => s + Number(a.paid_signups || 0), 0);
+  const totalBetaSignups = analytics.reduce((s, a) => s + Number(a.beta_signups || 0), 0);
+
+  // Roll up redemptions per plan (using the plan applied at redemption time).
+  const byPlan = (() => {
+    const map = new Map<string, { plan: string; redemptions: number; paid: number; beta: number }>();
+    for (const a of analytics) {
+      const key = a.plan_name || (a.kind === "beta" ? "(Beta — any plan)" : "(Any plan)");
+      const cur = map.get(key) || { plan: key, redemptions: 0, paid: 0, beta: 0 };
+      cur.redemptions += Number(a.redemptions || 0);
+      cur.paid += Number(a.paid_signups || 0);
+      cur.beta += Number(a.beta_signups || 0);
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.redemptions - a.redemptions);
+  })();
+
+  function exportAnalyticsCSV() {
+    if (analytics.length === 0) return toast.error("No analytics to export");
+    downloadCSV(`referral-analytics-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(analytics as any));
+    toast.success("Analytics exported");
+  }
+  function exportLogCSV() {
+    if (redemptions.length === 0) return toast.error("No redemptions to export");
+    downloadCSV(`referral-redemptions-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(redemptions as any));
+    toast.success("Redemption log exported");
   }
 
   return (

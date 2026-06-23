@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
@@ -65,6 +65,30 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
   { key: "data_feeds_frozen", label: "Freeze data feeds", description: "Stops new market data ingestion - shows stale prices." },
 ];
 
+const OWNER_ROUTE_SECTIONS: Record<string, string> = {
+  "/owner/dashboard": "dashboard",
+  "/owner/activity": "audit",
+  "/owner/users": "users",
+  "/owner/roles": "roles",
+  "/owner/api-keys": "apikeys",
+  "/owner/plans": "plans",
+  "/owner/feature-catalog": "feature-catalog",
+  "/owner/referrals": "referrals",
+  "/owner/revenue": "revenue",
+  "/owner/failed-payments": "failed",
+  "/owner/feature-flags": "flags",
+  "/owner/audit": "audit",
+  "/owner/comms": "comms",
+  "/owner/content": "landing",
+  "/owner/blog": "blog",
+  "/owner/tickets": "tickets",
+  "/owner/signals": "ai",
+  "/owner/data-feeds": "data",
+  "/owner/gdpr": "gdpr",
+  "/owner/legal": "legal",
+  "/owner/security": "gdpr",
+};
+
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[]; legal?: LegalDoc[]; apiKeys?: ApiKey[] } | null>(null);
@@ -77,6 +101,18 @@ export default function OwnerConsole() {
   const [detailData, setDetailData] = useState<any>(null);
   const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
   const [openTickets, setOpenTickets] = useState<number>(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const setOwnerSection = useCallback((nextSection: string) => {
+    setSection(nextSection);
+    if (location.pathname !== "/owner") navigate("/owner", { replace: true });
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    const routeSection = OWNER_ROUTE_SECTIONS[location.pathname];
+    if (routeSection) setSection(routeSection);
+  }, [location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -606,7 +642,7 @@ export default function OwnerConsole() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={downloadAuditCsv} className="gap-2"><FileDown className="h-3.5 w-3.5" />Export report</Button>
-          <Button variant="outline" size="sm" onClick={() => setSection("comms")} className="gap-2"><Megaphone className="h-3.5 w-3.5" />Broadcast message</Button>
+          <Button variant="outline" size="sm" onClick={() => setOwnerSection("comms")} className="gap-2"><Megaphone className="h-3.5 w-3.5" />Broadcast message</Button>
         </div>
       </div>
 
@@ -637,7 +673,7 @@ export default function OwnerConsole() {
                 </TableRow></TableHeader>
                 <TableBody>
                   {filteredUsers.slice(0, 12).map((u) => (
-                    <TableRow key={u.id} className="cursor-pointer" onClick={() => setSection("users")}>
+                    <TableRow key={u.id} className="cursor-pointer" onClick={() => setOwnerSection("users")}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center">{(u.email || "?").slice(0,2).toUpperCase()}</div>
@@ -681,7 +717,7 @@ export default function OwnerConsole() {
                     <p className="text-xs leading-snug">{a.title}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{a.kind} · {relTime(a.when)}</p>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setSection(a.section)}>{a.cta}</Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setOwnerSection(a.section)}>{a.cta}</Button>
                 </div>
               ))}
             </div>
@@ -690,7 +726,7 @@ export default function OwnerConsole() {
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-sm">Feature flags</h3>
-              <button className="text-[10px] text-primary hover:underline" onClick={() => setSection("flags")}>Manage all ›</button>
+              <button className="text-[10px] text-primary hover:underline" onClick={() => setOwnerSection("flags")}>Manage all ›</button>
             </div>
             <div className="space-y-3">
               {flags.slice(0, 5).map((f) => (
@@ -725,7 +761,7 @@ export default function OwnerConsole() {
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">AI signal governance</h3>
-            <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSection("ai")}>Configure</Button>
+            <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setOwnerSection("ai")}>Configure</Button>
           </div>
           <div className="space-y-2 text-xs">
             <DashRow label="Confidence threshold" value={`≥ ${(aiConfig.min_confidence ?? 0.6).toFixed(2)}`} />
@@ -739,7 +775,7 @@ export default function OwnerConsole() {
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">Audit log</h3>
-            <button className="text-[10px] text-primary hover:underline" onClick={() => setSection("audit")}>Full log ›</button>
+            <button className="text-[10px] text-primary hover:underline" onClick={() => setOwnerSection("audit")}>Full log ›</button>
           </div>
           <div className="space-y-2">
             {audit.slice(0, 5).map((a) => (
@@ -790,12 +826,12 @@ export default function OwnerConsole() {
       <EmailRevealProvider>
       <OwnerSidebar
         section={section}
-        setSection={setSection}
+        setSection={setOwnerSection}
         flagsOff={flagsOff}
         signalAlerts={flaggedSignals}
         gdprPending={pendingGdpr}
         openTickets={openTickets}
-        onKill={() => setSection("kill")}
+        onKill={() => setOwnerSection("kill")}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="h-14 border-b border-border flex items-center px-4 gap-3 sticky top-0 bg-background/95 backdrop-blur z-10">
@@ -808,7 +844,7 @@ export default function OwnerConsole() {
             <CircleDot className={`h-2 w-2 fill-current`} />
             {openIncidents ? `${openIncidents} kill switch${openIncidents === 1 ? "" : "es"} active` : "All systems operational"}
           </Badge>
-          <Button variant="ghost" size="icon" aria-label="Open alerts" className="relative" onClick={() => setSection("comms")}>
+          <Button variant="ghost" size="icon" aria-label="Open alerts" className="relative" onClick={() => setOwnerSection("comms")}>
             <BellRing className="h-4 w-4" />
             {activeAlerts > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[9px] rounded-full bg-amber-500 text-background font-bold flex items-center justify-center">{activeAlerts}</span>}
           </Button>

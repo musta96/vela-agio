@@ -62,22 +62,7 @@ import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import AIStocksToWatch from "./pages/AIStocksToWatch";
 import PaperTrading from "./pages/PaperTrading";
-import OwnerLayout from "./components/owner/OwnerLayout";
-import OwnerDashboard from "./pages/owner/Dashboard";
-import OwnerActivity from "./pages/owner/Activity";
-import OwnerUsers from "./pages/owner/Users";
-import OwnerUserProfile from "./pages/owner/UserProfile";
-import OwnerRoles from "./pages/owner/Roles";
-import OwnerPlans from "./pages/owner/Plans";
-import OwnerRevenue from "./pages/owner/Revenue";
-import OwnerFeatureFlags from "./pages/owner/FeatureFlags";
-import OwnerAuditLog from "./pages/owner/AuditLog";
-import OwnerAISignals from "./pages/owner/AISignals";
-import OwnerSecurity from "./pages/owner/Security";
-import OwnerTickets from "./pages/owner/Tickets";
-import OwnerBlog from "./pages/owner/BlogAdmin";
-import OwnerFeatureCatalogPage from "./pages/owner/FeatureCatalogPage";
-import OwnerReferralsPage from "./pages/owner/Referrals";
+import OwnerConsole from "./pages/OwnerConsole";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -195,26 +180,9 @@ const App = () => (
             <Route path="/ai-usage" element={<AiUsageHistory />} />
             <Route path="/advisor" element={<Advisor />} />
             <Route path="/household" element={<Household />} />
-            <Route path="*" element={<NotFound />} />
           </Route>
-          <Route path="/owner" element={<OwnerRoute><OwnerLayout /></OwnerRoute>}>
-            <Route index element={<Navigate to="/owner/dashboard" replace />} />
-            <Route path="dashboard" element={<OwnerDashboard />} />
-            <Route path="activity" element={<OwnerActivity />} />
-            <Route path="users" element={<OwnerUsers />} />
-            <Route path="users/:id" element={<OwnerUserProfile />} />
-            <Route path="roles" element={<OwnerRoles />} />
-            <Route path="plans" element={<OwnerPlans />} />
-            <Route path="feature-catalog" element={<OwnerFeatureCatalogPage />} />
-            <Route path="referrals" element={<OwnerReferralsPage />} />
-            <Route path="revenue" element={<OwnerRevenue />} />
-            <Route path="feature-flags" element={<OwnerFeatureFlags />} />
-            <Route path="audit" element={<OwnerAuditLog />} />
-            <Route path="signals" element={<OwnerAISignals />} />
-            <Route path="security" element={<OwnerSecurity />} />
-            <Route path="tickets" element={<OwnerTickets />} />
-            <Route path="blog" element={<OwnerBlog />} />
-          </Route>
+          <Route path="/owner/*" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         </PortfoliosProvider>
         </FeatureFlagsProvider>

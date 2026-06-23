@@ -89,6 +89,26 @@ const TOOLS = [
         symbols: { type: 'array', items: { type: 'string' }, description: 'Ticker symbols (Yahoo format) to brief. Max 4.' },
         focus: { type: 'string', description: 'Optional research angle, e.g. "valuation", "downside risk", "growth runway".' },
       }, required: ['symbols'] } } },
+  { type: 'function', function: { name: 'generate_investment_memo', description: 'Produce a FORMAL, downloadable investment-memo PDF for a single ticker. Use when the user asks for a "memo", "investment memo", "one-pager", "downloadable PDF report", or "formal write-up". The tool fetches live quote + fundamentals + valuation, then attaches YOUR structured thesis, target price, bull/bear cases, catalysts, risks and scenarios. The frontend will render the result as a downloadable PDF inside the chat — do NOT repeat the full memo body in your prose reply; instead acknowledge the memo and summarise the headline recommendation in 2-3 sentences.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string', description: 'Yahoo-format ticker.' },
+        recommendation: { type: 'string', enum: ['buy','accumulate','hold','reduce','sell'] },
+        conviction: { type: 'string', enum: ['low','medium','high'] },
+        horizon: { type: 'string', description: 'e.g. "12 months", "3 years".' },
+        target_price: { type: 'number', description: 'Analyst price target in the instrument\'s currency.' },
+        thesis: { type: 'string', description: 'Executive summary paragraph(s). 4-8 sentences. Plain text, no markdown headings.' },
+        bull_case: { type: 'string' },
+        bear_case: { type: 'string' },
+        catalysts: { type: 'array', items: { type: 'string' }, description: 'Concrete upcoming events / drivers.' },
+        risks: { type: 'array', items: { type: 'string' } },
+        scenarios: { type: 'array', items: { type: 'object', properties: {
+          label: { type: 'string', description: '"Base", "Bull", "Bear", or descriptive.' },
+          target: { type: 'number' },
+          probability: { type: 'number', description: '0-1 probability weight.' },
+          rationale: { type: 'string' },
+        }, required: ['label','target'] } },
+        analyst_note: { type: 'string', description: 'Optional one-line italicised note shown above the executive summary.' },
+      }, required: ['symbol','recommendation','thesis'] } } },
 ];
 
 // ---------- Tool executors ----------

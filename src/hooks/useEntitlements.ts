@@ -7,9 +7,19 @@ export type Entitlements = {
   planSlug: string | null;
   planName: string | null;
   featureKeys: Set<string>;
+  /** True when the signed-in user has the `beta_tester` role. Beta access
+   *  only *adds* feature keys on top of any paid subscription — it never
+   *  downgrades the user's real plan. */
+  betaActive: boolean;
+  /** Where the entitlement comes from: 'subscription' (paid), 'beta'
+   *  (beta role with no paid sub), 'free' (no sub, no role), or 'anonymous'. */
+  source: "subscription" | "beta" | "free" | "anonymous";
 };
 
-const EMPTY: Entitlements = { tier: "free", planSlug: null, planName: null, featureKeys: new Set() };
+const EMPTY: Entitlements = {
+  tier: "free", planSlug: null, planName: null, featureKeys: new Set(),
+  betaActive: false, source: "free",
+};
 
 const CACHE_KEY = "vela.entitlements.v1";
 const CACHE_TTL_MS = 5 * 60_000; // 5 min — refreshed in background anyway
@@ -21,6 +31,8 @@ type CachedShape = {
   planSlug: string | null;
   planName: string | null;
   featureKeys: string[];
+  betaActive?: boolean;
+  source?: Entitlements["source"];
 };
 
 function readCache(userId: string): Entitlements | null {
@@ -35,6 +47,8 @@ function readCache(userId: string): Entitlements | null {
       planSlug: parsed.planSlug,
       planName: parsed.planName,
       featureKeys: new Set(parsed.featureKeys),
+      betaActive: !!parsed.betaActive,
+      source: parsed.source ?? "free",
     };
   } catch { return null; }
 }
@@ -47,6 +61,7 @@ function writeCache(userId: string, ent: Entitlements) {
         userId, ts: Date.now(),
         tier: ent.tier, planSlug: ent.planSlug, planName: ent.planName,
         featureKeys: Array.from(ent.featureKeys),
+          betaActive: ent.betaActive, source: ent.source,
       } satisfies CachedShape),
     );
   } catch { /* noop */ }
@@ -80,6 +95,8 @@ export function useEntitlements() {
             planSlug: row.plan_slug ?? null,
             planName: row.plan_name ?? null,
             featureKeys: new Set<string>(row.feature_keys ?? []),
+            betaActive: !!row.beta_active,
+            source: (row.source as Entitlements["source"]) ?? "free",
           }
         : EMPTY;
       setEnt(next);

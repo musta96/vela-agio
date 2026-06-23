@@ -776,7 +776,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
 
   const safe = portfolioName.replace(/[^a-zA-Z0-9_\-]/g, "_") || "portfolio";
   const filename = `vela-portfolio-memo-${safe}-${new Date(asOf).toISOString().slice(0, 10)}.pdf`;
-  const blob = doc.output("blob");
+  // jsPDF's "blob" output uses the runtime Blob/Uint8Array constructors which
+  // behave inconsistently under jsdom; "arraybuffer" + manual Blob is portable.
+  const ab = doc.output("arraybuffer") as ArrayBuffer;
+  const blob = new Blob([ab], { type: "application/pdf" });
   if (download) doc.save(filename);
   return { filename, blob };
 }

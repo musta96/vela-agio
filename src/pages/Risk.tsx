@@ -309,6 +309,7 @@ const Risk = () => {
             <MacroScenarioLab
               positions={positions.map((p) => ({ symbol: p.symbol, name: p.name, value: p.value }))}
               onImpactChange={setMacroImpact}
+              initialShock={sharedMacro ?? undefined}
             />
 
             {/* VaR / CVaR + scenario breakdown table */}

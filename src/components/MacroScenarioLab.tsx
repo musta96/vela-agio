@@ -28,19 +28,35 @@ export interface MacroScenarioLabProps {
   /** Fired whenever the computed scenario impact changes — used by /risk
    *  to include the live scenario summary in the exported PDF. */
   onImpactChange?: (impact: ScenarioImpact | null) => void;
+  /** Pre-fill the custom shock sliders (e.g. from a `?preset=` share link). */
+  initialShock?: {
+    equity: number; ratesBps: number; creditBps: number; oil: number; gold: number; usd: number;
+  } | null;
 }
 
-export function MacroScenarioLab({ positions, currency = "€", onImpactChange }: MacroScenarioLabProps) {
-  const [mode, setMode] = useState<"preset" | "custom">("preset");
+export function MacroScenarioLab({ positions, currency = "€", onImpactChange, initialShock }: MacroScenarioLabProps) {
+  const [mode, setMode] = useState<"preset" | "custom">(initialShock ? "custom" : "preset");
   const [presetId, setPresetId] = useState<string>(MACRO_SCENARIOS[0].id);
 
   // Custom shock state (mirrors MacroShock fields)
-  const [equity, setEquity] = useState<number>(-15);
-  const [ratesBps, setRatesBps] = useState<number>(100);
-  const [creditBps, setCreditBps] = useState<number>(150);
-  const [oil, setOil] = useState<number>(0);
-  const [gold, setGold] = useState<number>(0);
-  const [usd, setUsd] = useState<number>(5);
+  const [equity, setEquity] = useState<number>(initialShock?.equity ?? -15);
+  const [ratesBps, setRatesBps] = useState<number>(initialShock?.ratesBps ?? 100);
+  const [creditBps, setCreditBps] = useState<number>(initialShock?.creditBps ?? 150);
+  const [oil, setOil] = useState<number>(initialShock?.oil ?? 0);
+  const [gold, setGold] = useState<number>(initialShock?.gold ?? 0);
+  const [usd, setUsd] = useState<number>(initialShock?.usd ?? 5);
+
+  // Re-hydrate when a share link arrives after first render (e.g. async route load).
+  useEffect(() => {
+    if (!initialShock) return;
+    setMode("custom");
+    setEquity(initialShock.equity);
+    setRatesBps(initialShock.ratesBps);
+    setCreditBps(initialShock.creditBps);
+    setOil(initialShock.oil);
+    setGold(initialShock.gold);
+    setUsd(initialShock.usd);
+  }, [initialShock]);
 
   const scenario: MacroScenario = useMemo(() => {
     if (mode === "preset") {

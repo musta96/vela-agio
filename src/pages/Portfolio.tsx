@@ -42,7 +42,15 @@ const readLocal = (): PortfolioStock[] => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) return [];
+    // Drop the legacy ENEL/UCG demo seed if it ever made it into localStorage.
+    // Older builds seeded these two rows on first load; new accounts should
+    // start empty until the user adds their own holdings.
+    const isDemoSeed =
+      arr.length === 2 &&
+      arr.some((s: any) => s?.symbol === "ENEL" && Number(s?.shares) === 100 && Number(s?.avgPrice) === 6.2) &&
+      arr.some((s: any) => s?.symbol === "UCG" && Number(s?.shares) === 50 && Number(s?.avgPrice) === 35.5);
+    return isDemoSeed ? [] : arr;
   } catch {
     return [];
   }
@@ -55,12 +63,10 @@ const Portfolio = () => {
   const migratedRef = useRef(false);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
-    return local.length
-      ? local.map((s) => ({ ...s, currency: s.currency || findCatalogEntry(s.symbol)?.currency || "EUR" }))
-      : [
-          { symbol: "ENEL", name: "Enel", shares: 100, avgPrice: 6.20, currentPrice: 6.45, currency: "EUR" },
-          { symbol: "UCG", name: "UniCredit", shares: 50, avgPrice: 35.50, currentPrice: 38.92, currency: "EUR" },
-        ];
+    return local.map((s) => ({
+      ...s,
+      currency: s.currency || findCatalogEntry(s.symbol)?.currency || "EUR",
+    }));
   });
 
   // Mirror to localStorage so Backtest "portfolio" mode keeps working
@@ -80,6 +86,8 @@ const Portfolio = () => {
       if (!migratedRef.current) {
         migratedRef.current = true;
         const local = readLocal();
+        // Only migrate real, user-added local rows into the cloud. The legacy
+        // demo seed (ENEL + UCG) is already filtered out by readLocal().
         if (local.length) {
           await supabase.from("portfolio_holdings").upsert(
             local.map((s) => ({
@@ -90,6 +98,23 @@ const Portfolio = () => {
             { onConflict: "portfolio_id,symbol", ignoreDuplicates: true }
           );
         }
+        // Also purge any previously-migrated demo rows from the cloud so they
+        // stop reappearing on every login. Match the exact demo values only
+        // so real user holdings in ENEL or UCG are never touched.
+        await supabase
+          .from("portfolio_holdings")
+          .delete()
+          .eq("portfolio_id", activeId)
+          .eq("symbol", "ENEL")
+          .eq("shares", 100)
+          .eq("avg_price", 6.2);
+        await supabase
+          .from("portfolio_holdings")
+          .delete()
+          .eq("portfolio_id", activeId)
+          .eq("symbol", "UCG")
+          .eq("shares", 50)
+          .eq("avg_price", 35.5);
       }
       const { data } = await supabase
         .from("portfolio_holdings")

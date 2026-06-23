@@ -469,6 +469,47 @@ Deno.serve(async (req) => {
             await logAudit("user_api_keys", id, { op: "revoke" });
             return ok({ ok: true });
           }
+          case "purge_demo_seed": {
+            // Removes the legacy demo seed holdings (Italian sample portfolio:
+            // ENEL "Enel" 100 @ 6.20 EUR and UCG "UniCredit" 50 @ 35.50 EUR)
+            // that were inserted into every freshly-created user portfolio in
+            // earlier releases. Deterministic match on (symbol, name, shares,
+            // avg_price, currency) so we never touch real user-entered rows.
+            const { dry_run, reason } = body as { dry_run?: boolean; reason?: string };
+            const seedSignatures = [
+              { symbol: "ENEL", name: "Enel", shares: 100, avg_price: 6.2, currency: "EUR" },
+              { symbol: "UCG", name: "UniCredit", shares: 50, avg_price: 35.5, currency: "EUR" },
+            ];
+            const matched: any[] = [];
+            for (const s of seedSignatures) {
+              const { data } = await admin
+                .from("portfolio_holdings")
+                .select("id, user_id, portfolio_id, symbol, name, shares, avg_price, currency")
+                .eq("symbol", s.symbol)
+                .eq("name", s.name)
+                .eq("shares", s.shares)
+                .eq("avg_price", s.avg_price)
+                .eq("currency", s.currency);
+              if (data) matched.push(...data);
+            }
+            const ids = matched.map((r) => r.id);
+            let deleted = 0;
+            if (!dry_run && ids.length) {
+              const { error, count } = await admin
+                .from("portfolio_holdings")
+                .delete({ count: "exact" })
+                .in("id", ids);
+              if (error) throw error;
+              deleted = count ?? ids.length;
+            }
+            await logIncident(
+              "data_hygiene",
+              { matched: matched.length, deleted, dry_run: !!dry_run, ids, affected_users: Array.from(new Set(matched.map((r) => r.user_id))) },
+              reason || "Purge legacy demo seed holdings (ENEL/UCG)",
+            );
+            await logAudit("portfolio_holdings", null, { op: "purge_demo_seed", matched: matched.length, deleted, dry_run: !!dry_run });
+            return ok({ ok: true, matched: matched.length, deleted, dry_run: !!dry_run, sample: matched.slice(0, 10) });
+          }
           default:
             return new Response(JSON.stringify({ error: "Unknown action", action }), { status: 400, headers: jsonHeaders });
         }

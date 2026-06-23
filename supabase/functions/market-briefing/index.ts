@@ -144,7 +144,19 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
         response_format: { type: 'json_object' },
       }),
     });
-    if (r.status === 429) return new Response(JSON.stringify({ error: 'rate_limited', correlationId }), { status: 429, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
+    if (r.status === 429) {
+      console.warn('[market-briefing] upstream_rate_limited', JSON.stringify({ correlationId, source: access.source, model }));
+      return new Response(
+        JSON.stringify({
+          error: 'rate_limited',
+          reason: access.source === 'byo'
+            ? 'Your AI provider is rate-limiting requests right now. Please retry in a moment.'
+            : 'The shared AI service is busy right now. Please retry in a moment, or add your own API key in Settings → Connections for unlimited use.',
+          correlationId,
+        }),
+        { status: 200, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
+      );
+    }
     if (r.status === 402) {
       console.warn('[market-briefing] ai_access_denied', JSON.stringify({
         correlationId,

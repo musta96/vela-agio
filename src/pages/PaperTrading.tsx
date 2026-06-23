@@ -185,6 +185,23 @@ export default function PaperTrading() {
               <Button variant="outline" size="sm" onClick={createSimulation}>+ New simulation</Button>
             </Card>
 
+            {sims.length > 1 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground self-center mr-1">
+                  All simulations ({sims.length}):
+                </span>
+                {sims.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setActiveId(p.id)}
+                    className={`text-xs rounded-full border px-3 py-1 transition-colors ${activeId === p.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-muted/60"}`}
+                  >
+                    🧪 {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               <Card className="p-4"><div className="text-[11px] uppercase tracking-wider text-muted-foreground">Equity</div><div className="text-2xl font-bold tabular-nums">{fmt(equity)}</div></Card>
               <Card className="p-4"><div className="text-[11px] uppercase tracking-wider text-muted-foreground">Cash</div><div className="text-2xl font-bold tabular-nums">{fmt(cash?.cash || 0)}</div></Card>

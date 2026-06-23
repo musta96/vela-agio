@@ -78,6 +78,8 @@ import OwnerSecurity from "./pages/owner/Security";
 import OwnerTickets from "./pages/owner/Tickets";
 import OwnerBlog from "./pages/owner/BlogAdmin";
 import OwnerFeatureCatalogPage from "./pages/owner/FeatureCatalogPage";
+import OwnerReferralsPage from "./pages/owner/Referrals";
+import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import { AuthProvider } from "./hooks/useAuth";
@@ -118,6 +120,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/r/:code" element={<RedeemReferral />} />
+          <Route path="/redeem" element={<RedeemReferral />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/disclaimer" element={<Disclaimer />} />
@@ -203,6 +207,7 @@ const App = () => (
             <Route path="/owner/roles" element={<OwnerRoles />} />
             <Route path="/owner/plans" element={<OwnerPlans />} />
             <Route path="/owner/feature-catalog" element={<OwnerFeatureCatalogPage />} />
+            <Route path="/owner/referrals" element={<OwnerReferralsPage />} />
             <Route path="/owner/revenue" element={<OwnerRevenue />} />
             <Route path="/owner/feature-flags" element={<OwnerFeatureFlags />} />
             <Route path="/owner/audit" element={<OwnerAuditLog />} />

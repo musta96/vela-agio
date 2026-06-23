@@ -112,6 +112,10 @@ export function AIBriefing() {
         handleDenial({ reason: data.reason, upgrade_url: data.upgrade_url, byo_url: data.byo_url, tier: data.tier, quotaUsed: data.quotaUsed, quotaLimit: data.quotaLimit, correlationId: data.correlationId ?? correlationId } as any, "200_body");
         return;
       }
+      if (data?.error === "rate_limited") {
+        setError(data.reason ?? "The AI service is busy right now. Please try again in a moment.");
+        return;
+      }
       if (data?.error) throw new Error(data.error);
       setBriefing(data as Briefing);
     } catch (e: any) {

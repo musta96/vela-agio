@@ -99,14 +99,22 @@ const Portfolio = () => {
           );
         }
         // Also purge any previously-migrated demo rows from the cloud so they
-        // stop reappearing on every login.
+        // stop reappearing on every login. Match the exact demo values only
+        // so real user holdings in ENEL or UCG are never touched.
         await supabase
           .from("portfolio_holdings")
           .delete()
           .eq("portfolio_id", activeId)
-          .in("symbol", ["ENEL", "UCG"])
-          .in("shares", [100, 50])
-          .in("avg_price", [6.2, 35.5]);
+          .eq("symbol", "ENEL")
+          .eq("shares", 100)
+          .eq("avg_price", 6.2);
+        await supabase
+          .from("portfolio_holdings")
+          .delete()
+          .eq("portfolio_id", activeId)
+          .eq("symbol", "UCG")
+          .eq("shares", 50)
+          .eq("avg_price", 35.5);
       }
       const { data } = await supabase
         .from("portfolio_holdings")

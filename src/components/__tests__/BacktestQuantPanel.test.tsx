@@ -22,8 +22,7 @@ class RO {
   unobserve() {}
   disconnect() {}
 }
-// @ts-expect-error jsdom global
-global.ResizeObserver = global.ResizeObserver || RO;
+(globalThis as unknown as { ResizeObserver: typeof RO }).ResizeObserver ||= RO;
 
 // jsdom doesn't implement these — required by radix Sheet & recharts.
 Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { value: () => {}, configurable: true });

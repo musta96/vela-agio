@@ -117,7 +117,9 @@ describe("correlationBreakdowns", () => {
     expect(tech?.avgIntra).toBeCloseTo(0, 6); // identity off-diagonal
 
     const us = bd.byGeography.find((g) => g.group === "US");
-    expect(us?.members.length).toBe(4); // all four catalog entries are US
+    expect(us?.members.sort()).toEqual(["AAPL", "MSFT", "TLT"]);
+    const global = bd.byGeography.find((g) => g.group === "Global");
+    expect(global?.members).toEqual(["GLD"]);
 
     const classes = bd.byAssetClass.map((g) => g.group).sort();
     expect(classes).toEqual(["Bond", "Commodity", "Equity"]);

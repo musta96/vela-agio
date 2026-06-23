@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   _resetPresetsForTests,
+  buildShareableUrl,
+  decodePresetParam,
   deletePreset,
+  encodePresetParam,
   getPreset,
   listPresets,
   savePreset,
@@ -47,5 +50,33 @@ describe("scenarioPresets localStorage CRUD", () => {
   it("uses 'Untitled preset' when an empty name is supplied", () => {
     const p = savePreset("macro", "   ", { equity: 0, ratesBps: 0, creditBps: 0, oil: 0, gold: 0, usd: 0 });
     expect(p.name).toBe("Untitled preset");
+  });
+
+  it("round-trips a macro preset through the share-link encoder", () => {
+    const payload = { equity: -12.5, ratesBps: 75, creditBps: 200, oil: -8, gold: 4, usd: -3 };
+    const token = encodePresetParam("macro", payload, "House view");
+    expect(token).toMatch(/^[A-Za-z0-9_-]+$/); // base64url, no padding
+    const decoded = decodePresetParam(token);
+    expect(decoded).not.toBeNull();
+    expect(decoded?.scope).toBe("macro");
+    expect(decoded?.name).toBe("House view");
+    expect(decoded?.payload).toEqual(payload);
+  });
+
+  it("returns null for malformed share tokens", () => {
+    expect(decodePresetParam("not-a-token")).toBeNull();
+    expect(decodePresetParam("")).toBeNull();
+    // Valid base64 but wrong shape
+    expect(decodePresetParam(btoa(JSON.stringify({ foo: "bar" })))).toBeNull();
+  });
+
+  it("builds a full shareable URL on top of the current location", () => {
+    const url = buildShareableUrl("mc", {
+      initial: 1000, monthly: 100, years: 10, target: 50000, mean: 0.07, sd: 0.15, runs: 800, confidences: [0.95, 0.99],
+    });
+    expect(url).not.toBeNull();
+    expect(url!).toMatch(/preset=/);
+    const token = new URL(url!).searchParams.get("preset")!;
+    expect(decodePresetParam(token)?.scope).toBe("mc");
   });
 });

@@ -452,6 +452,8 @@ const BacktestingModule = () => {
                 <BacktestQuantPanel
                   equity={result.equity}
                   holdings={holdings}
+                  strategy={strategy}
+                  range={range}
                 />
               </div>
             )}

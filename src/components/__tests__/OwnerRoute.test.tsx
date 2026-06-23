@@ -4,9 +4,9 @@ import React from "react";
 
 // ---- Mocks --------------------------------------------------------------
 
-vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "user-1", email: "fausto@example.com" }, loading: false }),
-}));
+const TEST_USER = { id: "user-1", email: "fausto@example.com" };
+const TEST_AUTH = { user: TEST_USER, loading: false };
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => TEST_AUTH }));
 
 vi.mock("@/pages/NotFound", () => ({
   default: () => <div data-testid="not-found">404</div>,

@@ -280,6 +280,33 @@ export default function Goals() {
             <Button variant="outline" size="sm" className="gap-2" onClick={download}>
               <FileDown className="h-4 w-4" /> Export PDF
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                const header = ["Year", "Month index", "P10", "Median", "P90", "Target reached?"];
+                const rows = sim.p50.map((m, i) => [
+                  ((i + 1) / 12).toFixed(2),
+                  i + 1,
+                  Math.round(sim.p10[i]),
+                  Math.round(m),
+                  Math.round(sim.p90[i]),
+                  m >= target ? "yes" : "no",
+                ]);
+                const confHeader = [[], ["Confidence", "Percentile value", "VaR vs initial", "CVaR (tail avg)"]];
+                const confRows = confidenceMetrics.map((m) => [
+                  (m.confidence * 100).toFixed(m.confidence === 0.975 ? 1 : 0) + "%",
+                  Math.round(m.pctValue),
+                  Math.round(m.var),
+                  Math.round(m.cvar),
+                ]);
+                downloadCsv(`mc-percentiles-${(name || "plan").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`,
+                  [header, ...rows, ...confHeader, ...confRows]);
+              }}
+            >
+              <Download className="h-4 w-4" /> MC CSV
+            </Button>
           </div>
         </div>
 

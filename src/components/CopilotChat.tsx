@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare } from "lucide-react";
+import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare, Search, BrainCircuit, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
-import { downloadTextAsPdf, userWantsPdf } from "@/lib/copilotPdf";
+import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
+
+const MEMORY_KEY = "vela.ai_memory_enabled";
 
 type ToolEvent = { id: string; name: string; args?: any; result?: any; done: boolean };
 type Attachment = { name: string; mime: string; dataUrl: string };
@@ -39,6 +41,17 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadFilter, setThreadFilter] = useState("");
+  const [memoryOn, setMemoryOn] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const v = window.localStorage.getItem(MEMORY_KEY);
+    return v === null ? true : v === "1";
+  });
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem(MEMORY_KEY, memoryOn ? "1" : "0");
+  }, [memoryOn]);
 
   const lastUser = [...messages].reverse().find(m => m.role === "user")?.content ?? "";
 
@@ -64,7 +77,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
         .order("updated_at", { ascending: false });
       const list = (data ?? []) as Thread[];
       setThreads(list);
-      if (list[0]) await openThread(list[0].id);
+      if (memoryOn && list[0]) await openThread(list[0].id);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -85,7 +98,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
   }, [intro]);
 
   const ensureThread = useCallback(async (firstUserMsg: string): Promise<string | null> => {
-    if (!user) return null;
+    if (!user || !memoryOn) return null;
     if (threadId) return threadId;
     const title = firstUserMsg.trim().slice(0, 60) || "New conversation";
     const { data, error } = await (supabase as any)
@@ -97,7 +110,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     setThreadId(data.id);
     setThreads(prev => [data as Thread, ...prev]);
     return data.id;
-  }, [user, threadId]);
+  }, [user, threadId, memoryOn]);
 
   const newThread = () => {
     setThreadId(null);
@@ -110,6 +123,30 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     await (supabase as any).from("copilot_threads").delete().eq("id", id);
     setThreads(prev => prev.filter(t => t.id !== id));
     if (threadId === id) newThread();
+  };
+
+  const deleteAllThreads = async () => {
+    if (!user) return;
+    if (!confirm("Delete ALL saved conversations? This cannot be undone.")) return;
+    await (supabase as any).from("copilot_threads").delete().eq("user_id", user.id);
+    setThreads([]);
+    newThread();
+  };
+
+  const exportConversationPdf = async () => {
+    const convo = messages.filter(m => (m.role === "user" || m.role === "assistant") && m.content?.trim());
+    if (convo.length === 0) return;
+    setExporting(true);
+    try {
+      const src = (i18n.resolvedLanguage || "en").toLowerCase().startsWith("it") ? "it" : "en";
+      await downloadBilingualConversationAsPdf(
+        convo.map(m => ({ role: m.role, content: m.content })),
+        `vela-conversation-${new Date().toISOString().slice(0,10)}.pdf`,
+        src as "en" | "it",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -134,8 +171,8 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     const sentAttachments = attachments;
     setAttachments([]);
     const wantsPdf = userWantsPdf(text);
-    const tid = await ensureThread(text);
-    if (tid && user) {
+    const tid = memoryOn ? await ensureThread(text) : null;
+    if (tid && user && memoryOn) {
       await (supabase as any).from("copilot_messages").insert({
         thread_id: tid, user_id: user.id, role: "user", content: userMsg.content,
       });
@@ -200,7 +237,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
         }
       }
       // Persist the assistant reply and auto-trigger PDF when asked
-      if (tid && user && acc) {
+      if (tid && user && memoryOn && acc) {
         await (supabase as any).from("copilot_messages").insert({
           thread_id: tid, user_id: user.id, role: "assistant", content: acc,
         });
@@ -230,16 +267,36 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     <div className={`flex h-full min-h-0 ${compact ? "" : ""}`}>
       {showThreads && user && (
         <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border bg-card/40">
-          <div className="p-2 border-b border-border">
+          <div className="p-2 border-b border-border space-y-2">
             <Button size="sm" variant="outline" className="w-full gap-2" onClick={newThread}>
               <Plus className="h-3.5 w-3.5" /> New chat
             </Button>
+            <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground px-1">
+              <span className="inline-flex items-center gap-1"><BrainCircuit className="h-3 w-3" /> AI memory</span>
+              <input
+                type="checkbox"
+                checked={memoryOn}
+                onChange={(e) => setMemoryOn(e.target.checked)}
+                aria-label="Toggle AI memory"
+              />
+            </label>
+            <div className="relative">
+              <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={threadFilter}
+                onChange={(e) => setThreadFilter(e.target.value)}
+                placeholder="Search conversations…"
+                className="h-7 text-xs pl-6"
+              />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
-            {threads.length === 0 && (
+            {threads.length === 0 ? (
               <p className="text-xs text-muted-foreground px-2 py-3">No saved conversations yet.</p>
-            )}
-            {threads.map(th => (
+            ) : null}
+            {threads
+              .filter(th => th.title.toLowerCase().includes(threadFilter.trim().toLowerCase()))
+              .map(th => (
               <div
                 key={th.id}
                 className={`group flex items-center gap-1 rounded-md px-2 py-1.5 text-xs cursor-pointer hover:bg-muted/60 ${threadId === th.id ? "bg-muted" : ""}`}
@@ -257,9 +314,35 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
               </div>
             ))}
           </div>
+          {threads.length > 0 && (
+            <div className="p-2 border-t border-border">
+              <button
+                onClick={deleteAllThreads}
+                className="w-full text-[11px] text-muted-foreground hover:text-destructive inline-flex items-center justify-center gap-1"
+              >
+                <Trash2 className="h-3 w-3" /> Delete all conversations
+              </button>
+            </div>
+          )}
         </aside>
       )}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
+      {messages.filter(m => m.role === "assistant" || m.role === "user").length > 1 && (
+        <div className="flex justify-end px-3 pt-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-[11px]"
+            disabled={exporting}
+            onClick={exportConversationPdf}
+            title="Download the full conversation as a PDF (English + Italian)"
+          >
+            {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+            PDF (EN + IT)
+          </Button>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>

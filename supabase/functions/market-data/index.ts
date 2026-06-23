@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchStooqQuote } from "../_shared/stooq.ts";
+import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -147,24 +148,23 @@ Deno.serve(async (req) => {
         const key = `q:${sym}`;
         const cached = await readCache(key);
         if (cached) { out[sym] = { ...(cached as object), source: "cache" }; return; }
-        try {
-          const j = await fetchYahooWithFallback(sym, "1d", "1m");
-          const q = parseQuote(sym, j);
-          if (q) { out[sym] = q; await writeCache(key, "quote", sym, q, TTL.quote); }
-        } catch (err) {
-          console.warn(`yahoo quote failed for ${sym}, trying stooq:`, (err as Error)?.message);
-          // Fallback #1: Stooq (no auth, no rate limit) for live data.
-          const sq = await fetchStooqQuote(sym);
-          if (sq) {
-            out[sym] = sq;
-            await writeCache(key, "quote", sym, sq, TTL.quote);
-            return;
-          }
-          // Fallback #2: Stale-with-badge — try cache regardless of expiry.
-          const { data: stale } = await supabase
-            .from("market_data_cache").select("payload")
-            .eq("cache_key", key).maybeSingle();
-          if (stale?.payload) out[sym] = { ...(stale.payload as object), source: "cache", stale: true };
+        // Unified prioritized provider chain (Yahoo → Stooq → Finnhub → Alpaca → Twelve Data).
+        // Optional providers are auto-skipped when their API keys are not configured.
+        const r = await fetchQuoteWithFallback(sym);
+        if ("price" in r) {
+          out[sym] = r;
+          await writeCache(key, "quote", sym, r, TTL.quote);
+          return;
+        }
+        console.warn(`quote chain exhausted for ${sym}:`, JSON.stringify(r.attempts));
+        // Last resort: stale-with-badge from cache regardless of expiry.
+        const { data: stale } = await supabase
+          .from("market_data_cache").select("payload")
+          .eq("cache_key", key).maybeSingle();
+        if (stale?.payload) {
+          out[sym] = { ...(stale.payload as object), source: "cache", stale: true };
+        } else {
+          out[sym] = { symbol: sym, error: r.error, attempts: r.attempts };
         }
       }));
       return new Response(JSON.stringify({ quotes: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

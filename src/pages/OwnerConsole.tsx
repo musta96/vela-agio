@@ -1243,7 +1243,6 @@ function BulkRetractCard({ onSubmit }: { onSubmit: (symbol: string, since: strin
   );
 }
 
-function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestErasure, onRevealPii }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void; onRevealPii: (reason: string) => Promise<void> | void }) {
 function PurgeDemoSeedCard({ act }: { act: (a: string, p?: Record<string, unknown>) => Promise<any> }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");

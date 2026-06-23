@@ -5,7 +5,6 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserDataKey } from '../_shared/data-provider.ts';
 import { PLATFORM_MAP } from '../_shared/platform-map.ts';
 import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
-import { fetchStooqQuote } from '../_shared/stooq.ts';
 import { fetchQuoteWithFallback } from '../_shared/quote-providers.ts';
 
 // =====================================================================

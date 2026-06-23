@@ -1,12 +1,50 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { timeWeightedReturn, moneyWeightedReturn, liquidityLadder, type CashFlow } from "@/lib/performanceMetrics";
+import type { ClassVarCvar, ScenarioByClassRow } from "@/lib/scenarioVar";
 
 const BRAND = {
   primary: [13, 71, 161] as [number, number, number], // deep navy
   accent: [20, 184, 166] as [number, number, number], // teal
   muted: [100, 116, 139] as [number, number, number],
 };
+
+/**
+ * Tiny bar histogram for embedding Monte Carlo distributions inside PDFs.
+ * Pure jsPDF drawing — no chart engine, so it renders identically on the
+ * server and in the browser PDF viewer.
+ */
+function drawHistogramBars(
+  doc: jsPDF,
+  bins: { bin: number; count: number; low: number; high: number }[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  currency: string,
+) {
+  if (!bins.length) return;
+  const maxCount = Math.max(1, ...bins.map((b) => b.count));
+  const minLow = bins[0].low;
+  const maxHigh = bins[bins.length - 1].high;
+  const innerW = width;
+  const barW = innerW / bins.length;
+  doc.setDrawColor(...BRAND.muted);
+  doc.setLineWidth(0.2);
+  doc.line(x, y + height, x + width, y + height);
+  for (let i = 0; i < bins.length; i++) {
+    const h = (bins[i].count / maxCount) * (height - 2);
+    doc.setFillColor(...BRAND.primary);
+    doc.rect(x + i * barW + 0.4, y + height - h, Math.max(0.2, barW - 0.8), h, "F");
+  }
+  doc.setFontSize(7);
+  doc.setTextColor(...BRAND.muted);
+  const lo = `${currency}${Math.round(minLow).toLocaleString("en-US")}`;
+  const hi = `${currency}${Math.round(maxHigh).toLocaleString("en-US")}`;
+  doc.text(lo, x, y + height + 4);
+  doc.text(hi, x + width, y + height + 4, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+}
 
 function header(doc: jsPDF, title: string, subtitle?: string) {
   doc.setFillColor(...BRAND.primary);
@@ -744,6 +782,13 @@ export interface GoalsPlanReportInput {
   successProb: number;    // 0..1
   paths: { p10: number[]; median: number[]; p90: number[] }; // monthly arrays
   currency?: string;
+  /** Monte Carlo final-value distribution. When provided, a histogram-style
+   *  bar block is rendered and percentiles/CVaR are summarised. */
+  histogram?: { bin: number; count: number; low: number; high: number }[];
+  /** Percentiles + CVaR at user-selected confidence levels. */
+  confidenceMetrics?: Array<{ confidence: number; var: number; cvar: number; pctValue: number }>;
+  /** Regime summary rows (bear / base / bull etc.). */
+  scenarioSummary?: Array<{ name: string; description?: string; successProb: number; medianFinal: number }>;
 }
 
 export interface GoalsPlanReportOptions {
@@ -853,6 +898,57 @@ export function generateGoalsPlanReport(
       startY: y,
       head: [["Year", "10th pct", "Median", "90th pct", "Target?"]],
       body: yearRows,
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    // @ts-expect-error - autoTable adds lastAutoTable to doc
+    y = (doc.lastAutoTable?.finalY ?? y + 60) + 8;
+  }
+
+  // ── Monte Carlo distribution block (histogram + confidence metrics) ──
+  if (input.histogram && input.histogram.length > 0) {
+    if (y > 220) { doc.addPage(); y = 30; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Final-value distribution (Monte Carlo)", 14, y);
+    y += 4;
+    drawHistogramBars(doc, input.histogram, 14, y + 2, 182, 36, cur);
+    y += 44;
+  }
+
+  if (input.confidenceMetrics && input.confidenceMetrics.length > 0) {
+    if (y > 240) { doc.addPage(); y = 30; }
+    autoTable(doc, {
+      startY: y,
+      head: [["Confidence", "Final value at percentile", "VaR (loss vs initial)", "CVaR (avg of tail)"]],
+      body: input.confidenceMetrics.map((m) => [
+        `${(m.confidence * 100).toFixed(m.confidence === 0.975 ? 1 : 0)}%`,
+        fmt(m.pctValue),
+        fmt(m.var),
+        fmt(m.cvar),
+      ]),
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    // @ts-expect-error - autoTable adds lastAutoTable to doc
+    y = (doc.lastAutoTable?.finalY ?? y + 30) + 6;
+  }
+
+  if (input.scenarioSummary && input.scenarioSummary.length > 0) {
+    if (y > 240) { doc.addPage(); y = 30; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Scenario summary", 14, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [["Regime / scenario", "Description", "Success prob.", "Median outcome"]],
+      body: input.scenarioSummary.map((s) => [
+        s.name,
+        s.description ?? "",
+        `${Math.round(s.successProb * 100)}%`,
+        fmt(s.medianFinal),
+      ]),
       headStyles: { fillColor: BRAND.primary, textColor: 255 },
       styles: { fontSize: 9 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -1062,6 +1158,193 @@ export function generateConsolidatedReport(input: ConsolidatedReportInput, optio
   if (options.mode === "blob") {
     const blob = doc.output("bloburl");
     return { filename, blobUrl: String(blob) };
+  }
+  doc.save(filename);
+  return { filename };
+}
+// =====================================================================
+// Portfolio Risk report (/risk Export PDF)
+// =====================================================================
+
+export interface PortfolioRiskReportInput {
+  totalValue: number;
+  currency?: string;
+  metrics: {
+    vol: number;          // annualised
+    sharpe: number;
+    maxDD: number;        // negative number
+    beta: number | null;
+  };
+  histVar: {              // historical VaR/CVaR fractions (positive losses)
+    var95: number; cvar95: number; var99: number; parametricVaR95: number;
+  };
+  byAssetClass: ClassVarCvar[];
+  portfolio: ClassVarCvar;
+  scenarioMatrix: ScenarioByClassRow[];
+  scenarioOrder: { id: string; name: string }[];
+  stressRows: Array<{ name: string; description: string; pnlPct: number; pnl: number }>;
+  topPositions?: Array<{ symbol: string; name?: string; value: number; weight: number }>;
+}
+
+export interface PortfolioRiskReportOptions {
+  filename?: string;
+  mode?: "save" | "blob";
+}
+
+export function buildPortfolioRiskFilename() {
+  return `portfolio-risk-${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
+export function generatePortfolioRiskReport(
+  input: PortfolioRiskReportInput,
+  options: PortfolioRiskReportOptions = {},
+): { filename: string; blobUrl?: string } {
+  const filename = options.filename || buildPortfolioRiskFilename();
+  const cur = input.currency ?? "€";
+  const doc = new jsPDF();
+  const fmt = (n: number) => `${cur}${Math.round(n).toLocaleString("en-US")}`;
+  const pct = (v: number, d = 2) => `${(v * 100).toFixed(d)}%`;
+  const signedPct = (v: number, d = 2) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`;
+
+  header(doc, "Portfolio Risk Report", `As of ${new Date().toLocaleDateString()}`);
+
+  // Headline KPIs
+  doc.setFontSize(11); doc.setFont("helvetica", "bold");
+  doc.setTextColor(...BRAND.muted);
+  doc.text("PORTFOLIO VALUE", 14, 56);
+  doc.text("VOLATILITY", 64, 56);
+  doc.text("SHARPE (1Y)", 114, 56);
+  doc.text("MAX DRAWDOWN", 164, 56);
+  doc.setTextColor(0, 0, 0); doc.setFontSize(13);
+  doc.text(fmt(input.totalValue), 14, 64);
+  doc.text(pct(input.metrics.vol, 1), 64, 64);
+  doc.text(input.metrics.sharpe.toFixed(2), 114, 64);
+  doc.text(pct(input.metrics.maxDD, 1), 164, 64);
+
+  // Historical VaR table
+  autoTable(doc, {
+    startY: 74,
+    head: [["Risk metric (1-day)", "Loss %", `Loss ${cur}`]],
+    body: [
+      ["Historical VaR 95%", pct(input.histVar.var95), fmt(input.histVar.var95 * input.totalValue)],
+      ["Historical CVaR 95%", pct(input.histVar.cvar95), fmt(input.histVar.cvar95 * input.totalValue)],
+      ["Historical VaR 99%", pct(input.histVar.var99), fmt(input.histVar.var99 * input.totalValue)],
+      ["Parametric VaR 95%", pct(input.histVar.parametricVaR95), fmt(input.histVar.parametricVaR95 * input.totalValue)],
+    ],
+    headStyles: { fillColor: BRAND.primary, textColor: 255 },
+    styles: { fontSize: 9 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  // VaR / CVaR per asset class
+  // @ts-expect-error autoTable injects lastAutoTable
+  let y = (doc.lastAutoTable?.finalY ?? 110) + 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+  doc.text("VaR & CVaR by asset class", 14, y);
+  y += 2;
+
+  const confidenceLevels = Object.keys(input.portfolio.varByConf).map(Number).sort();
+  const head = [["Asset class", "Value", "Weight",
+    ...confidenceLevels.flatMap((c) => [`VaR ${(c * 100).toFixed(c === 0.975 ? 1 : 0)}%`]),
+    ...confidenceLevels.flatMap((c) => [`CVaR ${(c * 100).toFixed(c === 0.975 ? 1 : 0)}%`]),
+  ]];
+  const body = [...input.byAssetClass, input.portfolio].map((row) => [
+    row.assetClass,
+    fmt(row.value),
+    `${(row.weight * 100).toFixed(1)}%`,
+    ...confidenceLevels.map((c) => row.observations > 0 ? pct(row.varByConf[c]) : "—"),
+    ...confidenceLevels.map((c) => row.observations > 0 ? pct(row.cvarByConf[c]) : "—"),
+  ]);
+  autoTable(doc, {
+    startY: y + 2,
+    head, body,
+    headStyles: { fillColor: BRAND.primary, textColor: 255 },
+    styles: { fontSize: 8.5 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    didParseCell: (data) => {
+      if (data.section === "body") {
+        const isPortfolio = data.row.raw && (data.row.raw as any[])[0] === "Portfolio";
+        if (isPortfolio) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      }
+    },
+  });
+
+  // Scenario × asset-class matrix
+  // @ts-expect-error autoTable injects lastAutoTable
+  y = (doc.lastAutoTable?.finalY ?? y + 60) + 8;
+  if (input.scenarioMatrix.length > 0) {
+    if (y > 220) { doc.addPage(); y = 30; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Macro scenario P/L by asset class", 14, y);
+    y += 2;
+    autoTable(doc, {
+      startY: y + 2,
+      head: [["Asset class", ...input.scenarioOrder.map((s) => s.name)]],
+      body: input.scenarioMatrix.map((row) => [
+        row.assetClass,
+        ...row.cells.map((c) => signedPct(c.pnlPct, 1)),
+      ]),
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index > 0) {
+          const raw = (data.cell.raw ?? "").toString();
+          if (raw.startsWith("-")) data.cell.styles.textColor = [185, 28, 28];
+          else if (raw.startsWith("+")) data.cell.styles.textColor = [21, 128, 61];
+        }
+        if (data.section === "body" && (data.row.raw as any[])[0] === "Portfolio") {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      },
+    });
+  }
+
+  // Stress rows
+  // @ts-expect-error autoTable injects lastAutoTable
+  y = (doc.lastAutoTable?.finalY ?? y + 60) + 8;
+  if (input.stressRows.length > 0) {
+    if (y > 230) { doc.addPage(); y = 30; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Stress scenarios", 14, y);
+    autoTable(doc, {
+      startY: y + 4,
+      head: [["Scenario", "Description", "P/L %", `P/L ${cur}`]],
+      body: input.stressRows.map((s) => [s.name, s.description, signedPct(s.pnlPct, 2), `${s.pnl >= 0 ? "+" : "−"}${cur}${Math.abs(s.pnl).toFixed(0)}`]),
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+  }
+
+  // Top positions
+  if (input.topPositions && input.topPositions.length > 0) {
+    // @ts-expect-error
+    y = (doc.lastAutoTable?.finalY ?? y + 60) + 8;
+    if (y > 240) { doc.addPage(); y = 30; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Top positions", 14, y);
+    autoTable(doc, {
+      startY: y + 4,
+      head: [["Symbol", "Name", `Value ${cur}`, "Weight"]],
+      body: input.topPositions.map((p) => [p.symbol, p.name ?? "", fmt(p.value), `${(p.weight * 100).toFixed(1)}%`]),
+      headStyles: { fillColor: BRAND.primary, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+  }
+
+  // @ts-expect-error
+  const endY = (doc.lastAutoTable?.finalY ?? 250) + 8;
+  disclaimer(doc, endY);
+  footer(doc);
+
+  if (options.mode === "blob") {
+    return { filename, blobUrl: String(doc.output("bloburl")) };
   }
   doc.save(filename);
   return { filename };

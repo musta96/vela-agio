@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -11,7 +11,10 @@ import {
   type MacroScenario,
   type MacroShock,
   type ScenarioPosition,
+  type ScenarioImpact,
 } from "@/lib/quantScenarios";
+import { ScenarioPresetMenu } from "@/components/ScenarioPresetMenu";
+import { useStableMemo } from "@/lib/computeCache";
 
 /**
  * Interactive macro scenario lab. Lets the user either pick a curated
@@ -22,9 +25,12 @@ import {
 export interface MacroScenarioLabProps {
   positions: ScenarioPosition[];
   currency?: string;
+  /** Fired whenever the computed scenario impact changes — used by /risk
+   *  to include the live scenario summary in the exported PDF. */
+  onImpactChange?: (impact: ScenarioImpact | null) => void;
 }
 
-export function MacroScenarioLab({ positions, currency = "€" }: MacroScenarioLabProps) {
+export function MacroScenarioLab({ positions, currency = "€", onImpactChange }: MacroScenarioLabProps) {
   const [mode, setMode] = useState<"preset" | "custom">("preset");
   const [presetId, setPresetId] = useState<string>(MACRO_SCENARIOS[0].id);
 
@@ -56,10 +62,18 @@ export function MacroScenarioLab({ positions, currency = "€" }: MacroScenarioL
     };
   }, [mode, presetId, equity, ratesBps, creditBps, oil, gold, usd]);
 
-  const impact = useMemo(
+  // Content-keyed memo: only recomputes when positions or scenario shock
+  // actually change in value, not when their identities are recreated.
+  const impact = useStableMemo<ScenarioImpact | null>(
     () => (positions.length ? applyMacroScenario(positions, scenario) : null),
-    [positions, scenario],
+    {
+      positions: positions.map((p) => [p.symbol, p.value]),
+      scenario: { id: scenario.id, shock: scenario.shock },
+    },
   );
+
+  // Push the impact to parents (e.g. /risk page) for PDF inclusion.
+  useEffect(() => { onImpactChange?.(impact); }, [impact, onImpactChange]);
 
   const fmtPct = (v: number, d = 1) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`;
   const fmtMoney = (v: number) =>
@@ -79,7 +93,21 @@ export function MacroScenarioLab({ positions, currency = "€" }: MacroScenarioL
               Per-position sensitivities by asset class, sector and geography — not just portfolio beta.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <ScenarioPresetMenu
+              scope="macro"
+              current={{ equity, ratesBps, creditBps, oil, gold, usd }}
+              onLoad={(p) => {
+                setMode("custom");
+                setEquity(p.equity);
+                setRatesBps(p.ratesBps);
+                setCreditBps(p.creditBps);
+                setOil(p.oil);
+                setGold(p.gold);
+                setUsd(p.usd);
+              }}
+            />
+            <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
             <Button
               size="sm"
               variant={mode === "preset" ? "default" : "ghost"}
@@ -96,6 +124,7 @@ export function MacroScenarioLab({ positions, currency = "€" }: MacroScenarioL
             >
               <Sliders className="h-3 w-3" /> Custom
             </Button>
+            </div>
           </div>
         </div>
       </CardHeader>

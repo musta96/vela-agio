@@ -20,6 +20,16 @@ import {
   type PortfolioRisk,
 } from "@/lib/portfolioRisk";
 import { MacroScenarioLab } from "@/components/MacroScenarioLab";
+import { ScenarioVarBreakdown } from "@/components/ScenarioVarBreakdown";
+import {
+  varCvarByAssetClass,
+  scenarioByAssetClassMatrix,
+  type BreakdownPosition,
+} from "@/lib/scenarioVar";
+import { MACRO_SCENARIOS, type ScenarioImpact } from "@/lib/quantScenarios";
+import { generatePortfolioRiskReport, buildPortfolioRiskFilename } from "@/lib/pdfReports";
+import { useStableMemo } from "@/lib/computeCache";
+import { toast } from "sonner";
 
 const FACTOR_PROXIES = [
   { factor: "US Market", symbol: "SPY" },
@@ -61,6 +71,7 @@ const Risk = () => {
   const [factors, setFactors] = useState<Array<{ factor: string; symbol: string; bars: OHLCBar[] }>>([]);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<string>("");
+  const [macroImpact, setMacroImpact] = useState<ScenarioImpact | null>(null);
 
   // Holdings now sourced from the canonical `usePortfolio` hook so Risk
   // always reconciles with the Dashboard / Portfolio header totals.
@@ -122,6 +133,51 @@ const Risk = () => {
 
   const fmtPct = (v: number, d = 2) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`;
 
+  // Breakdown inputs shared by the on-screen card and the PDF report.
+  const breakdownPositions: BreakdownPosition[] = useMemo(
+    () => positions.map((p) => ({
+      symbol: p.symbol,
+      name: p.name,
+      value: p.value,
+      closes: p.bars.map((b) => b.close),
+    })),
+    [positions],
+  );
+
+  const breakdown = useStableMemo(
+    () => varCvarByAssetClass(breakdownPositions, [0.95, 0.99]),
+    { positions: breakdownPositions.map((p) => [p.symbol, p.value, p.closes?.length ?? 0]) },
+  );
+  const scenarioMatrix = useStableMemo(
+    () => scenarioByAssetClassMatrix(breakdownPositions, MACRO_SCENARIOS.slice(0, 6)),
+    { positions: breakdownPositions.map((p) => [p.symbol, p.value]) },
+  );
+
+  const exportPdf = () => {
+    if (!risk) return;
+    try {
+      const { filename } = generatePortfolioRiskReport({
+        totalValue: totalVal,
+        currency: "€",
+        metrics: { vol: risk.vol, sharpe: risk.sharpe, maxDD: risk.maxDD, beta: risk.beta },
+        histVar: { var95: risk.var95, cvar95: risk.cvar95, var99: risk.var99, parametricVaR95: risk.parametricVaR95 },
+        byAssetClass: breakdown.byClass,
+        portfolio: breakdown.portfolio,
+        scenarioMatrix: scenarioMatrix.rows,
+        scenarioOrder: scenarioMatrix.scenarios.map((s) => ({ id: s.id, name: s.name })),
+        stressRows,
+        topPositions: positions
+          .slice()
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10)
+          .map((p) => ({ symbol: p.symbol, name: p.name, value: p.value, weight: totalVal > 0 ? p.value / totalVal : 0 })),
+      }, { filename: buildPortfolioRiskFilename() });
+      toast.success("Risk report exported", { description: filename });
+    } catch (e) {
+      toast.error("Could not export risk PDF", { description: (e as Error).message });
+    }
+  };
+
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO
@@ -133,6 +189,13 @@ const Risk = () => {
         icon={ShieldAlert}
         title="Portfolio Risk Engine"
         description="Value-at-Risk, stress tests, factor exposure, and concentration analysis for your live portfolio."
+        actions={
+          risk ? (
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportPdf}>
+              <FileDown className="h-4 w-4" /> Export PDF
+            </Button>
+          ) : undefined
+        }
       />
 
         {holdings.length === 0 ? (
@@ -221,6 +284,13 @@ const Risk = () => {
             {/* Macro scenario lab — per-position sensitivities */}
             <MacroScenarioLab
               positions={positions.map((p) => ({ symbol: p.symbol, name: p.name, value: p.value }))}
+              onImpactChange={setMacroImpact}
+            />
+
+            {/* VaR / CVaR + scenario breakdown table */}
+            <ScenarioVarBreakdown
+              positions={breakdownPositions}
+              currency="€"
             />
 
             {/* Factor exposures */}

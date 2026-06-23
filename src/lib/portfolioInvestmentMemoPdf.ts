@@ -7,7 +7,7 @@ import {
   stdev,
   mean,
   maxDrawdown,
-  sharpeRatio,
+  sharpe as sharpeRatio,
   TRADING_DAYS,
 } from "@/lib/riskMetrics";
 import {
@@ -291,7 +291,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
     annRet: mean(rets) * TRADING_DAYS,
     annVol: stdev(rets) * Math.sqrt(TRADING_DAYS),
     sharpe: sharpeRatio(rets),
-    maxDD: maxDrawdown(closes),
+    maxDD: maxDrawdown(closes).maxDD,
     obs: rets.length,
     varRows: confidences.map((c) => ({
       confidence: c, varPct: valueAtRisk(rets, c), cvarPct: expectedShortfall(rets, c),

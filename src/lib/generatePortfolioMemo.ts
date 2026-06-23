@@ -385,6 +385,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     risks,
     simulation,
     download = true,
+    customSections,
+    allocationStrict = false,
+    allocationTolerance = 0.01,
+    thesisVersion,
   } = opts;
 
   // Normalise allocation: skip non-positive weights, scale to sum=1.
@@ -392,10 +396,21 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     .map(([sym, w]) => ({ symbol: sym.trim().toUpperCase(), weight: Number(w) }))
     .filter((r) => r.symbol && Number.isFinite(r.weight) && r.weight > 0);
   const totalW = raw.reduce((s, r) => s + r.weight, 0) || 1;
+  const sumOfRawWeights = raw.reduce((s, r) => s + r.weight, 0);
+  const normalised = Math.abs(sumOfRawWeights - 1) > allocationTolerance;
+  if (normalised && allocationStrict) {
+    throw new Error(
+      `generatePortfolioMemo: allocation sums to ${sumOfRawWeights.toFixed(4)} ` +
+      `(expected 1 ± ${allocationTolerance}). Disable allocationStrict to normalise automatically.`,
+    );
+  }
+  const normalisationNote = normalised
+    ? `Allocation normalised: input weights summed to ${(sumOfRawWeights * 100).toFixed(2)}% — rescaled to 100% for analysis.`
+    : undefined;
   const positions = raw
     .map((r) => {
       const m = getInstrumentMeta(r.symbol);
-      return { ...r, weight: r.weight / totalW, meta: m };
+      return { ...r, rawWeight: r.weight, weight: r.weight / totalW, meta: m };
     })
     .sort((a, b) => b.weight - a.weight);
 

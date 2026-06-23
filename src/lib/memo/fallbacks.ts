@@ -180,9 +180,9 @@ function isValidReturnCorrelation(c: Correlation): boolean {
  * sensible derived metric per instrument type; we never invent one.
  */
 export function pickInstrumentMetric(
-  instrument: { metric?: { label: string; value: string; sign?: unknown } },
+  instrument: { metric?: { label?: string; value?: string; sign?: unknown } },
 ): { label: string; value: string } | null {
   const m = instrument.metric;
-  if (!m || !m.value || m.value === "—" || !m.value.trim()) return null;
+  if (!m || !m.label || !m.value || m.value === "—" || !m.value.trim()) return null;
   return { label: m.label, value: m.value };
 }

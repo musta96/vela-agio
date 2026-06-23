@@ -551,7 +551,7 @@ export default function OwnerConsole() {
           </Card>
         ))}
       </div>
-      <PurgeDemoSeedCard onAfterPurge={() => act("noop_refresh").catch(() => {})} />
+      <PurgeDemoSeedCard onAfterPurge={load} />
     </div>
   );
   const rolesSection = (

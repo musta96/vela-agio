@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -18,6 +19,8 @@ import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
 import { quantile, histogram, MACRO_SCENARIOS } from "@/lib/quantScenarios";
 import { ScenarioPresetMenu } from "@/components/ScenarioPresetMenu";
 import { useStableMemo } from "@/lib/computeCache";
+import { decodePresetParam } from "@/lib/scenarioPresets";
+import { downloadCsv } from "@/lib/csvUtil";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -56,6 +59,8 @@ export default function Goals() {
   const [runs, setRuns] = useState<number>(800);
   const [confidences, setConfidences] = useState<number[]>([0.95, 0.99]);
   const [saving, setSaving] = useState(false);
+  const [highlightConfidence, setHighlightConfidence] = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [includeAssumptions, setIncludeAssumptions] = useState(true);
   const [includeProbTable, setIncludeProbTable] = useState(true);
@@ -100,6 +105,23 @@ export default function Goals() {
     setHistory((data as any) ?? []);
   };
   useEffect(() => { loadHistory(); }, [user?.id]);
+
+  // Apply a `?preset=<token>` share link on first mount.
+  useEffect(() => {
+    const token = searchParams.get("preset");
+    if (!token) return;
+    const decoded = decodePresetParam(token);
+    if (!decoded) { toast.error("Invalid share link"); return; }
+    if (decoded.scope !== "mc") {
+      toast.info("This share link is for the Risk lab — open /risk.");
+      return;
+    }
+    const p = decoded.payload as { initial: number; monthly: number; years: number; target: number; mean: number; sd: number; runs: number; confidences: number[] };
+    setInitial(p.initial); setMonthly(p.monthly); setYears(p.years); setTarget(p.target);
+    setMean(p.mean); setSd(p.sd); setRuns(p.runs); setConfidences(p.confidences);
+    toast.success(`Loaded shared plan${decoded.name ? `: "${decoded.name}"` : ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const save = async () => {
     if (!user) {

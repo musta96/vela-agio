@@ -929,9 +929,24 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-card/30 flex flex-col">
       <div className="h-14 border-b border-border flex items-center gap-2 px-4">
-        <Crown className="h-5 w-5 text-amber-400" />
-        <span className="font-semibold tracking-tight">Vela<span className="text-muted-foreground">.ai</span></span>
+        <button
+          onClick={() => navigate("/dashboard")}
+          aria-label="Back to platform"
+          title="Back to platform"
+          className="flex items-center gap-2 hover:opacity-80 transition"
+        >
+          <Crown className="h-5 w-5 text-amber-400" />
+          <span className="font-semibold tracking-tight">Vela<span className="text-muted-foreground">.ai</span></span>
+        </button>
         <Badge variant="outline" className="ml-1 text-[9px] border-amber-400/40 text-amber-500">OWNER</Badge>
+      </div>
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="w-full h-9 rounded-md bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground text-xs font-medium flex items-center justify-center gap-2 transition border border-border"
+        >
+          ← Back to platform
+        </button>
       </div>
       <div className="p-3">
         <button onClick={onKill} className="w-full h-10 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold text-xs flex items-center justify-center gap-2 transition border border-destructive/30">

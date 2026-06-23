@@ -1311,7 +1311,7 @@ function PurgeDemoSeedCard({ act }: { act: (a: string, p?: Record<string, unknow
   );
 }
 
-function UserDetailDrawerInner({ user, data, onClose, act, onImpersonate, onRequestErasure, onRevealPii }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void; onRevealPii: (reason: string) => Promise<void> | void }) {
+function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestErasure, onRevealPii }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void; onRevealPii: (reason: string) => Promise<void> | void }) {
   if (!user) return null;
   const revealed = !!data?.pii_revealed;
   return (

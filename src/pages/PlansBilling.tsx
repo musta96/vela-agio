@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
 import { useAiCredits } from "@/hooks/useAiCredits";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 
@@ -120,6 +121,8 @@ export default function PlansBilling() {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
+  const ent = useEntitlements();
+  const isBeta = ent.tier === "beta";
 
   const loadSubscription = async () => {
     if (!user) { setLoading(false); return; }
@@ -251,21 +254,21 @@ export default function PlansBilling() {
               <CardTitle className="flex items-center gap-2">
                 Current plan
                 {!loading && (
-                  isActive
-                    ? <StatusBadge status={sub!.status} cancel={sub?.cancel_at_period_end} />
-                    : pricingEnabled
-                      ? <Badge variant="outline">Free</Badge>
-                      : <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">Launch promo · Free</Badge>
+                  isBeta
+                    ? <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">Beta tester · Free</Badge>
+                    : isActive
+                      ? <StatusBadge status={sub!.status} cancel={sub?.cancel_at_period_end} />
+                      : <Badge variant="outline">Free</Badge>
                 )}
               </CardTitle>
               <CardDescription>
                 {loading
                   ? "Loading subscription details…"
-                  : isActive
-                    ? "Active subscription. Manage payment method, invoices and cancellation in the billing portal."
-                    : pricingEnabled
-                      ? "You're on the free Explorer tier. Upgrade any time to unlock more AI credits and real-time data."
-                      : "Vela is fully free during launch. Founding members keep preferred pricing forever once paid tiers ship."}
+                  : isBeta
+                    ? "You're a beta tester. Every feature is unlocked free of charge while the beta program is active."
+                    : isActive
+                      ? "Active subscription. Manage payment method, invoices and cancellation in the billing portal."
+                      : "You're on the free Explorer tier. Upgrade any time to unlock more AI credits and real-time data."}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -275,7 +278,7 @@ export default function PlansBilling() {
                   Manage billing
                 </Button>
               )}
-              {pricingEnabled && (
+                {pricingEnabled && !isBeta && (
                 <Button asChild size="sm" className="gap-2">
                   <Link to="/pricing">
                     <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
@@ -295,7 +298,7 @@ export default function PlansBilling() {
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Plan</div>
                 <div className="mt-1 font-semibold text-base">
-                  {matchedPlan?.name ?? (isActive ? "Subscribed plan" : pricingEnabled ? "Explorer (Free)" : "Launch promo")}
+                  {isBeta ? "Beta tester" : matchedPlan?.name ?? (isActive ? "Subscribed plan" : "Explorer (Free)")}
                 </div>
                 {matchedPlan && (
                   <div className="text-xs text-muted-foreground mt-1">

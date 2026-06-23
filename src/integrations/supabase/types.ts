@@ -1984,6 +1984,110 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          kind: string
+          label: string | null
+          max_uses: number | null
+          percent_off: number | null
+          plan_id: string | null
+          stripe_coupon_id: string | null
+          updated_at: string
+          uses_count: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          max_uses?: number | null
+          percent_off?: number | null
+          plan_id?: string | null
+          stripe_coupon_id?: string | null
+          updated_at?: string
+          uses_count?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          max_uses?: number | null
+          percent_off?: number | null
+          plan_id?: string | null
+          stripe_coupon_id?: string | null
+          updated_at?: string
+          uses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_codes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_redemptions: {
+        Row: {
+          code_id: string
+          id: string
+          kind: string
+          plan_id: string | null
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          code_id: string
+          id?: string
+          kind: string
+          plan_id?: string | null
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          code_id?: string
+          id?: string
+          kind?: string
+          plan_id?: string | null
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_redemptions_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_redemptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sentiment_history: {
         Row: {
           article_count: number
@@ -2544,6 +2648,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      lookup_referral_code: { Args: { _code: string }; Returns: Json }
       my_entitlements: {
         Args: never
         Returns: {
@@ -2553,6 +2658,7 @@ export type Database = {
           tier: string
         }[]
       }
+      redeem_referral_code: { Args: { _code: string }; Returns: Json }
       unlock_blog_post: {
         Args: { p_email: string; p_slug: string }
         Returns: string
@@ -2567,6 +2673,7 @@ export type Database = {
         | "support"
         | "compliance"
         | "engineer"
+        | "beta_tester"
       client_role:
         | "principal"
         | "family_view"
@@ -2708,6 +2815,7 @@ export const Constants = {
         "support",
         "compliance",
         "engineer",
+        "beta_tester",
       ],
       client_role: [
         "principal",

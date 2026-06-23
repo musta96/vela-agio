@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { SEO } from "@/components/SEO";
 import { TOS_VERSION, PRIVACY_VERSION } from "@/lib/legal-versions";
+import { rememberReferral, consumePendingReferral } from "@/pages/RedeemReferral";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const refFromUrl = (search.get("ref") || "").trim();
+  useEffect(() => { if (refFromUrl) rememberReferral(refFromUrl); }, [refFromUrl]);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
@@ -29,7 +33,11 @@ const Auth = () => {
   const acceptLegal = ackTerms && ackNotAdvice && ackRisk;
 
   useEffect(() => {
-    if (!loading && user) navigate("/dashboard");
+    if (!loading && user) {
+      const pending = consumePendingReferral();
+      if (pending) { navigate(`/r/${encodeURIComponent(pending)}`, { replace: true }); return; }
+      navigate("/dashboard");
+    }
   }, [user, loading, navigate]);
 
   const signIn = async () => {

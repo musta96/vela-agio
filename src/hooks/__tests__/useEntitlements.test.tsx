@@ -9,7 +9,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import React from "react";
 
-vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
+const TEST_USER = { id: "u1" };
+const TEST_AUTH = { user: TEST_USER };
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => TEST_AUTH }));
 
 const mockRpc = vi.fn<(...args: any[]) => Promise<any>>();
 const channel = {

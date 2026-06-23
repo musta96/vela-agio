@@ -79,7 +79,37 @@ export interface PortfolioMemoInput {
   mcConfig?: { horizonDays?: number; paths?: number; seed?: number };
   /** Confidence levels for the VaR/CVaR table. Defaults to [0.95, 0.99]. */
   confidences?: number[];
+  /**
+   * Optional whitelist of sections to render. When omitted every section is
+   * included (backward compatible). Each flag gates a top-level block in the
+   * PDF; risk metrics + Monte Carlo share the equity series.
+   */
+  sections?: Partial<MemoSections>;
+  /** Human-readable label describing the historical window used (e.g. "3M"). */
+  historyLabel?: string;
 }
+
+export interface MemoSections {
+  executiveSummary: boolean;
+  holdings: boolean;
+  allocations: boolean;     // asset class / sector / geography + HHI
+  monteCarlo: boolean;      // risk metrics + Monte Carlo block
+  macroScenarios: boolean;
+  heatmaps: boolean;        // pairwise co-movement heatmap
+  perInstrumentNotes: boolean;
+  recommendedActions: boolean;
+}
+
+export const DEFAULT_MEMO_SECTIONS: MemoSections = {
+  executiveSummary: true,
+  holdings: true,
+  allocations: true,
+  monteCarlo: true,
+  macroScenarios: true,
+  heatmaps: true,
+  perInstrumentNotes: true,
+  recommendedActions: true,
+};
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -256,6 +286,7 @@ export function buildPortfolioMemoFilename(input: PortfolioMemoInput): string {
 export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { filename: string } {
   const currency = input.currency ?? "EUR";
   const asOf = typeof input.asOf === "string" ? Date.parse(input.asOf) : (input.asOf ?? Date.now());
+  const sections: MemoSections = { ...DEFAULT_MEMO_SECTIONS, ...(input.sections ?? {}) };
   const holdings = normaliseWeights(input.holdings);
   const totalValue = holdings.reduce((s, h) => s + (h.value ?? 0), 0);
   const totalCost = holdings.reduce(
@@ -362,6 +393,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
   y += 20;
 
   // Executive summary
+  if (sections.executiveSummary) {
   y = sectionTitle(doc, "Executive Summary", y);
   if (input.analystNote) {
     y = paragraph(doc, input.analystNote, y, "italic");
@@ -396,7 +428,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
     const p95 = quantile(finals, 0.95);
     const probLoss = finals.filter((v) => v < startValue).length / finals.length;
     summary.push(
-      `Monte Carlo (${paths.toLocaleString()} paths, ${horizonDays}-day horizon) projects a 5th/50th/95th percentile range of ` +
+      `Monte Carlo (${paths.toLocaleString()} paths, ${horizonDays}-day horizon${input.historyLabel ? `, ${input.historyLabel} history` : ""}) projects a 5th/50th/95th percentile range of ` +
       `${fmtMoney(p5, currency)} – ${fmtMoney(p50, currency)} – ${fmtMoney(p95, currency)}, ` +
       `with a ${(probLoss * 100).toFixed(0)}% probability of finishing below today's value.`,
     );
@@ -408,8 +440,10 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
     );
   }
   y = paragraph(doc, summary.join(" "), y);
+  }
 
   // Holdings table
+  if (sections.holdings) {
   y = newPageIfNeeded(doc, y, 40);
   y = sectionTitle(doc, "Holdings", y);
   const holdingsRows = holdings
@@ -451,8 +485,10 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
     },
   });
   y = lastTableY(doc) + 6;
+  }
 
   // Allocation breakdowns
+  if (sections.allocations) {
   y = newPageIfNeeded(doc, y, 60);
   y = sectionTitle(doc, "Allocation Breakdown", y);
   const renderAllocTable = (title: string, rows: { label: string; weight: number; value: number }[]) => {
@@ -498,9 +534,10 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
     },
   });
   y = lastTableY(doc) + 6;
+  }
 
   // Risk metrics
-  if (riskStats) {
+  if (sections.monteCarlo && riskStats) {
     doc.addPage();
     y = 28;
     y = sectionTitle(doc, "Risk Metrics", y);
@@ -540,9 +577,9 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
   }
 
   // Monte Carlo
-  if (finals.length) {
+  if (sections.monteCarlo && finals.length) {
     y = newPageIfNeeded(doc, y, 60);
-    y = sectionTitle(doc, `Monte Carlo · ${horizonDays}-day horizon · ${paths.toLocaleString()} paths`, y);
+    y = sectionTitle(doc, `Monte Carlo · ${horizonDays}-day horizon · ${paths.toLocaleString()} paths${input.historyLabel ? ` · ${input.historyLabel} history` : ""}`, y);
     const percentiles = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95];
     autoTable(doc, {
       startY: y,
@@ -576,7 +613,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
   }
 
   // Macro scenarios
-  if (scenarioImpacts.length) {
+  if (sections.macroScenarios && scenarioImpacts.length) {
     y = newPageIfNeeded(doc, y, 80);
     y = sectionTitle(doc, "Macro Scenario Stress", y);
     autoTable(doc, {
@@ -610,7 +647,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
   }
 
   // Co-movement
-  if (coMov.symbols.length > 1) {
+  if (sections.heatmaps && coMov.symbols.length > 1) {
     y = newPageIfNeeded(doc, y, 60);
     y = sectionTitle(doc, `Pairwise Co-Movement Proxy (avg ρ̂ ${coMov.avg.toFixed(2)})`, y);
     autoTable(doc, {
@@ -642,7 +679,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
 
   // Per-instrument mini-thesis (only those with prose)
   const thesisHoldings = holdings.filter((h) => h.thesis && h.thesis.trim().length);
-  if (thesisHoldings.length) {
+  if (sections.perInstrumentNotes && thesisHoldings.length) {
     doc.addPage();
     y = 28;
     y = sectionTitle(doc, "Per-Instrument Notes", y);
@@ -668,6 +705,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
   }
 
   // Recommended actions
+  if (sections.recommendedActions) {
   y = newPageIfNeeded(doc, y, 40);
   y = sectionTitle(doc, "Recommended Actions", y);
   const actions: string[] = [];
@@ -713,6 +751,7 @@ export function generatePortfolioInvestmentMemo(input: PortfolioMemoInput): { fi
     doc.text(lines, 22, y);
     y += lines.length * 4.5 + 1.5;
   });
+  }
 
   // Disclaimer
   y = newPageIfNeeded(doc, y, 28);

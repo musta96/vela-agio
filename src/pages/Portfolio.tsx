@@ -12,7 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
-import { generatePortfolioInvestmentMemo } from "@/lib/portfolioInvestmentMemoPdf";
+import { generatePortfolioInvestmentMemo, DEFAULT_MEMO_SECTIONS, type MemoSections } from "@/lib/portfolioInvestmentMemoPdf";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import { Settings2 } from "lucide-react";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +67,17 @@ const Portfolio = () => {
   const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [memoLoading, setMemoLoading] = useState(false);
+  // Investment memo configuration (range, sections, MC params).
+  const HORIZON_PRESETS = { "3M": 63, "6M": 126, "1Y": 252 } as const;
+  type MemoRangeKey = "3M" | "6M" | "1Y" | "Custom";
+  const RANGE_TO_MARKET: Record<MemoRangeKey, string> = { "3M": "3mo", "6M": "6mo", "1Y": "1y", "Custom": "1y" };
+  const [memoRange, setMemoRange] = useState<MemoRangeKey>("1Y");
+  const [memoCustomDays, setMemoCustomDays] = useState<number>(252);
+  const [memoPaths, setMemoPaths] = useState<number>(1500);
+  const [memoSections, setMemoSections] = useState<MemoSections>(DEFAULT_MEMO_SECTIONS);
+  // Multi-select confidence levels for VaR/CVaR.
+  const CONF_OPTIONS = [0.90, 0.95, 0.99] as const;
+  const [memoConfidences, setMemoConfidences] = useState<number[]>([0.95, 0.99]);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
     return local.map((s) => ({
@@ -669,10 +684,14 @@ const Portfolio = () => {
                   const symbols = portfolio.map((p) => p.symbol);
                   const totalValue = portfolio.reduce((s, p) => s + p.shares * p.currentPrice, 0);
                   const weights = portfolio.map((p) => totalValue > 0 ? (p.shares * p.currentPrice) / totalValue : 1 / portfolio.length);
+                  const marketRange = RANGE_TO_MARKET[memoRange];
+                  const horizonDays = memoRange === "Custom"
+                    ? Math.max(5, Math.min(2520, Math.round(memoCustomDays)))
+                    : HORIZON_PRESETS[memoRange];
                   const series = await Promise.all(symbols.map(async (sym) => {
                     try {
                       const { data } = await supabase.functions.invoke("market-data", {
-                        body: { action: "ohlc", symbol: sym, range: "1y", interval: "1d" },
+                        body: { action: "ohlc", symbol: sym, range: marketRange, interval: "1d" },
                       });
                       const bars = Array.isArray(data?.bars) ? (data.bars as Array<{ t: number; close: number }>) : [];
                       return bars.filter((b) => Number.isFinite(b.close) && b.close > 0);
@@ -715,6 +734,10 @@ const Portfolio = () => {
                       weight: weights[i],
                     })),
                     equity: equity.length ? equity : undefined,
+                    sections: memoSections,
+                    mcConfig: { horizonDays, paths: memoPaths, seed: 42 },
+                    confidences: memoConfidences.length ? memoConfidences : [0.95, 0.99],
+                    historyLabel: memoRange === "Custom" ? `${horizonDays}d` : memoRange,
                   });
                   toast({ title: "Investment memo generated", description: "Comprehensive portfolio-level PDF saved." });
                 } catch (err) {
@@ -727,6 +750,117 @@ const Portfolio = () => {
             >
               <FileText className="h-4 w-4" /> {memoLoading ? "Building memo…" : "Investment Memo"}
             </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="Configure investment memo"
+                  disabled={portfolio.length === 0 || memoLoading}
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[340px] p-4 space-y-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold">Investment memo settings</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Controls the historical window and Monte Carlo simulation used in the PDF.
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">History window</Label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(["3M","6M","1Y","Custom"] as const).map((k) => (
+                      <Button
+                        key={k}
+                        type="button"
+                        size="sm"
+                        variant={memoRange === k ? "default" : "outline"}
+                        className="h-7 text-xs px-2"
+                        onClick={() => setMemoRange(k)}
+                      >
+                        {k}
+                      </Button>
+                    ))}
+                  </div>
+                  {memoRange === "Custom" && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Input
+                        type="number"
+                        min={5}
+                        max={2520}
+                        value={memoCustomDays}
+                        onChange={(e) => setMemoCustomDays(Number(e.target.value) || 252)}
+                        className="h-8 text-xs"
+                      />
+                      <span className="text-[11px] text-muted-foreground">trading days</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">Monte Carlo paths</Label>
+                    <span className="text-xs font-medium tabular-nums">{memoPaths.toLocaleString()}</span>
+                  </div>
+                  <Slider
+                    min={250}
+                    max={5000}
+                    step={250}
+                    value={[memoPaths]}
+                    onValueChange={(v) => setMemoPaths(v[0] ?? 1500)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Confidence levels (VaR/CVaR)</Label>
+                  <div className="flex gap-1.5">
+                    {CONF_OPTIONS.map((c) => {
+                      const on = memoConfidences.includes(c);
+                      return (
+                        <Button
+                          key={c}
+                          type="button"
+                          size="sm"
+                          variant={on ? "default" : "outline"}
+                          className="h-7 text-xs px-2"
+                          onClick={() => setMemoConfidences((prev) => {
+                            const next = on ? prev.filter((x) => x !== c) : [...prev, c].sort((a, b) => a - b);
+                            return next.length ? next : [0.95];
+                          })}
+                        >
+                          {(c * 100).toFixed(0)}%
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Sections</Label>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {([
+                      ["executiveSummary", "Executive summary"],
+                      ["holdings", "Holdings"],
+                      ["allocations", "Allocations & concentration"],
+                      ["monteCarlo", "Monte Carlo + Risk metrics"],
+                      ["macroScenarios", "Macro scenarios"],
+                      ["heatmaps", "Co-movement heatmap"],
+                    ] as Array<[keyof MemoSections, string]>).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-2 text-xs cursor-pointer">
+                        <Checkbox
+                          checked={memoSections[key]}
+                          onCheckedChange={(v) => setMemoSections((prev) => ({ ...prev, [key]: Boolean(v) }))}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 

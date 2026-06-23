@@ -108,6 +108,8 @@ const TOOLS = [
           rationale: { type: 'string' },
         }, required: ['label','target'] } },
         analyst_note: { type: 'string', description: 'Optional one-line italicised note shown above the executive summary.' },
+        peers: { type: 'array', items: { type: 'string' }, description: 'Optional peer / benchmark tickers to include in a cross-asset correlation matrix attached to the memo. Max 6. The focal symbol is added automatically.' },
+        correlation_lookback: { type: 'string', enum: ['3mo', '1y', '3y'], description: 'Lookback window for the correlation matrix when peers are supplied. Defaults to 1y.' },
       }, required: ['symbol','recommendation','thesis'] } } },
 ];
 
@@ -263,6 +265,61 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       if ((fundRes as any)?.valuation) sources.push(`Vela deep-analysis · ${valuation.method ?? 'valuation'} model`);
       sources.push(`Generated ${new Date().toISOString()}`);
 
+      // -------- Optional cross-asset correlation block --------
+      let correlation: { symbols: string[]; matrix: number[][]; memoSection: string; lookback: string } | undefined;
+      const rawPeers = Array.isArray(args.peers) ? args.peers.map((p: any) => String(p).toUpperCase()).filter(Boolean) : [];
+      const peers = Array.from(new Set(rawPeers.filter((p: string) => p !== sym))).slice(0, 6);
+      if (peers.length) {
+        const lookback = ['3mo','1y','3y'].includes(String(args.correlation_lookback)) ? String(args.correlation_lookback) : '1y';
+        const universe = [sym, ...peers];
+        try {
+          const seriesAll = await Promise.all(universe.map(async (s) => {
+            const r = await callEdge(ctx.authHeader, 'market-data', { action: 'ohlc', symbol: s, range: lookback, interval: '1d' });
+            const bars = ((r as any)?.bars ?? []) as Array<{ close: number }>;
+            const out: number[] = [];
+            for (let i = 1; i < bars.length; i++) {
+              const a = bars[i - 1]?.close, b = bars[i]?.close;
+              if (a > 0 && b > 0) out.push(Math.log(b / a));
+            }
+            return out;
+          }));
+          const T = Math.min(...seriesAll.map((s) => s.length));
+          if (T > 5) {
+            const aligned = seriesAll.map((s) => s.slice(s.length - T));
+            const n = aligned.length;
+            const means = aligned.map((s) => s.reduce((a, b) => a + b, 0) / T);
+            const stds = aligned.map((s, i) => Math.sqrt(s.reduce((a, b) => a + (b - means[i]) ** 2, 0) / T));
+            const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+            for (let i = 0; i < n; i++) {
+              for (let j = i; j < n; j++) {
+                let cov = 0;
+                for (let t = 0; t < T; t++) cov += (aligned[i][t] - means[i]) * (aligned[j][t] - means[j]);
+                cov /= T;
+                const rho = stds[i] > 0 && stds[j] > 0 ? cov / (stds[i] * stds[j]) : i === j ? 1 : 0;
+                matrix[i][j] = matrix[j][i] = Math.max(-1, Math.min(1, rho));
+              }
+            }
+            // Build a concise prose summary the PDF renders verbatim.
+            const pairs: Array<{ a: string; b: string; rho: number }> = [];
+            for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pairs.push({ a: universe[i], b: universe[j], rho: matrix[i][j] });
+            const focal = pairs.filter((p) => p.a === sym || p.b === sym);
+            const avg = pairs.length ? pairs.reduce((s, p) => s + p.rho, 0) / pairs.length : 0;
+            const lines: string[] = [];
+            lines.push(`Average pairwise ρ across ${sym} and ${peers.length} peer(s) is ${avg.toFixed(2)} over the ${lookback} window (${T} observations).`);
+            if (focal.length) {
+              const sorted = [...focal].sort((a, b) => b.rho - a.rho);
+              const hi = sorted[0], lo = sorted[sorted.length - 1];
+              const other = (p: { a: string; b: string }) => (p.a === sym ? p.b : p.a);
+              lines.push(`${sym} is most correlated with ${other(hi)} (${hi.rho.toFixed(2)}) and least with ${other(lo)} (${lo.rho.toFixed(2)}).`);
+            }
+            correlation = { symbols: universe, matrix, memoSection: lines.join(' '), lookback };
+            sources.push(`Correlation matrix · ${lookback} log-returns vs ${peers.join(', ')}`);
+          }
+        } catch (e) {
+          console.warn('[memo] correlation block failed', e);
+        }
+      }
+
       // The frontend renders the PDF from this structured payload. Keep field
       // names aligned with InvestmentMemoData in src/lib/investmentMemoPdf.ts.
       const memo = {
@@ -291,6 +348,7 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
             }))
           : undefined,
         analystNote: args.analyst_note ? String(args.analyst_note) : undefined,
+        correlation,
         sources,
       };
 

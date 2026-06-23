@@ -4,13 +4,22 @@ import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { meanVariance, riskParity, hrp, covMatrix, portfolioStats } from "@/lib/optimizer";
 import { CorrelationMatrix } from "@/components/CorrelationMatrix";
 import { Scale } from "lucide-react";
 
+const LOOKBACKS = [
+  { value: "3mo", label: "3M" },
+  { value: "1y",  label: "1Y" },
+  { value: "3y",  label: "3Y" },
+] as const;
+type Lookback = typeof LOOKBACKS[number]["value"];
+
 export default function Optimizer() {
   const [tickers, setTickers] = useState("SPY,QQQ,GLD,TLT,EFA");
+  const [lookback, setLookback] = useState<Lookback>("1y");
   const [returns, setReturns] = useState<number[][]>([]);
   const [syms, setSyms] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -20,7 +29,7 @@ export default function Optimizer() {
     const list = tickers.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
     const series: number[][] = [];
     for (const s of list) {
-      const { data } = await supabase.functions.invoke("market-data", { body: { action: "ohlc", symbol: s, range: "2y", interval: "1d" } });
+      const { data } = await supabase.functions.invoke("market-data", { body: { action: "ohlc", symbol: s, range: lookback, interval: "1d" } });
       const bars = (data?.bars ?? []) as { close: number }[];
       const rets: number[] = [];
       for (let i = 1; i < bars.length; i++) rets.push(Math.log(bars[i].close / bars[i - 1].close));
@@ -53,6 +62,12 @@ export default function Optimizer() {
         <div className="flex items-center gap-3"><Scale className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Portfolio Optimizer</h1></div>
         <div className="flex gap-2">
           <Input value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="SPY,QQQ,GLD,TLT" />
+          <Select value={lookback} onValueChange={(v) => setLookback(v as Lookback)}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LOOKBACKS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button onClick={run} disabled={loading}>{loading ? "Optimizing…" : "Optimize"}</Button>
         </div>
         {returns.length > 0 && (

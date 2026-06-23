@@ -58,6 +58,18 @@ export interface InvestmentMemoData {
     range?: { low: number; high: number };
   };
   scenarios?: MemoScenario[];
+  /**
+   * Optional cross-asset correlation block — surfaced when the copilot
+   * generates a memo over the focal ticker plus user-provided peers.
+   * `memoSection` is human-readable prose; `matrix` is the Pearson
+   * correlation matrix aligned to `symbols` (square, ρ ∈ [-1, 1]).
+   */
+  correlation?: {
+    symbols: string[];
+    matrix: number[][];
+    memoSection?: string;
+    lookback?: string;
+  };
   sources?: string[];                  // free-form references
   analystNote?: string;                // optional preamble from advisor/user
 }
@@ -356,6 +368,43 @@ export function generateInvestmentMemo(
       headStyles: { fillColor: BRAND.primary, textColor: 255 },
       columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { cellWidth: 80 } },
       margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // ----- Cross-asset Correlation -----
+  if (memo.correlation && memo.correlation.symbols?.length && memo.correlation.matrix?.length) {
+    y = newPageIfNeeded(doc, y, 50);
+    y = sectionTitle(
+      doc,
+      `Cross-Asset Correlation${memo.correlation.lookback ? ` (${memo.correlation.lookback})` : ""}`,
+      y,
+    );
+    if (memo.correlation.memoSection) {
+      y = paragraph(doc, memo.correlation.memoSection, y);
+    }
+    const syms = memo.correlation.symbols;
+    const mtx = memo.correlation.matrix;
+    const body = syms.map((row, i) => [row, ...syms.map((_, j) => (mtx[i]?.[j] ?? 0).toFixed(2))]);
+    autoTable(doc, {
+      startY: y,
+      head: [["", ...syms]],
+      body,
+      styles: { fontSize: 8, cellPadding: 1.5, halign: "center" },
+      headStyles: { fillColor: BRAND.primary, textColor: 255, halign: "center" },
+      columnStyles: { 0: { fontStyle: "bold", halign: "left", textColor: BRAND.muted } },
+      margin: { left: 14, right: 14 },
+      didParseCell: (data) => {
+        if (data.section !== "body" || data.column.index === 0) return;
+        const rho = Number(data.cell.text?.[0] ?? 0);
+        if (!Number.isFinite(rho)) return;
+        const intensity = Math.min(1, Math.abs(rho));
+        const base = rho >= 0 ? BRAND.bear : BRAND.bull;
+        // Tint white toward the base colour by `intensity`.
+        const tint = (c: number) => Math.round(255 - (255 - c) * (0.15 + intensity * 0.6));
+        data.cell.styles.fillColor = [tint(base[0]), tint(base[1]), tint(base[2])];
+        if (intensity > 0.55) data.cell.styles.textColor = 255;
+      },
     });
     y = (doc as any).lastAutoTable.finalY + 6;
   }

@@ -3,17 +3,26 @@ import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { CorrelationMatrix } from "@/components/CorrelationMatrix";
 import { RefreshCw } from "lucide-react";
 
+const LOOKBACKS = [
+  { value: "3mo", label: "3M" },
+  { value: "1y",  label: "1Y" },
+  { value: "3y",  label: "3Y" },
+] as const;
+type Lookback = typeof LOOKBACKS[number]["value"];
+
 export default function Rebalance() {
   const { user } = useAuth();
   const [holdings, setHoldings] = useState<{ symbol: string; shares: number; avg_price: number }[]>([]);
   const [targets, setTargets] = useState<Record<string, number>>({});
   const [band, setBand] = useState(5);
+  const [lookback, setLookback] = useState<Lookback>("1y");
   const [corrSyms, setCorrSyms] = useState<string[]>([]);
   const [corrReturns, setCorrReturns] = useState<number[][]>([]);
 
@@ -39,7 +48,7 @@ export default function Rebalance() {
       const series: number[][] = [];
       for (const s of syms) {
         const { data } = await supabase.functions.invoke("market-data", {
-          body: { action: "ohlc", symbol: s, range: "1y", interval: "1d" },
+          body: { action: "ohlc", symbol: s, range: lookback, interval: "1d" },
         });
         const bars = (data?.bars ?? []) as { close: number }[];
         const rets: number[] = [];
@@ -55,7 +64,7 @@ export default function Rebalance() {
       setCorrReturns(aligned);
     })();
     return () => { cancelled = true; };
-  }, [holdings]);
+  }, [holdings, lookback]);
 
   const { quotes } = useLiveQuotes(holdings.map(h => h.symbol), 60_000);
   const values = holdings.map(h => ({ ...h, value: h.shares * (quotes[h.symbol]?.price ?? h.avg_price) }));
@@ -107,7 +116,18 @@ export default function Rebalance() {
           </CardContent>
         </Card>
         {corrReturns.length > 0 && (
-          <CorrelationMatrix symbols={corrSyms} returns={corrReturns} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-end gap-2 text-xs">
+              <span className="text-muted-foreground">Correlation lookback</span>
+              <Select value={lookback} onValueChange={(v) => setLookback(v as Lookback)}>
+                <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LOOKBACKS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <CorrelationMatrix symbols={corrSyms} returns={corrReturns} />
+          </div>
         )}
       </main>
     </div>

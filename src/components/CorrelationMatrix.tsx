@@ -1,15 +1,24 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   correlationMatrix,
   correlationStats,
   correlationBreakdowns,
   correlationMemoSection,
+  subsetCorrelation,
   type CorrelationMatrix as Matrix,
   type CorrelationStats,
   type CorrelationBreakdowns,
 } from "@/lib/correlation";
+import { getInstrumentMeta } from "@/lib/instrumentMeta";
 import { Layers } from "lucide-react";
 
 type Props = {
@@ -48,20 +57,42 @@ function fmtRho(x: number | null): string {
 }
 
 export function CorrelationMatrix({ symbols, returns, onComputed, className }: Props) {
-  const matrix = useMemo<Matrix>(() => correlationMatrix(returns), [returns]);
-  const stats = useMemo(() => correlationStats(symbols, matrix), [symbols, matrix]);
-  const breakdowns = useMemo(() => correlationBreakdowns(symbols, matrix), [symbols, matrix]);
+  const fullMatrix = useMemo<Matrix>(() => correlationMatrix(returns), [returns]);
+
+  // Filter controls (sector / geography / asset-class).
+  const [sectorFilter, setSectorFilter] = useState<string>("all");
+  const [geoFilter, setGeoFilter] = useState<string>("all");
+  const [classFilter, setClassFilter] = useState<string>("all");
+
+  const metas = useMemo(() => symbols.map(getInstrumentMeta), [symbols]);
+  const sectorOptions = useMemo(() => Array.from(new Set(metas.map((m) => m.sector))).sort(), [metas]);
+  const geoOptions = useMemo(() => Array.from(new Set(metas.map((m) => m.geography))).sort(), [metas]);
+  const classOptions = useMemo(() => Array.from(new Set(metas.map((m) => m.assetClass))).sort(), [metas]);
+
+  const { symbols: viewSymbols, matrix } = useMemo(() => {
+    if (!fullMatrix.length) return { symbols: [] as string[], matrix: [] as Matrix };
+    return subsetCorrelation(symbols, fullMatrix, (_, i) => {
+      const m = metas[i];
+      if (sectorFilter !== "all" && m.sector !== sectorFilter) return false;
+      if (geoFilter !== "all" && m.geography !== geoFilter) return false;
+      if (classFilter !== "all" && m.assetClass !== classFilter) return false;
+      return true;
+    });
+  }, [fullMatrix, symbols, metas, sectorFilter, geoFilter, classFilter]);
+
+  const stats = useMemo(() => correlationStats(viewSymbols, matrix), [viewSymbols, matrix]);
+  const breakdowns = useMemo(() => correlationBreakdowns(viewSymbols, matrix), [viewSymbols, matrix]);
   const memoSection = useMemo(
-    () => correlationMemoSection(symbols, matrix),
-    [symbols, matrix],
+    () => correlationMemoSection(viewSymbols, matrix),
+    [viewSymbols, matrix],
   );
 
   useEffect(() => {
     if (!matrix.length || !onComputed) return;
-    onComputed({ symbols, matrix, stats, breakdowns, memoSection });
-  }, [matrix, symbols, stats, breakdowns, memoSection, onComputed]);
+    onComputed({ symbols: viewSymbols, matrix, stats, breakdowns, memoSection });
+  }, [matrix, viewSymbols, stats, breakdowns, memoSection, onComputed]);
 
-  if (!matrix.length) return null;
+  if (!fullMatrix.length) return null;
 
   return (
     <Card className={className}>
@@ -81,26 +112,38 @@ export function CorrelationMatrix({ symbols, returns, onComputed, className }: P
             <Badge variant="outline">{stats.pairCount} pairs</Badge>
           </div>
         </div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <FilterSelect label="Sector" value={sectorFilter} onChange={setSectorFilter} options={sectorOptions} />
+          <FilterSelect label="Geography" value={geoFilter} onChange={setGeoFilter} options={geoOptions} />
+          <FilterSelect label="Asset class" value={classFilter} onChange={setClassFilter} options={classOptions} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!matrix.length && (
+          <div className="text-sm text-muted-foreground py-6 text-center">
+            No instruments match the current filters.
+          </div>
+        )}
+        {matrix.length > 0 && (
+        <>
         {/* Heatmap */}
         <div className="overflow-x-auto">
           <div
             className="grid text-[11px] font-mono"
             style={{
-              gridTemplateColumns: `minmax(60px, auto) repeat(${symbols.length}, minmax(48px, 1fr))`,
+              gridTemplateColumns: `minmax(60px, auto) repeat(${viewSymbols.length}, minmax(48px, 1fr))`,
             }}
           >
             <div />
-            {symbols.map((s) => (
+            {viewSymbols.map((s) => (
               <div key={`h-${s}`} className="px-2 py-1 text-center text-muted-foreground truncate">
                 {s}
               </div>
             ))}
-            {symbols.map((row, i) => (
+            {viewSymbols.map((row, i) => (
               <div className="contents" key={`row-${row}`}>
                 <div className="px-2 py-1 text-muted-foreground truncate">{row}</div>
-                {symbols.map((col, j) => (
+                {viewSymbols.map((col, j) => (
                   <div
                     key={`${row}-${col}`}
                     className="px-2 py-1 text-center border border-border/40"
@@ -169,8 +212,29 @@ export function CorrelationMatrix({ symbols, returns, onComputed, className }: P
           correlations (≥ 0.7) indicate redundant exposure; near-zero or negative inter-group
           values are the desirable diversifying relationships.
         </p>
+        </>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function FilterSelect({
+  label, value, onChange, options,
+}: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] uppercase tracking-wider text-muted-foreground w-20 shrink-0">{label}</span>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All</SelectItem>
+          {options.map((o) => (
+            <SelectItem key={o} value={o}>{o}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

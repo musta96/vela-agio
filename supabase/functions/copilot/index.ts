@@ -520,6 +520,52 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         disclaimer: 'Educational simulation — log-normal GBM assumptions, no advice.',
       };
     }
+    case 'generate_portfolio_memo': {
+      // The PDF itself is built client-side (jsPDF) — we just normalise the
+      // model's args and return an artifact the chat UI renders as a download
+      // card. This keeps fonts / charts / autotable rendering in the browser
+      // and avoids shipping jsPDF into the edge runtime.
+      const allocRaw = (args && typeof args.allocation === 'object' && args.allocation !== null)
+        ? args.allocation as Record<string, unknown>
+        : {};
+      const allocation: Record<string, number> = {};
+      for (const [k, v] of Object.entries(allocRaw)) {
+        const w = Number(v);
+        const sym = String(k).trim().toUpperCase();
+        if (sym && Number.isFinite(w) && w > 0) allocation[sym] = w;
+      }
+      if (!Object.keys(allocation).length) {
+        return { error: 'allocation must contain at least one symbol with positive weight' };
+      }
+      const sumW = Object.values(allocation).reduce((s, w) => s + w, 0);
+      const profile = String(args.risk_profile ?? 'balanced').toLowerCase();
+      const memo = {
+        allocation,
+        strategyThesis: String(args.strategy_thesis ?? '').trim(),
+        goals: Array.isArray(args.goals) ? args.goals.map(String) : [],
+        riskProfile: ['conservative','moderate','balanced','growth','aggressive'].includes(profile) ? profile : 'balanced',
+        portfolioName: args.portfolio_name ? String(args.portfolio_name) : 'Portfolio Strategy',
+        currency: args.currency ? String(args.currency).toUpperCase().slice(0, 4) : 'EUR',
+        macroOutlook: args.macro_outlook ? String(args.macro_outlook) : undefined,
+        catalysts: Array.isArray(args.catalysts) ? args.catalysts.map(String) : undefined,
+        risks: Array.isArray(args.risks) ? args.risks.map(String) : undefined,
+        customSections: args.custom_sections && typeof args.custom_sections === 'object' ? {
+          executiveSummary: (args.custom_sections as any).executive_summary ? String((args.custom_sections as any).executive_summary) : undefined,
+          riskAssessment: (args.custom_sections as any).risk_assessment ? String((args.custom_sections as any).risk_assessment) : undefined,
+          catalystsAndRisks: (args.custom_sections as any).catalysts_and_risks ? String((args.custom_sections as any).catalysts_and_risks) : undefined,
+        } : undefined,
+      };
+      return {
+        ok: true,
+        artifact: 'portfolio_memo',
+        memo,
+        normalisationNote: Math.abs(sumW - 1) > 0.01
+          ? `Allocation summed to ${(sumW * 100).toFixed(2)}% — will be normalised to 100% in the PDF.`
+          : undefined,
+        ui: { kind: 'portfolio_memo_pdf', message: `Portfolio memo ready: ${memo.portfolioName} (${Object.keys(allocation).length} positions, ${memo.riskProfile} risk).` },
+        disclaimer: 'Educational research only — not investment advice.',
+      };
+    }
     case 'add_watchlist': {
       const { error } = await sb.from('watchlist_items').insert({ user_id: user.id, symbol: String(args.symbol).toUpperCase(), name: args.name });
       return error ? { error: error.message } : { ok: true };

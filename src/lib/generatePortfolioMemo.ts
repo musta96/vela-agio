@@ -83,6 +83,34 @@ export interface GeneratePortfolioMemoOptions {
   simulation?: PortfolioMemoSimulation;
   /** When true (default) the PDF is downloaded; set false to receive the Blob only. */
   download?: boolean;
+  /**
+   * Editable overrides for individual chapters. When provided, the supplied
+   * text REPLACES the auto-generated body for that section (executive summary
+   * still appends the goals line; catalysts/risks still render the bullet
+   * lists below).
+   */
+  customSections?: {
+    executiveSummary?: string;
+    riskAssessment?: string;
+    catalystsAndRisks?: string;
+  };
+  /**
+   * If true, throws when the allocation does not sum to 1 (within tolerance).
+   * Defaults to false — out-of-range allocations are normalised and a yellow
+   * "Allocation normalised" note is rendered on the cover.
+   */
+  allocationStrict?: boolean;
+  /** Tolerance for the sum-to-1 check. Defaults to 0.01 (1 percentage point). */
+  allocationTolerance?: number;
+  /**
+   * Optional thesis version metadata. Rendered on the cover so the same memo
+   * can later be regenerated and pinned to the exact thesis text used.
+   */
+  thesisVersion?: {
+    id?: string;
+    label?: string;
+    savedAt?: number | string;
+  };
 }
 
 export interface GeneratePortfolioMemoResult {
@@ -90,6 +118,35 @@ export interface GeneratePortfolioMemoResult {
   blob: Blob;
   /** Raw PDF bytes — handy for server-side tests / streaming downloads. */
   bytes: Uint8Array;
+  /** Structured data behind the memo, suitable for CSV exports / inspection. */
+  data: PortfolioMemoData;
+  /** Allocation normalisation note (undefined when sum was already 1±tolerance). */
+  normalisationNote?: string;
+}
+
+export interface PortfolioMemoData {
+  allocation: Array<{
+    symbol: string;
+    assetClass: string;
+    sector: string;
+    geography: string;
+    rawWeight: number;
+    normalisedWeight: number;
+  }>;
+  byAssetClass: Array<{ label: string; weight: number }>;
+  correlation: { symbols: string[]; matrix: number[][] };
+  percentiles: Array<{ p: number; terminal: number; deltaPct: number }> | null;
+  scenarios: Array<{ scenario: string; pnl: number; pnlPct: number }>;
+  meta: {
+    portfolioName: string;
+    currency: string;
+    notional: number;
+    horizonDays: number;
+    paths: number;
+    asOf: number;
+    sumOfRawWeights: number;
+    normalised: boolean;
+  };
 }
 
 // ---------- helpers ----------

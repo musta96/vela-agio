@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { generateGoalsPlanReport, buildGoalsPlanFilename } from "@/lib/pdfReports";
+import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
+import { quantile } from "@/lib/quantScenarios";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -133,6 +135,22 @@ export default function Goals() {
   const successProb = useMemo(() => sim.finals.filter(v => v >= target).length / sim.finals.length, [sim, target]);
   const data = sim.p50.map((m, i) => ({ year: ((i + 1) / 12).toFixed(1), p10: sim.p10[i], median: m, p90: sim.p90[i] }));
 
+  // Bear / bull alternate regimes for resilience comparison
+  const bearSim = useMemo(() => monteCarlo(initial, monthly, years, Math.max(-0.05, mean - 0.03), sd + 0.05, 500), [initial, monthly, years, mean, sd]);
+  const bullSim = useMemo(() => monteCarlo(initial, monthly, years, mean + 0.02, Math.max(0.05, sd - 0.03), 500), [initial, monthly, years, mean, sd]);
+  const bearProb = useMemo(() => bearSim.finals.filter(v => v >= target).length / bearSim.finals.length, [bearSim, target]);
+  const bullProb = useMemo(() => bullSim.finals.filter(v => v >= target).length / bullSim.finals.length, [bullSim, target]);
+  const baseStats = useMemo(() => ({
+    p05: quantile(sim.finals, 0.05),
+    p50: quantile(sim.finals, 0.50),
+    p95: quantile(sim.finals, 0.95),
+    cvar5: (() => {
+      const sorted = [...sim.finals].sort((a, b) => a - b);
+      const cut = Math.max(1, Math.floor(sorted.length * 0.05));
+      return sorted.slice(0, cut).reduce((s, x) => s + x, 0) / cut;
+    })(),
+  }), [sim]);
+
   const buildPdfInput = () => ({
     name, initial, monthly, years, target,
     expectedReturn: mean, volatility: sd, successProb,
@@ -229,6 +247,33 @@ export default function Goals() {
               </LineChart>
             </ResponsiveContainer>
           </CardContent></Card>
+        </div>
+
+        {/* Distribution + macro regime comparison */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-2"><CardTitle className="text-base">Final value distribution</CardTitle></CardHeader>
+            <CardContent>
+              <MonteCarloHistogram values={sim.finals} target={target} unit="€" height={260} />
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <DistStat label="P5 (worst 5%)" value={baseStats.p05} tone="bad" />
+                <DistStat label="CVaR 5%" value={baseStats.cvar5} tone="bad" hint="Avg of worst 5% of paths" />
+                <DistStat label="Median" value={baseStats.p50} />
+                <DistStat label="P95 (best 5%)" value={baseStats.p95} tone="good" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Regime resilience</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <RegimeRow label="Bear regime" sub={`μ ${((mean - 0.03) * 100).toFixed(1)}% · σ ${((sd + 0.05) * 100).toFixed(1)}%`} prob={bearProb} tone="bad" />
+              <RegimeRow label="Base case" sub={`μ ${(mean * 100).toFixed(1)}% · σ ${(sd * 100).toFixed(1)}%`} prob={successProb} />
+              <RegimeRow label="Bull regime" sub={`μ ${((mean + 0.02) * 100).toFixed(1)}% · σ ${(Math.max(0.05, sd - 0.03)) * 100}%`.replace(/(\.\d)\d+%$/, "$1%")} prob={bullProb} tone="good" />
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
+                Stress your plan against alternate market regimes — bear assumes lower drift &amp; higher vol, bull assumes the opposite.
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Export history */}

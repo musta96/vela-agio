@@ -10,6 +10,8 @@ import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
+import { useAiCredits } from "@/hooks/useAiCredits";
+import { Link } from "react-router-dom";
 
 const MEMORY_KEY = "vela.ai_memory_enabled";
 
@@ -49,6 +51,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     return v === null ? true : v === "1";
   });
   const [exporting, setExporting] = useState(false);
+  const { exhausted, hasCap, remaining, limit, unlimited } = useAiCredits();
 
   useEffect(() => {
     if (typeof window !== "undefined") window.localStorage.setItem(MEMORY_KEY, memoryOn ? "1" : "0");
@@ -413,14 +416,33 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
       )}
       <div className="border-t p-3 flex gap-2 items-center">
         <input ref={fileRef} type="file" multiple accept="image/*,application/pdf,.txt,.md,.csv" className="hidden" onChange={e => onPickFiles(e.target.files)} />
-        <Button variant="ghost" size="icon" onClick={() => fileRef.current?.click()} disabled={busy} title="Attach screenshot or file">
+        <Button variant="ghost" size="icon" onClick={() => fileRef.current?.click()} disabled={busy || exhausted} title="Attach screenshot or file">
           <Paperclip className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="icon" onClick={() => setFeedbackOpen(true)} disabled={busy} title="Send feedback to the team" aria-label="Send feedback">
           <MessageSquarePlus className="h-4 w-4" />
         </Button>
-        <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())} placeholder={t("pages.copilot.placeholder")} disabled={busy} />
-        <Button onClick={send} disabled={busy} size="icon">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
+        <div className="flex-1 flex flex-col">
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
+            placeholder={exhausted ? "AI credits exhausted — upgrade or add a BYO key" : t("pages.copilot.placeholder")}
+            disabled={busy || exhausted}
+          />
+          {hasCap && !unlimited && (
+            <div className={`text-[10px] mt-1 px-1 ${exhausted ? "text-destructive" : (remaining ?? 0) <= Math.max(5, Math.round((limit as number) * 0.2)) ? "text-warning" : "text-muted-foreground"}`}>
+              {exhausted ? (
+                <>0 AI credits left. <Link to="/pricing" className="underline">Upgrade</Link> or <Link to="/settings?tab=Connections" className="underline">add your key</Link>. Paper trading still works.</>
+              ) : (
+                <>{remaining} AI credits left this month · <Link to="/ai-usage" className="underline">view usage</Link></>
+              )}
+            </div>
+          )}
+        </div>
+        <Button onClick={send} disabled={busy || exhausted} size="icon" title={exhausted ? "AI credits exhausted" : "Send"}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
       </div>
       <FeedbackDialog
         open={feedbackOpen}

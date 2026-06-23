@@ -82,6 +82,8 @@ import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
 import { ThemeProvider } from "./hooks/useTheme";
 import AdminSettings from "./pages/AdminSettings";
+import AdminAiQuotas from "./pages/AdminAiQuotas";
+import AiUsageHistory from "./pages/AiUsageHistory";
 import Advisor from "./pages/Advisor";
 import Household from "./pages/Household";
 import AppShell from "./components/AppShell";
@@ -181,6 +183,8 @@ const App = () => (
             <Route path="/privacy-settings" element={<PrivacySettings />} />
             <Route path="/admin/audit" element={<OwnerRoute><AdminAuditLog /></OwnerRoute>} />
             <Route path="/admin/settings" element={<OwnerRoute><AdminSettings /></OwnerRoute>} />
+            <Route path="/admin/ai-quotas" element={<OwnerRoute><AdminAiQuotas /></OwnerRoute>} />
+            <Route path="/ai-usage" element={<AiUsageHistory />} />
             <Route path="/advisor" element={<Advisor />} />
             <Route path="/household" element={<Household />} />
             <Route path="/owner" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />

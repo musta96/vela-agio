@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Search, RefreshCw, Power, Eye } from "lucide-react";
+import { Shield, Search, RefreshCw, Power, Eye, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const CATEGORY_LABELS: Record<string, string> = {
   monetization: "Monetization & Pricing",
@@ -107,6 +108,9 @@ export default function AdminSettings() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="gap-1"><Power className="h-3 w-3" /> {totalOn}/{total} on</Badge>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/admin/ai-quotas"><Sparkles className="h-3.5 w-3.5 mr-1" />AI quotas</Link>
+            </Button>
             <Button size="sm" variant="outline" onClick={() => refresh()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh</Button>
           </div>
         </div>

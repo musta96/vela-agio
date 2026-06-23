@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TickerSearch } from "@/components/TickerSearch";
 
 interface Rule {
   id: string;
@@ -319,12 +320,16 @@ const Alerts = () => {
             </div>
             <div>
               <Label className="text-xs">Symbol</Label>
-              <Input
-                placeholder="e.g. ENI.MI"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                disabled={!currentKind.symbolRequired}
-              />
+              {currentKind.symbolRequired ? (
+                <TickerSearch
+                  value={symbol}
+                  onValueChange={setSymbol}
+                  onSelect={(h) => setSymbol(h.symbol)}
+                  placeholder="Search any ticker, company, ETF…"
+                />
+              ) : (
+                <Input placeholder="—" value="" disabled />
+              )}
             </div>
             <div>
               <Label className="text-xs">{currentKind.thresholdLabel ?? "-"}</Label>

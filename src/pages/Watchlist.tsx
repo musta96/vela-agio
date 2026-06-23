@@ -12,9 +12,10 @@ import { useMemo, useState } from "react";
 import { AlertSettingsDialog } from "@/components/AlertSettingsDialog";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAlertMonitor } from "@/hooks/useAlertMonitor";
+import { TickerSearch } from "@/components/TickerSearch";
 
 const Watchlist = () => {
-  const { items, remove } = useWatchlist();
+  const { items, remove, add, isWatched } = useWatchlist();
   const { toast } = useToast();
   const symbols = useMemo(() => items.map((i) => i.symbol), [items]);
   const { quotes, loading, lastUpdated, refresh } = useLiveQuotes(symbols, 30000);
@@ -25,6 +26,15 @@ const Watchlist = () => {
   const handleRemove = (symbol: string, name: string) => {
     remove(symbol);
     toast({ title: "Removed from watchlist", description: `${symbol} - ${name}` });
+  };
+
+  const handleAdd = (hit: { symbol: string; name: string }) => {
+    if (isWatched(hit.symbol)) {
+      toast({ title: "Already on watchlist", description: `${hit.symbol} — ${hit.name}` });
+      return;
+    }
+    add(hit.symbol, hit.name);
+    toast({ title: "Added to watchlist", description: `${hit.symbol} — ${hit.name}` });
   };
 
   const armed = rules.filter((r) => r.enabled).length;
@@ -41,9 +51,6 @@ const Watchlist = () => {
         description={`${items.length} stock${items.length === 1 ? "" : "s"} tracked · ${armed} alert${armed === 1 ? "" : "s"} armed · ${history.length} firing right now`}
         actions={
           <>
-            <Button variant="outline" size="sm" className="gap-2" asChild>
-              <Link to="/dashboard"><Plus className="h-4 w-4" /> Add ticker</Link>
-            </Button>
             <Button variant="outline" size="sm" className="gap-2">
               <Bell className="h-4 w-4" /> Manage alerts
             </Button>
@@ -53,6 +60,17 @@ const Watchlist = () => {
           </>
         }
       />
+
+      <div className="rounded-2xl border border-border bg-card px-5 py-4">
+        <div className="flex items-center gap-2 mb-2 text-sm font-medium">
+          <Plus className="h-4 w-4 text-primary" /> Add to watchlist
+        </div>
+        <TickerSearch
+          onSelect={handleAdd}
+          placeholder="Search any company, ETF, index, crypto on any exchange…"
+          clearOnSelect
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
         {/* Main list */}

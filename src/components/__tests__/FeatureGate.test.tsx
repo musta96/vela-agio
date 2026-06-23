@@ -93,7 +93,7 @@ describe("<FeatureGate />", () => {
     // The effect fires asynchronously after mount.
     await new Promise((r) => setTimeout(r, 0));
     expect(insertSpy).toHaveBeenCalledTimes(1);
-    expect(insertSpy.mock.calls[0][0]).toMatchObject({
+    expect((insertSpy.mock.calls[0] as any[])[0]).toMatchObject({
       user_id: "u1",
       feature_key: "ai.deep_research",
       current_tier: "free",

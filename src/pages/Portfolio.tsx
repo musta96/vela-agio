@@ -67,6 +67,17 @@ const Portfolio = () => {
   const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [memoLoading, setMemoLoading] = useState(false);
+  // Investment memo configuration (range, sections, MC params).
+  const HORIZON_PRESETS = { "3M": 63, "6M": 126, "1Y": 252 } as const;
+  type MemoRangeKey = "3M" | "6M" | "1Y" | "Custom";
+  const RANGE_TO_MARKET: Record<MemoRangeKey, string> = { "3M": "3mo", "6M": "6mo", "1Y": "1y", "Custom": "1y" };
+  const [memoRange, setMemoRange] = useState<MemoRangeKey>("1Y");
+  const [memoCustomDays, setMemoCustomDays] = useState<number>(252);
+  const [memoPaths, setMemoPaths] = useState<number>(1500);
+  const [memoSections, setMemoSections] = useState<MemoSections>(DEFAULT_MEMO_SECTIONS);
+  // Multi-select confidence levels for VaR/CVaR.
+  const CONF_OPTIONS = [0.90, 0.95, 0.99] as const;
+  const [memoConfidences, setMemoConfidences] = useState<number[]>([0.95, 0.99]);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
     return local.map((s) => ({

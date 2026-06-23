@@ -50,7 +50,13 @@ import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
 import { useStableMemo } from "@/lib/computeCache";
 import { getInstrumentMeta } from "@/lib/instrumentMeta";
 import { buildQuantShareUrl, decodeQuantParam } from "@/lib/quantShareLink";
-import { exportQuantCsv, exportQuantPdf } from "@/lib/quantPanelExport";
+import {
+  exportQuantCsv,
+  exportQuantPdf,
+  exportFactorsCsv,
+  exportFactorsPdf,
+} from "@/lib/quantPanelExport";
+import { bootstrapMonteCarloCached } from "@/lib/bootstrapMonteCarlo";
 
 export interface BacktestQuantPanelProps {
   /** Equity curve (t = ms, value = portfolio value, benchmark optional). */
@@ -64,56 +70,15 @@ export interface BacktestQuantPanelProps {
   range?: string;
 }
 
-/** Mulberry32 — deterministic PRNG keyed by `seed`. */
-function rng(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Bootstrap (sample with replacement) `paths` × `horizon` returns from `rets`. */
-function bootstrapMonteCarlo(
-  rets: number[],
-  startValue: number,
-  horizonDays: number,
-  paths: number,
-  seed = 42,
-): { finals: number[]; fan: { step: number; p05: number; p50: number; p95: number }[] } {
-  if (!rets.length || startValue <= 0) return { finals: [], fan: [] };
-  const rand = rng(seed);
-  const allPaths: number[][] = [];
-  const finals: number[] = [];
-  for (let p = 0; p < paths; p++) {
-    let v = startValue;
-    const path: number[] = [startValue];
-    for (let d = 0; d < horizonDays; d++) {
-      const r = rets[Math.floor(rand() * rets.length)];
-      v *= 1 + r;
-      path.push(v);
-    }
-    allPaths.push(path);
-    finals.push(v);
-  }
-  // Build fan chart at ~36 sample points along the horizon.
-  const samples = Math.min(36, horizonDays);
-  const stride = Math.max(1, Math.floor(horizonDays / samples));
-  const fan: { step: number; p05: number; p50: number; p95: number }[] = [];
-  for (let s = 0; s <= horizonDays; s += stride) {
-    const slice = allPaths.map((p) => p[s]);
-    fan.push({
-      step: s,
-      p05: quantile(slice, 0.05),
-      p50: quantile(slice, 0.50),
-      p95: quantile(slice, 0.95),
-    });
-  }
-  return { finals, fan };
-}
+/**
+ * Factor drill-down target. A clicked factor row carries the bucket kind +
+ * key (e.g. {kind:"sector", key:"Technology"}); a clicked correlation cell
+ * carries the pair of symbols. The drill-down sheet resolves the matching
+ * holdings and explains why each contributes.
+ */
+type FactorDrill =
+  | { type: "bucket"; kind: "assetClass" | "sector" | "geography"; key: string }
+  | { type: "pair"; a: string; b: string };
 
 const HORIZON_PRESETS: { label: "3M" | "6M" | "1Y" | "3Y"; days: number }[] = [
   { label: "3M", days: 63 },
@@ -139,6 +104,7 @@ export function BacktestQuantPanel({
   const [confidences, setConfidences] = useState<number[]>([0.95, 0.99]);
   const [openScenario, setOpenScenario] = useState<ScenarioImpact | null>(null);
   const [openVar, setOpenVar] = useState<{ confidence: number; varPct: number; cvarPct: number } | null>(null);
+  const [openFactor, setOpenFactor] = useState<FactorDrill | null>(null);
 
   const horizonLabel = useMemo(() => {
     const found = HORIZON_PRESETS.find((p) => p.days === horizonDays);
@@ -194,7 +160,7 @@ export function BacktestQuantPanel({
 
   // Monte Carlo bootstrap — content-keyed cache to avoid recompute on rerender.
   const mc = useStableMemo(
-    () => bootstrapMonteCarlo(rets, startValue, horizonDays, paths),
+    () => bootstrapMonteCarloCached(rets, startValue, horizonDays, paths),
     { n: rets.length, startValue, horizonDays, paths },
   );
 
@@ -631,15 +597,65 @@ export function BacktestQuantPanel({
 
           {/* Factors & Correlations */}
           <TabsContent value="factors" className="space-y-4 pt-3">
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() =>
+                  exportFactorsCsv({
+                    basket: holdings.map((h) => ({ symbol: h.symbol, weight: h.weight, name: h.name })),
+                    factors: factorBreakdown,
+                    coMovement,
+                    strategy,
+                    range,
+                    currency,
+                  })
+                }
+                aria-label="Export factors CSV"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" /> CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() =>
+                  exportFactorsPdf({
+                    basket: holdings.map((h) => ({ symbol: h.symbol, weight: h.weight, name: h.name })),
+                    factors: factorBreakdown,
+                    coMovement,
+                    strategy,
+                    range,
+                    currency,
+                  })
+                }
+                aria-label="Export factors PDF"
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" /> PDF
+              </Button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               <Stat label="Asset-class HHI" value={factorBreakdown.hhi.assetClass.toFixed(2)} tone={factorBreakdown.hhi.assetClass > 0.4 ? "bear" : "muted"} />
               <Stat label="Sector HHI" value={factorBreakdown.hhi.sector.toFixed(2)} tone={factorBreakdown.hhi.sector > 0.4 ? "bear" : "muted"} />
               <Stat label="Geography HHI" value={factorBreakdown.hhi.geography.toFixed(2)} tone={factorBreakdown.hhi.geography > 0.4 ? "bear" : "muted"} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <FactorTable title="Asset class" rows={factorBreakdown.assetClass} />
-              <FactorTable title="Sector" rows={factorBreakdown.sector} />
-              <FactorTable title="Geography" rows={factorBreakdown.geography} />
+              <FactorTable
+                title="Asset class"
+                rows={factorBreakdown.assetClass}
+                onSelect={(key) => setOpenFactor({ type: "bucket", kind: "assetClass", key })}
+              />
+              <FactorTable
+                title="Sector"
+                rows={factorBreakdown.sector}
+                onSelect={(key) => setOpenFactor({ type: "bucket", kind: "sector", key })}
+              />
+              <FactorTable
+                title="Geography"
+                rows={factorBreakdown.geography}
+                onSelect={(key) => setOpenFactor({ type: "bucket", kind: "geography", key })}
+              />
             </div>
             <div className="rounded-lg border border-border p-3">
               <div className="flex items-center justify-between mb-2">
@@ -665,15 +681,26 @@ export function BacktestQuantPanel({
                           <td className="px-1 py-0.5 font-mono text-muted-foreground">{coMovement.symbols[i]}</td>
                           {row.map((v, j) => {
                             const intensity = Math.round(v * 255);
+                            const symA = coMovement.symbols[i];
+                            const symB = coMovement.symbols[j];
+                            const isSelf = symA === symB;
                             return (
                               <td
                                 key={j}
-                                className="w-7 h-7 text-center font-mono text-[10px]"
+                                className={`w-7 h-7 text-center font-mono text-[10px] ${isSelf ? "" : "cursor-pointer hover:outline hover:outline-2 hover:outline-primary/60"}`}
                                 style={{
                                   background: `hsl(var(--primary) / ${v.toFixed(2)})`,
                                   color: v > 0.55 ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))",
                                 }}
                                 title={`${coMovement.symbols[i]} ↔ ${coMovement.symbols[j]} ≈ ${v.toFixed(2)}`}
+                                onClick={isSelf ? undefined : () => setOpenFactor({ type: "pair", a: symA, b: symB })}
+                                role={isSelf ? undefined : "button"}
+                                tabIndex={isSelf ? -1 : 0}
+                                aria-label={isSelf ? undefined : `Open attribution for ${symA} vs ${symB}`}
+                                onKeyDown={(e) => {
+                                  if (isSelf) return;
+                                  if (e.key === "Enter" || e.key === " ") setOpenFactor({ type: "pair", a: symA, b: symB });
+                                }}
                               >
                                 {intensity > -1 ? v.toFixed(2) : ""}
                               </td>
@@ -687,7 +714,8 @@ export function BacktestQuantPanel({
               )}
               <p className="mt-2 text-[10px] text-muted-foreground italic">
                 Meta-derived proxy (asset class · sector · geography overlap). Use the Optimizer page for full
-                return-history Pearson correlation. Concentrated factor exposure here narrows Monte Carlo
+                return-history Pearson correlation. Click any factor row or matrix cell to open the per-holding
+                attribution. Concentrated factor exposure here narrows Monte Carlo
                 dispersion and amplifies macro-scenario tails.
               </p>
             </div>
@@ -813,6 +841,137 @@ export function BacktestQuantPanel({
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Factor / correlation drill-down */}
+      <Sheet open={!!openFactor} onOpenChange={(o) => { if (!o) setOpenFactor(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+          {openFactor && (() => {
+            if (openFactor.type === "bucket") {
+              const matches = holdings
+                .map((h) => ({ h, meta: getInstrumentMeta(h.symbol) }))
+                .filter(({ meta }) => {
+                  if (openFactor.kind === "assetClass") return meta.assetClass === openFactor.key;
+                  if (openFactor.kind === "sector") return meta.sector === openFactor.key;
+                  return meta.geography === openFactor.key;
+                })
+                .sort((a, b) => b.h.weight - a.h.weight);
+              const bucketWeight = matches.reduce((s, m) => s + Math.max(0, m.h.weight), 0);
+              const totalWeight = holdings.reduce((s, h) => s + Math.max(0, h.weight), 0) || 1;
+              const bucketLabel = openFactor.kind === "assetClass" ? "Asset class"
+                : openFactor.kind === "sector" ? "Sector" : "Geography";
+              return (
+                <>
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-primary" /> {bucketLabel} · {openFactor.key}
+                    </SheetTitle>
+                    <SheetDescription>
+                      Which holdings drive this factor exposure and how it propagates into Monte Carlo dispersion and macro tails.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Stat label="Bucket weight" value={fmtWeight(bucketWeight)} tone="muted" />
+                    <Stat label="Share of portfolio" value={fmtWeight(bucketWeight / totalWeight)} tone={bucketWeight / totalWeight > 0.4 ? "bear" : "muted"} />
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Contributing holdings</div>
+                    {matches.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No holdings tagged with this bucket.</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left border-b border-border text-[10px] uppercase text-muted-foreground">
+                            <th className="py-1 px-2">Symbol</th>
+                            <th className="py-1 px-2">Name</th>
+                            <th className="py-1 px-2 text-right">Weight</th>
+                            <th className="py-1 px-2 text-right">Share of bucket</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map(({ h }) => (
+                            <tr key={h.symbol} className="border-b border-border/40">
+                              <td className="py-1 px-2 font-mono">{h.symbol}</td>
+                              <td className="py-1 px-2 text-xs text-muted-foreground">{h.name ?? ""}</td>
+                              <td className="py-1 px-2 text-right font-mono">{fmtWeight(h.weight)}</td>
+                              <td className="py-1 px-2 text-right font-mono text-muted-foreground">
+                                {bucketWeight > 0 ? fmtWeight(h.weight / bucketWeight) : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                  <p className="mt-3 text-[10px] text-muted-foreground italic">
+                    A high bucket share means scenario shocks targeting "{openFactor.key}" hit a larger fraction of NAV — see the Macro scenarios tab for the realised P/L.
+                  </p>
+                </>
+              );
+            }
+            // Pair drill-down
+            const ha = holdings.find((h) => h.symbol === openFactor.a);
+            const hb = holdings.find((h) => h.symbol === openFactor.b);
+            const ma = ha ? getInstrumentMeta(ha.symbol) : null;
+            const mb = hb ? getInstrumentMeta(hb.symbol) : null;
+            const idxA = coMovement.symbols.indexOf(openFactor.a);
+            const idxB = coMovement.symbols.indexOf(openFactor.b);
+            const rho = idxA >= 0 && idxB >= 0 ? coMovement.matrix[idxA][idxB] : 0;
+            const overlaps: string[] = [];
+            if (ma && mb) {
+              if (ma.assetClass === mb.assetClass) overlaps.push(`asset class · ${ma.assetClass}`);
+              if (ma.sector === mb.sector) overlaps.push(`sector · ${ma.sector}`);
+              if (ma.geography === mb.geography) overlaps.push(`geography · ${ma.geography}`);
+            }
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-primary" /> {openFactor.a} ↔ {openFactor.b}
+                  </SheetTitle>
+                  <SheetDescription>
+                    Why the co-movement proxy estimates ρ̂ ≈ {rho.toFixed(2)} between this pair.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Stat label="Pairwise ρ̂" value={rho.toFixed(2)} tone={rho > 0.6 ? "bear" : "muted"} />
+                  <Stat label="Shared traits" value={String(overlaps.length)} tone={overlaps.length >= 2 ? "bear" : "muted"} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  {[{ h: ha, m: ma, sym: openFactor.a }, { h: hb, m: mb, sym: openFactor.b }].map(({ h, m, sym }) => (
+                    <div key={sym} className="rounded-md border border-border p-3">
+                      <div className="font-mono text-xs text-muted-foreground">{sym}</div>
+                      <div className="text-sm font-medium truncate">{h?.name ?? "—"}</div>
+                      <div className="mt-2 space-y-0.5 text-xs">
+                        <div>Weight: <span className="font-mono">{h ? fmtWeight(h.weight) : "—"}</span></div>
+                        {m && (
+                          <>
+                            <div>Asset class: <Badge variant="outline" className="text-[10px] font-normal ml-1">{m.assetClass}</Badge></div>
+                            <div>Sector: <Badge variant="outline" className="text-[10px] font-normal ml-1">{m.sector}</Badge></div>
+                            <div>Geography: <Badge variant="outline" className="text-[10px] font-normal ml-1">{m.geography}</Badge></div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Driving overlaps</div>
+                  {overlaps.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No shared metadata buckets — proxy ρ̂ reflects the baseline floor only.</p>
+                  ) : (
+                    <ul className="text-sm list-disc list-inside space-y-0.5">
+                      {overlaps.map((o) => <li key={o}>{o}</li>)}
+                    </ul>
+                  )}
+                </div>
+                <p className="mt-3 text-[10px] text-muted-foreground italic">
+                  Proxy = 0.05 baseline + 0.40 (asset class) + 0.35 (sector) + 0.15 (geography), capped at 0.95. Use the Optimizer for full return-history Pearson correlation.
+                </p>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
@@ -857,7 +1016,15 @@ function ClickableStat({
   );
 }
 
-function FactorTable({ title, rows }: { title: string; rows: { key: string; weight: number }[] }) {
+function FactorTable({
+  title,
+  rows,
+  onSelect,
+}: {
+  title: string;
+  rows: { key: string; weight: number }[];
+  onSelect?: (key: string) => void;
+}) {
   return (
     <div className="rounded-lg border border-border p-3">
       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
@@ -866,15 +1033,25 @@ function FactorTable({ title, rows }: { title: string; rows: { key: string; weig
       ) : (
         <div className="space-y-1.5">
           {rows.map((r) => (
-            <div key={r.key} className="space-y-0.5">
+            <button
+              key={r.key}
+              type="button"
+              onClick={onSelect ? () => onSelect(r.key) : undefined}
+              disabled={!onSelect}
+              className={`w-full text-left space-y-0.5 rounded-md px-1.5 py-1 -mx-1.5 transition-colors ${onSelect ? "cursor-pointer hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40" : "cursor-default"}`}
+              aria-label={onSelect ? `Open attribution for ${title} · ${r.key}` : undefined}
+            >
               <div className="flex items-center justify-between text-xs">
-                <span className="truncate" title={r.key}>{r.key}</span>
+                <span className="truncate flex items-center gap-1" title={r.key}>
+                  {r.key}
+                  {onSelect && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                </span>
                 <span className="font-mono text-muted-foreground">{(r.weight * 100).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-primary" style={{ width: `${Math.min(100, r.weight * 100)}%` }} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

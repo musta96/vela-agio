@@ -228,3 +228,161 @@ export function exportQuantPdf(
 
   doc.save(`${slug(input)}.pdf`);
 }
+
+/* ------------------------------------------------------------------ */
+/* Factors tab — CSV + PDF for factor attribution + co-movement matrix */
+/* ------------------------------------------------------------------ */
+
+export interface FactorRow {
+  key: string;
+  weight: number; // 0..1
+}
+
+export interface FactorBreakdownExport {
+  assetClass: FactorRow[];
+  sector: FactorRow[];
+  geography: FactorRow[];
+  hhi: { assetClass: number; sector: number; geography: number };
+}
+
+export interface CoMovementExport {
+  symbols: string[];
+  matrix: number[][];
+  avg: number;
+}
+
+export interface FactorsExportInput {
+  basket: { symbol: string; weight: number; name?: string }[];
+  factors: FactorBreakdownExport;
+  coMovement: CoMovementExport;
+  strategy?: string;
+  range?: string;
+  currency: string;
+}
+
+function factorsSlug(input: FactorsExportInput): string {
+  const sym = input.basket.map((b) => b.symbol).join("-");
+  return `${sym || "basket"}_factors_${new Date().toISOString().slice(0, 10)}`
+    .replace(/[^a-zA-Z0-9_\-]/g, "_");
+}
+
+export function exportFactorsCsv(input: FactorsExportInput): void {
+  const rows: CsvRow[] = [];
+  rows.push(["Factor Attribution & Co-Movement"]);
+  rows.push(["Generated", new Date().toISOString()]);
+  if (input.strategy) rows.push(["Strategy", input.strategy]);
+  if (input.range) rows.push(["Range", input.range]);
+  rows.push([]);
+
+  rows.push(["Concentration (HHI · 0–1, higher = more concentrated)"]);
+  rows.push(["Bucket", "HHI"]);
+  rows.push(["Asset class", input.factors.hhi.assetClass.toFixed(4)]);
+  rows.push(["Sector", input.factors.hhi.sector.toFixed(4)]);
+  rows.push(["Geography", input.factors.hhi.geography.toFixed(4)]);
+  rows.push([]);
+
+  const writeBucket = (title: string, items: FactorRow[]) => {
+    rows.push([title]);
+    rows.push(["Bucket", "Weight %"]);
+    items.forEach((r) => rows.push([r.key, (r.weight * 100).toFixed(2)]));
+    rows.push([]);
+  };
+  writeBucket("Asset class", input.factors.assetClass);
+  writeBucket("Sector", input.factors.sector);
+  writeBucket("Geography", input.factors.geography);
+
+  rows.push(["Pairwise co-movement proxy"]);
+  rows.push(["Average pairwise score", input.coMovement.avg.toFixed(4)]);
+  rows.push(["Symbol", ...input.coMovement.symbols]);
+  input.coMovement.matrix.forEach((row, i) => {
+    rows.push([input.coMovement.symbols[i], ...row.map((v) => v.toFixed(3))]);
+  });
+
+  downloadCsv(`${factorsSlug(input)}.csv`, rows);
+}
+
+export function exportFactorsPdf(input: FactorsExportInput): void {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 40;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("Factor Attribution & Co-Movement", margin, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(110);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, margin, 68);
+  doc.setTextColor(0);
+
+  autoTable(doc, {
+    startY: 90,
+    head: [["Concentration", "HHI"]],
+    body: [
+      ["Asset class", input.factors.hhi.assetClass.toFixed(3)],
+      ["Sector", input.factors.hhi.sector.toFixed(3)],
+      ["Geography", input.factors.hhi.geography.toFixed(3)],
+    ],
+    theme: "striped",
+    headStyles: { fillColor: [15, 27, 61] },
+    styles: { fontSize: 10 },
+    margin: { left: margin, right: margin },
+  });
+
+  const renderBucket = (title: string, items: FactorRow[]) => {
+    const last = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16;
+    if (last > 720) { doc.addPage(); }
+    autoTable(doc, {
+      startY: last > 720 ? 50 : last,
+      head: [[title, "Weight %"]],
+      body: items.map((r) => [r.key, (r.weight * 100).toFixed(2)]),
+      theme: "striped",
+      headStyles: { fillColor: [15, 27, 61] },
+      styles: { fontSize: 10 },
+      margin: { left: margin, right: margin },
+    });
+  };
+  renderBucket("Asset class", input.factors.assetClass);
+  renderBucket("Sector", input.factors.sector);
+  renderBucket("Geography", input.factors.geography);
+
+  // Co-movement matrix on its own page.
+  if (input.coMovement.symbols.length) {
+    doc.addPage();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(`Pairwise co-movement proxy (avg ${input.coMovement.avg.toFixed(2)})`, margin, 50);
+    autoTable(doc, {
+      startY: 64,
+      head: [["", ...input.coMovement.symbols]],
+      body: input.coMovement.matrix.map((row, i) => [
+        input.coMovement.symbols[i],
+        ...row.map((v) => v.toFixed(2)),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [15, 27, 61] },
+      styles: { fontSize: 8, halign: "center" },
+      columnStyles: { 0: { fontStyle: "bold", halign: "left" } },
+      margin: { left: margin, right: margin },
+      didParseCell: (data) => {
+        if (data.section !== "body" || data.column.index === 0) return;
+        const v = Number(data.cell.text?.[0] ?? 0);
+        if (!Number.isFinite(v)) return;
+        const tint = Math.round(255 - v * 180);
+        data.cell.styles.fillColor = [tint, tint, 255];
+      },
+    });
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    const y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16;
+    doc.text(
+      "Meta-derived proxy (asset class · sector · geography overlap). Full return-history Pearson correlation lives in the Optimizer.",
+      margin,
+      y,
+      { maxWidth: pageWidth - margin * 2 },
+    );
+  }
+
+  doc.save(`${factorsSlug(input)}.pdf`);
+}

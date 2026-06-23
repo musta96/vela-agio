@@ -9,10 +9,15 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// ── Mocks (hoisted so the factories can reference shared state) ──────
-const recorder = vi.hoisted(() => {
-  const textCalls: string[] = [];
-  const autoTableCalls: Array<{ head: unknown[]; body: unknown[] }> = [];
+// ── Mocks (only plain arrays are shared via vi.hoisted) ──────────────
+const recorder = vi.hoisted(() => ({
+  textCalls: [] as string[],
+  autoTableCalls: [] as Array<{ head: unknown[]; body: unknown[] }>,
+}));
+
+vi.mock("jspdf", () => {
+  // Class is defined inside the factory so its evaluation order is safe
+  // — vi.hoisted hoists ONLY the recorder data, not class declarations.
   class FakeDoc {
     internal = { pageSize: { getWidth: () => 210, getHeight: () => 297 } };
     lastAutoTable: { finalY: number } | null = { finalY: 60 };
@@ -22,16 +27,15 @@ const recorder = vi.hoisted(() => {
     getNumberOfPages() { return 1; }
     splitTextToSize(text: string) { return [String(text)]; }
     text(arg: unknown) {
-      if (Array.isArray(arg)) textCalls.push(arg.map(String).join("\n"));
-      else if (typeof arg === "string") textCalls.push(arg);
+      if (Array.isArray(arg)) recorder.textCalls.push(arg.map(String).join("\n"));
+      else if (typeof arg === "string") recorder.textCalls.push(arg);
     }
     output(kind: string) { return kind === "bloburl" ? "blob:mock" : ""; }
     save() {}
   }
-  return { textCalls, autoTableCalls, FakeDoc };
+  return { default: FakeDoc };
 });
 
-vi.mock("jspdf", () => ({ default: recorder.FakeDoc }));
 vi.mock("jspdf-autotable", () => ({
   default: (_doc: unknown, opts: { head?: unknown[]; body?: unknown[] }) => {
     recorder.autoTableCalls.push({ head: opts.head ?? [], body: opts.body ?? [] });

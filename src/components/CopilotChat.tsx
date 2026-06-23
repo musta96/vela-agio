@@ -158,6 +158,14 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     }
   };
 
+  // Allow external "History" buttons (e.g. on /copilot header) to open the
+  // conversation list as a Sheet — useful on mobile where the sidebar is hidden.
+  useEffect(() => {
+    const onOpen = () => setHistoryOpen(true);
+    window.addEventListener("copilot:open-history", onOpen);
+    return () => window.removeEventListener("copilot:open-history", onOpen);
+  }, []);
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const onPickFiles = async (files: FileList | null) => {

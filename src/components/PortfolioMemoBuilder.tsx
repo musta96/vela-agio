@@ -15,6 +15,8 @@ import {
   type GeneratePortfolioMemoOptions,
   type RiskProfile,
 } from "@/lib/generatePortfolioMemo";
+import { requestMemoPdf } from "@/lib/memo/client";
+import { legacyPortfolioToMemoInput } from "@/lib/memo/adapter";
 import {
   listThesisVersions,
   saveThesisVersion,
@@ -184,7 +186,24 @@ export function PortfolioMemoBuilder({
         thesisVersion: savedVersion
           ? { id: savedVersion.id, label: savedVersion.name, savedAt: savedVersion.savedAt }
           : undefined,
+        download: false,
       });
+      // Render the polished PDF server-side from the structured analysis object.
+      await requestMemoPdf(
+        legacyPortfolioToMemoInput({
+          allocation: parsedAllocation,
+          strategyThesis: thesis,
+          goals,
+          riskProfile,
+          portfolioName,
+          currency,
+          customSections: {
+            executiveSummary: customExec || undefined,
+            riskAssessment: customRisk || undefined,
+            catalystsAndRisks: customCatalysts || undefined,
+          },
+        }),
+      );
       if (exportData) downloadMemoCsvBundle(res.data);
       toast({
         title: "Portfolio memo generated",

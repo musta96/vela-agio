@@ -1,4 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 
 async function resolveOrCreateCustomer(
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await req.json();
-    const { priceId, quantity, customerEmail, userId, returnUrl, environment } = body ?? {};
+    const { priceId, quantity, customerEmail, userId, returnUrl, environment, referralCode } = body ?? {};
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
     if (!returnUrl) throw new Error("returnUrl required");
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";
@@ -58,6 +59,19 @@ Deno.serve(async (req) => {
       productDescription = product.name;
     }
 
+    // Resolve optional referral code -> Stripe discount
+    let discounts: { coupon: string }[] | undefined;
+    if (referralCode && typeof referralCode === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(referralCode)) {
+      try {
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const { data } = await sb.rpc("lookup_referral_code", { _code: referralCode });
+        const r = data as any;
+        if (r?.found && r.active && !r.expired && !r.exhausted && r.kind === "discount" && r.stripe_coupon_id) {
+          discounts = [{ coupon: String(r.stripe_coupon_id) }];
+        }
+      } catch (e) { console.warn("referral lookup failed", e); }
+    }
+
     const session = await stripe.checkout.sessions.create({
       line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
       mode: isRecurring ? "subscription" : "payment",
@@ -65,9 +79,10 @@ Deno.serve(async (req) => {
       return_url: returnUrl,
       ...(customerId && { customer: customerId }),
       ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
+      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
       ...(userId && {
-        metadata: { userId },
-        ...(isRecurring && { subscription_data: { metadata: { userId } } }),
+        metadata: { userId, ...(referralCode ? { referralCode } : {}) },
+        ...(isRecurring && { subscription_data: { metadata: { userId, ...(referralCode ? { referralCode } : {}) } } }),
       }),
     });
 

@@ -18,7 +18,7 @@ const channel = {
 };
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    rpc: (...a: any[]) => rpcSpy(...a),
+    rpc: (...a: any[]) => (rpcSpy as any)(...a),
     channel: () => channel,
     removeChannel: () => {},
   },

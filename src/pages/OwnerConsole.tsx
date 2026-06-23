@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";

@@ -2369,6 +2369,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_check_ai_quota_mapping: {
+        Args: never
+        Returns: {
+          detail: string
+          issue: string
+          tier: string
+        }[]
+      }
       admin_list_blog_leads: {
         Args: never
         Returns: {

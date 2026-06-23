@@ -43,6 +43,10 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
   const allowedRef = useRef(false);
   const firstCheckRef = useRef(true);
   const lastCheckAtRef = useRef(0);
+  // Latches on the first false→true transition and clears only when allowed
+  // flips back to false. Guarantees one toast per role-grant session even if
+  // multiple concurrent checks all observe the transition.
+  const toastedForGrantRef = useRef(false);
 
   const runCheck = useCallback((opts?: { silent?: boolean; force?: boolean }): Promise<void> => {
     if (!user) {
@@ -81,9 +85,20 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
       setAllowed(nextAllowed);
       setChecking(false);
       setRechecking(false);
-      // Notify only on the false → true transition, never on first mount.
-      if (!firstCheckRef.current && !wasAllowed && nextAllowed) {
+      // Reset the toast latch on any true → false transition so a re-grant
+      // later still notifies the user once.
+      if (wasAllowed && !nextAllowed) toastedForGrantRef.current = false;
+      // Notify only on the false → true transition, never on first mount,
+      // and at most once per role-grant session.
+      if (
+        !firstCheckRef.current &&
+        !wasAllowed &&
+        nextAllowed &&
+        !toastedForGrantRef.current
+      ) {
+        toastedForGrantRef.current = true;
         toast.success("Owner Console access granted", {
+          id: "owner-role-granted",
           description: "Your roles were updated. Opening the console…",
         });
       }
@@ -100,6 +115,7 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
     activeRef.current = true;
     firstCheckRef.current = true;
     allowedRef.current = false;
+    toastedForGrantRef.current = false;
     setChecking(true);
     runCheck({ silent: true, force: true });
     return () => { activeRef.current = false; };
@@ -120,17 +136,69 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
   }, [user, runCheck]);
 
   // Realtime: primary push channel for role grants/revocations on this user.
+  // Reconnects with exponential backoff (1s → 30s cap, full jitter) and
+  // triggers a catch-up re-check on every successful (re)subscribe so any
+  // events missed during the disconnect window are not lost.
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
-      .channel(`role-watch-${user.id}`)
-      .on(
-        "postgres_changes" as any,
-        { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
-        () => runCheck({ silent: true, force: true }),
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    let cancelled = false;
+    let attempt = 0;
+    let currentChannel: ReturnType<typeof supabase.channel> | null = null;
+    let retryTimer: number | null = null;
+
+    const clearTimer = () => {
+      if (retryTimer !== null) { window.clearTimeout(retryTimer); retryTimer = null; }
+    };
+
+    const scheduleReconnect = () => {
+      if (cancelled) return;
+      clearTimer();
+      const base = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5));
+      const delay = Math.floor(Math.random() * base); // full jitter
+      attempt += 1;
+      retryTimer = window.setTimeout(connect, delay);
+    };
+
+    const teardown = () => {
+      if (currentChannel) {
+        try { supabase.removeChannel(currentChannel); } catch { /* noop */ }
+        currentChannel = null;
+      }
+    };
+
+    const connect = () => {
+      if (cancelled) return;
+      teardown();
+      const channel = supabase
+        .channel(`role-watch-${user.id}-${Date.now()}`)
+        .on(
+          "postgres_changes" as any,
+          { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
+          () => runCheck({ silent: true, force: true }),
+        )
+        .subscribe((status: string) => {
+          if (cancelled) return;
+          if (status === "SUBSCRIBED") {
+            attempt = 0;
+            // Catch up on anything missed during the disconnect window.
+            runCheck({ silent: true, force: true });
+          } else if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            scheduleReconnect();
+          }
+        });
+      currentChannel = channel;
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      clearTimer();
+      teardown();
+    };
   }, [user, runCheck]);
 
   // Fallback poll: only while the user is on the unauthorized screen AND the

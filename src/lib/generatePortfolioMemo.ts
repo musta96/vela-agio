@@ -527,9 +527,40 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   }
   y += 20;
 
+  // Optional normalisation note + thesis version line.
+  if (normalisationNote) {
+    doc.setFillColor(254, 243, 199); // amber-100
+    doc.setDrawColor(245, 158, 11);  // amber-500
+    doc.roundedRect(14, y, w - 28, 8, 1.5, 1.5, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(146, 64, 14); // amber-900
+    doc.text("!", 17, y + 5);
+    doc.setFont("helvetica", "normal");
+    doc.text(doc.splitTextToSize(normalisationNote, w - 38), 22, y + 5);
+    doc.setTextColor(0, 0, 0);
+    y += 11;
+  }
+  if (thesisVersion?.id || thesisVersion?.label) {
+    const stamp = thesisVersion.savedAt
+      ? new Date(thesisVersion.savedAt).toLocaleString()
+      : "";
+    const label = `Thesis version: ${thesisVersion.label ?? thesisVersion.id ?? ""}${stamp ? ` · saved ${stamp}` : ""}`;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(...BRAND.muted);
+    doc.text(label, 14, y + 2);
+    doc.setTextColor(0, 0, 0);
+    y += 6;
+  }
+
   // 1. Executive Summary
   y = sectionTitle(doc, "1 · Executive Summary", y);
-  y = paragraph(doc, strategyThesis || "No strategy thesis supplied.", y);
+  y = paragraph(
+    doc,
+    customSections?.executiveSummary?.trim() || strategyThesis || "No strategy thesis supplied.",
+    y,
+  );
   if (goals.length) {
     y += 1;
     y = paragraph(doc, `Stated investor goals: ${goals.join("; ")}.`, y, "italic");

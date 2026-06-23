@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
  * Regression: /owner/referrals and /owner/feature-catalog must render inside
@@ -15,7 +15,7 @@ const OWNER_ROUTES: Array<{ path: string; activeLabel: string }> = [
   { path: "/owner/feature-catalog", activeLabel: "Feature catalog" },
 ];
 
-async function injectSession(page: Parameters<typeof test>[0] extends infer _ ? any : never, baseURL?: string) {
+async function injectSession(page: Page, baseURL?: string) {
   const sessionJson = process.env.LOVABLE_BROWSER_SUPABASE_SESSION_JSON;
   const storageKey = process.env.LOVABLE_BROWSER_SUPABASE_STORAGE_KEY;
 

@@ -9,40 +9,36 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// ── Stubs ────────────────────────────────────────────────────────────
-const textCalls: string[] = [];
-const autoTableCalls: Array<{ head: unknown[]; body: unknown[] }> = [];
-
-class FakeDoc {
-  internal = {
-    pageSize: { getWidth: () => 210, getHeight: () => 297 },
-  };
-  lastAutoTable: { finalY: number } | null = { finalY: 60 };
-
-  setFillColor() {} setDrawColor() {} setTextColor() {}
-  setFont() {} setFontSize() {} setLineWidth() {}
-  rect() {} line() {} addPage() {} setPage() {}
-  getNumberOfPages() { return 1; }
-  splitTextToSize(text: string) { return [String(text)]; }
-
-  text(arg: unknown) {
-    if (Array.isArray(arg)) textCalls.push(arg.map(String).join("\n"));
-    else if (typeof arg === "string") textCalls.push(arg);
+// ── Mocks (hoisted so the factories can reference shared state) ──────
+const recorder = vi.hoisted(() => {
+  const textCalls: string[] = [];
+  const autoTableCalls: Array<{ head: unknown[]; body: unknown[] }> = [];
+  class FakeDoc {
+    internal = { pageSize: { getWidth: () => 210, getHeight: () => 297 } };
+    lastAutoTable: { finalY: number } | null = { finalY: 60 };
+    setFillColor() {} setDrawColor() {} setTextColor() {}
+    setFont() {} setFontSize() {} setLineWidth() {}
+    rect() {} line() {} addPage() {} setPage() {}
+    getNumberOfPages() { return 1; }
+    splitTextToSize(text: string) { return [String(text)]; }
+    text(arg: unknown) {
+      if (Array.isArray(arg)) textCalls.push(arg.map(String).join("\n"));
+      else if (typeof arg === "string") textCalls.push(arg);
+    }
+    output(kind: string) { return kind === "bloburl" ? "blob:mock" : ""; }
+    save() {}
   }
+  return { textCalls, autoTableCalls, FakeDoc };
+});
 
-  output(kind: string) {
-    if (kind === "bloburl") return "blob:mock";
-    return "";
-  }
-  save() {}
-}
-
-vi.mock("jspdf", () => ({ default: FakeDoc }));
+vi.mock("jspdf", () => ({ default: recorder.FakeDoc }));
 vi.mock("jspdf-autotable", () => ({
   default: (_doc: unknown, opts: { head?: unknown[]; body?: unknown[] }) => {
-    autoTableCalls.push({ head: opts.head ?? [], body: opts.body ?? [] });
+    recorder.autoTableCalls.push({ head: opts.head ?? [], body: opts.body ?? [] });
   },
 }));
+
+const { textCalls, autoTableCalls } = recorder;
 
 // Import AFTER mocks are registered.
 import {

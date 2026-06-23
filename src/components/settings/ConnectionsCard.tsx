@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, type StoredKeyMeta } from "@/lib/userApiKeys";
+import { API_KEY_SPECS, vaultList, vaultSet, vaultDelete, vaultValidate, type StoredKeyMeta } from "@/lib/userApiKeys";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Key, Trash2, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { Key, Trash2, Loader2, ExternalLink, Sparkles, CheckCircle2 } from "lucide-react";
 import { VaultHealthCard } from "./VaultHealthCard";
 
 const AI_PROVIDERS = [
@@ -153,11 +153,29 @@ export function ConnectionsCard() {
     try {
       await vaultSet(provider, value);
       setDraft((d) => ({ ...d, [provider]: "" }));
-      toast.success("Key saved");
+      toast.success("Key validated & saved");
       load();
     } catch (e) {
-      toast.error("Failed to save key", { description: (e as Error).message });
+      const err = e as Error & { stage?: string };
+      const where = err.stage === "format"
+        ? "Invalid key format"
+        : err.stage === "live"
+          ? "Provider rejected the key"
+          : "Failed to save key";
+      toast.error(where, { description: err.message });
     } finally { setSaving(null); }
+  };
+
+  const [testing, setTesting] = useState<string | null>(null);
+  const testKey = async (provider: string) => {
+    const value = draft[provider]?.trim();
+    if (!value) return;
+    setTesting(provider);
+    try {
+      const res = await vaultValidate(provider, value);
+      if (res.ok) toast.success("Key works", { description: res.detail ?? "Provider accepted the key." });
+      else toast.error(res.stage === "format" ? "Invalid key format" : "Provider rejected the key", { description: res.error });
+    } finally { setTesting(null); }
   };
 
   const removeKey = async (provider: string) => {
@@ -259,6 +277,15 @@ export function ConnectionsCard() {
                     onKeyDown={(e) => { if (e.key === "Enter") setKey(spec.id); }}
                   />
                   <div className="flex gap-1.5 justify-end">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => testKey(spec.id)}
+                      disabled={!draft[spec.id]?.trim() || testing === spec.id || saving === spec.id}
+                      title="Validate the key against the provider without saving"
+                    >
+                      {testing === spec.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                    </Button>
                     <Button size="sm" onClick={() => setKey(spec.id)} disabled={!draft[spec.id]?.trim() || saving === spec.id}>
                       {saving === spec.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
                     </Button>

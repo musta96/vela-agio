@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, History, Settings as SettingsIcon, Check, Plus } from "lucide-react";
 import { CopilotChat } from "@/components/CopilotChat";
+import { Link } from "react-router-dom";
 
 const SUGGESTED = [
   "Brief me on today's macro",
@@ -26,8 +27,12 @@ export default function Copilot() {
         description="Context-aware co-pilot. It knows your portfolio, watchlist and risk profile."
         actions={
           <>
-            <Button variant="outline" size="sm" className="gap-2"><History className="h-4 w-4" /> History</Button>
-            <Button variant="outline" size="sm" className="gap-2"><SettingsIcon className="h-4 w-4" /> Settings</Button>
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link to="/ai-usage"><History className="h-4 w-4" /> History</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link to="/settings?tab=AI"><SettingsIcon className="h-4 w-4" /> Settings</Link>
+            </Button>
           </>
         }
       />

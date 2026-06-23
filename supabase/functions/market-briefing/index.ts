@@ -1,6 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAiAccess, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
-import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { resolveAIConfig, chatWithFallback, type AIConfig } from '../_shared/ai-provider.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
@@ -119,9 +119,11 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
     const user = `LIVE QUOTES & HEADLINES:\n${JSON.stringify(enriched).slice(0, 8000)}\n\nUSER POSITIONS:\n${JSON.stringify(positions).slice(0, 4000)}\n\nUSER WATCHLIST: ${JSON.stringify(watchlist.map((w) => w.symbol))}`;
 
     const defaultModel = modelForCap(access.modelCap, 'google/gemini-2.5-flash');
-    const cfg = access.source === 'byo'
+    const cfg: AIConfig = access.source === 'byo'
       ? await resolveAIConfig(auth)
       : {
+          provider: 'lovable',
+          effectiveProvider: 'lovable',
           model: defaultModel,
           baseURL: 'https://ai.gateway.lovable.dev/v1',
           headers: {
@@ -131,28 +133,33 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
           },
           source: 'default',
         };
-    const model = cfg.model;
-    const r = await fetch(`${cfg.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: cfg.headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: sys },
-          { role: 'user', content: user },
-        ],
-        response_format: { type: 'json_object' },
-      }),
+    const fb = await chatWithFallback(cfg, {
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: user },
+      ],
+      response_format: { type: 'json_object' },
     });
+    const r = fb.response;
+    const model = fb.modelUsed;
+    if (fb.switchedProvider || fb.attempts.some((a) => a.status === 429)) {
+      console.warn('[market-briefing] used_fallback', JSON.stringify({
+        correlationId,
+        attempts: fb.attempts,
+        modelUsed: fb.modelUsed,
+        providerUsed: fb.providerUsed,
+      }));
+    }
     if (r.status === 429) {
-      console.warn('[market-briefing] upstream_rate_limited', JSON.stringify({ correlationId, source: access.source, model }));
+      console.warn('[market-briefing] upstream_rate_limited', JSON.stringify({ correlationId, source: access.source, attempts: fb.attempts }));
       return new Response(
         JSON.stringify({
           error: 'rate_limited',
           reason: access.source === 'byo'
-            ? 'Your AI provider is rate-limiting requests right now. Please retry in a moment.'
-            : 'The shared AI service is busy right now. Please retry in a moment, or add your own API key in Settings → Connections for unlimited use.',
+            ? 'Your AI provider rate-limited every fallback model. Please retry in a moment, or switch provider in Settings → Connections.'
+            : 'The shared AI service is busy across all fallback models. Please retry in a moment, or add your own API key in Settings → Connections for unlimited use.',
           correlationId,
+          attempts: fb.attempts,
         }),
         { status: 200, headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } },
       );
@@ -176,6 +183,8 @@ Never fabricate news. Only cite headlines that appear in the data. If data is sp
     let out: any = { headline: '', body: '', highlights: [] };
     try { out = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
     out._meta = { symbols: symbols.length, hasFocus: !!focus, generatedAt: new Date().toISOString(), correlationId };
+    if (fb.notice) out._meta.fallbackNotice = fb.notice;
+    if (fb.switchedProvider) out._meta.modelUsed = fb.modelUsed;
     return new Response(JSON.stringify(out), { headers: { ...cors, 'Content-Type': 'application/json', 'x-correlation-id': correlationId } });
   } catch (e) {
     console.error('[market-briefing] unhandled', JSON.stringify({ correlationId, error: String(e) }));

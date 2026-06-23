@@ -849,7 +849,8 @@ function relTime(iso: string) {
 }
 
 function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; onKill: () => void }) {
-  const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number }[] }[] = [
+  const navigate = useNavigate();
+  const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number; href?: string }[] }[] = [
     { label: "Overview", items: [
       { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
       { key: "audit", label: "Live activity", icon: <Activity className="h-3.5 w-3.5" /> },
@@ -861,6 +862,8 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
     ]},
     { label: "Billing", items: [
       { key: "plans", label: "Plans & pricing", icon: <CreditCard className="h-3.5 w-3.5" /> },
+      { key: "feature-catalog", label: "Feature catalog", icon: <ListChecks className="h-3.5 w-3.5" />, href: "/owner/feature-catalog" },
+      { key: "referrals", label: "Referrals & beta", icon: <Gift className="h-3.5 w-3.5" />, href: "/owner/referrals" },
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
     ]},

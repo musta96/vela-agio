@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
+import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 
 const MEMORY_KEY = "vela.ai_memory_enabled";
 

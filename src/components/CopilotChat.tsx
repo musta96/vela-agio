@@ -364,6 +364,9 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
               {m.tools && m.tools.length > 0 && (
                 <div className="space-y-1">
                   {m.tools.map(tl => (
+                    tl.name === "generate_investment_memo" && tl.done && tl.result?.memo ? (
+                      <MemoArtifactCard key={tl.id} memo={tl.result.memo as InvestmentMemoData} />
+                    ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">
                         <Wrench className={`h-3 w-3 ${tl.done ? "text-primary" : "text-muted-foreground animate-pulse"}`} />
@@ -378,6 +381,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                         {tl.done && <pre className="text-[10px] opacity-80 overflow-x-auto">{JSON.stringify(tl.result, null, 2).slice(0, 1500)}</pre>}
                       </div>
                     </details>
+                    )
                   ))}
                 </div>
               )}

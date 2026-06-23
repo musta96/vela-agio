@@ -866,6 +866,22 @@ const Portfolio = () => {
           </div>
         </div>
 
+        <PortfolioMemoBuilder
+          open={strategyMemoOpen}
+          onOpenChange={setStrategyMemoOpen}
+          defaultPortfolioName={active?.name || "Portfolio Strategy"}
+          defaultCurrency={active?.base_currency || "EUR"}
+          initialAllocation={(() => {
+            const total = portfolio.reduce((s, p) => s + p.shares * p.currentPrice, 0);
+            if (!portfolio.length || total <= 0) return {};
+            const out: Record<string, number> = {};
+            for (const p of portfolio) {
+              out[p.symbol] = (out[p.symbol] ?? 0) + (p.shares * p.currentPrice) / total;
+            }
+            return out;
+          })()}
+        />
+
         {/* KPI strip - mockup v2 */}
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
           <div className="p-5 flex flex-col gap-1.5">

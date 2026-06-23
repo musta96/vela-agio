@@ -17,6 +17,7 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
+import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 
 type SubRow = {
   id: string;
@@ -127,6 +128,9 @@ export default function PlansBilling() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
   const ent = useEntitlements();
+  const { openCheckout, checkoutElement } = useStripeCheckout();
+  // Default frequency for the plan grid; we don't need a toggle here yet.
+  const billingFrequency: "monthly" | "yearly" = "monthly";
   // Beta access only *adds* features on top of a paid sub — never replaces it.
   // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
   // `betaBonus`  = user has a real paid sub AND beta_tester role.
@@ -574,20 +578,48 @@ export default function PlansBilling() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((p) => {
                 const isCurrent = matchedPlan?.id === p.id;
-                return <PlanCard key={p.id} p={p} isCurrent={isCurrent} />;
+                return (
+                  <PlanCard
+                    key={p.id}
+                    p={p}
+                    isCurrent={isCurrent}
+                    frequency={billingFrequency}
+                    onChoose={(priceId) =>
+                      openCheckout({
+                        priceId,
+                        userId: user?.id,
+                        customerEmail: user?.email ?? undefined,
+                        returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+                      })
+                    }
+                  />
+                );
               })}
             </div>
           </CardContent>
         </Card>
       )}
+      {checkoutElement}
     </div>
   );
 }
 
-function PlanCard({ p, isCurrent }: { p: PlanRow; isCurrent: boolean }) {
+function PlanCard({
+  p,
+  isCurrent,
+  frequency,
+  onChoose,
+}: {
+  p: PlanRow;
+  isCurrent: boolean;
+  frequency: "monthly" | "yearly";
+  onChoose: (priceId: string) => void;
+}) {
   const variant = useAbPriceVariant(p.id, !!p.ab_test_enabled);
   const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
   const yearly = variant === "B" && p.ab_yearly_price_cents != null ? p.ab_yearly_price_cents : p.yearly_price_cents;
+  const lookupKey = frequency === "yearly" ? p.stripe_yearly_price_id : p.stripe_monthly_price_id;
+  const canCheckout = !isCurrent && !!lookupKey;
   return (
     <div
       className={`rounded-xl border p-4 flex flex-col ${
@@ -612,17 +644,35 @@ function PlanCard({ p, isCurrent }: { p: PlanRow; isCurrent: boolean }) {
           <li>• {p.ai_monthly_quota === -1 ? "Unlimited" : p.ai_monthly_quota.toLocaleString()} AI credits / month</li>
         )}
       </ul>
-      <Button
-        asChild
-        size="sm"
-        variant={isCurrent ? "outline" : p.highlighted ? "default" : "outline"}
-        className="mt-4 w-full"
-        disabled={isCurrent}
-      >
-        <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
-          {isCurrent ? "Current plan" : "Choose"}
-        </Link>
-      </Button>
+      {canCheckout ? (
+        <Button
+          size="sm"
+          variant={p.highlighted ? "default" : "outline"}
+          className="mt-4 w-full"
+          data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
+          onClick={() => onChoose(lookupKey!)}
+        >
+          Choose
+        </Button>
+      ) : (
+        // No Stripe lookup key (Free / Enterprise / contact tiers) → keep the
+        // legacy /pricing redirect so marketing / contact-sales flow still works.
+        <Button
+          asChild={!isCurrent}
+          size="sm"
+          variant={isCurrent ? "outline" : p.highlighted ? "default" : "outline"}
+          className="mt-4 w-full"
+          disabled={isCurrent}
+        >
+          {isCurrent ? (
+            <span>Current plan</span>
+          ) : (
+            <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
+              Choose
+            </Link>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

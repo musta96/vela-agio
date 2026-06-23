@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { AnimatePresence, motion } from "motion/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Star } from "lucide-react";
 import { type FREQUENCY, FrequencyToggle } from "@/components/landing/frequency-toggle";
+import { useStripeCheckout } from "@/hooks/useStripeCheckout";
+import { useAuth } from "@/hooks/useAuth";
 
 type Plan = {
   name: string;
@@ -14,6 +16,10 @@ type Plan = {
   features: string[];
   btn: { text: string; href: string };
   highlighted?: boolean;
+  /** Stripe lookup keys backfilled on subscription_plans. Omit for free/contact tiers. */
+  lookupKey?: { monthly: string; yearly: string };
+  /** True for "Contact sales" / no self-serve checkout. */
+  contact?: boolean;
 };
 
 const plans: Plan[] = [
@@ -44,6 +50,7 @@ const plans: Plan[] = [
       "Priority support",
     ],
     btn: { text: "Start Pro trial", href: "/auth" },
+    lookupKey: { monthly: "pro_monthly", yearly: "pro_yearly" },
   },
   {
     name: "Enterprise",
@@ -57,11 +64,36 @@ const plans: Plan[] = [
       "Dedicated success manager",
     ],
     btn: { text: "Contact sales", href: "/auth" },
+    contact: true,
   },
 ];
 
 export function PricingSection() {
   const [frequency, setFrequency] = React.useState<FREQUENCY>("monthly");
+  const { openCheckout, checkoutElement } = useStripeCheckout();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  /** Single entry point used by every PricingCard CTA. */
+  const onChoose = React.useCallback((plan: Plan) => {
+    // Free tier or "Contact sales" → keep the legacy navigation.
+    if (!plan.lookupKey || plan.contact) {
+      navigate(plan.btn.href);
+      return;
+    }
+    // Stripe Embedded Checkout requires a logged-in user — bounce through /auth
+    // and return to /pricing so the user can finish the flow without losing place.
+    if (!user) {
+      navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.name.toLowerCase()}&freq=${frequency}`)}`);
+      return;
+    }
+    openCheckout({
+      priceId: plan.lookupKey[frequency],
+      userId: user.id,
+      customerEmail: user.email ?? undefined,
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+  }, [user, frequency, navigate, openCheckout]);
 
   return (
     <div className="flex w-full flex-col items-center justify-center space-y-8 p-4">
@@ -82,13 +114,16 @@ export function PricingSection() {
 
       <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
         {plans.map((plan) => (
-          <PricingCard frequency={frequency} key={plan.name} plan={plan} />
+          <PricingCard frequency={frequency} key={plan.name} plan={plan} onChoose={onChoose} />
         ))}
       </div>
 
       <p className="text-xs text-center max-w-xl" style={{ color: "#6b7a8c" }}>
         All plans include EU data hosting, GDPR-compliant data export and account deletion.
       </p>
+
+      {/* Stripe Embedded Checkout mounts inline when the hook opens it. */}
+      {checkoutElement}
     </div>
   );
 }
@@ -96,12 +131,14 @@ export function PricingSection() {
 type PricingCardProps = React.ComponentProps<"div"> & {
   plan: Plan;
   frequency?: FREQUENCY;
+  onChoose?: (plan: Plan) => void;
 };
 
 export function PricingCard({
   plan,
   className,
   frequency = "monthly",
+  onChoose,
   ...props
 }: PricingCardProps) {
   return (
@@ -203,16 +240,35 @@ export function PricingCard({
         }}
       >
         {plan.highlighted ? (
-          <Link
-            to={plan.btn.href}
-            className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold text-white shadow-md transition hover:brightness-110"
-            style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}
-          >
-            {plan.btn.text}
-          </Link>
+          onChoose ? (
+            <button
+              type="button"
+              onClick={() => onChoose(plan)}
+              data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
+              className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold text-white shadow-md transition hover:brightness-110"
+              style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}
+            >
+              {plan.btn.text}
+            </button>
+          ) : (
+            <Link
+              to={plan.btn.href}
+              className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold text-white shadow-md transition hover:brightness-110"
+              style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}
+            >
+              {plan.btn.text}
+            </Link>
+          )
         ) : (
-          <Button asChild className="w-full rounded-full" variant="outline">
-            <Link to={plan.btn.href}>{plan.btn.text}</Link>
+          <Button
+            className="w-full rounded-full"
+            variant="outline"
+            data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
+            {...(onChoose
+              ? { onClick: () => onChoose(plan) }
+              : { asChild: true } as any)}
+          >
+            {onChoose ? plan.btn.text : <Link to={plan.btn.href}>{plan.btn.text}</Link>}
           </Button>
         )}
       </div>

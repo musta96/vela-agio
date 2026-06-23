@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const used = Number(body?.used ?? 0);
     const limit = Number(body?.limit ?? 0);
     const monthKey = new Date().toISOString().slice(0, 7);
-    const type = `ai_credits_${kind}_${monthKey}`;
+    const notifKind = `ai_credits_${kind}_${monthKey}`;
 
     const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
     // Dedupe — already sent this month?
@@ -31,22 +31,22 @@ Deno.serve(async (req) => {
       .from('notifications')
       .select('id')
       .eq('user_id', u.user.id)
-      .eq('type', type)
+      .eq('kind', notifKind)
       .maybeSingle();
     if (existing) return new Response(JSON.stringify({ ok: true, deduped: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const title = kind === 'exhausted' ? 'AI credits exhausted' : 'AI credits at 80%';
-    const message = kind === 'exhausted'
+    const body = kind === 'exhausted'
       ? `You've used all ${limit} of this month's AI credits. Paper trading and the rest of the app keep working — upgrade or add your own API key to use the AI again.`
       : `You've used ${used} of ${limit} monthly AI credits (80%). Non-AI features are not affected.`;
 
     await admin.from('notifications').insert({
       user_id: u.user.id,
-      type,
+      kind: notifKind,
       title,
-      message,
+      body,
       severity: kind === 'exhausted' ? 'warning' : 'info',
-      action_url: '/ai-usage',
+      payload: { used, limit, link: '/ai-usage' },
     });
     return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {

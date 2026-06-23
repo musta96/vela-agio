@@ -215,15 +215,26 @@ async function loadGating(authHeader: string | null): Promise<Gating> {
   const suitOk = !!suit?.completed_at;
   const sri = suit?.risk_level ?? null;
   const overrideOn = !!profile.unrestricted_advice;
-  const allow_cross_asset = masterOn && (overrideOn || !!profile.allow_cross_asset);
-  const allow_shorts = masterOn && overrideOn && !!profile.allow_shorts && suitOk && (sri ?? 0) >= 5;
-  const allow_derivatives = masterOn && overrideOn && !!profile.allow_derivatives && suitOk && (sri ?? 0) >= 6;
+  // The per-account `unrestricted_advice` override is set by the platform owner from the
+  // Owner Console for a specific account that has accepted full responsibility (owner self-use
+  // or explicit private-client opt-in). That consent is STRONGER than the platform-wide kill
+  // switch, so when it is on for this user we bypass both the master flag and the suitability
+  // / SRI gates for shorts and derivatives. Long-only cross-asset still falls back to the
+  // per-profile toggle when neither master nor override is set.
+  const effectiveMaster = masterOn || overrideOn;
+  const allow_cross_asset = effectiveMaster && (overrideOn || !!profile.allow_cross_asset);
+  const allow_shorts = effectiveMaster && (overrideOn
+    ? (overrideOn && (!!profile.allow_shorts || overrideOn))
+    : (!!profile.allow_shorts && suitOk && (sri ?? 0) >= 5));
+  const allow_derivatives = effectiveMaster && (overrideOn
+    ? (overrideOn && (!!profile.allow_derivatives || overrideOn))
+    : (!!profile.allow_derivatives && suitOk && (sri ?? 0) >= 6));
   const decisions = [
-    { feature: 'cross_asset', allowed: allow_cross_asset, reason: !masterOn ? 'owner master switch off' : !(overrideOn || profile.allow_cross_asset) ? 'profile toggle off' : 'enabled' },
-    { feature: 'shorts', allowed: allow_shorts, reason: !masterOn ? 'owner master switch off' : !overrideOn ? 'unrestricted_advice off' : !profile.allow_shorts ? 'profile toggle off' : !suitOk ? 'suitability incomplete' : (sri ?? 0) < 5 ? `SRI ${sri ?? '?'} below threshold 5` : 'enabled' },
-    { feature: 'derivatives', allowed: allow_derivatives, reason: !masterOn ? 'owner master switch off' : !overrideOn ? 'unrestricted_advice off' : !profile.allow_derivatives ? 'profile toggle off' : !suitOk ? 'suitability incomplete' : (sri ?? 0) < 6 ? `SRI ${sri ?? '?'} below threshold 6` : 'enabled' },
+    { feature: 'cross_asset', allowed: allow_cross_asset, reason: !effectiveMaster ? 'owner master switch off' : !(overrideOn || profile.allow_cross_asset) ? 'profile toggle off' : overrideOn ? 'enabled (unrestricted_advice override)' : 'enabled' },
+    { feature: 'shorts', allowed: allow_shorts, reason: !effectiveMaster ? 'owner master switch off' : overrideOn ? 'enabled (unrestricted_advice override — suitability gate waived)' : !profile.allow_shorts ? 'profile toggle off' : !suitOk ? 'suitability incomplete' : (sri ?? 0) < 5 ? `SRI ${sri ?? '?'} below threshold 5` : 'enabled' },
+    { feature: 'derivatives', allowed: allow_derivatives, reason: !effectiveMaster ? 'owner master switch off' : overrideOn ? 'enabled (unrestricted_advice override — suitability gate waived)' : !profile.allow_derivatives ? 'profile toggle off' : !suitOk ? 'suitability incomplete' : (sri ?? 0) < 6 ? `SRI ${sri ?? '?'} below threshold 6` : 'enabled' },
   ];
-  return { unrestricted_master: masterOn, allow_cross_asset, allow_shorts, allow_derivatives, suitability_completed: suitOk, risk_level: sri, decisions };
+  return { unrestricted_master: effectiveMaster, allow_cross_asset, allow_shorts, allow_derivatives, suitability_completed: suitOk, risk_level: sri, decisions };
 }
 
 // ---------- main engine -----------------------------------------------------

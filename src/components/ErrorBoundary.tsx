@@ -6,6 +6,8 @@ interface Props {
   children: ReactNode;
   /** Friendly label for the surface that failed, e.g. "Risk page". */
   label?: string;
+  /** Clears a captured route error when this key changes. */
+  resetKey?: string;
   /** Custom fallback override. */
   fallback?: (reset: () => void) => ReactNode;
 }
@@ -31,6 +33,12 @@ export class ErrorBoundary extends Component<Props, State> {
     // Console-only - do not surface raw text to the user.
     // eslint-disable-next-line no-console
     console.error(`[ErrorBoundary${this.props.label ? `:${this.props.label}` : ""}]`, error, info);
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
+      this.reset();
+    }
   }
 
   reset = () => this.setState({ error: null });

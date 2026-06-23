@@ -5,7 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserDataKey } from '../_shared/data-provider.ts';
 import { PLATFORM_MAP } from '../_shared/platform-map.ts';
 import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
-import { fetchStooqQuote } from '../_shared/stooq.ts';
+import { fetchQuoteWithFallback } from '../_shared/quote-providers.ts';
 
 // =====================================================================
 // AGENTIC COPILOT — tool-calling loop
@@ -103,40 +103,12 @@ async function callEdge(authHeader: string, fn: string, body: unknown) {
 }
 
 async function fetchYahooQuote(symbol: string) {
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-  try {
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) {
-      // Yahoo returns 401 when the anonymous chart cookie is rejected and
-      // 429 under burst. Try Stooq before giving up so the model still has
-      // a live price to reason about.
-      const sq = await fetchStooqQuote(symbol);
-      if (sq) {
-        return {
-          symbol, price: sq.price, currency: sq.currency,
-          changePct: sq.change, source: 'stooq',
-        };
-      }
-      return { error: `yahoo ${r.status}`, source: 'yahoo' };
-    }
-    const j = await r.json();
-    const q = j?.quoteResponse?.result?.[0];
-    if (!q) {
-      const sq = await fetchStooqQuote(symbol);
-      if (sq) return { symbol, price: sq.price, changePct: sq.change, source: 'stooq' };
-      return { error: 'no quote' };
-    }
-    return {
-      symbol: q.symbol, name: q.longName ?? q.shortName,
-      price: q.regularMarketPrice, currency: q.currency, exchange: q.fullExchangeName,
-      changePct: q.regularMarketChangePercent, dayHigh: q.regularMarketDayHigh, dayLow: q.regularMarketDayLow,
-      marketCap: q.marketCap, peTrailing: q.trailingPE, dividendYield: q.trailingAnnualDividendYield,
-    };
-  } catch (e: any) {
-    const sq = await fetchStooqQuote(symbol);
-    if (sq) return { symbol, price: sq.price, changePct: sq.change, source: 'stooq' };
-    return { error: e?.message ?? 'fetch failed' };
-  }
+  // Multi-provider quote chain: Yahoo → Stooq → Finnhub → Alpaca → Twelve Data.
+  // Each provider is auto-skipped if its API key is missing. We surface the
+  // attempt log so the model can explain to the user when something is off.
+  const res = await fetchQuoteWithFallback(symbol);
+  if ('price' in res) return res;
+  return { error: res.error, attempts: res.attempts };
 }
 
 async function execTool(name: string, args: any, ctx: { authHeader: string }): Promise<any> {

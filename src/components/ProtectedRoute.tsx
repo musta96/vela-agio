@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import NotFound from "@/pages/NotFound";
 import OwnerUnauthorized from "@/pages/OwnerUnauthorized";
+import { toast } from "sonner";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -35,48 +36,90 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
   const [rechecking, setRechecking] = useState(false);
   const activeRef = useRef(true);
 
-  const runCheck = useCallback(async (opts?: { silent?: boolean }) => {
+  // Race-condition guards: only the most recent in-flight check is allowed to
+  // commit state, and overlapping calls are coalesced.
+  const reqIdRef = useRef(0);
+  const inflightRef = useRef<Promise<void> | null>(null);
+  const allowedRef = useRef(false);
+  const firstCheckRef = useRef(true);
+  const lastCheckAtRef = useRef(0);
+
+  const runCheck = useCallback((opts?: { silent?: boolean; force?: boolean }): Promise<void> => {
     if (!user) {
       setRoles([]);
       setAllowed(false);
+      allowedRef.current = false;
       setChecking(false);
-      return;
+      return Promise.resolve();
     }
+    // Debounce: skip if a check ran < 2s ago, unless forced or explicit user click.
+    const now = Date.now();
+    if (!opts?.force && opts?.silent !== false && now - lastCheckAtRef.current < 2000 && inflightRef.current) {
+      return inflightRef.current;
+    }
+    if (inflightRef.current && opts?.silent !== false) return inflightRef.current;
     if (!opts?.silent) setRechecking(true);
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
-    if (!activeRef.current) return;
-    const list = (data || []).map((r: any) => r.role as string);
-    setRoles(list);
-    setAllowed(list.some((r) => (PRIVILEGED_ROLES as readonly string[]).includes(r)));
-    setChecking(false);
-    setRechecking(false);
+    const myId = ++reqIdRef.current;
+    lastCheckAtRef.current = now;
+    const p = (async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      // Drop stale responses — only the latest request can commit state.
+      if (!activeRef.current || myId !== reqIdRef.current) return;
+      if (error) {
+        setRechecking(false);
+        setChecking(false);
+        return;
+      }
+      const list = (data || []).map((r: any) => r.role as string);
+      const nextAllowed = list.some((r) => (PRIVILEGED_ROLES as readonly string[]).includes(r));
+      const wasAllowed = allowedRef.current;
+      allowedRef.current = nextAllowed;
+      setRoles(list);
+      setAllowed(nextAllowed);
+      setChecking(false);
+      setRechecking(false);
+      // Notify only on the false → true transition, never on first mount.
+      if (!firstCheckRef.current && !wasAllowed && nextAllowed) {
+        toast.success("Owner Console access granted", {
+          description: "Your roles were updated. Opening the console…",
+        });
+      }
+      firstCheckRef.current = false;
+    })().finally(() => {
+      if (myId === reqIdRef.current) inflightRef.current = null;
+    });
+    inflightRef.current = p;
+    return p;
   }, [user]);
 
   // Initial + identity-change check.
   useEffect(() => {
     activeRef.current = true;
+    firstCheckRef.current = true;
+    allowedRef.current = false;
     setChecking(true);
-    runCheck({ silent: true });
+    runCheck({ silent: true, force: true });
     return () => { activeRef.current = false; };
   }, [user, runCheck]);
 
-  // Re-check on focus / visibility — covers role grants happening in another tab/session.
+  // Re-check when the tab regains focus — debounced inside runCheck.
   useEffect(() => {
     if (!user) return;
-    const onFocus = () => runCheck({ silent: true });
-    const onVisible = () => { if (document.visibilityState === "visible") runCheck({ silent: true }); };
-    window.addEventListener("focus", onFocus);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") runCheck({ silent: true });
+    };
+    window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", onVisible);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [user, runCheck]);
 
-  // Realtime: react instantly when an admin grants/revokes a role for this user.
+  // Realtime: primary push channel for role grants/revocations on this user.
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -84,18 +127,28 @@ export function OwnerRoute({ children }: { children: ReactNode }) {
       .on(
         "postgres_changes" as any,
         { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
-        () => runCheck({ silent: true }),
+        () => runCheck({ silent: true, force: true }),
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, runCheck]);
 
-  // Safety net: poll while the user is on the unauthorized screen so a role grant
-  // is picked up even if realtime/focus events were missed.
+  // Fallback poll: only while the user is on the unauthorized screen AND the
+  // tab is visible. Replaces the previous always-on 15s interval.
   useEffect(() => {
     if (!user || allowed || checking) return;
-    const id = window.setInterval(() => runCheck({ silent: true }), 15000);
-    return () => window.clearInterval(id);
+    let id: number | null = null;
+    const start = () => {
+      if (id !== null) return;
+      id = window.setInterval(() => runCheck({ silent: true }), 30000);
+    };
+    const stop = () => {
+      if (id !== null) { window.clearInterval(id); id = null; }
+    };
+    const onVis = () => (document.visibilityState === "visible" ? start() : stop());
+    onVis();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [user, allowed, checking, runCheck]);
 
   if (loading || checking) {

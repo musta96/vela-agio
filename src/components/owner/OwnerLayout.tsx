@@ -5,6 +5,7 @@ import {
   DollarSign, AlertTriangle, Flag, ScrollText, MessageSquare, FileText,
   Bot, Database, Scale, FileWarning, Bell, Settings as Cog, Search,
   Power, CircleDot, LifeBuoy,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +30,7 @@ const SECTIONS: { label: string; items: Item[] }[] = [
   ]},
   { label: "Billing", items: [
     { title: "Plans & pricing", url: "/owner/plans", icon: CreditCard },
+    { title: "Feature catalog", url: "/owner/feature-catalog", icon: ListChecks },
     { title: "Revenue", url: "/owner/revenue", icon: DollarSign },
     { title: "Failed payments", url: "/owner/failed-payments", icon: AlertTriangle, badge: 8, tone: "warn" },
   ]},

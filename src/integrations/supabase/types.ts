@@ -883,6 +883,36 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_gate_blocks: {
+        Row: {
+          created_at: string
+          current_plan_slug: string | null
+          current_tier: string | null
+          feature_key: string
+          id: string
+          page_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_plan_slug?: string | null
+          current_tier?: string | null
+          feature_key: string
+          id?: string
+          page_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_plan_slug?: string | null
+          current_tier?: string | null
+          feature_key?: string
+          id?: string
+          page_path?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       feature_requests: {
         Row: {
           ai_analysis: Json
@@ -2408,6 +2438,15 @@ export type Database = {
           detail: string
           issue: string
           tier: string
+        }[]
+      }
+      admin_feature_block_summary: {
+        Args: { _since?: string }
+        Returns: {
+          blocks: number
+          feature_key: string
+          last_block: string
+          unique_users: number
         }[]
       }
       admin_list_blog_leads: {

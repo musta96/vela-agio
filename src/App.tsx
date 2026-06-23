@@ -77,6 +77,7 @@ import OwnerAISignals from "./pages/owner/AISignals";
 import OwnerSecurity from "./pages/owner/Security";
 import OwnerTickets from "./pages/owner/Tickets";
 import OwnerBlog from "./pages/owner/BlogAdmin";
+import OwnerFeatureCatalogPage from "./pages/owner/FeatureCatalogPage";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import { AuthProvider } from "./hooks/useAuth";
@@ -201,6 +202,7 @@ const App = () => (
             <Route path="/owner/users/:id" element={<OwnerUserProfile />} />
             <Route path="/owner/roles" element={<OwnerRoles />} />
             <Route path="/owner/plans" element={<OwnerPlans />} />
+            <Route path="/owner/feature-catalog" element={<OwnerFeatureCatalogPage />} />
             <Route path="/owner/revenue" element={<OwnerRevenue />} />
             <Route path="/owner/feature-flags" element={<OwnerFeatureFlags />} />
             <Route path="/owner/audit" element={<OwnerAuditLog />} />

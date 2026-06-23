@@ -65,6 +65,30 @@ const KILL_SWITCHES: { key: string; label: string; description: string }[] = [
   { key: "data_feeds_frozen", label: "Freeze data feeds", description: "Stops new market data ingestion - shows stale prices." },
 ];
 
+const OWNER_ROUTE_SECTIONS: Record<string, string> = {
+  "/owner/dashboard": "dashboard",
+  "/owner/activity": "audit",
+  "/owner/users": "users",
+  "/owner/roles": "roles",
+  "/owner/api-keys": "apikeys",
+  "/owner/plans": "plans",
+  "/owner/feature-catalog": "feature-catalog",
+  "/owner/referrals": "referrals",
+  "/owner/revenue": "revenue",
+  "/owner/failed-payments": "failed",
+  "/owner/feature-flags": "flags",
+  "/owner/audit": "audit",
+  "/owner/comms": "comms",
+  "/owner/content": "landing",
+  "/owner/blog": "blog",
+  "/owner/tickets": "tickets",
+  "/owner/signals": "ai",
+  "/owner/data-feeds": "data",
+  "/owner/gdpr": "gdpr",
+  "/owner/legal": "legal",
+  "/owner/security": "gdpr",
+};
+
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[]; legal?: LegalDoc[]; apiKeys?: ApiKey[] } | null>(null);

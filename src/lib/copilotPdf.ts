@@ -1,5 +1,4 @@
 import { jsPDF } from "jspdf";
-import { supabase } from "@/integrations/supabase/client";
 
 type ConvMsg = { role: "user" | "assistant"; content: string };
 

@@ -30,14 +30,14 @@ export interface AIConfig {
 }
 
 const DEFAULT_MODELS: Record<ProviderId, string> = {
-  lovable: "google/gemini-2.5-flash",
-  openai: "gpt-4o-mini",
+  lovable: "google/gemini-3-flash-preview",
+  openai: "gpt-5-mini",
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-large-latest",
   perplexity: "llama-3.1-sonar-large-128k-online",
-  openrouter: "openai/gpt-4o-mini",
-  anthropic: "claude-sonnet-4-5",
-  gemini: "gemini-2.0-flash",
+  openrouter: "openai/gpt-5-mini",
+  anthropic: "claude-sonnet-4-6",
+  gemini: "gemini-2.5-flash",
 };
 
 const PROVIDER_TO_KEY: Record<Exclude<ProviderId, "lovable">, string> = {

@@ -1,5 +1,4 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { fetchStooqQuote } from "../_shared/stooq.ts";
 import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
 
 const corsHeaders = {

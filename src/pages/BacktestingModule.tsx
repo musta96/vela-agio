@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
 import { exportBacktestCsv, exportBacktestPdf } from "@/lib/backtestExport";
+import { BacktestQuantPanel } from "@/components/BacktestQuantPanel";
 
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
@@ -435,6 +436,11 @@ const BacktestingModule = () => {
                     )}
                   </CardContent>
                 </Card>
+
+                <BacktestQuantPanel
+                  equity={result.equity}
+                  holdings={holdings}
+                />
               </div>
             )}
           </div>

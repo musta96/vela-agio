@@ -79,7 +79,37 @@ export interface PortfolioMemoInput {
   mcConfig?: { horizonDays?: number; paths?: number; seed?: number };
   /** Confidence levels for the VaR/CVaR table. Defaults to [0.95, 0.99]. */
   confidences?: number[];
+  /**
+   * Optional whitelist of sections to render. When omitted every section is
+   * included (backward compatible). Each flag gates a top-level block in the
+   * PDF; risk metrics + Monte Carlo share the equity series.
+   */
+  sections?: Partial<MemoSections>;
+  /** Human-readable label describing the historical window used (e.g. "3M"). */
+  historyLabel?: string;
 }
+
+export interface MemoSections {
+  executiveSummary: boolean;
+  holdings: boolean;
+  allocations: boolean;     // asset class / sector / geography + HHI
+  monteCarlo: boolean;      // risk metrics + Monte Carlo block
+  macroScenarios: boolean;
+  heatmaps: boolean;        // pairwise co-movement heatmap
+  perInstrumentNotes: boolean;
+  recommendedActions: boolean;
+}
+
+export const DEFAULT_MEMO_SECTIONS: MemoSections = {
+  executiveSummary: true,
+  holdings: true,
+  allocations: true,
+  monteCarlo: true,
+  macroScenarios: true,
+  heatmaps: true,
+  perInstrumentNotes: true,
+  recommendedActions: true,
+};
 
 function rng(seed: number) {
   let a = seed >>> 0;

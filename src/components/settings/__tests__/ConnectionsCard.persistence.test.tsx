@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // In-memory "profiles" row that survives across simulated refreshes.
 const profileRow: { ai_provider: string; ai_model: string | null } = {
   ai_provider: "anthropic",
-  ai_model: "claude-sonnet-4-5",
+  ai_model: "claude-sonnet-4-6",
 };
 
 /**
@@ -60,10 +60,10 @@ describe("Settings → AI provider persistence", () => {
 
   it("stores the chosen provider and default model", async () => {
     const client = makeClient();
-    await saveProfile(client, "anthropic", "claude-sonnet-4-5");
+    await saveProfile(client, "anthropic", "claude-sonnet-4-6");
     const loaded = await loadProfile(client);
     expect(loaded.ai_provider).toBe("anthropic");
-    expect(loaded.ai_model).toBe("claude-sonnet-4-5");
+    expect(loaded.ai_model).toBe("claude-sonnet-4-6");
   });
 
   it("survives a refresh - a new client mount reads what the previous one wrote", async () => {
@@ -78,8 +78,8 @@ describe("Settings → AI provider persistence", () => {
 
   it("lets the user switch providers without losing the prior model selection on the previous provider", async () => {
     const client = makeClient();
-    await saveProfile(client, "anthropic", "claude-opus-4-1");
-    expect((await loadProfile(client)).ai_model).toBe("claude-opus-4-1");
+    await saveProfile(client, "anthropic", "claude-opus-4-8");
+    expect((await loadProfile(client)).ai_model).toBe("claude-opus-4-8");
     await saveProfile(client, "openai", "gpt-5-mini");
     const after = await loadProfile(client);
     expect(after.ai_provider).toBe("openai");

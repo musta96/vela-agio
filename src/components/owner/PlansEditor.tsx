@@ -7,9 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, ListChecks, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
+import { invalidateFeatureCatalogCache } from "@/hooks/useFeatureGate";
 
 type Plan = {
   id: string;
@@ -38,9 +40,6 @@ export function PlansEditor() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalog, setCatalog] = useState<CatalogRow[]>([]);
-  const [newFeatKey, setNewFeatKey] = useState("");
-  const [newFeatName, setNewFeatName] = useState("");
-  const [newFeatCategory, setNewFeatCategory] = useState("general");
 
   const load = async () => {
     setLoading(true);
@@ -68,6 +67,7 @@ export function PlansEditor() {
     const { error } = await supabase.from("subscription_plans").update(rest).eq("id", id);
     if (error) return toast({ title: "Save failed", description: error.message, variant: "destructive" });
     toast({ title: "Plan saved", description: p.name });
+    invalidateFeatureCatalogCache();
   };
 
   const toggleFeatureKey = (planId: string, key: string, on: boolean) => {
@@ -77,28 +77,6 @@ export function PlansEditor() {
       if (on) set.add(key); else set.delete(key);
       return { ...p, feature_keys: Array.from(set) };
     }));
-  };
-
-  const addCatalogFeature = async () => {
-    const key = newFeatKey.trim().toLowerCase().replace(/\s+/g, ".");
-    const name = newFeatName.trim();
-    if (!key || !name) {
-      return toast({ title: "Need both key and name", description: "e.g. key: ai.advanced_screener · name: Advanced screener", variant: "destructive" });
-    }
-    const { error } = await supabase.from("feature_catalog").insert({
-      key, name, category: newFeatCategory || "general", sort_order: (catalog.at(-1)?.sort_order ?? 100) + 10,
-    });
-    if (error) return toast({ title: "Couldn't add feature", description: error.message, variant: "destructive" });
-    setNewFeatKey(""); setNewFeatName("");
-    toast({ title: "Feature added", description: `${name} (${key})` });
-    load();
-  };
-
-  const removeCatalogFeature = async (key: string) => {
-    if (!confirm(`Remove feature "${key}" from the catalog? Plans will lose this entitlement.`)) return;
-    const { error } = await supabase.from("feature_catalog").delete().eq("key", key);
-    if (error) return toast({ title: "Couldn't remove", description: error.message, variant: "destructive" });
-    load();
   };
 
   const remove = async (id: string) => {
@@ -156,21 +134,20 @@ export function PlansEditor() {
         <Button size="sm" onClick={add}><Plus className="h-3.5 w-3.5 mr-1" /> Add plan</Button>
       </div>
 
-      {/* Feature catalog manager ------------------------------------ */}
-      <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h3 className="text-sm font-semibold">Feature catalog</h3>
-            <p className="text-xs text-muted-foreground">Every gated feature in the app. Add a new one any time — it'll appear on every plan card below as a checkbox.</p>
+      {/* Quick link to dedicated catalog page ----------------------- */}
+      <Card className="p-3 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-md bg-primary/10 text-primary grid place-items-center">
+            <ListChecks className="h-4 w-4" />
           </div>
-          <Badge variant="outline">{catalog.length} features</Badge>
+          <div>
+            <div className="text-sm font-semibold">Feature catalog · {catalog.length} features</div>
+            <p className="text-xs text-muted-foreground">Add, rename or remove features in one place — changes appear on every plan below.</p>
+          </div>
         </div>
-        <div className="grid sm:grid-cols-[1fr_1fr_140px_auto] gap-2">
-          <Input placeholder="key (e.g. ai.advanced_screener)" value={newFeatKey} onChange={(e) => setNewFeatKey(e.target.value)} />
-          <Input placeholder="Display name" value={newFeatName} onChange={(e) => setNewFeatName(e.target.value)} />
-          <Input placeholder="category" value={newFeatCategory} onChange={(e) => setNewFeatCategory(e.target.value)} />
-          <Button size="sm" onClick={addCatalogFeature}><Plus className="h-3.5 w-3.5 mr-1" /> Add feature</Button>
-        </div>
+        <Button asChild size="sm" variant="outline" className="gap-1.5">
+          <Link to="/owner/feature-catalog">Manage catalog <ExternalLink className="h-3.5 w-3.5" /></Link>
+        </Button>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -246,14 +223,6 @@ export function PlansEditor() {
                             <div className="font-medium leading-tight">{f.name}</div>
                             {f.description && <div className="text-muted-foreground text-[10px] truncate">{f.description}</div>}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeCatalogFeature(f.key)}
-                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                            title="Remove from catalog"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
                         </label>
                       );
                     })}

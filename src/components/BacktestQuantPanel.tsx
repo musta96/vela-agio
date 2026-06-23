@@ -885,7 +885,15 @@ function ClickableStat({
   );
 }
 
-function FactorTable({ title, rows }: { title: string; rows: { key: string; weight: number }[] }) {
+function FactorTable({
+  title,
+  rows,
+  onSelect,
+}: {
+  title: string;
+  rows: { key: string; weight: number }[];
+  onSelect?: (key: string) => void;
+}) {
   return (
     <div className="rounded-lg border border-border p-3">
       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
@@ -894,15 +902,25 @@ function FactorTable({ title, rows }: { title: string; rows: { key: string; weig
       ) : (
         <div className="space-y-1.5">
           {rows.map((r) => (
-            <div key={r.key} className="space-y-0.5">
+            <button
+              key={r.key}
+              type="button"
+              onClick={onSelect ? () => onSelect(r.key) : undefined}
+              disabled={!onSelect}
+              className={`w-full text-left space-y-0.5 rounded-md px-1.5 py-1 -mx-1.5 transition-colors ${onSelect ? "cursor-pointer hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40" : "cursor-default"}`}
+              aria-label={onSelect ? `Open attribution for ${title} · ${r.key}` : undefined}
+            >
               <div className="flex items-center justify-between text-xs">
-                <span className="truncate" title={r.key}>{r.key}</span>
+                <span className="truncate flex items-center gap-1" title={r.key}>
+                  {r.key}
+                  {onSelect && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                </span>
                 <span className="font-mono text-muted-foreground">{(r.weight * 100).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-primary" style={{ width: `${Math.min(100, r.weight * 100)}%` }} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

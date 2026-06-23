@@ -16,6 +16,22 @@
 import { covMatrix, type Matrix } from "@/lib/optimizer";
 import { getInstrumentMeta, type InstrumentMeta } from "@/lib/instrumentMeta";
 
+// ---------------------------------------------------------------------------
+// Request correlation IDs (shared with edge-function instrumentation).
+// Kept in this module so the existing `@/lib/correlation` import path used by
+// AIBriefing and other callers continues to resolve.
+// ---------------------------------------------------------------------------
+
+export const CORRELATION_HEADER = "x-correlation-id";
+
+export function newCorrelationId(): string {
+  try {
+    const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+    if (c?.randomUUID) return c.randomUUID();
+  } catch { /* fall through */ }
+  return `cid_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export type CorrelationMatrix = Matrix;
 
 /** Pearson correlation matrix derived from a `cov` (or aligned returns). */

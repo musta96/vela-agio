@@ -2567,6 +2567,7 @@ export type Database = {
         | "support"
         | "compliance"
         | "engineer"
+        | "beta_tester"
       client_role:
         | "principal"
         | "family_view"
@@ -2708,6 +2709,7 @@ export const Constants = {
         "support",
         "compliance",
         "engineer",
+        "beta_tester",
       ],
       client_role: [
         "principal",

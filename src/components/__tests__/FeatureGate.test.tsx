@@ -81,7 +81,7 @@ describe("<FeatureGate />", () => {
     );
     expect(screen.queryByText("secret content")).not.toBeInTheDocument();
     expect(screen.getByText("AI deep research")).toBeInTheDocument();
-    expect(screen.getByText(/Elite/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Elite/i).length).toBeGreaterThan(0);
   });
 
   it("logs an audit row to feature_gate_blocks when blocked", async () => {

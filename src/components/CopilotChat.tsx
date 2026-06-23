@@ -343,6 +343,63 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
           )}
         </aside>
       )}
+      {user && (
+        <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+          <SheetContent side="left" className="w-80 p-0 flex flex-col">
+            <SheetHeader className="p-4 border-b border-border">
+              <SheetTitle>Conversation history</SheetTitle>
+              <SheetDescription>Open a past chat or start a new one.</SheetDescription>
+            </SheetHeader>
+            <div className="p-3 border-b border-border space-y-2">
+              <Button size="sm" variant="outline" className="w-full gap-2" onClick={() => { newThread(); setHistoryOpen(false); }}>
+                <Plus className="h-3.5 w-3.5" /> New chat
+              </Button>
+              <div className="relative">
+                <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={threadFilter}
+                  onChange={(e) => setThreadFilter(e.target.value)}
+                  placeholder="Search conversations…"
+                  className="h-8 text-xs pl-6"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+              {threads.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 py-4">No saved conversations yet.</p>
+              ) : threads
+                  .filter(th => th.title.toLowerCase().includes(threadFilter.trim().toLowerCase()))
+                  .map(th => (
+                    <div
+                      key={th.id}
+                      className={`group flex items-center gap-1 rounded-md px-2 py-2 text-sm cursor-pointer hover:bg-muted/60 ${threadId === th.id ? "bg-muted" : ""}`}
+                      onClick={() => { openThread(th.id); setHistoryOpen(false); }}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate">{th.title}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteThread(th.id); }}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                        aria-label="Delete conversation"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+            </div>
+            {threads.length > 0 && (
+              <div className="p-3 border-t border-border">
+                <button
+                  onClick={deleteAllThreads}
+                  className="w-full text-xs text-muted-foreground hover:text-destructive inline-flex items-center justify-center gap-1"
+                >
+                  <Trash2 className="h-3 w-3" /> Delete all conversations
+                </button>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+      )}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
       <div className="flex items-center justify-between gap-2 px-3 pt-2">
         <AiCreditsBadge />

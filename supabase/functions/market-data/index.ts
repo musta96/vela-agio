@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { fetchStooqQuote } from "../_shared/stooq.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -150,8 +151,16 @@ Deno.serve(async (req) => {
           const j = await fetchYahooWithFallback(sym, "1d", "1m");
           const q = parseQuote(sym, j);
           if (q) { out[sym] = q; await writeCache(key, "quote", sym, q, TTL.quote); }
-        } catch {
-          // Stale-with-badge fallback: try cache regardless of expiry.
+        } catch (err) {
+          console.warn(`yahoo quote failed for ${sym}, trying stooq:`, (err as Error)?.message);
+          // Fallback #1: Stooq (no auth, no rate limit) for live data.
+          const sq = await fetchStooqQuote(sym);
+          if (sq) {
+            out[sym] = sq;
+            await writeCache(key, "quote", sym, sq, TTL.quote);
+            return;
+          }
+          // Fallback #2: Stale-with-badge — try cache regardless of expiry.
           const { data: stale } = await supabase
             .from("market_data_cache").select("payload")
             .eq("cache_key", key).maybeSingle();

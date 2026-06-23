@@ -16,6 +16,7 @@ import { useAiCredits } from "@/hooks/useAiCredits";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
+import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 
 type SubRow = {
   id: string;
@@ -44,6 +45,10 @@ type PlanRow = {
   highlighted: boolean | null;
   sort_order: number | null;
   is_active: boolean | null;
+  ab_test_enabled?: boolean | null;
+  ab_monthly_price_cents?: number | null;
+  ab_yearly_price_cents?: number | null;
+  ab_variant_label?: string | null;
 };
 
 type Invoice = {
@@ -145,7 +150,7 @@ export default function PlansBilling() {
           .maybeSingle(),
         supabase
           .from("subscription_plans")
-          .select("id,slug,name,tier,monthly_price_cents,yearly_price_cents,ai_monthly_quota,ai_model_tier,monthly_credit_cap,features,stripe_monthly_price_id,stripe_yearly_price_id,highlighted,sort_order,is_active")
+          .select("id,slug,name,tier,monthly_price_cents,yearly_price_cents,ai_monthly_quota,ai_model_tier,monthly_credit_cap,features,stripe_monthly_price_id,stripe_yearly_price_id,highlighted,sort_order,is_active,ab_test_enabled,ab_monthly_price_cents,ab_yearly_price_cents,ab_variant_label")
           .eq("is_active", true)
           .order("sort_order", { ascending: true }),
       ]);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
@@ -26,6 +27,7 @@ import {
   ScrollText, Scale, FileDown, Trash2, Ban, Shield, Flag, Database, Mail, TrendingUp,
   LayoutDashboard, KeyRound, CreditCard, Wallet, AlertCircle, Search, BellRing, Settings,
   CircleDot, FileText, ChevronRight, Eye, Heart, Clock, Zap, X, Sparkles, LifeBuoy,
+  ListChecks, Gift,
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
@@ -847,7 +849,8 @@ function relTime(iso: string) {
 }
 
 function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; onKill: () => void }) {
-  const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number }[] }[] = [
+  const navigate = useNavigate();
+  const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number; href?: string }[] }[] = [
     { label: "Overview", items: [
       { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
       { key: "audit", label: "Live activity", icon: <Activity className="h-3.5 w-3.5" /> },
@@ -859,6 +862,8 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
     ]},
     { label: "Billing", items: [
       { key: "plans", label: "Plans & pricing", icon: <CreditCard className="h-3.5 w-3.5" /> },
+      { key: "feature-catalog", label: "Feature catalog", icon: <ListChecks className="h-3.5 w-3.5" />, href: "/owner/feature-catalog" },
+      { key: "referrals", label: "Referrals & beta", icon: <Gift className="h-3.5 w-3.5" />, href: "/owner/referrals" },
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
     ]},
@@ -902,7 +907,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
               {g.items.map(it => {
                 const active = section === it.key;
                 return (
-                  <button key={it.key + g.label} onClick={() => setSection(it.key)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition ${active ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 hover:bg-muted/50"}`}>
+                  <button key={it.key + g.label} onClick={() => it.href ? navigate(it.href) : setSection(it.key)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition ${active ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 hover:bg-muted/50"}`}>
                     {it.icon}
                     <span className="flex-1 text-left">{it.label}</span>
                     {it.badge != null && <Badge variant="outline" className="text-[9px] h-4 px-1.5">{it.badge}</Badge>}

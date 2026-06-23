@@ -1243,28 +1243,34 @@ function BulkRetractCard({ onSubmit }: { onSubmit: (symbol: string, since: strin
   );
 }
 
-function PurgeDemoSeedCard({ act }: { act: (a: string, p?: Record<string, unknown>) => Promise<any> }) {
+function PurgeDemoSeedCard({ onAfterPurge }: { onAfterPurge: () => void | Promise<unknown> }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [preview, setPreview] = useState<{ matched: number; sample: any[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastDeleted, setLastDeleted] = useState<number | null>(null);
+  const call = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke("owner-console", { body: { action: "purge_demo_seed", ...payload } });
+    if (error) { toast.error(error.message || "Action failed"); return null; }
+    return data as { matched: number; deleted: number; sample: any[] } | null;
+  };
   const runPreview = async () => {
     setBusy(true);
     try {
-      const res = await act("purge_demo_seed", { dry_run: true, reason: reason || "preview demo seed" });
-      if (res && typeof res === "object") setPreview({ matched: (res as any).matched ?? 0, sample: (res as any).sample ?? [] });
+      const res = await call({ dry_run: true, reason: reason || "preview demo seed" });
+      if (res) setPreview({ matched: res.matched ?? 0, sample: res.sample ?? [] });
     } finally { setBusy(false); }
   };
   const runPurge = async () => {
     setBusy(true);
     try {
-      const res = await act("purge_demo_seed", { dry_run: false, reason });
-      if (res && typeof res === "object") {
-        setLastDeleted((res as any).deleted ?? 0);
+      const res = await call({ dry_run: false, reason });
+      if (res) {
+        setLastDeleted(res.deleted ?? 0);
         setPreview(null);
-        toast.success(`Deleted ${(res as any).deleted ?? 0} legacy demo seed holdings`);
+        toast.success(`Deleted ${res.deleted ?? 0} legacy demo seed holdings`);
         setOpen(false);
+        await onAfterPurge();
       }
     } finally { setBusy(false); }
   };

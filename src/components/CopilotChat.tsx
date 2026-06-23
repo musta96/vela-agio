@@ -10,6 +10,8 @@ import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
 import { generateInvestmentMemo, type InvestmentMemoData } from "@/lib/investmentMemoPdf";
+import { generatePortfolioMemo, type GeneratePortfolioMemoOptions } from "@/lib/generatePortfolioMemo";
+import { downloadMemoCsvBundle } from "@/lib/portfolioMemoData";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import { useAiCredits } from "@/hooks/useAiCredits";
 import { Link } from "react-router-dom";
@@ -368,6 +370,12 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                       <MemoArtifactCard key={tl.id} memo={tl.result.memo as InvestmentMemoData} />
                     ) : tl.name === "run_portfolio_simulation" && tl.done && tl.result?.summary ? (
                       <SimulationArtifactCard key={tl.id} result={tl.result} />
+                    ) : tl.name === "generate_portfolio_memo" && tl.done && tl.result?.memo ? (
+                      <PortfolioMemoArtifactCard
+                        key={tl.id}
+                        memo={tl.result.memo as GeneratePortfolioMemoOptions}
+                        normalisationNote={tl.result.normalisationNote}
+                      />
                     ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">
@@ -464,6 +472,56 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
 }
 
 export default CopilotChat;
+
+function PortfolioMemoArtifactCard({
+  memo, normalisationNote,
+}: {
+  memo: GeneratePortfolioMemoOptions;
+  normalisationNote?: string;
+}) {
+  const symbols = Object.keys(memo.allocation ?? {});
+  const onDownloadPdf = () => {
+    try { generatePortfolioMemo(memo); }
+    catch (e) { console.error("[portfolio memo] pdf failed", e); }
+  };
+  const onDownloadCsv = () => {
+    try {
+      const res = generatePortfolioMemo({ ...memo, download: false });
+      downloadMemoCsvBundle(res.data);
+    } catch (e) { console.error("[portfolio memo] csv failed", e); }
+  };
+  return (
+    <div className="rounded-lg border border-border bg-card/70 p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <FileText className="h-3 w-3" /> Portfolio Memo
+          </div>
+          <div className="font-semibold truncate">
+            {memo.portfolioName ?? "Portfolio Strategy"}
+            <span className="font-mono text-muted-foreground"> · {symbols.length} positions · {memo.riskProfile}</span>
+          </div>
+        </div>
+      </div>
+      <div className="text-[11px] text-muted-foreground line-clamp-3">
+        {memo.strategyThesis || "Strategy thesis not provided."}
+      </div>
+      {normalisationNote && (
+        <div className="text-[10px] rounded border border-warning/40 bg-warning/10 text-warning px-2 py-1">
+          {normalisationNote}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1 gap-1.5 h-8" onClick={onDownloadPdf}>
+          <FileDown className="h-3.5 w-3.5" /> Download PDF
+        </Button>
+        <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={onDownloadCsv} title="Export underlying data as CSV">
+          <FileDown className="h-3.5 w-3.5" /> Data CSV
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function MemoArtifactCard({ memo }: { memo: InvestmentMemoData }) {
   const reco = (memo.recommendation ?? "hold").toString().toLowerCase();

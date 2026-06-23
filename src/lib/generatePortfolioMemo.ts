@@ -83,6 +83,34 @@ export interface GeneratePortfolioMemoOptions {
   simulation?: PortfolioMemoSimulation;
   /** When true (default) the PDF is downloaded; set false to receive the Blob only. */
   download?: boolean;
+  /**
+   * Editable overrides for individual chapters. When provided, the supplied
+   * text REPLACES the auto-generated body for that section (executive summary
+   * still appends the goals line; catalysts/risks still render the bullet
+   * lists below).
+   */
+  customSections?: {
+    executiveSummary?: string;
+    riskAssessment?: string;
+    catalystsAndRisks?: string;
+  };
+  /**
+   * If true, throws when the allocation does not sum to 1 (within tolerance).
+   * Defaults to false — out-of-range allocations are normalised and a yellow
+   * "Allocation normalised" note is rendered on the cover.
+   */
+  allocationStrict?: boolean;
+  /** Tolerance for the sum-to-1 check. Defaults to 0.01 (1 percentage point). */
+  allocationTolerance?: number;
+  /**
+   * Optional thesis version metadata. Rendered on the cover so the same memo
+   * can later be regenerated and pinned to the exact thesis text used.
+   */
+  thesisVersion?: {
+    id?: string;
+    label?: string;
+    savedAt?: number | string;
+  };
 }
 
 export interface GeneratePortfolioMemoResult {
@@ -90,6 +118,35 @@ export interface GeneratePortfolioMemoResult {
   blob: Blob;
   /** Raw PDF bytes — handy for server-side tests / streaming downloads. */
   bytes: Uint8Array;
+  /** Structured data behind the memo, suitable for CSV exports / inspection. */
+  data: PortfolioMemoData;
+  /** Allocation normalisation note (undefined when sum was already 1±tolerance). */
+  normalisationNote?: string;
+}
+
+export interface PortfolioMemoData {
+  allocation: Array<{
+    symbol: string;
+    assetClass: string;
+    sector: string;
+    geography: string;
+    rawWeight: number;
+    normalisedWeight: number;
+  }>;
+  byAssetClass: Array<{ label: string; weight: number }>;
+  correlation: { symbols: string[]; matrix: number[][] };
+  percentiles: Array<{ p: number; terminal: number; deltaPct: number }> | null;
+  scenarios: Array<{ scenario: string; pnl: number; pnlPct: number }>;
+  meta: {
+    portfolioName: string;
+    currency: string;
+    notional: number;
+    horizonDays: number;
+    paths: number;
+    asOf: number;
+    sumOfRawWeights: number;
+    normalised: boolean;
+  };
 }
 
 // ---------- helpers ----------
@@ -328,6 +385,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     risks,
     simulation,
     download = true,
+    customSections,
+    allocationStrict = false,
+    allocationTolerance = 0.01,
+    thesisVersion,
   } = opts;
 
   // Normalise allocation: skip non-positive weights, scale to sum=1.
@@ -335,10 +396,21 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     .map(([sym, w]) => ({ symbol: sym.trim().toUpperCase(), weight: Number(w) }))
     .filter((r) => r.symbol && Number.isFinite(r.weight) && r.weight > 0);
   const totalW = raw.reduce((s, r) => s + r.weight, 0) || 1;
+  const sumOfRawWeights = raw.reduce((s, r) => s + r.weight, 0);
+  const normalised = Math.abs(sumOfRawWeights - 1) > allocationTolerance;
+  if (normalised && allocationStrict) {
+    throw new Error(
+      `generatePortfolioMemo: allocation sums to ${sumOfRawWeights.toFixed(4)} ` +
+      `(expected 1 ± ${allocationTolerance}). Disable allocationStrict to normalise automatically.`,
+    );
+  }
+  const normalisationNote = normalised
+    ? `Allocation normalised: input weights summed to ${(sumOfRawWeights * 100).toFixed(2)}% — rescaled to 100% for analysis.`
+    : undefined;
   const positions = raw
     .map((r) => {
       const m = getInstrumentMeta(r.symbol);
-      return { ...r, weight: r.weight / totalW, meta: m };
+      return { ...r, rawWeight: r.weight, weight: r.weight / totalW, meta: m };
     })
     .sort((a, b) => b.weight - a.weight);
 
@@ -455,9 +527,40 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   }
   y += 20;
 
+  // Optional normalisation note + thesis version line.
+  if (normalisationNote) {
+    doc.setFillColor(254, 243, 199); // amber-100
+    doc.setDrawColor(245, 158, 11);  // amber-500
+    doc.roundedRect(14, y, w - 28, 8, 1.5, 1.5, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(146, 64, 14); // amber-900
+    doc.text("!", 17, y + 5);
+    doc.setFont("helvetica", "normal");
+    doc.text(doc.splitTextToSize(normalisationNote, w - 38), 22, y + 5);
+    doc.setTextColor(0, 0, 0);
+    y += 11;
+  }
+  if (thesisVersion?.id || thesisVersion?.label) {
+    const stamp = thesisVersion.savedAt
+      ? new Date(thesisVersion.savedAt).toLocaleString()
+      : "";
+    const label = `Thesis version: ${thesisVersion.label ?? thesisVersion.id ?? ""}${stamp ? ` · saved ${stamp}` : ""}`;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(...BRAND.muted);
+    doc.text(label, 14, y + 2);
+    doc.setTextColor(0, 0, 0);
+    y += 6;
+  }
+
   // 1. Executive Summary
   y = sectionTitle(doc, "1 · Executive Summary", y);
-  y = paragraph(doc, strategyThesis || "No strategy thesis supplied.", y);
+  y = paragraph(
+    doc,
+    customSections?.executiveSummary?.trim() || strategyThesis || "No strategy thesis supplied.",
+    y,
+  );
   if (goals.length) {
     y += 1;
     y = paragraph(doc, `Stated investor goals: ${goals.join("; ")}.`, y, "italic");
@@ -610,6 +713,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
       y,
     );
   }
+  if (customSections?.riskAssessment?.trim()) {
+    y += 2;
+    y = paragraph(doc, customSections.riskAssessment.trim(), y, "italic");
+  }
 
   // 5. Suitability mapping
   y = newPageIfNeeded(doc, y, 60);
@@ -747,6 +854,10 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   doc.addPage();
   y = 28;
   y = sectionTitle(doc, "9 · Key Catalysts & Risks", y);
+  if (customSections?.catalystsAndRisks?.trim()) {
+    y = paragraph(doc, customSections.catalystsAndRisks.trim(), y);
+    y += 2;
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...BRAND.bull);
@@ -782,7 +893,36 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   const bytes = new Uint8Array(ab);
   const blob = new Blob([bytes], { type: "application/pdf" });
   if (download) doc.save(filename);
-  return { filename, blob, bytes };
+
+  // Build the structured data payload (matches PortfolioMemoData).
+  const percentilesList: Array<{ p: number; terminal: number; deltaPct: number }> | null =
+    finals.length
+      ? [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95].map((p) => {
+          const v = quantile(finals, p);
+          return { p, terminal: v, deltaPct: notional > 0 ? (v - notional) / notional : 0 };
+        })
+      : null;
+  const data: PortfolioMemoData = {
+    allocation: positions.map((p) => ({
+      symbol: p.symbol,
+      assetClass: p.meta.assetClass,
+      sector: p.meta.sector,
+      geography: p.meta.geography,
+      rawWeight: p.rawWeight,
+      normalisedWeight: p.weight,
+    })),
+    byAssetClass: byAssetClass.map((b) => ({ label: b.label, weight: b.weight })),
+    correlation: { symbols: coMov.symbols, matrix: coMov.matrix },
+    percentiles: percentilesList,
+    scenarios: scenarioImpacts.map((s) => ({
+      scenario: s.scenario.name, pnl: s.pnl, pnlPct: s.pnlPct,
+    })),
+    meta: {
+      portfolioName, currency, notional, horizonDays, paths,
+      asOf, sumOfRawWeights, normalised,
+    },
+  };
+  return { filename, blob, bytes, data, normalisationNote };
 }
 
 export default generatePortfolioMemo;

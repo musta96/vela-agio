@@ -121,6 +121,23 @@ const TOOLS = [
         risk_free_rate: { type: 'number', description: 'Annual rf for Sharpe. Default 0.04.' },
         lookback: { type: 'string', enum: ['1y','3y','5y'], description: 'Historical window for μ/σ estimation. Default 3y.' },
       }, required: ['symbols'] } } },
+  { type: 'function', function: { name: 'generate_portfolio_memo', description: 'Produce a FORMAL, downloadable portfolio-level investment memo PDF that covers an ENTIRE strategy (multiple instruments + weights). Use when the user asks for a "portfolio memo", "strategy memo", "investment memo for my portfolio", "single PDF for the whole allocation", or anything similar. The frontend renders a download card with the args you supply; do NOT repeat the memo body in your prose reply. Provide a thoughtful strategy thesis, goals, and risk profile.',
+      parameters: { type: 'object', properties: {
+        allocation: { type: 'object', description: 'Map of Yahoo-format ticker -> weight. Weights can sum to 1 or any positive total — they will be normalised, and the PDF will display a note when normalisation was applied.', additionalProperties: { type: 'number' } },
+        strategy_thesis: { type: 'string', description: 'Executive narrative for the strategy. 4-10 sentences, plain text, no markdown headings.' },
+        goals: { type: 'array', items: { type: 'string' }, description: 'Stated investor goals (e.g. "capital preservation", "retire by 60", "inflation hedge").' },
+        risk_profile: { type: 'string', enum: ['conservative','moderate','balanced','growth','aggressive'] },
+        portfolio_name: { type: 'string' },
+        currency: { type: 'string', description: 'Reporting currency. Defaults to "EUR".' },
+        macro_outlook: { type: 'string' },
+        catalysts: { type: 'array', items: { type: 'string' } },
+        risks: { type: 'array', items: { type: 'string' } },
+        custom_sections: { type: 'object', properties: {
+          executive_summary: { type: 'string' },
+          risk_assessment: { type: 'string' },
+          catalysts_and_risks: { type: 'string' },
+        } },
+      }, required: ['allocation','strategy_thesis','risk_profile'] } } },
 ];
 
 // ---------- Tool executors ----------
@@ -503,6 +520,52 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         disclaimer: 'Educational simulation — log-normal GBM assumptions, no advice.',
       };
     }
+    case 'generate_portfolio_memo': {
+      // The PDF itself is built client-side (jsPDF) — we just normalise the
+      // model's args and return an artifact the chat UI renders as a download
+      // card. This keeps fonts / charts / autotable rendering in the browser
+      // and avoids shipping jsPDF into the edge runtime.
+      const allocRaw = (args && typeof args.allocation === 'object' && args.allocation !== null)
+        ? args.allocation as Record<string, unknown>
+        : {};
+      const allocation: Record<string, number> = {};
+      for (const [k, v] of Object.entries(allocRaw)) {
+        const w = Number(v);
+        const sym = String(k).trim().toUpperCase();
+        if (sym && Number.isFinite(w) && w > 0) allocation[sym] = w;
+      }
+      if (!Object.keys(allocation).length) {
+        return { error: 'allocation must contain at least one symbol with positive weight' };
+      }
+      const sumW = Object.values(allocation).reduce((s, w) => s + w, 0);
+      const profile = String(args.risk_profile ?? 'balanced').toLowerCase();
+      const memo = {
+        allocation,
+        strategyThesis: String(args.strategy_thesis ?? '').trim(),
+        goals: Array.isArray(args.goals) ? args.goals.map(String) : [],
+        riskProfile: ['conservative','moderate','balanced','growth','aggressive'].includes(profile) ? profile : 'balanced',
+        portfolioName: args.portfolio_name ? String(args.portfolio_name) : 'Portfolio Strategy',
+        currency: args.currency ? String(args.currency).toUpperCase().slice(0, 4) : 'EUR',
+        macroOutlook: args.macro_outlook ? String(args.macro_outlook) : undefined,
+        catalysts: Array.isArray(args.catalysts) ? args.catalysts.map(String) : undefined,
+        risks: Array.isArray(args.risks) ? args.risks.map(String) : undefined,
+        customSections: args.custom_sections && typeof args.custom_sections === 'object' ? {
+          executiveSummary: (args.custom_sections as any).executive_summary ? String((args.custom_sections as any).executive_summary) : undefined,
+          riskAssessment: (args.custom_sections as any).risk_assessment ? String((args.custom_sections as any).risk_assessment) : undefined,
+          catalystsAndRisks: (args.custom_sections as any).catalysts_and_risks ? String((args.custom_sections as any).catalysts_and_risks) : undefined,
+        } : undefined,
+      };
+      return {
+        ok: true,
+        artifact: 'portfolio_memo',
+        memo,
+        normalisationNote: Math.abs(sumW - 1) > 0.01
+          ? `Allocation summed to ${(sumW * 100).toFixed(2)}% — will be normalised to 100% in the PDF.`
+          : undefined,
+        ui: { kind: 'portfolio_memo_pdf', message: `Portfolio memo ready: ${memo.portfolioName} (${Object.keys(allocation).length} positions, ${memo.riskProfile} risk).` },
+        disclaimer: 'Educational research only — not investment advice.',
+      };
+    }
     case 'add_watchlist': {
       const { error } = await sb.from('watchlist_items').insert({ user_id: user.id, symbol: String(args.symbol).toUpperCase(), name: args.name });
       return error ? { error: error.message } : { ok: true };
@@ -683,7 +746,7 @@ WHAT YOU MAY DO FREELY:
 - Rank, compare, and shortlist instruments. Say which one looks strongest on the data and WHY.
 - Build conviction theses, bull/bear cases, scenario tables, position-sizing math (Kelly, risk-of-ruin, max drawdown at €X), and "if I were researching this, here's what I'd weight" framing.
 - Use plain words: "looks cheap", "looks overvalued", "high risk", "speculative", "low conviction", "the data favours X over Y".
-- Call run_screener for criteria-driven shortlists, generate_research_brief for 1-4 named tickers when the user wants a structured document, or generate_investment_memo when the user asks for a formal/downloadable PDF memo on a single ticker (it returns a download card in the chat — keep your prose reply short). Use these tools proactively — don't just describe them.
+- Call run_screener for criteria-driven shortlists, generate_research_brief for 1-4 named tickers when the user wants a structured document, generate_investment_memo when the user asks for a formal/downloadable PDF memo on a SINGLE ticker, or generate_portfolio_memo when the user asks for a memo / strategy PDF covering an ENTIRE portfolio / allocation (multiple instruments + weights). All three return a download card in the chat — keep your prose reply short. Use these tools proactively — don't just describe them.
 - Discuss tax, allocation frameworks, rebalancing logic, hedging structures, options strategies — as education and analysis.
 
 THE ONE HARD LINE (regulated personalised advice):

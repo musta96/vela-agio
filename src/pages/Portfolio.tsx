@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
 import { generatePortfolioInvestmentMemo, DEFAULT_MEMO_SECTIONS, type MemoSections } from "@/lib/portfolioInvestmentMemoPdf";
+import { PortfolioMemoBuilder } from "@/components/PortfolioMemoBuilder";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
@@ -67,6 +68,7 @@ const Portfolio = () => {
   const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [memoLoading, setMemoLoading] = useState(false);
+  const [strategyMemoOpen, setStrategyMemoOpen] = useState(false);
   // Investment memo configuration (range, sections, MC params).
   const HORIZON_PRESETS = { "3M": 63, "6M": 126, "1Y": 252 } as const;
   type MemoRangeKey = "3M" | "6M" | "1Y" | "Custom";
@@ -750,6 +752,15 @@ const Portfolio = () => {
             >
               <FileText className="h-4 w-4" /> {memoLoading ? "Building memo…" : "Investment Memo"}
             </Button>
+            <Button
+              variant="outline"
+              size="default"
+              className="gap-2"
+              onClick={() => setStrategyMemoOpen(true)}
+              title="Compose a strategy memo from a target allocation, thesis, goals and risk profile"
+            >
+              <FileText className="h-4 w-4" /> Generate Portfolio Memo
+            </Button>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -863,6 +874,22 @@ const Portfolio = () => {
             </Popover>
           </div>
         </div>
+
+        <PortfolioMemoBuilder
+          open={strategyMemoOpen}
+          onOpenChange={setStrategyMemoOpen}
+          defaultPortfolioName={active?.name || "Portfolio Strategy"}
+          defaultCurrency={active?.base_currency || "EUR"}
+          initialAllocation={(() => {
+            const total = portfolio.reduce((s, p) => s + p.shares * p.currentPrice, 0);
+            if (!portfolio.length || total <= 0) return {};
+            const out: Record<string, number> = {};
+            for (const p of portfolio) {
+              out[p.symbol] = (out[p.symbol] ?? 0) + (p.shares * p.currentPrice) / total;
+            }
+            return out;
+          })()}
+        />
 
         {/* KPI strip - mockup v2 */}
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">

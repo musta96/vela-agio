@@ -88,6 +88,8 @@ export interface GeneratePortfolioMemoOptions {
 export interface GeneratePortfolioMemoResult {
   filename: string;
   blob: Blob;
+  /** Raw PDF bytes — handy for server-side tests / streaming downloads. */
+  bytes: Uint8Array;
 }
 
 // ---------- helpers ----------
@@ -776,12 +778,11 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
 
   const safe = portfolioName.replace(/[^a-zA-Z0-9_\-]/g, "_") || "portfolio";
   const filename = `vela-portfolio-memo-${safe}-${new Date(asOf).toISOString().slice(0, 10)}.pdf`;
-  // jsPDF's "blob" output uses the runtime Blob/Uint8Array constructors which
-  // behave inconsistently under jsdom; "arraybuffer" + manual Blob is portable.
   const ab = doc.output("arraybuffer") as ArrayBuffer;
-  const blob = new Blob([ab], { type: "application/pdf" });
+  const bytes = new Uint8Array(ab);
+  const blob = new Blob([bytes], { type: "application/pdf" });
   if (download) doc.save(filename);
-  return { filename, blob };
+  return { filename, blob, bytes };
 }
 
 export default generatePortfolioMemo;

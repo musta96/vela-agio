@@ -105,17 +105,37 @@ async function fetchYahooQuote(symbol: string) {
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) return { error: `yahoo ${r.status}` };
+    if (!r.ok) {
+      // Yahoo returns 401 when the anonymous chart cookie is rejected and
+      // 429 under burst. Try Stooq before giving up so the model still has
+      // a live price to reason about.
+      const sq = await fetchStooqQuote(symbol);
+      if (sq) {
+        return {
+          symbol, price: sq.price, currency: sq.currency,
+          changePct: sq.change, source: 'stooq',
+        };
+      }
+      return { error: `yahoo ${r.status}`, source: 'yahoo' };
+    }
     const j = await r.json();
     const q = j?.quoteResponse?.result?.[0];
-    if (!q) return { error: 'no quote' };
+    if (!q) {
+      const sq = await fetchStooqQuote(symbol);
+      if (sq) return { symbol, price: sq.price, changePct: sq.change, source: 'stooq' };
+      return { error: 'no quote' };
+    }
     return {
       symbol: q.symbol, name: q.longName ?? q.shortName,
       price: q.regularMarketPrice, currency: q.currency, exchange: q.fullExchangeName,
       changePct: q.regularMarketChangePercent, dayHigh: q.regularMarketDayHigh, dayLow: q.regularMarketDayLow,
       marketCap: q.marketCap, peTrailing: q.trailingPE, dividendYield: q.trailingAnnualDividendYield,
     };
-  } catch (e: any) { return { error: e?.message ?? 'fetch failed' }; }
+  } catch (e: any) {
+    const sq = await fetchStooqQuote(symbol);
+    if (sq) return { symbol, price: sq.price, changePct: sq.change, source: 'stooq' };
+    return { error: e?.message ?? 'fetch failed' };
+  }
 }
 
 async function execTool(name: string, args: any, ctx: { authHeader: string }): Promise<any> {

@@ -19,6 +19,7 @@ import {
   type PortfolioPosition,
   type PortfolioRisk,
 } from "@/lib/portfolioRisk";
+import { MacroScenarioLab } from "@/components/MacroScenarioLab";
 
 const FACTOR_PROXIES = [
   { factor: "US Market", symbol: "SPY" },
@@ -216,6 +217,11 @@ const Risk = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Macro scenario lab — per-position sensitivities */}
+            <MacroScenarioLab
+              positions={positions.map((p) => ({ symbol: p.symbol, name: p.name, value: p.value }))}
+            />
 
             {/* Factor exposures */}
             <Card>

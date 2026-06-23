@@ -9,6 +9,8 @@ import { AiAccessAdmin } from "@/components/owner/AiAccessAdmin";
 import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
 import OwnerTickets from "@/pages/owner/Tickets";
 import OwnerBlogAdmin from "@/pages/owner/BlogAdmin";
+import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
+import OwnerReferralsPage from "@/pages/owner/Referrals";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -764,6 +766,8 @@ export default function OwnerConsole() {
     roles: rolesSection,
     apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
+    "feature-catalog": <OwnerFeatureCatalogPage />,
+    referrals: <OwnerReferralsPage />,
     revenue: billingSection,
     failed: stubSection("Failed payments", "Dunning queue and manual retry triggers appear once a payment provider is connected."),
     flags: flagsSection,
@@ -862,8 +866,8 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
     ]},
     { label: "Billing", items: [
       { key: "plans", label: "Plans & pricing", icon: <CreditCard className="h-3.5 w-3.5" /> },
-      { key: "feature-catalog", label: "Feature catalog", icon: <ListChecks className="h-3.5 w-3.5" />, href: "/owner/feature-catalog" },
-      { key: "referrals", label: "Referrals & beta", icon: <Gift className="h-3.5 w-3.5" />, href: "/owner/referrals" },
+      { key: "feature-catalog", label: "Feature catalog", icon: <ListChecks className="h-3.5 w-3.5" /> },
+      { key: "referrals", label: "Referrals & beta", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
     ]},

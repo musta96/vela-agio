@@ -122,7 +122,12 @@ export default function PlansBilling() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
   const ent = useEntitlements();
-  const isBeta = ent.tier === "beta";
+  // Beta access only *adds* features on top of a paid sub — never replaces it.
+  // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
+  // `betaBonus`  = user has a real paid sub AND beta_tester role.
+  const isBetaOnly = ent.source === "beta";
+  const betaBonus = ent.source === "subscription" && ent.betaActive;
+  const isBeta = isBetaOnly; // back-compat with existing render branches below
 
   const loadSubscription = async () => {
     if (!user) { setLoading(false); return; }

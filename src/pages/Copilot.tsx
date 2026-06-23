@@ -32,8 +32,8 @@ export default function Copilot() {
         }
       />
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-6">
-        <Card className="flex flex-col min-h-[70vh] overflow-hidden rounded-2xl">
+      <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
+        <Card className="flex flex-col h-[calc(100vh-220px)] min-h-[480px] overflow-hidden rounded-2xl">
           <div className="flex flex-wrap items-center gap-2 px-5 py-4 border-b border-border">
             <span className="inline-flex items-center rounded-full bg-primary/10 text-primary text-xs font-medium px-3 py-1">Context: Portfolio</span>
             <span className="inline-flex items-center rounded-full bg-muted text-foreground text-xs font-medium px-3 py-1">Tone: concise</span>

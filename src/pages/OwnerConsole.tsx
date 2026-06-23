@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
@@ -77,6 +77,18 @@ export default function OwnerConsole() {
   const [detailData, setDetailData] = useState<any>(null);
   const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
   const [openTickets, setOpenTickets] = useState<number>(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const setOwnerSection = useCallback((nextSection: string) => {
+    setSection(nextSection);
+    if (location.pathname !== "/owner") navigate("/owner", { replace: true });
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    const routeSection = OWNER_ROUTE_SECTIONS[location.pathname];
+    if (routeSection) setSection(routeSection);
+  }, [location.pathname]);
 
   useEffect(() => {
     let cancelled = false;

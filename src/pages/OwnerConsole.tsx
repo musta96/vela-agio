@@ -551,6 +551,7 @@ export default function OwnerConsole() {
           </Card>
         ))}
       </div>
+      <PurgeDemoSeedCard act={act} />
     </div>
   );
   const rolesSection = (

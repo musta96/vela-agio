@@ -310,7 +310,7 @@ describe("memo end-to-end render", () => {
     const html = renderMemoHtml(input);
     expect(html).toMatch(/\+19\.9%/); // pl_pct cell
     expect(html).toMatch(/EUR 35,240/); // holding value
-    expect(html).toMatch(/-42\.76%/); // stress p/l
+    expect(html).toMatch(/-42\.8%/); // stress p/l rounded to 1dp by the formatter
     expect(html).toMatch(/0\.69/); // correlation cell
     // diversification verdict rendered once, sentence-cased
     expect(html).toMatch(/Elevated single-factor risk/);

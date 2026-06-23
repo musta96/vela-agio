@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { BacktestQuantPanel } from "@/components/BacktestQuantPanel";
 import { encodeQuantParam } from "@/lib/quantShareLink";
@@ -90,18 +91,20 @@ describe("BacktestQuantPanel — ?quant= hydration", () => {
 });
 
 describe("BacktestQuantPanel — drill-down navigation", () => {
-  it("opens the VaR/CVaR sheet when a risk row is clicked", () => {
+  it("opens the VaR/CVaR sheet when a risk row is clicked", async () => {
+    const user = userEvent.setup();
     renderPanel();
-    fireEvent.click(screen.getByRole("tab", { name: /VaR \/ CVaR/i }));
+    await user.click(screen.getByRole("tab", { name: /VaR \/ CVaR/i }));
     // The first tile is "VaR 95%" — click it to open the sheet.
     const tile = screen.getAllByRole("button", { name: /VaR \d+%/i })[0];
     fireEvent.click(tile);
     expect(screen.getByText(/Loss attribution/i)).toBeInTheDocument();
   });
 
-  it("opens the factor sheet when an asset-class row is clicked", () => {
+  it("opens the factor sheet when an asset-class row is clicked", async () => {
+    const user = userEvent.setup();
     renderPanel();
-    fireEvent.click(screen.getByRole("tab", { name: /Factors/i }));
+    await user.click(screen.getByRole("tab", { name: /Factors/i }));
     // Each factor row carries an aria-label "Open attribution for <title> · <key>".
     const row = screen.getAllByRole("button", { name: /Open attribution for/i })[0];
     fireEvent.click(row);

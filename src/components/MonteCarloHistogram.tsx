@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { histogram, quantile } from "@/lib/quantScenarios";
 
 /**
@@ -17,6 +17,11 @@ export interface MonteCarloHistogramProps {
   bins?: number;
   /** Chart height in px. */
   height?: number;
+  /** Bins whose centre falls inside this [min, max] range render in the
+   *  accent colour, drawing the eye to the user's drilldown selection. */
+  highlightRange?: [number, number] | null;
+  /** Optional label drawn on the highlight band. */
+  highlightLabel?: string;
 }
 
 export function MonteCarloHistogram({
@@ -25,6 +30,8 @@ export function MonteCarloHistogram({
   unit = "€",
   bins = 24,
   height = 240,
+  highlightRange,
+  highlightLabel,
 }: MonteCarloHistogramProps) {
   const data = useMemo(() => histogram(values, bins), [values, bins]);
   const p05 = useMemo(() => quantile(values, 0.05), [values]);
@@ -59,7 +66,28 @@ export function MonteCarloHistogram({
           }}
           contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
         />
-        <Bar dataKey="count" fill="hsl(var(--primary))" opacity={0.85} />
+        <Bar dataKey="count" fill="hsl(var(--primary))" opacity={0.85}>
+          {data.map((d, i) => {
+            const inRange = !!highlightRange
+              && d.bin >= highlightRange[0]
+              && d.bin <= highlightRange[1];
+            return (
+              <Cell
+                key={`bin-${i}`}
+                fill={inRange ? "hsl(var(--warning))" : "hsl(var(--primary))"}
+                opacity={inRange ? 0.95 : 0.55}
+              />
+            );
+          })}
+        </Bar>
+        {highlightRange && (
+          <ReferenceLine
+            x={highlightRange[1]}
+            stroke="hsl(var(--warning))"
+            strokeDasharray="4 2"
+            label={highlightLabel ? { value: highlightLabel, position: "insideTop", fontSize: 10, fill: "hsl(var(--warning))" } : undefined}
+          />
+        )}
         <ReferenceLine x={p05} stroke="hsl(var(--bear))" strokeDasharray="3 3" label={{ value: "P5", position: "top", fontSize: 10, fill: "hsl(var(--bear))" }} />
         <ReferenceLine x={p50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: "P50", position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
         <ReferenceLine x={p95} stroke="hsl(var(--bull))" strokeDasharray="3 3" label={{ value: "P95", position: "top", fontSize: 10, fill: "hsl(var(--bull))" }} />

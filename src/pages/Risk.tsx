@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Loader2, AlertTriangle, Activity, Zap, FileDown } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import type { OHLCBar } from "@/lib/technicalIndicators";
@@ -29,6 +30,7 @@ import {
 import { MACRO_SCENARIOS, type ScenarioImpact } from "@/lib/quantScenarios";
 import { generatePortfolioRiskReport, buildPortfolioRiskFilename } from "@/lib/pdfReports";
 import { useStableMemo } from "@/lib/computeCache";
+import { decodePresetParam } from "@/lib/scenarioPresets";
 import { toast } from "sonner";
 
 const FACTOR_PROXIES = [
@@ -72,6 +74,28 @@ const Risk = () => {
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<string>("");
   const [macroImpact, setMacroImpact] = useState<ScenarioImpact | null>(null);
+  const [searchParams] = useSearchParams();
+  const [sharedMacro, setSharedMacro] = useState<{
+    equity: number; ratesBps: number; creditBps: number; oil: number; gold: number; usd: number;
+  } | null>(null);
+
+  // Apply a `?preset=<token>` share link on first mount.
+  useEffect(() => {
+    const token = searchParams.get("preset");
+    if (!token) return;
+    const decoded = decodePresetParam(token);
+    if (!decoded) {
+      toast.error("Invalid share link");
+      return;
+    }
+    if (decoded.scope !== "macro") {
+      toast.info("This share link is for the Goals planner — open /goals.");
+      return;
+    }
+    setSharedMacro(decoded.payload as typeof sharedMacro & object);
+    toast.success(`Loaded shared scenario${decoded.name ? `: "${decoded.name}"` : ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Holdings now sourced from the canonical `usePortfolio` hook so Risk
   // always reconciles with the Dashboard / Portfolio header totals.
@@ -285,6 +309,7 @@ const Risk = () => {
             <MacroScenarioLab
               positions={positions.map((p) => ({ symbol: p.symbol, name: p.name, value: p.value }))}
               onImpactChange={setMacroImpact}
+              initialShock={sharedMacro ?? undefined}
             />
 
             {/* VaR / CVaR + scenario breakdown table */}

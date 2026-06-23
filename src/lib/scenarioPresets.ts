@@ -128,3 +128,68 @@ export function getPreset<S extends PresetScope>(scope: S, id: string): Scenario
 export function _resetPresetsForTests(): void {
   if (isBrowser()) window.localStorage.removeItem(STORAGE_KEY);
 }
+
+// ─── Shareable URL encoding ───────────────────────────────────────────
+// Compact base64url-encoded JSON: `?preset=<token>` is short enough for
+// emails / chat links and survives URL truncation better than long query
+// strings. We version the payload so we can evolve the schema.
+
+const SHARE_VERSION = 1;
+
+export interface SharePayload<S extends PresetScope = PresetScope> {
+  v: number;
+  scope: S;
+  name?: string;
+  payload: PresetPayload<S>;
+}
+
+function b64urlEncode(s: string): string {
+  if (typeof btoa === "undefined") return s; // SSR fallback
+  return btoa(unescape(encodeURIComponent(s)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function b64urlDecode(s: string): string {
+  if (typeof atob === "undefined") return s;
+  const padded = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  try { return decodeURIComponent(escape(atob(padded))); } catch { return ""; }
+}
+
+export function encodePresetParam<S extends PresetScope>(
+  scope: S,
+  payload: PresetPayload<S>,
+  name?: string,
+): string {
+  const body: SharePayload<S> = { v: SHARE_VERSION, scope, payload, ...(name ? { name } : {}) };
+  return b64urlEncode(JSON.stringify(body));
+}
+
+export function decodePresetParam(token: string): SharePayload | null {
+  if (!token) return null;
+  try {
+    const raw = b64urlDecode(token);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SharePayload;
+    if (!parsed || (parsed.scope !== "macro" && parsed.scope !== "mc")) return null;
+    if (typeof parsed.payload !== "object" || parsed.payload === null) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a full shareable URL for the current location and given preset.
+ * Returns null in SSR contexts.
+ */
+export function buildShareableUrl<S extends PresetScope>(
+  scope: S,
+  payload: PresetPayload<S>,
+  name?: string,
+): string | null {
+  if (typeof window === "undefined") return null;
+  const token = encodePresetParam(scope, payload, name);
+  const url = new URL(window.location.href);
+  url.searchParams.set("preset", token);
+  return url.toString();
+}

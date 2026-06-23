@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Bookmark, Save, Trash2 } from "lucide-react";
+import { Bookmark, Save, Share2, Trash2 } from "lucide-react";
 import {
   type PresetPayload,
   type PresetScope,
   type ScenarioPreset,
+  buildShareableUrl,
   deletePreset,
   listPresets,
   savePreset,
@@ -66,6 +67,19 @@ export function ScenarioPresetMenu<S extends PresetScope>({ scope, current, onLo
     if (p) toast.success(`Deleted "${p.name}"`);
   };
 
+  const handleShare = async () => {
+    const selected = sorted.find((x) => x.id === selectedId);
+    const url = buildShareableUrl(scope, current, selected?.name);
+    if (!url) { toast.error("Sharing not supported in this context"); return; }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied", { description: "Anyone with this link will load the same scenario." });
+    } catch {
+      // Fallback: surface the URL in a prompt-like toast so the user can copy manually.
+      toast.info(url);
+    }
+  };
+
   return (
     <div className={`flex items-center gap-1.5 ${className ?? ""}`}>
       <Select value={selectedId} onValueChange={handleLoad}>
@@ -109,6 +123,15 @@ export function ScenarioPresetMenu<S extends PresetScope>({ scope, current, onLo
           </p>
         </PopoverContent>
       </Popover>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 gap-1.5 text-xs"
+        onClick={handleShare}
+        title="Copy a shareable link that reproduces these settings"
+      >
+        <Share2 className="h-3.5 w-3.5" /> Share
+      </Button>
       {selectedId && (
         <Button
           size="icon"

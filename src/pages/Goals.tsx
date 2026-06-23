@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -18,6 +19,8 @@ import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
 import { quantile, histogram, MACRO_SCENARIOS } from "@/lib/quantScenarios";
 import { ScenarioPresetMenu } from "@/components/ScenarioPresetMenu";
 import { useStableMemo } from "@/lib/computeCache";
+import { decodePresetParam } from "@/lib/scenarioPresets";
+import { downloadCsv } from "@/lib/csvUtil";
 
 function randn(): number {
   let u = 0, v = 0;
@@ -56,6 +59,8 @@ export default function Goals() {
   const [runs, setRuns] = useState<number>(800);
   const [confidences, setConfidences] = useState<number[]>([0.95, 0.99]);
   const [saving, setSaving] = useState(false);
+  const [highlightConfidence, setHighlightConfidence] = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [includeAssumptions, setIncludeAssumptions] = useState(true);
   const [includeProbTable, setIncludeProbTable] = useState(true);
@@ -100,6 +105,23 @@ export default function Goals() {
     setHistory((data as any) ?? []);
   };
   useEffect(() => { loadHistory(); }, [user?.id]);
+
+  // Apply a `?preset=<token>` share link on first mount.
+  useEffect(() => {
+    const token = searchParams.get("preset");
+    if (!token) return;
+    const decoded = decodePresetParam(token);
+    if (!decoded) { toast.error("Invalid share link"); return; }
+    if (decoded.scope !== "mc") {
+      toast.info("This share link is for the Risk lab — open /risk.");
+      return;
+    }
+    const p = decoded.payload as { initial: number; monthly: number; years: number; target: number; mean: number; sd: number; runs: number; confidences: number[] };
+    setInitial(p.initial); setMonthly(p.monthly); setYears(p.years); setTarget(p.target);
+    setMean(p.mean); setSd(p.sd); setRuns(p.runs); setConfidences(p.confidences);
+    toast.success(`Loaded shared plan${decoded.name ? `: "${decoded.name}"` : ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const save = async () => {
     if (!user) {
@@ -258,6 +280,33 @@ export default function Goals() {
             <Button variant="outline" size="sm" className="gap-2" onClick={download}>
               <FileDown className="h-4 w-4" /> Export PDF
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                const header = ["Year", "Month index", "P10", "Median", "P90", "Target reached?"];
+                const rows = sim.p50.map((m, i) => [
+                  ((i + 1) / 12).toFixed(2),
+                  i + 1,
+                  Math.round(sim.p10[i]),
+                  Math.round(m),
+                  Math.round(sim.p90[i]),
+                  m >= target ? "yes" : "no",
+                ]);
+                const confHeader = [[], ["Confidence", "Percentile value", "VaR vs initial", "CVaR (tail avg)"]];
+                const confRows = confidenceMetrics.map((m) => [
+                  (m.confidence * 100).toFixed(m.confidence === 0.975 ? 1 : 0) + "%",
+                  Math.round(m.pctValue),
+                  Math.round(m.var),
+                  Math.round(m.cvar),
+                ]);
+                downloadCsv(`mc-percentiles-${(name || "plan").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`,
+                  [header, ...rows, ...confHeader, ...confRows]);
+              }}
+            >
+              <Download className="h-4 w-4" /> MC CSV
+            </Button>
           </div>
         </div>
 
@@ -333,7 +382,16 @@ export default function Goals() {
           <Card className="md:col-span-2">
             <CardHeader className="pb-2"><CardTitle className="text-base">Final value distribution</CardTitle></CardHeader>
             <CardContent>
-              <MonteCarloHistogram values={sim.finals} target={target} unit="€" height={260} />
+              <MonteCarloHistogram
+                values={sim.finals}
+                target={target}
+                unit="€"
+                height={260}
+                highlightRange={highlightConfidence !== null
+                  ? [Math.min(...sim.finals), confidenceMetrics.find((m) => m.confidence === highlightConfidence)?.pctValue ?? Math.min(...sim.finals)]
+                  : null}
+                highlightLabel={highlightConfidence !== null ? `${(highlightConfidence * 100).toFixed(highlightConfidence === 0.975 ? 1 : 0)}% tail` : undefined}
+              />
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <DistStat label="P5 (worst 5%)" value={baseStats.p05} tone="bad" />
                 <DistStat label="CVaR 5%" value={baseStats.cvar5} tone="bad" hint="Avg of worst 5% of paths" />
@@ -353,7 +411,15 @@ export default function Goals() {
                     </thead>
                     <tbody>
                       {confidenceMetrics.map((m) => (
-                        <tr key={m.confidence} className="border-b border-border/30">
+                        <tr
+                          key={m.confidence}
+                          onClick={() => setHighlightConfidence((cur) => cur === m.confidence ? null : m.confidence)}
+                          className={[
+                            "border-b border-border/30 cursor-pointer transition-colors",
+                            highlightConfidence === m.confidence ? "bg-warning/10 ring-1 ring-warning/40" : "hover:bg-muted/30",
+                          ].join(" ")}
+                          title="Click to highlight matching histogram bins"
+                        >
                           <td className="py-1 pr-3 font-mono">{(m.confidence * 100).toFixed(m.confidence === 0.975 ? 1 : 0)}%</td>
                           <td className="py-1 pr-3 text-right font-mono">€{Math.round(m.pctValue).toLocaleString()}</td>
                           <td className="py-1 pr-3 text-right font-mono text-bear">€{Math.round(m.var).toLocaleString()}</td>

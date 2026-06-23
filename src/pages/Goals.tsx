@@ -355,7 +355,16 @@ export default function Goals() {
           <Card className="md:col-span-2">
             <CardHeader className="pb-2"><CardTitle className="text-base">Final value distribution</CardTitle></CardHeader>
             <CardContent>
-              <MonteCarloHistogram values={sim.finals} target={target} unit="€" height={260} />
+              <MonteCarloHistogram
+                values={sim.finals}
+                target={target}
+                unit="€"
+                height={260}
+                highlightRange={highlightConfidence !== null
+                  ? [Math.min(...sim.finals), confidenceMetrics.find((m) => m.confidence === highlightConfidence)?.pctValue ?? Math.min(...sim.finals)]
+                  : null}
+                highlightLabel={highlightConfidence !== null ? `${(highlightConfidence * 100).toFixed(highlightConfidence === 0.975 ? 1 : 0)}% tail` : undefined}
+              />
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <DistStat label="P5 (worst 5%)" value={baseStats.p05} tone="bad" />
                 <DistStat label="CVaR 5%" value={baseStats.cvar5} tone="bad" hint="Avg of worst 5% of paths" />

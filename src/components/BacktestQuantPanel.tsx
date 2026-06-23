@@ -159,7 +159,7 @@ export function BacktestQuantPanel({
 
   // Monte Carlo bootstrap — content-keyed cache to avoid recompute on rerender.
   const mc = useStableMemo(
-    () => bootstrapMonteCarlo(rets, startValue, horizonDays, paths),
+    () => bootstrapMonteCarloCached(rets, startValue, horizonDays, paths),
     { n: rets.length, startValue, horizonDays, paths },
   );
 

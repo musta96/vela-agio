@@ -2,17 +2,13 @@ import { describe, it, expect } from "vitest";
 import { writeFileSync, mkdirSync } from "fs";
 import { generatePortfolioMemo } from "@/lib/generatePortfolioMemo";
 
-async function toBuffer(out: unknown): Promise<Buffer> {
-  if (out && typeof (out as Blob).arrayBuffer === "function") {
-    return Buffer.from(await (out as Blob).arrayBuffer());
+async function toBuffer(out: Blob): Promise<Buffer> {
+  // jsdom's Blob has no arrayBuffer(); Response() polyfills both browsers + jsdom.
+  if (typeof (out as Blob).arrayBuffer === "function") {
+    return Buffer.from(await out.arrayBuffer());
   }
-  if (Buffer.isBuffer(out)) return out as Buffer;
-  if (out instanceof Uint8Array) return Buffer.from(out);
-  if (typeof out === "string") return Buffer.from(out, "binary");
-  if (out && typeof (out as { toString: () => string }).toString === "function") {
-    return Buffer.from(String(out), "binary");
-  }
-  throw new Error("unrecognised pdf output type");
+  const ab = await new Response(out).arrayBuffer();
+  return Buffer.from(ab);
 }
 
 // Smoke test: generate a fully-populated memo with all 9 chapters firing

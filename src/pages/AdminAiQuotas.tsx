@@ -13,7 +13,7 @@ import { Shield, Save, Sparkles } from "lucide-react";
 interface PlanRow {
   id: string;
   tier: string;
-  display_name: string | null;
+  name: string | null;
   ai_model_tier: string;
   ai_monthly_quota: number;
 }
@@ -39,9 +39,9 @@ export default function AdminAiQuotas() {
       setLoading(true);
       const { data } = await supabase
         .from("subscription_plans")
-        .select("id, tier, display_name, ai_model_tier, ai_monthly_quota")
+        .select("id, tier, name, ai_model_tier, ai_monthly_quota")
         .order("ai_monthly_quota", { ascending: true });
-      setPlans((data ?? []) as PlanRow[]);
+      setPlans(((data ?? []) as unknown) as PlanRow[]);
       setLoading(false);
     })();
   }, [isAdmin]);
@@ -57,7 +57,7 @@ export default function AdminAiQuotas() {
       .eq("id", p.id);
     setSaving(null);
     if (error) toast.error(`Failed to save ${p.tier}: ${error.message}`);
-    else toast.success(`Saved ${p.display_name ?? p.tier} quota`);
+    else toast.success(`Saved ${p.name ?? p.tier} quota`);
   };
 
   if (authLoading || isAdmin === null) {
@@ -97,7 +97,7 @@ export default function AdminAiQuotas() {
         ) : plans.map(p => (
           <Card key={p.id}>
             <CardHeader>
-              <CardTitle className="text-base capitalize">{p.display_name ?? p.tier}</CardTitle>
+              <CardTitle className="text-base capitalize">{p.name ?? p.tier}</CardTitle>
               <CardDescription>Tier id: <code>{p.tier}</code></CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">

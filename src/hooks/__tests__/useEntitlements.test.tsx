@@ -6,19 +6,19 @@
  *   - It falls back to the `free` tier with an empty Set when nothing is returned.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import React from "react";
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
 
-const rpcSpy = vi.fn(() => Promise.resolve({ data: [], error: null }));
+const mockRpc = vi.fn<(...args: any[]) => Promise<any>>();
 const channel = {
   on: () => channel,
   subscribe: () => channel,
 };
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    rpc: (...a: any[]) => (rpcSpy as any)(...a),
+    rpc: (name: string) => mockRpc(name),
     channel: () => channel,
     removeChannel: () => {},
   },
@@ -29,33 +29,32 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 describe("useEntitlements", () => {
   beforeEach(() => {
     sessionStorage.clear();
-    rpcSpy.mockReset();
+    mockRpc.mockReset();
   });
 
   it("projects a my_entitlements row into a Set", async () => {
-    rpcSpy.mockReturnValueOnce(Promise.resolve({
+    mockRpc.mockResolvedValue({
       data: [{ tier: "pro", plan_slug: "pro", plan_name: "Pro", feature_keys: ["ai.copilot", "ai.sentiment"] }],
       error: null,
-    }));
+    });
     const { result } = renderHook(() => useEntitlements());
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    expect(rpcSpy).toHaveBeenCalledWith("my_entitlements");
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 3000 });
+    expect(mockRpc).toHaveBeenCalledWith("my_entitlements");
     expect(result.current.tier).toBe("pro");
     expect(result.current.has("ai.copilot")).toBe(true);
     expect(result.current.has("ai.deep_research")).toBe(false);
   });
 
   it("returns the free fallback when there is no active subscription", async () => {
-    rpcSpy.mockReturnValueOnce(Promise.resolve({ data: [], error: null }));
+    mockRpc.mockResolvedValue({ data: [], error: null });
     const { result } = renderHook(() => useEntitlements());
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 3000 });
     expect(result.current.tier).toBe("free");
     expect(result.current.featureKeys.size).toBe(0);
   });
 
   it("hydrates synchronously from sessionStorage so there's no flicker", () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
     sessionStorage.setItem(
       "vela.entitlements.v1",
       JSON.stringify({
@@ -67,7 +66,6 @@ describe("useEntitlements", () => {
         featureKeys: ["ai.deep_research"],
       }),
     );
-    rpcSpy.mockResolvedValueOnce({ data: [], error: null });
     const { result } = renderHook(() => useEntitlements());
     // First render should already reflect cached value.
     expect(result.current.loading).toBe(false);

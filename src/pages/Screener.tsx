@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
@@ -10,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { TickerSearch } from "@/components/TickerSearch";
 
 const UNIVERSES = {
   "FTSE MIB": STOCK_CATALOG.filter((s) => s.market === "FTSE MIB").map((s) => s.symbol),
@@ -81,6 +83,7 @@ interface Result {
 const Screener = () => {
   const { toast } = useToast();
   const { toggle, isWatched } = useWatchlist();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [universe, setUniverse] = useState<keyof typeof UNIVERSES>("FTSE MIB");
   const [loading, setLoading] = useState(false);
@@ -133,6 +136,18 @@ const Screener = () => {
         }
       />
       <AiDisclaimerStrip />
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Search className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold text-sm">Find a specific company or peer</h2>
+          <span className="text-xs text-muted-foreground">— jump straight to a name across any global exchange.</span>
+        </div>
+        <TickerSearch
+          onSelect={(h) => navigate(`/stock/${encodeURIComponent(h.symbol)}`)}
+          placeholder="e.g. Apple, ASML, BCHN.MI, Tesla Frankfurt…"
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         {/* Query column */}

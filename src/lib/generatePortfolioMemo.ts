@@ -604,7 +604,7 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
       doc,
       `No historical equity series supplied — quantitative VaR/CVaR cannot be computed. ` +
       `Weighted by asset class, the strategy targets an expected long-run return ~ ${fmtPct(wRet, 1)} ` +
-      `at a (weighted, naïve) volatility ~ ${fmtPct(wVol, 1)}, before any diversification benefit. ` +
+      `at a (weighted, naive) volatility ~ ${fmtPct(wVol, 1)}, before any diversification benefit. ` +
       `Concentration: position-level HHI ${hhi.holdings.toFixed(3)} (${diversificationVerdict(hhi.holdings)}); ` +
       `asset-class HHI ${hhi.assetClass.toFixed(3)} (${diversificationVerdict(hhi.assetClass)}).`,
       y,
@@ -711,7 +711,7 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     const wVol = positions.reduce((s, p) => s + p.weight * CLASS_BANDS[p.meta.assetClass].expVol, 0);
     y = paragraph(doc,
       `No simulation supplied. Qualitative expectation, weighted by asset-class long-run assumptions: ` +
-      `annualised return ~ ${fmtPct(wRet, 1)} at ~ ${fmtPct(wVol, 1)} naïve volatility. Realised path will ` +
+      `annualised return ~ ${fmtPct(wRet, 1)} at ~ ${fmtPct(wVol, 1)} naive volatility. Realised path will ` +
       `depend on entry timing, rebalancing discipline, and macro regime. Enable a simulation block to ` +
       `replace this section with bootstrapped Monte Carlo percentiles.`, y);
   }

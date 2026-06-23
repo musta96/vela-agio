@@ -89,6 +89,31 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/security": "gdpr",
 };
 
+// Canonical route per section (reverse of OWNER_ROUTE_SECTIONS, first wins).
+const OWNER_SECTION_ROUTES: Record<string, string> = {
+  dashboard: "/owner/dashboard",
+  audit: "/owner/audit",
+  users: "/owner/users",
+  roles: "/owner/roles",
+  apikeys: "/owner/api-keys",
+  plans: "/owner/plans",
+  "feature-catalog": "/owner/feature-catalog",
+  referrals: "/owner/referrals",
+  revenue: "/owner/revenue",
+  failed: "/owner/failed-payments",
+  flags: "/owner/feature-flags",
+  comms: "/owner/comms",
+  landing: "/owner/content",
+  blog: "/owner/blog",
+  tickets: "/owner/tickets",
+  ai: "/owner/signals",
+  ai_access: "/owner",
+  ai_metrics: "/owner",
+  data: "/owner/data-feeds",
+  gdpr: "/owner/gdpr",
+  legal: "/owner/legal",
+};
+
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ stats: Stats; users: UserRow[]; recentAudit: any[]; controls: Control[]; banners: Banner[]; signals: Signal[]; incidents: Incident[]; flags: Flag[]; consents?: Consent[]; audit?: AuditEntry[]; erasure?: ErasureReq[]; sessions?: AdminSession[]; health?: HealthCheck[]; legal?: LegalDoc[]; apiKeys?: ApiKey[] } | null>(null);
@@ -106,7 +131,8 @@ export default function OwnerConsole() {
 
   const setOwnerSection = useCallback((nextSection: string) => {
     setSection(nextSection);
-    if (location.pathname !== "/owner") navigate("/owner", { replace: true });
+    const target = OWNER_SECTION_ROUTES[nextSection] ?? "/owner";
+    if (location.pathname !== target) navigate(target, { replace: true });
   }, [location.pathname, navigate]);
 
   useEffect(() => {

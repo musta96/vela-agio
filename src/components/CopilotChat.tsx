@@ -10,6 +10,8 @@ import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
 import { generateInvestmentMemo, type InvestmentMemoData } from "@/lib/investmentMemoPdf";
+import { generatePortfolioMemo, type GeneratePortfolioMemoOptions } from "@/lib/generatePortfolioMemo";
+import { downloadMemoCsvBundle } from "@/lib/portfolioMemoData";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import { useAiCredits } from "@/hooks/useAiCredits";
 import { Link } from "react-router-dom";
@@ -368,6 +370,12 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                       <MemoArtifactCard key={tl.id} memo={tl.result.memo as InvestmentMemoData} />
                     ) : tl.name === "run_portfolio_simulation" && tl.done && tl.result?.summary ? (
                       <SimulationArtifactCard key={tl.id} result={tl.result} />
+                    ) : tl.name === "generate_portfolio_memo" && tl.done && tl.result?.memo ? (
+                      <PortfolioMemoArtifactCard
+                        key={tl.id}
+                        memo={tl.result.memo as GeneratePortfolioMemoOptions}
+                        normalisationNote={tl.result.normalisationNote}
+                      />
                     ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">

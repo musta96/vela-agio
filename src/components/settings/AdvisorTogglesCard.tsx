@@ -14,11 +14,12 @@ export function AdvisorTogglesCard() {
   const [val, setVal] = useState<Toggles>({ allow_cross_asset: false, allow_shorts: false, allow_derivatives: false });
   const [loading, setLoading] = useState(true);
   const [masterOn, setMasterOn] = useState<boolean | null>(null);
+  const [overrideOn, setOverrideOn] = useState<boolean>(false);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from("profiles").select("allow_cross_asset,allow_shorts,allow_derivatives").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("allow_cross_asset,allow_shorts,allow_derivatives,unrestricted_advice").eq("user_id", user.id).maybeSingle(),
       supabase.from("feature_flags").select("enabled").eq("key", "advisor_unrestricted_enabled").maybeSingle(),
     ]).then(([p, f]) => {
       if (p.data) setVal({
@@ -26,6 +27,7 @@ export function AdvisorTogglesCard() {
         allow_shorts: !!p.data.allow_shorts,
         allow_derivatives: !!p.data.allow_derivatives,
       });
+      setOverrideOn(!!p.data?.unrestricted_advice);
       setMasterOn(!!f.data?.enabled);
       setLoading(false);
     });
@@ -46,7 +48,13 @@ export function AdvisorTogglesCard() {
         <p className="text-sm text-muted-foreground">Opt in to the kind of suggestions the Advisor is allowed to make for you. All defaults are off. Some moves additionally require your suitability profile to be complete and certified at the appropriate risk level.</p>
       </div>
 
-      {masterOn === false && (
+      {overrideOn && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-emerald-700 dark:text-emerald-400">
+          Unrestricted advisor mode is ON for this account (owner override). The Advisor and Copilot will issue direct, personalised buy/sell/short/derivative suggestions for you. The platform-wide master switch and the SRI suitability gates are waived for this account.
+        </div>
+      )}
+
+      {!overrideOn && masterOn === false && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
           The platform owner has the unrestricted-advisor master switch off. Your toggles are saved but no suggestion beyond long-only equity will be made until the owner enables it.
         </div>

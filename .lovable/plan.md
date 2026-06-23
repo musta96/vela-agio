@@ -1,117 +1,109 @@
-## Vela Advisor v2 — Multi-Strategy Cross-Asset Engine
 
-A rebuild of `/advisor` that runs every portfolio strategy in parallel against your live book, picks a winner *and* a blended consensus, drafts a concrete order plan across every asset class (long, short, options), and lets you fire the whole thing into paper trading in one click. Everything that goes beyond plain long-only equity is gated by your MiFID II suitability profile and a per-account toggle you control.
+## Goal
 
-### What the user sees
+Replace the current client-side memo generators with a server-rendered, token-driven PDF system for Vela. Two memo types (portfolio, strategy), shared design language, strict fallback rules so no empty field, dash, or proxy correlation ever reaches the page.
 
-A redesigned `/advisor` page with three stacked sections:
-
-1. **Strategy lab** — runs MVO, Risk-Parity, HRP, Momentum tilt, Factor tilt, Max-Sharpe and Min-Drawdown in parallel against your current holdings + investable universe. Each strategy returns weights, expected return, vol, Sharpe, max drawdown, turnover vs your current book, and a suitability fit score. They are ranked side-by-side in a sortable table.
-2. **Recommendation** — two cards rendered at the top:
-   - **Winner** — the single highest-scoring strategy for your suitability profile, with its rationale.
-   - **Blended consensus** — confidence-weighted average of the top three strategies, designed to be more robust and less style-specific. This is what the order plan defaults to, with a toggle to switch to the winner instead.
-3. **Order plan + one-click paper run** — concrete, sized orders in your base currency translating target weights into actions: `Sell 12 of 47 NVDA`, `Buy 8 GLD`, `Open 2,000 EUR BTPS.MI`, `Short 25 XOM`, `Sell to open 2x AAPL 195 covered calls Dec 26`. Each row is editable. A primary button submits the whole plan to your paper account via the existing `place_paper_order` pipeline.
-
-A **Download full report** button on the page emits a PDF showing every strategy's output, the winner, the blended consensus, the order plan, and the gating decisions — so you have an audit trail.
-
-### Action vocabulary
-
-The advisor moves from `{ hold, add, trim, sell_all }` to a full set:
+## Architecture
 
 ```text
-buy_new            open a new position in any asset class
-add_to             add to an existing position
-trim_n_shares      reduce position by a specific share count
-sell_all           close a position
-swap_into          sell A and buy B in one move (single rationale)
-allocate_cash_to   deploy idle cash into bond/commodity/crypto/FX bucket
-hedge_with         offsetting long position (e.g. add GLD against equity beta)
-short              open short equity/ETF
-open_option        covered call, protective put, collar, vertical spread,
-                   cash-secured put, iron condor
-close_option       unwind an existing option leg
+client (Portfolio, CopilotChat, PortfolioMemoBuilder)
+  │  POST { memo_type, meta, cover, summary, ... }
+  ▼
+edge function: generate-memo-pdf
+  ├─ validate JSON (Zod, schema below)
+  ├─ apply fallback rules (drop empty fields, omit sections)
+  ├─ sanitize prose (strip em dashes, banned words, fix casing)
+  ├─ render HTML from token-driven template
+  ├─ launch headless Chromium via @sparticuz/chromium + puppeteer-core
+  └─ return application/pdf (base64 in JSON or binary)
 ```
 
-### Gating and regulation
+Headless Chromium in Deno edge runtime is fragile. We use **Browserless / `puppeteer-core` against a remote endpoint** when a `BROWSERLESS_URL` secret is present, otherwise fall back to **`@sparticuz/chromium` + `puppeteer-core` via esm.sh**. The user will be prompted for the Browserless token if they want hosted rendering; otherwise the bundled chromium binary path is used.
 
-Three layers, all enforced server-side:
+Because Deno's edge runtime cannot reliably run headless Chrome, the realistic shipping path is: render HTML on the server, send it to a Puppeteer microservice. We expose an `add_secret` ask for `BROWSERLESS_API_KEY`. If absent, the function returns the rendered HTML plus a print-ready CSS payload that the browser prints to PDF via `window.print()` (still single source of truth, still server-rendered HTML, no client templating).
 
-1. **MiFID II suitability profile** — knowledge, experience, capacity for loss. The advisor reads it from `investor_profiles` and silently drops any action class the user isn't classified for.
-2. **Per-user toggles** in Settings → Advisor: `allow_cross_asset`, `allow_shorts`, `allow_derivatives`. New columns on `profiles`. Default off.
-3. **Owner kill-switch** — feature flag `advisor_unrestricted_enabled`. When off, the page locks everything beyond long-only equity for everyone regardless of profile/toggle. Visible in the existing Owner Console controls tab.
+## Files
 
-If a strategy would suggest a gated action, the engine substitutes the closest allowed alternative (e.g. a protective put is replaced with cash buffer) and logs the substitution so the report shows what was filtered out and why.
+New
+- `src/lib/memo/tokens.ts` — exact tokens from spec, frozen.
+- `src/lib/memo/schema.ts` — Zod schema for the input contract.
+- `src/lib/memo/sanitizeProse.ts` — em-dash, banned-word, casing rules.
+- `src/lib/memo/fallbacks.ts` — drop-empty + section-omit logic + omission log.
+- `src/lib/memo/format.ts` — number/currency/percent rounding helpers.
+- `src/lib/memo/template.ts` — HTML/CSS template builder, all components.
+- `src/lib/memo/components/` — `cover.ts`, `header.ts`, `footer.ts`, `marquee.ts`, `strip.ts`, `dataTable.ts`, `severityBar.ts`, `corrMatrix.ts`, `instrumentBlock.ts`, `disclosureBox.ts`.
+- `supabase/functions/generate-memo-pdf/index.ts` — edge function (Zod validate, build HTML, call Browserless or return HTML).
+- `src/lib/memo/client.ts` — thin client: `requestMemoPdf(input)` invokes the function and triggers download.
+- `src/lib/__tests__/memo.sanitize.test.ts`, `memo.fallbacks.test.ts`, `memo.template.snapshot.test.ts`.
 
-### Strategy engine
+Edited
+- `src/components/PortfolioMemoBuilder.tsx` — call `requestMemoPdf` instead of `generatePortfolioMemo`.
+- `src/components/CopilotChat.tsx` — same swap.
+- `src/pages/Portfolio.tsx` — same swap for `generatePortfolioInvestmentMemo`.
 
-Each strategy receives: current holdings, available cash, investable universe (your watchlist + curated cross-asset baskets), suitability constraints, and a scoring rubric. It returns weights and stats. Strategies run in parallel inside one Edge Function call.
+Deprecated (left in tree but no longer imported)
+- `src/lib/investmentMemoPdf.ts`, `src/lib/portfolioInvestmentMemoPdf.ts`, `src/lib/generatePortfolioMemo.ts`. We keep them one release for safety; remove next pass.
 
-Universe is built per asset class so non-equity moves are possible:
-- Equity: current holdings ∪ watchlist ∪ curated regional baskets.
-- Bonds: TLT, IEF, AGG, BND, IEAG.L, BTPS.MI, IBGL.L plus user-specified.
-- Commodities: GLD, IAU, SLV, USO, BNO, UNG plus the futures wrappers.
-- Crypto: BTC-USD, ETH-USD plus IBIT / ETHA spot ETF wrappers.
-- FX: only as a hedge when base currency mismatch is material.
+## Component build order
 
-Scoring rubric per strategy:
-```text
-score = w1·sharpe − w2·max_drawdown − w3·turnover − w4·suitability_breach
-        + w5·diversification_gain
-```
-Weights are read from owner-tunable defaults; the user can override them in an advanced panel.
+1. tokens.ts (verbatim from spec)
+2. format + sanitizeProse + fallbacks (pure, unit-tested)
+3. schema (Zod) — every block optional except `memo_type` and `meta.title`
+4. component renderers (HTML strings, all styles inline-from-tokens)
+5. template assembler — branches on `memo_type`, runs fallbacks, emits one HTML doc
+6. edge function — POST handler, returns `{ pdf_base64 }` or `{ html }` if no chromium
+7. client `requestMemoPdf` — calls function, triggers download with `meta.title` filename
+8. swap call sites in three components
+9. tests
 
-### Order plan generator
+## Data-integrity rules — implementation
 
-Translates target weights into orders with:
-- Lot-sized share counts (no fractional unless the user opted in).
-- Base-currency sizing via the live FX rate from `get_quote`.
-- Side, type (market/limit), suggested limit price as the most recent close, time-in-force.
-- For options: underlying, expiry, strike, side, structure label.
-- Each row is editable inline; the paper-execution call uses the edited values.
+- **Marquee**: filter null/empty cells before render; CSS grid `repeat(n, 1fr)` with n = filtered length, never 4 fixed cells.
+- **Per-instrument metric slot**: `pickInstrumentMetric()` resolves to `target` → `fair_value` → `expected_return_band` → `ter` → `tracking_difference`. Returns `null` if none, slot omitted.
+- **Geography**: only render rows from `geography_lookthrough`. If absent for a holding, holding contributes to a single "Global / diversified" bucket; never falls back to listing country.
+- **Sectors**: render only rows with non-null GICS sector; show "Covered: x% of NAV" footnote. If covered < 30%, omit chart and show note.
+- **Correlation**: require `correlation.method === "pearson_log_*"` and full square matrix. Otherwise omit section with note "Requires return history".
+- **Diversification**: single headline `verdict`, then axes table. Never per-axis verdicts in the heading.
+- **Numbers**: `pct(x, 1)`, `pctInt(x)`, `money(x, ccy)` thousands-sep, `int(x)`.
 
-The execution button calls the existing `place_paper_order` edge function per row, in sequence, surfacing per-order success/failure toasts and writing a single `paper_run` log entry.
+## Writing-style sanitizer
 
-### Downloadable report
+`sanitizeProse(text)`:
+- Replace ` — `, `—`, ` – ` (when between words) with `. ` or `, `.
+- Replace en dashes between numbers with hyphen-minus only if not a range; ranges preserved.
+- Banned-word regex list (case-insensitive, word-boundary) → throws in dev, silently drops sentence containing it in prod (logged via omission log).
+- Force sentence case on any string passed through `heading()` helper.
+- Applied to all JSON-supplied prose AND template static copy.
 
-Generated server-side as a PDF written to `/mnt/documents/advisor_run_<id>.pdf` for ad-hoc downloads, and as a `pdf_export_log` entry for in-app history. Contents:
-- Cover page: profile snapshot, gating decisions, timestamp.
-- Per-strategy section: weights, stats, drift vs current, rationale.
-- Winner card.
-- Blended consensus card.
-- Order plan with rationale per order.
-- Substituted/dropped actions table (what gating removed and why).
-- Disclaimer footer driven by the user's profile (full disclaimer for restricted profiles, lighter framing for unrestricted).
+## Components (token-driven, no hardcoded hex)
 
-### Technical details
+All components import `tokens` and reference `tokens.color.navy`, `tokens.size.h1`, etc. CSS generated as inline `<style>` block at top of HTML using tokens; nothing in component HTML carries literal colors.
 
-New tables (with grants + RLS scoped to `auth.uid()`):
-- `advisor_runs` — id, user_id, run_at, winner_strategy, blended_weights, gating_decisions jsonb, report_path.
-- `advisor_orders` — id, run_id, sequence, action, symbol, qty, side, type, limit_price, status, paper_order_id.
+Cover: full-bleed `tokens.color.navy`, marquee band `tokens.color.navyDeep` height 96pt, stat label `tokens.size.label` mono uppercase with `tokens.tracking.label`, value `tokens.size.coverTitle * 0.5`.
 
-New `profiles` columns: `allow_cross_asset bool default false`, `allow_shorts bool default false`, `allow_derivatives bool default false`.
+Running header/footer use `@page` margins + `position: running()` (Paged.js polyfill loaded from esm.sh inside the HTML so headers repeat across pages when Chromium prints).
 
-New feature flag row: `advisor_unrestricted_enabled` (owner toggle).
+Per-instrument block wrapped in `break-inside: avoid;` for keep-together. After every 3rd instrument inject `<div style="break-after: page"></div>`.
 
-New edge functions:
-- `advisor-run` — orchestrates strategy fan-out, gating, scoring, blending, order-plan generation; persists `advisor_runs` + `advisor_orders`.
-- `advisor-execute-paper` — iterates `advisor_orders` for a run and calls `place_paper_order` per row.
-- `advisor-report` — renders the PDF (reuse existing PDF stack), writes the file, returns a signed URL.
+Correlation matrix cells: lookup color via `tokens.color.corr[Math.min(4, Math.floor(Math.abs(v) * 5))]`.
 
-Reuse: `src/lib/optimizer.ts` (mean-variance, risk-parity, HRP), `market-data` edge function for OHLC, `place_paper_order` tool, the existing `paper_trades` table, the existing PDF export pipeline.
+Disclosure box: `border-left: ${tokens.rule.disclosureLeft}pt solid ${tokens.color.gold}`, `border-radius: 0`.
 
-Frontend:
-- Rebuild `src/pages/Advisor.tsx`.
-- New components: `StrategyLabTable`, `RecommendationCards`, `OrderPlanEditor`, `AdvisorGatingBanner`.
-- Settings → Advisor toggles section.
-- Owner Console: surface `advisor_unrestricted_enabled` next to the existing kill-switches and rename the KPI accordingly.
+## Acceptance harness
 
-Out of scope for this pass: live-money order routing (still blocked at platform level), tax-lot optimisation, multi-account aggregation, scheduled/recurring advisor runs. These are clean follow-ups.
+`memo.template.snapshot.test.ts` runs the renderer on three fixtures (portfolio full, portfolio sparse, strategy) and asserts:
+- No `—`, no `–` followed by space-letter, no banned word in output HTML.
+- No `<td>—</td>` or empty marquee cell.
+- Every section heading has a non-empty sibling.
+- Every inline style attribute's color matches a token value (regex check against the tokens map).
+- For sparse fixture, omitted sections logged but no heading rendered.
 
-### Rollout
+## Secrets
 
-1. Migrations + grants + RLS.
-2. Edge functions (`advisor-run`, `advisor-execute-paper`, `advisor-report`).
-3. Advisor page rebuild + Settings toggles.
-4. Owner Console kill-switch.
-5. PDF report.
-6. Wire copilot so "run the advisor" is a callable tool, mirroring the existing `place_paper_order` confirmation flow.
+Will request `BROWSERLESS_API_KEY` via `add_secret`. If user declines, the function still returns server-rendered HTML and the client opens a hidden iframe and calls `print()`; same template, same tokens, same output, just printed locally. The acceptance rules still apply because the HTML is server-rendered.
+
+## Out of scope (this pass)
+
+- Removing the deprecated generators (next cleanup PR).
+- Charts beyond severity bars and correlation heatmap (sector pie deferred unless data-shape allows it without an empty-state).
+- i18n of memo body (engine output is passed through as-is after sanitization).

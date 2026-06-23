@@ -216,6 +216,41 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
 // they were unencrypted at rest in the browser.
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Raw call helper for the keys-vault edge function.
+ *
+ * We do NOT go through `supabase.functions.invoke` here because that wrapper
+ * collapses 4xx responses into a generic `FunctionsHttpError` and discards
+ * the JSON body — but the vault's whole UX contract is that 400s come back
+ * with `{ error, stage, status }` so the UI can tell the user *why* their
+ * key was rejected (bad format vs. live provider probe vs. quota). A bare
+ * fetch lets us preserve that information.
+ */
+async function callVault<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Not signed in.");
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/keys-vault`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  let body: any = null;
+  try { body = await r.json(); } catch { /* not JSON */ }
+  if (!r.ok) {
+    const msg = body?.error || `Vault request failed (HTTP ${r.status})`;
+    const err = new Error(msg) as Error & { stage?: string; status?: number };
+    if (body?.stage) err.stage = body.stage;
+    if (typeof body?.status === "number") err.status = body.status;
+    throw err;
+  }
+  return (body ?? {}) as T;
+}
+
 export interface StoredKeyMeta {
   provider: string;
   hint: string;
@@ -224,26 +259,36 @@ export interface StoredKeyMeta {
 }
 
 export async function vaultList(): Promise<StoredKeyMeta[]> {
-  const { data, error } = await supabase.functions.invoke("keys-vault", {
-    body: { action: "list" },
-  });
-  if (error) throw error;
-  return (data?.keys ?? []) as StoredKeyMeta[];
+  const data = await callVault<{ keys?: StoredKeyMeta[] }>("list");
+  return data.keys ?? [];
 }
 
 export async function vaultSet(provider: string, value: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke("keys-vault", {
-    body: { action: "set", provider, value },
-  });
-  if (error) throw error;
-  return data?.hint ?? "";
+  const data = await callVault<{ hint?: string }>("set", { provider, value });
+  return data.hint ?? "";
+}
+
+export interface VaultValidateResult {
+  ok: boolean;
+  stage?: "format" | "live";
+  error?: string;
+  detail?: string;
+  status?: number;
+}
+
+/** Validate a key against the upstream provider WITHOUT persisting it. */
+export async function vaultValidate(provider: string, value: string): Promise<VaultValidateResult> {
+  try {
+    const data = await callVault<VaultValidateResult>("validate", { provider, value });
+    return data;
+  } catch (e) {
+    const err = e as Error & { stage?: string; status?: number };
+    return { ok: false, error: err.message, stage: err.stage as any, status: err.status };
+  }
 }
 
 export async function vaultDelete(provider: string): Promise<void> {
-  const { error } = await supabase.functions.invoke("keys-vault", {
-    body: { action: "delete", provider },
-  });
-  if (error) throw error;
+  await callVault("delete", { provider });
 }
 
 export interface VaultHealth {
@@ -261,11 +306,7 @@ export interface VaultHealth {
 }
 
 export async function vaultHealth(): Promise<VaultHealth> {
-  const { data, error } = await supabase.functions.invoke("keys-vault", {
-    body: { action: "health" },
-  });
-  if (error) throw error;
-  return data as VaultHealth;
+  return await callVault<VaultHealth>("health");
 }
 
 /** Generate a fresh 32-byte AES-256 key, base64-encoded, in the browser. */

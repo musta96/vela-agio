@@ -26,6 +26,10 @@ type Plan = {
   sort_order: number;
   is_active: boolean;
   feature_keys: string[];
+  ab_test_enabled: boolean;
+  ab_price_label: string | null;
+  ab_price_period: string | null;
+  ab_variant_label: string | null;
 };
 
 type CatalogRow = {
@@ -52,6 +56,10 @@ export function PlansEditor() {
       ...p,
       features: Array.isArray(p.features) ? p.features : [],
       feature_keys: Array.isArray(p.feature_keys) ? p.feature_keys : [],
+      ab_test_enabled: !!p.ab_test_enabled,
+      ab_price_label: p.ab_price_label ?? "",
+      ab_price_period: p.ab_price_period ?? "",
+      ab_variant_label: p.ab_variant_label ?? "",
     })));
     setCatalog((catRes.data as any[]) ?? []);
     setLoading(false);
@@ -198,6 +206,50 @@ export function PlansEditor() {
                 value={p.features.join("\n")}
                 onChange={(e) => update(p.id, { features: e.target.value.split("\n").map((s) => s.trimEnd()).filter(Boolean) })}
               />
+            </div>
+
+            {/* A/B price testing ------------------------------------ */}
+            <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[11px] font-semibold uppercase tracking-wider">A/B price test</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    When enabled, visitors are randomly shown either the price above (variant A) or the alternative below (variant B). Assignment is sticky per visitor.
+                  </p>
+                </div>
+                <Switch
+                  checked={p.ab_test_enabled}
+                  onCheckedChange={(v) => update(p.id, { ab_test_enabled: v })}
+                />
+              </div>
+              {p.ab_test_enabled && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px]">Alt price label (variant B)</Label>
+                    <Input
+                      value={p.ab_price_label ?? ""}
+                      placeholder={p.price_label}
+                      onChange={(e) => update(p.id, { ab_price_label: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">Alt period (variant B)</Label>
+                    <Input
+                      value={p.ab_price_period ?? ""}
+                      placeholder={p.price_period ?? "/ month"}
+                      onChange={(e) => update(p.id, { ab_price_period: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-[10px]">Variant B internal label (for analytics)</Label>
+                    <Input
+                      value={p.ab_variant_label ?? ""}
+                      placeholder="e.g. lower_price_test"
+                      onChange={(e) => update(p.id, { ab_variant_label: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Entitlement checkboxes ------------------------------- */}

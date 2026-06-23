@@ -16,6 +16,7 @@ import { useAiCredits } from "@/hooks/useAiCredits";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
+import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 
 type SubRow = {
   id: string;
@@ -44,6 +45,10 @@ type PlanRow = {
   highlighted: boolean | null;
   sort_order: number | null;
   is_active: boolean | null;
+  ab_test_enabled?: boolean | null;
+  ab_monthly_price_cents?: number | null;
+  ab_yearly_price_cents?: number | null;
+  ab_variant_label?: string | null;
 };
 
 type Invoice = {
@@ -145,7 +150,7 @@ export default function PlansBilling() {
           .maybeSingle(),
         supabase
           .from("subscription_plans")
-          .select("id,slug,name,tier,monthly_price_cents,yearly_price_cents,ai_monthly_quota,ai_model_tier,monthly_credit_cap,features,stripe_monthly_price_id,stripe_yearly_price_id,highlighted,sort_order,is_active")
+          .select("id,slug,name,tier,monthly_price_cents,yearly_price_cents,ai_monthly_quota,ai_model_tier,monthly_credit_cap,features,stripe_monthly_price_id,stripe_yearly_price_id,highlighted,sort_order,is_active,ab_test_enabled,ab_monthly_price_cents,ab_yearly_price_cents,ab_variant_label")
           .eq("is_active", true)
           .order("sort_order", { ascending: true }),
       ]);
@@ -569,49 +574,55 @@ export default function PlansBilling() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((p) => {
                 const isCurrent = matchedPlan?.id === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    className={`rounded-xl border p-4 flex flex-col ${
-                      isCurrent ? "border-primary/60 bg-primary/5" : p.highlighted ? "border-primary/30" : "border-border"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-semibold">{p.name}</div>
-                      {isCurrent
-                        ? <Badge className="text-[10px]">Current</Badge>
-                        : p.highlighted ? <Badge variant="outline" className="text-[10px]">Popular</Badge> : null}
-                    </div>
-                    <div className="text-2xl font-bold">{formatPrice(p.monthly_price_cents, "mo")}</div>
-                    {p.yearly_price_cents != null && p.yearly_price_cents > 0 && (
-                      <div className="text-xs text-muted-foreground">or {formatPrice(p.yearly_price_cents, "yr")}</div>
-                    )}
-                    <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
-                      {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
-                        <li key={i}>• {String(f)}</li>
-                      ))}
-                      {p.ai_monthly_quota != null && (
-                        <li>• {p.ai_monthly_quota === -1 ? "Unlimited" : p.ai_monthly_quota.toLocaleString()} AI credits / month</li>
-                      )}
-                    </ul>
-                    <Button
-                      asChild
-                      size="sm"
-                      variant={isCurrent ? "outline" : p.highlighted ? "default" : "outline"}
-                      className="mt-4 w-full"
-                      disabled={isCurrent}
-                    >
-                      <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}`}>
-                        {isCurrent ? "Current plan" : "Choose"}
-                      </Link>
-                    </Button>
-                  </div>
-                );
+                return <PlanCard key={p.id} p={p} isCurrent={isCurrent} />;
               })}
             </div>
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function PlanCard({ p, isCurrent }: { p: PlanRow; isCurrent: boolean }) {
+  const variant = useAbPriceVariant(p.id, !!p.ab_test_enabled);
+  const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
+  const yearly = variant === "B" && p.ab_yearly_price_cents != null ? p.ab_yearly_price_cents : p.yearly_price_cents;
+  return (
+    <div
+      className={`rounded-xl border p-4 flex flex-col ${
+        isCurrent ? "border-primary/60 bg-primary/5" : p.highlighted ? "border-primary/30" : "border-border"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-semibold">{p.name}</div>
+        {isCurrent
+          ? <Badge className="text-[10px]">Current</Badge>
+          : p.highlighted ? <Badge variant="outline" className="text-[10px]">Popular</Badge> : null}
+      </div>
+      <div className="text-2xl font-bold">{formatPrice(monthly, "mo")}</div>
+      {yearly != null && yearly > 0 && (
+        <div className="text-xs text-muted-foreground">or {formatPrice(yearly, "yr")}</div>
+      )}
+      <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
+        {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
+          <li key={i}>• {String(f)}</li>
+        ))}
+        {p.ai_monthly_quota != null && (
+          <li>• {p.ai_monthly_quota === -1 ? "Unlimited" : p.ai_monthly_quota.toLocaleString()} AI credits / month</li>
+        )}
+      </ul>
+      <Button
+        asChild
+        size="sm"
+        variant={isCurrent ? "outline" : p.highlighted ? "default" : "outline"}
+        className="mt-4 w-full"
+        disabled={isCurrent}
+      >
+        <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
+          {isCurrent ? "Current plan" : "Choose"}
+        </Link>
+      </Button>
     </div>
   );
 }

@@ -2153,6 +2153,12 @@ export type Database = {
       }
       subscription_plans: {
         Row: {
+          ab_monthly_price_cents: number | null
+          ab_price_label: string | null
+          ab_price_period: string | null
+          ab_test_enabled: boolean
+          ab_variant_label: string | null
+          ab_yearly_price_cents: number | null
           ai_model_tier: string
           ai_monthly_quota: number
           created_at: string
@@ -2177,6 +2183,12 @@ export type Database = {
           yearly_price_cents: number | null
         }
         Insert: {
+          ab_monthly_price_cents?: number | null
+          ab_price_label?: string | null
+          ab_price_period?: string | null
+          ab_test_enabled?: boolean
+          ab_variant_label?: string | null
+          ab_yearly_price_cents?: number | null
           ai_model_tier?: string
           ai_monthly_quota?: number
           created_at?: string
@@ -2201,6 +2213,12 @@ export type Database = {
           yearly_price_cents?: number | null
         }
         Update: {
+          ab_monthly_price_cents?: number | null
+          ab_price_label?: string | null
+          ab_price_period?: string | null
+          ab_test_enabled?: boolean
+          ab_variant_label?: string | null
+          ab_yearly_price_cents?: number | null
           ai_model_tier?: string
           ai_monthly_quota?: number
           created_at?: string

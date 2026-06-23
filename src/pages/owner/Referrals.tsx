@@ -362,6 +362,174 @@ export default function OwnerReferralsPage() {
         Share signup links as <span className="font-mono">{window.location.origin}/r/CODE</span>. Beta codes also auto-grant the
         <Badge variant="outline" className="mx-1">beta_tester</Badge> role — you can revoke any user's beta access from <a href="/owner/roles" className="text-primary hover:underline">Roles & access</a>.
       </p>
+
+      {/* Analytics ------------------------------------------------------------ */}
+      <Card className="p-0 overflow-hidden mt-8">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">Referral analytics</h2>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={loadAnalytics} className="gap-2"><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+            <Button variant="outline" size="sm" onClick={exportAnalyticsCSV} className="gap-2"><Download className="h-3.5 w-3.5" /> Export CSV</Button>
+          </div>
+        </div>
+        <div className="px-5 py-4 grid sm:grid-cols-3 gap-3 border-b border-border">
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="text-[10px] uppercase text-muted-foreground tracking-wider">Total redemptions</div>
+            <div className="font-semibold text-2xl tabular-nums">{totalRedemptions}</div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="text-[10px] uppercase text-muted-foreground tracking-wider">Resulted in paid sub</div>
+            <div className="font-semibold text-2xl tabular-nums">{totalPaidSignups}</div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="text-[10px] uppercase text-muted-foreground tracking-wider">Beta signups</div>
+            <div className="font-semibold text-2xl tabular-nums">{totalBetaSignups}</div>
+          </div>
+        </div>
+        {analyticsLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+        ) : analytics.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">No analytics yet — codes will appear here as soon as people redeem them.</div>
+        ) : (
+          <>
+            <div className="px-5 py-2 text-xs uppercase tracking-wider text-muted-foreground border-b border-border">By code</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-4 py-2">Code</th>
+                    <th className="text-left px-4 py-2">Type</th>
+                    <th className="text-left px-4 py-2">Plan</th>
+                    <th className="text-right px-4 py-2">Redemptions</th>
+                    <th className="text-right px-4 py-2">Paid</th>
+                    <th className="text-right px-4 py-2">Beta</th>
+                    <th className="text-left px-4 py-2">Last redeemed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.map((a) => (
+                    <tr key={a.code_id} className="border-t border-border">
+                      <td className="px-4 py-2 font-mono">{a.code}{a.label && <div className="text-[11px] font-sans text-muted-foreground">{a.label}</div>}</td>
+                      <td className="px-4 py-2">
+                        {a.kind === "beta"
+                          ? <Badge className="bg-primary/15 text-primary border-primary/30">Beta</Badge>
+                          : <Badge variant="outline">{a.percent_off ? `${a.percent_off}% off` : "Discount"}</Badge>}
+                      </td>
+                      <td className="px-4 py-2 text-xs">{a.plan_name || "Any"}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{a.redemptions}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{a.paid_signups}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{a.beta_signups}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">{a.last_redeemed_at ? new Date(a.last_redeemed_at).toLocaleString() : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="px-5 py-2 text-xs uppercase tracking-wider text-muted-foreground border-y border-border">By plan</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-4 py-2">Plan</th>
+                    <th className="text-right px-4 py-2">Redemptions</th>
+                    <th className="text-right px-4 py-2">Paid signups</th>
+                    <th className="text-right px-4 py-2">Beta signups</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byPlan.map((r) => (
+                    <tr key={r.plan} className="border-t border-border">
+                      <td className="px-4 py-2">{r.plan}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.redemptions}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.paid}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.beta}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Card>
+
+      {/* Redemption audit log ------------------------------------------------- */}
+      <Card className="p-0 overflow-hidden mt-6">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ScrollText className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">Redemption audit log</h2>
+            <span className="text-xs text-muted-foreground">({redemptions.length})</span>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={loadLog} className="gap-2"><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+            <Button variant="outline" size="sm" onClick={exportLogCSV} className="gap-2"><Download className="h-3.5 w-3.5" /> Export CSV</Button>
+          </div>
+        </div>
+        {logLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+        ) : redemptions.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">No redemptions yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2">When</th>
+                  <th className="text-left px-4 py-2">User</th>
+                  <th className="text-left px-4 py-2">Code</th>
+                  <th className="text-left px-4 py-2">Granted</th>
+                  <th className="text-left px-4 py-2">Current subscription</th>
+                </tr>
+              </thead>
+              <tbody>
+                {redemptions.map((r) => (
+                  <tr key={r.redemption_id} className="border-t border-border">
+                    <td className="px-4 py-2 text-xs whitespace-nowrap">{new Date(r.redeemed_at).toLocaleString()}</td>
+                    <td className="px-4 py-2 text-xs">
+                      <div className="font-medium">{r.user_email ?? "—"}</div>
+                      <div className="text-muted-foreground font-mono text-[10px]">{r.user_id.slice(0, 8)}…</div>
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      <span className="font-mono font-semibold">{r.code}</span>
+                      {r.code_label && <div className="text-muted-foreground">{r.code_label}</div>}
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      {r.kind === "beta" ? (
+                        <>
+                          <Badge className="bg-primary/15 text-primary border-primary/30">Beta tester role</Badge>
+                          {r.has_beta_role
+                            ? <span className="ml-2 text-emerald-600">active</span>
+                            : <span className="ml-2 text-muted-foreground">revoked</span>}
+                        </>
+                      ) : (
+                        <>
+                          <Badge variant="outline">
+                            {r.percent_off ? `${r.percent_off}% off` : r.stripe_coupon_id ? "Stripe coupon" : "Discount"}
+                          </Badge>
+                          {r.plan_name && <span className="ml-2 text-muted-foreground">{r.plan_name}</span>}
+                          {r.stripe_coupon_id && <div className="text-muted-foreground mt-0.5">coupon: {r.stripe_coupon_id}</div>}
+                        </>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      {r.current_sub_status
+                        ? <>
+                            <Badge variant="outline" className="capitalize">{r.current_sub_status}</Badge>
+                            {r.current_plan_name && <span className="ml-2 text-muted-foreground">{r.current_plan_name}</span>}
+                          </>
+                        : <span className="text-muted-foreground">No active sub</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </>
   );
 }

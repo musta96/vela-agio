@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown, Star } from "lucide-react";
+import { Activity, Plus, TrendingUp, TrendingDown, X, Briefcase, Cloud, Check, ChevronsUpDown, FileDown, FileText, Star } from "lucide-react";
 import { Pencil, Settings as SettingsIcon, FlaskConical, FolderPlus, Trash2, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
+import { generatePortfolioInvestmentMemo } from "@/lib/portfolioInvestmentMemoPdf";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +62,7 @@ const Portfolio = () => {
   const { user, loading: authLoading } = useAuth();
   const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
+  const [memoLoading, setMemoLoading] = useState(false);
   const [portfolio, setPortfolio] = useState<PortfolioStock[]>(() => {
     const local = readLocal();
     return local.map((s) => ({
@@ -652,6 +654,79 @@ const Portfolio = () => {
           >
             <FileDown className="h-4 w-4" /> Export PDF
           </Button>
+            <Button
+              variant="default"
+              size="default"
+              className="gap-2"
+              disabled={portfolio.length === 0 || memoLoading}
+              onClick={async () => {
+                setMemoLoading(true);
+                toast({ title: "Building investment memo…", description: "Fetching 1Y history for every holding." });
+                try {
+                  // Build a weighted portfolio equity series by blending per-symbol
+                  // historical closes. We share the same `market-data` endpoint as
+                  // the performance chart so cached responses are reused.
+                  const symbols = portfolio.map((p) => p.symbol);
+                  const totalValue = portfolio.reduce((s, p) => s + p.shares * p.currentPrice, 0);
+                  const weights = portfolio.map((p) => totalValue > 0 ? (p.shares * p.currentPrice) / totalValue : 1 / portfolio.length);
+                  const series = await Promise.all(symbols.map(async (sym) => {
+                    try {
+                      const { data } = await supabase.functions.invoke("market-data", {
+                        body: { action: "ohlc", symbol: sym, range: "1y", interval: "1d" },
+                      });
+                      const bars = Array.isArray(data?.bars) ? (data.bars as Array<{ t: number; close: number }>) : [];
+                      return bars.filter((b) => Number.isFinite(b.close) && b.close > 0);
+                    } catch {
+                      return [];
+                    }
+                  }));
+                  // Align on the intersection of timestamps with at least one bar.
+                  const tSets = series.map((s) => new Set(s.map((b) => b.t)));
+                  const commonTs = tSets.length
+                    ? [...tSets[0]].filter((t) => tSets.every((set) => set.has(t))).sort((a, b) => a - b)
+                    : [];
+                  let equity: { t: number; value: number }[] = [];
+                  if (commonTs.length > 20) {
+                    // Normalise each symbol's closes to its first available bar, then
+                    // blend by weight, scaled back to current portfolio value.
+                    const lookup = series.map((bars) => new Map(bars.map((b) => [b.t, b.close])));
+                    const firsts = lookup.map((m) => m.get(commonTs[0]) ?? 1);
+                    equity = commonTs.map((t) => {
+                      const ratio = lookup.reduce(
+                        (acc, m, i) => acc + (weights[i] ?? 0) * ((m.get(t) ?? firsts[i]) / firsts[i]),
+                        0,
+                      );
+                      return { t, value: ratio * (totalValue || 1) };
+                    });
+                  }
+                  generatePortfolioInvestmentMemo({
+                    portfolioName: active?.name || "Portfolio",
+                    currency: active?.base_currency || "EUR",
+                    asOf: Date.now(),
+                    benchmark: active?.benchmark_symbol ? { label: active.benchmark_symbol } : undefined,
+                    holdings: portfolio.map((p, i) => ({
+                      symbol: p.symbol,
+                      name: p.name,
+                      shares: p.shares,
+                      avgPrice: p.avgPrice,
+                      currentPrice: p.currentPrice,
+                      currency: p.currency,
+                      value: p.shares * p.currentPrice,
+                      weight: weights[i],
+                    })),
+                    equity: equity.length ? equity : undefined,
+                  });
+                  toast({ title: "Investment memo generated", description: "Comprehensive portfolio-level PDF saved." });
+                } catch (err) {
+                  console.error("[Portfolio] memo generation failed", err);
+                  toast({ title: "Memo generation failed", description: "Please try again in a moment.", variant: "destructive" });
+                } finally {
+                  setMemoLoading(false);
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" /> {memoLoading ? "Building memo…" : "Investment Memo"}
+            </Button>
           </div>
         </div>
 

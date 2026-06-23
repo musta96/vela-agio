@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePortfolioReport } from "@/lib/pdfReports";
 import { generatePortfolioInvestmentMemo, DEFAULT_MEMO_SECTIONS, type MemoSections } from "@/lib/portfolioInvestmentMemoPdf";
+import { PortfolioMemoBuilder } from "@/components/PortfolioMemoBuilder";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
@@ -67,6 +68,7 @@ const Portfolio = () => {
   const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
   const migratedRef = useRef(false);
   const [memoLoading, setMemoLoading] = useState(false);
+  const [strategyMemoOpen, setStrategyMemoOpen] = useState(false);
   // Investment memo configuration (range, sections, MC params).
   const HORIZON_PRESETS = { "3M": 63, "6M": 126, "1Y": 252 } as const;
   type MemoRangeKey = "3M" | "6M" | "1Y" | "Custom";

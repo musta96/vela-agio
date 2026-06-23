@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
+import { generateInvestmentMemo, type InvestmentMemoData } from "@/lib/investmentMemoPdf";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import { useAiCredits } from "@/hooks/useAiCredits";
 import { Link } from "react-router-dom";

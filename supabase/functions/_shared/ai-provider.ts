@@ -182,3 +182,122 @@ export async function chatComplete(
     body: JSON.stringify({ model: cfg.model, ...body }),
   });
 }
+
+/**
+ * Per-provider fallback model chains. When the primary model returns 429
+ * (rate-limited) we retry the same request against the next model in the
+ * chain. The first entry is the "primary" placeholder — the caller's
+ * configured model is always tried first regardless of what's listed here.
+ */
+const FALLBACK_MODELS: Partial<Record<ProviderId, string[]>> = {
+  lovable: [
+    "google/gemini-2.5-flash",
+    "google/gemini-2.5-flash-lite",
+    "google/gemini-3-flash-preview",
+  ],
+  gemini: [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+  ],
+  openrouter: [
+    "openai/gpt-4o-mini",
+    "google/gemini-flash-1.5",
+  ],
+};
+
+export interface ChatWithFallbackResult {
+  response: Response;
+  modelUsed: string;
+  providerUsed: ProviderId;
+  attempts: { provider: ProviderId; model: string; status: number }[];
+  switchedProvider: boolean;
+  notice?: string;
+}
+
+/**
+ * POST chat/completions with automatic fallback on 429 (and 5xx).
+ *
+ * Strategy:
+ *  1. Try the caller's configured model.
+ *  2. On 429/5xx, retry the same request against the next model in the
+ *     provider's fallback chain (skipping duplicates).
+ *  3. If the caller is on BYO and every BYO model 429s, escape to the
+ *     Lovable gateway using `google/gemini-2.5-flash` as a final fallback
+ *     (only when LOVABLE_API_KEY is configured).
+ *
+ * Returns the first non-429/5xx Response. Body/headers are NOT consumed.
+ */
+export async function chatWithFallback(
+  cfg: AIConfig,
+  body: Record<string, unknown>,
+): Promise<ChatWithFallbackResult> {
+  const attempts: { provider: ProviderId; model: string; status: number }[] = [];
+  const shouldRetry = (status: number) => status === 429 || (status >= 500 && status <= 599);
+
+  const primaryChain = [
+    cfg.model,
+    ...(FALLBACK_MODELS[cfg.provider] ?? []).filter((m) => m !== cfg.model),
+  ];
+
+  let lastResponse: Response | null = null;
+  for (const model of primaryChain) {
+    const res = await fetch(`${cfg.baseURL}/chat/completions`, {
+      method: "POST",
+      headers: cfg.headers,
+      body: JSON.stringify({ ...body, model }),
+    });
+    attempts.push({ provider: cfg.provider, model, status: res.status });
+    if (!shouldRetry(res.status)) {
+      return {
+        response: res,
+        modelUsed: model,
+        providerUsed: cfg.provider,
+        attempts,
+        switchedProvider: model !== cfg.model,
+        notice: model !== cfg.model
+          ? `Primary model rate-limited; switched to ${model}.`
+          : undefined,
+      };
+    }
+    // Drain body so we don't leak the connection before retrying.
+    try { await res.body?.cancel(); } catch { /* ignore */ }
+    lastResponse = res;
+  }
+
+  // Cross-provider escape: BYO → Lovable gateway as last resort.
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (cfg.provider !== "lovable" && lovableKey) {
+    const lovable = lovableConfig("google/gemini-2.5-flash");
+    for (const model of ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]) {
+      const res = await fetch(`${lovable.baseURL}/chat/completions`, {
+        method: "POST",
+        headers: lovable.headers,
+        body: JSON.stringify({ ...body, model }),
+      });
+      attempts.push({ provider: "lovable", model, status: res.status });
+      if (!shouldRetry(res.status)) {
+        return {
+          response: res,
+          modelUsed: model,
+          providerUsed: "lovable",
+          attempts,
+          switchedProvider: true,
+          notice: `Your AI provider was rate-limited; used Lovable AI (${model}) as a fallback.`,
+        };
+      }
+      try { await res.body?.cancel(); } catch { /* ignore */ }
+      lastResponse = res;
+    }
+  }
+
+  // All attempts exhausted — return the last response so callers can surface it.
+  return {
+    response: lastResponse!,
+    modelUsed: attempts[attempts.length - 1]?.model ?? cfg.model,
+    providerUsed: (attempts[attempts.length - 1]?.provider ?? cfg.provider) as ProviderId,
+    attempts,
+    switchedProvider: false,
+  };
+}

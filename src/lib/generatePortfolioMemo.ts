@@ -206,7 +206,7 @@ function bullets(doc: jsPDF, items: string[], y: number): number {
     const lines = doc.splitTextToSize(item, w);
     y = newPageIfNeeded(doc, y, lines.length * 4.5 + 2);
     doc.setTextColor(...BRAND.accent);
-    doc.text("▸", 16, y);
+    doc.text("-", 16, y);
     doc.setTextColor(30, 30, 30);
     doc.text(lines, 22, y);
     y += lines.length * 4.5 + 1.5;
@@ -242,11 +242,11 @@ function classRationale(cls: AssetClass, weight: number, sectorTop: string, geoT
   const w = fmtWeight(weight);
   switch (cls) {
     case "Equity":
-      return `Equity sleeve at ${w} provides the strategy's primary growth engine, concentrated in ${sectorTop} (${geoTop}). Expected long-run return ≈ ${fmtPct(band.expRet, 0)} at ${fmtPct(band.expVol, 0)} vol; ${band.tone}.`;
+      return `Equity sleeve at ${w} provides the strategy's primary growth engine, concentrated in ${sectorTop} (${geoTop}). Expected long-run return ~ ${fmtPct(band.expRet, 0)} at ${fmtPct(band.expVol, 0)} vol; ${band.tone}.`;
     case "ETF":
       return `ETF allocation at ${w} delivers cost-efficient, rules-based exposure to ${sectorTop} in ${geoTop} — diversifies single-stock risk while keeping factor tilts intentional.`;
     case "Bond":
-      return `Fixed-income weight of ${w} acts as ballast: lower expected return (≈ ${fmtPct(band.expRet, 0)}) but materially lower volatility (≈ ${fmtPct(band.expVol, 0)}) and counter-cyclical correlation in risk-off regimes.`;
+      return `Fixed-income weight of ${w} acts as ballast: lower expected return (~ ${fmtPct(band.expRet, 0)}) but materially lower volatility (~ ${fmtPct(band.expVol, 0)}) and counter-cyclical correlation in risk-off regimes.`;
     case "Commodity":
       return `Commodities at ${w} provide an inflation hedge and a different return driver than equities/bonds; expect ${fmtPct(band.expVol, 0)} annualised vol and cyclical drawdowns.`;
     case "Crypto":
@@ -282,8 +282,8 @@ function suitabilityMapping(
     val < lo ? "Below target" : val > hi ? "Above target" : "Within target";
   const rows: string[][] = [
     ["Equity-like (Equity + ETF + REIT)", fmtWeight(equity), `${fmtWeight(profile.equityFloor)} – ${fmtWeight(profile.equityCap)}`, judge(equity, profile.equityFloor, profile.equityCap)],
-    ["Fixed income", fmtWeight(bond), `≥ ${fmtWeight(profile.bondFloor)}`, bond < profile.bondFloor ? "Below target" : "Within target"],
-    ["Crypto satellite", fmtWeight(crypto), `≤ ${fmtWeight(profile.cryptoCap)}`, crypto > profile.cryptoCap ? "Above target" : "Within target"],
+    ["Fixed income", fmtWeight(bond), `>= ${fmtWeight(profile.bondFloor)}`, bond < profile.bondFloor ? "Below target" : "Within target"],
+    ["Crypto satellite", fmtWeight(crypto), `<= ${fmtWeight(profile.cryptoCap)}`, crypto > profile.cryptoCap ? "Above target" : "Within target"],
   ];
   const breaches = rows.filter((r) => r[3] !== "Within target");
   const commentary = breaches.length
@@ -603,8 +603,8 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     y = paragraph(
       doc,
       `No historical equity series supplied — quantitative VaR/CVaR cannot be computed. ` +
-      `Weighted by asset class, the strategy targets an expected long-run return ≈ ${fmtPct(wRet, 1)} ` +
-      `at a (weighted, naïve) volatility ≈ ${fmtPct(wVol, 1)}, before any diversification benefit. ` +
+      `Weighted by asset class, the strategy targets an expected long-run return ~ ${fmtPct(wRet, 1)} ` +
+      `at a (weighted, naïve) volatility ~ ${fmtPct(wVol, 1)}, before any diversification benefit. ` +
       `Concentration: position-level HHI ${hhi.holdings.toFixed(3)} (${diversificationVerdict(hhi.holdings)}); ` +
       `asset-class HHI ${hhi.assetClass.toFixed(3)} (${diversificationVerdict(hhi.assetClass)}).`,
       y,
@@ -682,7 +682,7 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     const percentiles = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95];
     autoTable(doc, {
       startY: y,
-      head: [["Percentile", "Terminal value", "Δ vs notional"]],
+      head: [["Percentile", "Terminal value", "Delta vs notional"]],
       body: percentiles.map((p) => {
         const v = quantile(finals, p);
         const delta = notional > 0 ? (v - notional) / notional : 0;
@@ -711,7 +711,7 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
     const wVol = positions.reduce((s, p) => s + p.weight * CLASS_BANDS[p.meta.assetClass].expVol, 0);
     y = paragraph(doc,
       `No simulation supplied. Qualitative expectation, weighted by asset-class long-run assumptions: ` +
-      `annualised return ≈ ${fmtPct(wRet, 1)} at ≈ ${fmtPct(wVol, 1)} naïve volatility. Realised path will ` +
+      `annualised return ~ ${fmtPct(wRet, 1)} at ~ ${fmtPct(wVol, 1)} naïve volatility. Realised path will ` +
       `depend on entry timing, rebalancing discipline, and macro regime. Enable a simulation block to ` +
       `replace this section with bootstrapped Monte Carlo percentiles.`, y);
   }
@@ -719,7 +719,7 @@ export function generatePortfolioMemo(opts: GeneratePortfolioMemoOptions): Gener
   // 8. Cross-asset correlation matrix
   if (coMov.symbols.length > 1) {
     y = newPageIfNeeded(doc, y, 60);
-    y = sectionTitle(doc, `8 · Cross-Asset Co-Movement (avg ρ̂ ${coMov.avg.toFixed(2)})`, y);
+    y = sectionTitle(doc, `8 · Cross-Asset Co-Movement (avg correlation ${coMov.avg.toFixed(2)})`, y);
     autoTable(doc, {
       startY: y,
       head: [["", ...coMov.symbols]],

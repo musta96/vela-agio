@@ -384,7 +384,15 @@ export default function Goals() {
                     </thead>
                     <tbody>
                       {confidenceMetrics.map((m) => (
-                        <tr key={m.confidence} className="border-b border-border/30">
+                        <tr
+                          key={m.confidence}
+                          onClick={() => setHighlightConfidence((cur) => cur === m.confidence ? null : m.confidence)}
+                          className={[
+                            "border-b border-border/30 cursor-pointer transition-colors",
+                            highlightConfidence === m.confidence ? "bg-warning/10 ring-1 ring-warning/40" : "hover:bg-muted/30",
+                          ].join(" ")}
+                          title="Click to highlight matching histogram bins"
+                        >
                           <td className="py-1 pr-3 font-mono">{(m.confidence * 100).toFixed(m.confidence === 0.975 ? 1 : 0)}%</td>
                           <td className="py-1 pr-3 text-right font-mono">€{Math.round(m.pctValue).toLocaleString()}</td>
                           <td className="py-1 pr-3 text-right font-mono text-bear">€{Math.round(m.var).toLocaleString()}</td>

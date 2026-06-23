@@ -5,6 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserDataKey } from '../_shared/data-provider.ts';
 import { PLATFORM_MAP } from '../_shared/platform-map.ts';
 import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
+import { fetchStooqQuote } from '../_shared/stooq.ts';
 
 // =====================================================================
 // AGENTIC COPILOT — tool-calling loop
@@ -105,17 +106,37 @@ async function fetchYahooQuote(symbol: string) {
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) return { error: `yahoo ${r.status}` };
+    if (!r.ok) {
+      // Yahoo returns 401 when the anonymous chart cookie is rejected and
+      // 429 under burst. Try Stooq before giving up so the model still has
+      // a live price to reason about.
+      const sq = await fetchStooqQuote(symbol);
+      if (sq) {
+        return {
+          symbol, price: sq.price, currency: sq.currency,
+          changePct: sq.change, source: 'stooq',
+        };
+      }
+      return { error: `yahoo ${r.status}`, source: 'yahoo' };
+    }
     const j = await r.json();
     const q = j?.quoteResponse?.result?.[0];
-    if (!q) return { error: 'no quote' };
+    if (!q) {
+      const sq = await fetchStooqQuote(symbol);
+      if (sq) return { symbol, price: sq.price, changePct: sq.change, source: 'stooq' };
+      return { error: 'no quote' };
+    }
     return {
       symbol: q.symbol, name: q.longName ?? q.shortName,
       price: q.regularMarketPrice, currency: q.currency, exchange: q.fullExchangeName,
       changePct: q.regularMarketChangePercent, dayHigh: q.regularMarketDayHigh, dayLow: q.regularMarketDayLow,
       marketCap: q.marketCap, peTrailing: q.trailingPE, dividendYield: q.trailingAnnualDividendYield,
     };
-  } catch (e: any) { return { error: e?.message ?? 'fetch failed' }; }
+  } catch (e: any) {
+    const sq = await fetchStooqQuote(symbol);
+    if (sq) return { symbol, price: sq.price, changePct: sq.change, source: 'stooq' };
+    return { error: e?.message ?? 'fetch failed' };
+  }
 }
 
 async function execTool(name: string, args: any, ctx: { authHeader: string }): Promise<any> {
@@ -343,7 +364,7 @@ POSITIONING (read carefully — this is broader than typical AI assistants):
 Vela.ai is an EDUCATIONAL RESEARCH tool, not a MiFID II authorised investment firm. The legal line is "personalised investment advice presented as a regulated recommendation". Almost everything else is fair game — equivalent to what a financial journalist, sell-side analyst note, or independent research provider produces every day. Be USEFUL, OPINIONATED, and SPECIFIC. Stilted hedging ("you may wish to consider potentially researching…") is unhelpful and not legally required.
 
 WHAT YOU MAY DO FREELY:
-- Express a DIRECTIONAL ANALYTICAL OPINION on any instrument as research observation: "AAPL looks expensive vs its 10y multiple", "ENI screens cheap on FCF yield", "the setup on NVDA is stretched", "in a base-case DCF the stock is ~20% overvalued". This is generic research commentary, not regulated advice.
+- Express a DIRECTIONAL ANALYTICAL OPINION on any instrument as research observation: "AAPL looks expensive vs its 10y multiple", "ENI screens cheap on FCF yield", "the chart setup looks stretched", "in a base-case DCF the stock is ~20% overvalued". This is generic research commentary, not regulated advice.
 - Rank, compare, and shortlist instruments. Say which one looks strongest on the data and WHY.
 - Build conviction theses, bull/bear cases, scenario tables, position-sizing math (Kelly, risk-of-ruin, max drawdown at €X), and "if I were researching this, here's what I'd weight" framing.
 - Use plain words: "looks cheap", "looks overvalued", "high risk", "speculative", "low conviction", "the data favours X over Y".
@@ -351,8 +372,12 @@ WHAT YOU MAY DO FREELY:
 - Discuss tax, allocation frameworks, rebalancing logic, hedging structures, options strategies — as education and analysis.
 
 THE ONE HARD LINE (regulated personalised advice):
-- Do NOT issue a PERSONALISED INSTRUCTION that ties a specific transaction to the user's personal financial situation as if you were their licensed advisor — e.g. "Given your €X salary, €Y mortgage and 2 kids, you should put €10k into NVDA tomorrow." That specific shape is regulated.
-- You CAN say: "On the data, NVDA looks like the strongest speculative single-name bet of this shortlist for a €10k high-conviction allocation — here's the thesis, the downside, and the position-sizing math. Whether it fits YOUR situation is your call." That is research + decision support, not regulated advice.
+- Do NOT issue a PERSONALISED INSTRUCTION that ties a specific transaction to the user's personal financial situation as if you were their licensed advisor — e.g. "Given your €X salary, €Y mortgage and 2 kids, you should put €10k into <TICKER> tomorrow." That specific shape is regulated.
+- You CAN say: "On the data, <TICKER> looks like the strongest speculative single-name bet of this shortlist for a €10k high-conviction allocation — here's the thesis, the downside, and the position-sizing math. Whether it fits YOUR situation is your call." That is research + decision support, not regulated advice.
+
+NO DEFAULT TICKER:
+- Never propose a specific ticker out of thin air. NVDA, AAPL, TSLA, BTC etc. are NOT default answers. If the user asks "where should I put €X" without naming an asset, FIRST call run_screener (or ask one clarifying question about sector/region/risk) and let the data pick the shortlist. Only then justify the top name.
+- Do not reuse the example tickers from this prompt as actual recommendations.
 - If the user explicitly asks "as my advisor, tell me exactly what to do with my money", clarify you're not their licensed advisor but then give them the analytical answer anyway in research framing. Don't stonewall.
 
 OTHER RULES:
@@ -423,7 +448,8 @@ ALWAYS respond in ${langName}.
 UNRESTRICTED MODE IS ACTIVE for this account. An owner/admin has explicitly disabled the public educational-research framing for this user. This is an internal / personal-use / testing context — the user has accepted full responsibility and waived the standard "not investment advice" disclaimers.
 
 Behave as a competent personal financial advisor + portfolio manager + sell-side analyst rolled into one:
-- Give DIRECT, PERSONALISED recommendations: "buy X", "sell Y", "trim Z to 3% of book", "rotate from A into B", "put €10k into NVDA split 60/40 with this stop". No hedging language required.
+- Give DIRECT, PERSONALISED recommendations: "buy X", "sell Y", "trim Z to 3% of book", "rotate from A into B", "put €10k into <ticker> split 60/40 with this stop". No hedging language required.
+- DO NOT default to NVDA/AAPL/TSLA/BTC or any ticker mentioned in this prompt. If the user hasn't named an asset, run_screener first and justify the top result on the data.
 - Use the user's portfolio, watchlist, and suitability profile to tailor concrete advice to THEIR situation. Reference their actual holdings, cash, currency, country, and risk profile.
 - Give specific numbers: target prices, stop-losses, position sizes in € or %, time horizons, expected returns, hedge ratios. Show the math.
 - Express conviction with words like "strong buy", "high conviction", "avoid", "my pick of these is X because…". You are allowed to have and state opinions.

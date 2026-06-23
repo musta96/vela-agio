@@ -198,21 +198,59 @@ Deno.serve(async (req) => {
             return ok({ ok: true });
           }
           case "user_detail": {
-            const { user_id } = body;
-            const [{ data: prof }, { data: ports }, { data: holds }, { data: nwa }, { data: bkr }, { data: cons }, { data: sigs }, { data: susp }, { data: roles }, { data: ord }] = await Promise.all([
+            // GDPR data-minimisation: by default we only return the account-meta
+            // fields a support agent needs to identify and act on an account
+            // (profile, auth, consents, roles, suspension). Financial PII
+            // (portfolios, holdings, brokers, net worth, AI signals, orders) is
+            // only returned when the caller passes `reveal_pii: true` together
+            // with a documented `reason`, and every such reveal is written to
+            // the audit log so it can be reviewed by DPO / regulators.
+            const { user_id, reveal_pii, reason } = body;
+            const reveal = !!reveal_pii;
+            if (reveal && (!reason || String(reason).trim().length < 5)) {
+              return new Response(
+                JSON.stringify({ error: "A documented reason (≥5 chars) is required to reveal user PII." }),
+                { status: 400, headers: { "content-type": "application/json", ...corsHeaders } },
+              );
+            }
+            const [{ data: prof }, { data: cons }, { data: susp }, { data: roles }] = await Promise.all([
               admin.from("profiles").select("*").eq("user_id", user_id).maybeSingle(),
+              admin.from("user_consents").select("*").eq("user_id", user_id).order("accepted_at", { ascending: false }),
+              admin.from("user_suspensions").select("*").eq("user_id", user_id).maybeSingle(),
+              admin.from("user_roles").select("role").eq("user_id", user_id),
+            ]);
+            const { data: au } = await admin.auth.admin.getUserById(user_id);
+            const base = {
+              profile: prof,
+              auth: au?.user,
+              consents: cons,
+              suspension: susp,
+              roles: (roles || []).map((r: any) => r.role),
+              pii_revealed: false as boolean,
+              pii_reveal: null as null | { actor_email: string | null; reason: string; at: string },
+            };
+            if (!reveal) return ok(base);
+
+            const [{ data: ports }, { data: holds }, { data: nwa }, { data: bkr }, { data: sigs }, { data: ord }] = await Promise.all([
               admin.from("portfolios").select("*").eq("user_id", user_id),
               admin.from("portfolio_holdings").select("*").eq("user_id", user_id),
               admin.from("net_worth_accounts").select("*").eq("user_id", user_id),
               admin.from("broker_accounts").select("*").eq("user_id", user_id),
-              admin.from("user_consents").select("*").eq("user_id", user_id).order("accepted_at", { ascending: false }),
               admin.from("ai_signal_log").select("*").eq("user_id", user_id).order("created_at", { ascending: false }).limit(20),
-              admin.from("user_suspensions").select("*").eq("user_id", user_id).maybeSingle(),
-              admin.from("user_roles").select("role").eq("user_id", user_id),
               admin.from("live_order_intents").select("*").eq("user_id", user_id).order("created_at", { ascending: false }).limit(20),
             ]);
-            const { data: au } = await admin.auth.admin.getUserById(user_id);
-            return ok({ profile: prof, auth: au?.user, portfolios: ports, holdings: holds, net_worth: nwa, brokers: bkr, consents: cons, signals: sigs, suspension: susp, roles: (roles || []).map((r: any) => r.role), orders: ord });
+            await logIncident("pii_access", { user_id, scopes: ["portfolios","holdings","brokers","net_worth","signals","orders"] }, String(reason));
+            return ok({
+              ...base,
+              portfolios: ports,
+              holdings: holds,
+              net_worth: nwa,
+              brokers: bkr,
+              signals: sigs,
+              orders: ord,
+              pii_revealed: true,
+              pii_reveal: { actor_email: userRes.user.email ?? null, reason: String(reason), at: new Date().toISOString() },
+            });
           }
           case "impersonate_log": {
             const { user_id, purpose } = body;

@@ -327,8 +327,9 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
         </aside>
       )}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
-      {messages.filter(m => m.role === "assistant" || m.role === "user").length > 1 && (
-        <div className="flex justify-end px-3 pt-2">
+      <div className="flex items-center justify-between gap-2 px-3 pt-2">
+        <AiCreditsBadge />
+        {messages.filter(m => m.role === "assistant" || m.role === "user").length > 1 ? (
           <Button
             type="button"
             size="sm"
@@ -341,8 +342,8 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
             {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
             PDF (EN + IT)
           </Button>
-        </div>
-      )}
+        ) : <span />}
+      </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>

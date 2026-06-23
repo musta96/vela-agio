@@ -436,6 +436,11 @@ const BacktestingModule = () => {
                     )}
                   </CardContent>
                 </Card>
+
+                <BacktestQuantPanel
+                  equity={result.equity}
+                  holdings={holdings}
+                />
               </div>
             )}
           </div>

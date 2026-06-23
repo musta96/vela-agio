@@ -841,6 +841,137 @@ export function BacktestQuantPanel({
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Factor / correlation drill-down */}
+      <Sheet open={!!openFactor} onOpenChange={(o) => { if (!o) setOpenFactor(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+          {openFactor && (() => {
+            if (openFactor.type === "bucket") {
+              const matches = holdings
+                .map((h) => ({ h, meta: getInstrumentMeta(h.symbol) }))
+                .filter(({ meta }) => {
+                  if (openFactor.kind === "assetClass") return meta.assetClass === openFactor.key;
+                  if (openFactor.kind === "sector") return meta.sector === openFactor.key;
+                  return meta.geography === openFactor.key;
+                })
+                .sort((a, b) => b.h.weight - a.h.weight);
+              const bucketWeight = matches.reduce((s, m) => s + Math.max(0, m.h.weight), 0);
+              const totalWeight = holdings.reduce((s, h) => s + Math.max(0, h.weight), 0) || 1;
+              const bucketLabel = openFactor.kind === "assetClass" ? "Asset class"
+                : openFactor.kind === "sector" ? "Sector" : "Geography";
+              return (
+                <>
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-primary" /> {bucketLabel} · {openFactor.key}
+                    </SheetTitle>
+                    <SheetDescription>
+                      Which holdings drive this factor exposure and how it propagates into Monte Carlo dispersion and macro tails.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Stat label="Bucket weight" value={fmtWeight(bucketWeight)} tone="muted" />
+                    <Stat label="Share of portfolio" value={fmtWeight(bucketWeight / totalWeight)} tone={bucketWeight / totalWeight > 0.4 ? "bear" : "muted"} />
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Contributing holdings</div>
+                    {matches.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No holdings tagged with this bucket.</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left border-b border-border text-[10px] uppercase text-muted-foreground">
+                            <th className="py-1 px-2">Symbol</th>
+                            <th className="py-1 px-2">Name</th>
+                            <th className="py-1 px-2 text-right">Weight</th>
+                            <th className="py-1 px-2 text-right">Share of bucket</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map(({ h }) => (
+                            <tr key={h.symbol} className="border-b border-border/40">
+                              <td className="py-1 px-2 font-mono">{h.symbol}</td>
+                              <td className="py-1 px-2 text-xs text-muted-foreground">{h.name ?? ""}</td>
+                              <td className="py-1 px-2 text-right font-mono">{fmtWeight(h.weight)}</td>
+                              <td className="py-1 px-2 text-right font-mono text-muted-foreground">
+                                {bucketWeight > 0 ? fmtWeight(h.weight / bucketWeight) : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                  <p className="mt-3 text-[10px] text-muted-foreground italic">
+                    A high bucket share means scenario shocks targeting "{openFactor.key}" hit a larger fraction of NAV — see the Macro scenarios tab for the realised P/L.
+                  </p>
+                </>
+              );
+            }
+            // Pair drill-down
+            const ha = holdings.find((h) => h.symbol === openFactor.a);
+            const hb = holdings.find((h) => h.symbol === openFactor.b);
+            const ma = ha ? getInstrumentMeta(ha.symbol) : null;
+            const mb = hb ? getInstrumentMeta(hb.symbol) : null;
+            const idxA = coMovement.symbols.indexOf(openFactor.a);
+            const idxB = coMovement.symbols.indexOf(openFactor.b);
+            const rho = idxA >= 0 && idxB >= 0 ? coMovement.matrix[idxA][idxB] : 0;
+            const overlaps: string[] = [];
+            if (ma && mb) {
+              if (ma.assetClass === mb.assetClass) overlaps.push(`asset class · ${ma.assetClass}`);
+              if (ma.sector === mb.sector) overlaps.push(`sector · ${ma.sector}`);
+              if (ma.geography === mb.geography) overlaps.push(`geography · ${ma.geography}`);
+            }
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-primary" /> {openFactor.a} ↔ {openFactor.b}
+                  </SheetTitle>
+                  <SheetDescription>
+                    Why the co-movement proxy estimates ρ̂ ≈ {rho.toFixed(2)} between this pair.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Stat label="Pairwise ρ̂" value={rho.toFixed(2)} tone={rho > 0.6 ? "bear" : "muted"} />
+                  <Stat label="Shared traits" value={String(overlaps.length)} tone={overlaps.length >= 2 ? "bear" : "muted"} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  {[{ h: ha, m: ma, sym: openFactor.a }, { h: hb, m: mb, sym: openFactor.b }].map(({ h, m, sym }) => (
+                    <div key={sym} className="rounded-md border border-border p-3">
+                      <div className="font-mono text-xs text-muted-foreground">{sym}</div>
+                      <div className="text-sm font-medium truncate">{h?.name ?? "—"}</div>
+                      <div className="mt-2 space-y-0.5 text-xs">
+                        <div>Weight: <span className="font-mono">{h ? fmtWeight(h.weight) : "—"}</span></div>
+                        {m && (
+                          <>
+                            <div>Asset class: <Badge variant="outline" className="text-[10px] font-normal ml-1">{m.assetClass}</Badge></div>
+                            <div>Sector: <Badge variant="outline" className="text-[10px] font-normal ml-1">{m.sector}</Badge></div>
+                            <div>Geography: <Badge variant="outline" className="text-[10px] font-normal ml-1">{m.geography}</Badge></div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Driving overlaps</div>
+                  {overlaps.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No shared metadata buckets — proxy ρ̂ reflects the baseline floor only.</p>
+                  ) : (
+                    <ul className="text-sm list-disc list-inside space-y-0.5">
+                      {overlaps.map((o) => <li key={o}>{o}</li>)}
+                    </ul>
+                  )}
+                </div>
+                <p className="mt-3 text-[10px] text-muted-foreground italic">
+                  Proxy = 0.05 baseline + 0.40 (asset class) + 0.35 (sector) + 0.15 (geography), capped at 0.95. Use the Optimizer for full return-history Pearson correlation.
+                </p>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

@@ -277,18 +277,46 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
     case 'propose_live_order':
       return { error: 'Live order routing is disabled on this platform. Vela.ai is not authorised as an investment firm; only paper orders are supported.' };
     case 'capture_feature_request': {
+      const title = String(args.title ?? '').slice(0, 200);
+      const analysis = {
+        why_it_matters: args.why_it_matters,
+        proposed_implementation: args.proposed_implementation,
+        effort: args.effort,
+        priority: args.priority,
+      };
       const { data, error } = await sb.from('feature_requests').insert({
         user_id: user.id,
-        title: String(args.title).slice(0, 200),
+        title,
         user_quote: args.user_quote ?? null,
-        ai_analysis: {
-          why_it_matters: args.why_it_matters,
-          proposed_implementation: args.proposed_implementation,
-          effort: args.effort,
-          priority: args.priority,
-        },
+        ai_analysis: analysis,
       }).select('id').single();
-      return error ? { error: error.message } : { ok: true, id: data?.id };
+      if (error) return { error: error.message };
+
+      // Mirror into support_tickets so the request shows up in the owner
+      // dashboard's Tickets view (which is where the team triages everything).
+      // We tag with category=feature + source=chat so it's filterable.
+      const severity =
+        args.priority === 'must_have' || args.priority === 'critical' ? 'high'
+        : args.priority === 'nice_to_have' ? 'low'
+        : 'normal';
+      const ticketMessage = [
+        args.user_quote ? `User said: ${args.user_quote}` : null,
+        args.why_it_matters ? `\nWhy it matters: ${args.why_it_matters}` : null,
+        args.proposed_implementation ? `\nProposed implementation: ${args.proposed_implementation}` : null,
+        args.effort ? `\nEffort: ${args.effort}` : null,
+        args.priority ? `Priority: ${args.priority}` : null,
+      ].filter(Boolean).join('\n');
+      const { error: ticketErr } = await sb.from('support_tickets').insert({
+        user_id: user.id,
+        category: 'feature',
+        severity,
+        source: 'chat',
+        subject: title || 'Feature request from Copilot',
+        message: ticketMessage || 'Feature request captured by AI copilot.',
+        status: 'open',
+      });
+      if (ticketErr) console.warn('capture_feature_request: ticket mirror failed', ticketErr.message);
+      return { ok: true, id: data?.id, ticket_mirrored: !ticketErr };
     }
     default: return { error: `unknown tool ${name}` };
   }

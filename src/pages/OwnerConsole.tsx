@@ -116,6 +116,18 @@ export default function OwnerConsole() {
     setDetailData(res);
   };
 
+  // Just-in-time reveal of financial PII (holdings/brokers/orders/etc).
+  // Server-side audited; defaults are minimised per GDPR.
+  const revealUserPii = async (reason: string) => {
+    if (!detailUser) return;
+    const { data: res, error } = await supabase.functions.invoke("owner-console", {
+      body: { action: "user_detail", user_id: detailUser.id, reveal_pii: true, reason },
+    });
+    if (error) { toast.error(error.message || "Reveal denied"); return; }
+    setDetailData(res);
+    toast.success("PII revealed — entry written to audit log");
+  };
+
   const act = async (action: string, payload: Record<string, unknown> = {}) => {
     const { error } = await supabase.functions.invoke("owner-console", { body: { action, ...payload } });
     if (error) { toast.error(error.message || "Action failed"); return false; }
@@ -797,7 +809,7 @@ export default function OwnerConsole() {
         </header>
         <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
       </div>
-      <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} />
+      <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} onRevealPii={revealUserPii} />
       </EmailRevealProvider>
     </div>
   );

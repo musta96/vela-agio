@@ -125,6 +125,7 @@ function MarketStatusPill() {
 
 export default function AppShell() {
   const headerHidden = useHideOnScroll();
+  const location = useLocation();
   return (
     <MaintenanceGate>
     <SidebarProvider>
@@ -171,7 +172,7 @@ export default function AppShell() {
           <main
             className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-0"
           >
-            <ErrorBoundary label="route">
+            <ErrorBoundary label="route" resetKey={location.pathname + location.search}>
               <Outlet />
             </ErrorBoundary>
             <LegalFooter />

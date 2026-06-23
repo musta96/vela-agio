@@ -117,6 +117,18 @@ export const CommandPalette = () => {
         placeholder="Search any ticker, company, crypto, FX, commodity, index…"
         value={query}
         onValueChange={setQuery}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          const q = query.trim();
+          if (q.length < 2) return;
+          // While the user is searching markets, Enter should act on the
+          // ticker results — not the first Pages item cmdk auto-highlights.
+          e.preventDefault();
+          e.stopPropagation();
+          const first = tickerResults[0];
+          if (first) go(`/stock/${encodeURIComponent(first.symbol)}`);
+          else go(`/explore?q=${encodeURIComponent(q)}`);
+        }}
       />
       <CommandList>
         <CommandEmpty>

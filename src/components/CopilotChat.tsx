@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { downloadTextAsPdf, userWantsPdf, downloadBilingualConversationAsPdf } from "@/lib/copilotPdf";
+import { generateInvestmentMemo, type InvestmentMemoData } from "@/lib/investmentMemoPdf";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
 import { useAiCredits } from "@/hooks/useAiCredits";
 import { Link } from "react-router-dom";
@@ -363,6 +364,9 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
               {m.tools && m.tools.length > 0 && (
                 <div className="space-y-1">
                   {m.tools.map(tl => (
+                    tl.name === "generate_investment_memo" && tl.done && tl.result?.memo ? (
+                      <MemoArtifactCard key={tl.id} memo={tl.result.memo as InvestmentMemoData} />
+                    ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">
                         <Wrench className={`h-3 w-3 ${tl.done ? "text-primary" : "text-muted-foreground animate-pulse"}`} />
@@ -377,6 +381,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                         {tl.done && <pre className="text-[10px] opacity-80 overflow-x-auto">{JSON.stringify(tl.result, null, 2).slice(0, 1500)}</pre>}
                       </div>
                     </details>
+                    )
                   ))}
                 </div>
               )}
@@ -457,3 +462,36 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
 }
 
 export default CopilotChat;
+
+function MemoArtifactCard({ memo }: { memo: InvestmentMemoData }) {
+  const reco = (memo.recommendation ?? "hold").toString().toLowerCase();
+  const tone =
+    reco === "buy" || reco === "accumulate" ? "bg-bull/15 text-bull border-bull/30"
+    : reco === "sell" || reco === "reduce" ? "bg-bear/15 text-bear border-bear/30"
+    : "bg-muted text-muted-foreground border-border";
+  const target = typeof memo.targetPrice === "number"
+    ? `${memo.currency ?? ""} ${memo.targetPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : "—";
+  const onDownload = () => {
+    try { generateInvestmentMemo(memo); } catch (e) { console.error("[memo] pdf failed", e); }
+  };
+  return (
+    <div className="rounded-lg border border-border bg-card/70 p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Investment Memo</div>
+          <div className="font-semibold truncate">{memo.name} <span className="font-mono text-muted-foreground">· {memo.symbol}</span></div>
+        </div>
+        <span className={`text-[10px] font-semibold uppercase tracking-wider rounded px-2 py-0.5 border ${tone}`}>{reco}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-[11px]">
+        <div><div className="text-muted-foreground">Target</div><div className="font-mono font-medium">{target}</div></div>
+        <div><div className="text-muted-foreground">Horizon</div><div className="font-medium">{memo.horizon ?? "12m"}</div></div>
+        <div><div className="text-muted-foreground">Conviction</div><div className="font-medium capitalize">{memo.conviction ?? "—"}</div></div>
+      </div>
+      <Button size="sm" variant="default" className="w-full gap-1.5 h-8" onClick={onDownload}>
+        <FileDown className="h-3.5 w-3.5" /> Download memo PDF
+      </Button>
+    </div>
+  );
+}

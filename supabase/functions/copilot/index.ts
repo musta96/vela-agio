@@ -89,6 +89,26 @@ const TOOLS = [
         symbols: { type: 'array', items: { type: 'string' }, description: 'Ticker symbols (Yahoo format) to brief. Max 4.' },
         focus: { type: 'string', description: 'Optional research angle, e.g. "valuation", "downside risk", "growth runway".' },
       }, required: ['symbols'] } } },
+  { type: 'function', function: { name: 'generate_investment_memo', description: 'Produce a FORMAL, downloadable investment-memo PDF for a single ticker. Use when the user asks for a "memo", "investment memo", "one-pager", "downloadable PDF report", or "formal write-up". The tool fetches live quote + fundamentals + valuation, then attaches YOUR structured thesis, target price, bull/bear cases, catalysts, risks and scenarios. The frontend will render the result as a downloadable PDF inside the chat — do NOT repeat the full memo body in your prose reply; instead acknowledge the memo and summarise the headline recommendation in 2-3 sentences.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string', description: 'Yahoo-format ticker.' },
+        recommendation: { type: 'string', enum: ['buy','accumulate','hold','reduce','sell'] },
+        conviction: { type: 'string', enum: ['low','medium','high'] },
+        horizon: { type: 'string', description: 'e.g. "12 months", "3 years".' },
+        target_price: { type: 'number', description: 'Analyst price target in the instrument\'s currency.' },
+        thesis: { type: 'string', description: 'Executive summary paragraph(s). 4-8 sentences. Plain text, no markdown headings.' },
+        bull_case: { type: 'string' },
+        bear_case: { type: 'string' },
+        catalysts: { type: 'array', items: { type: 'string' }, description: 'Concrete upcoming events / drivers.' },
+        risks: { type: 'array', items: { type: 'string' } },
+        scenarios: { type: 'array', items: { type: 'object', properties: {
+          label: { type: 'string', description: '"Base", "Bull", "Bear", or descriptive.' },
+          target: { type: 'number' },
+          probability: { type: 'number', description: '0-1 probability weight.' },
+          rationale: { type: 'string' },
+        }, required: ['label','target'] } },
+        analyst_note: { type: 'string', description: 'Optional one-line italicised note shown above the executive summary.' },
+      }, required: ['symbol','recommendation','thesis'] } } },
 ];
 
 // ---------- Tool executors ----------
@@ -186,6 +206,100 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         focus: args.focus ?? null,
         briefs,
         disclaimer: 'Educational research only — no buy/sell recommendation. Decide for yourself based on the data.',
+      };
+    }
+    case 'generate_investment_memo': {
+      const sym = String(args.symbol ?? '').toUpperCase();
+      if (!sym) return { error: 'symbol is required' };
+      // Pull live data in parallel — quote (multi-provider) + fundamentals (deep-analysis)
+      const [quote, fundRes] = await Promise.all([
+        fetchYahooQuote(sym).catch((e: any) => ({ error: e?.message ?? 'quote failed' })),
+        callEdge(ctx.authHeader, 'deep-analysis', { symbol: sym }).catch((e: any) => ({ error: e?.message ?? 'deep-analysis failed' })),
+      ]);
+      const f = (fundRes as any)?.fundamentals ?? {};
+      const v = (fundRes as any)?.valuation ?? {};
+      const price = typeof (quote as any)?.price === 'number' ? (quote as any).price : undefined;
+      const currency = (quote as any)?.currency ?? f?.currency ?? 'USD';
+      const name = (quote as any)?.name ?? f?.name ?? sym;
+
+      const keyMetrics: Array<{ label: string; value: string }> = [];
+      const pushMetric = (label: string, val: any, fmt?: (x: number) => string) => {
+        if (val == null || (typeof val === 'number' && !Number.isFinite(val))) return;
+        keyMetrics.push({ label, value: typeof val === 'number' && fmt ? fmt(val) : String(val) });
+      };
+      const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+      const num = (x: number) => x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      pushMetric('Market cap', f.marketCap, (x) => x >= 1e9 ? `${(x / 1e9).toFixed(2)}B` : x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : num(x));
+      pushMetric('P/E (TTM)', f.pe, num);
+      pushMetric('Forward P/E', f.forwardPe, num);
+      pushMetric('EV/EBITDA', f.evEbitda, num);
+      pushMetric('Price/Sales', f.priceSales ?? f.ps, num);
+      pushMetric('Price/Book', f.priceBook ?? f.pb, num);
+      pushMetric('Dividend yield', f.divYield, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('Revenue growth', f.revGrowth, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('Earnings growth', f.earningsGrowth, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('Gross margin', f.grossMargin, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('Operating margin', f.operatingMargin, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('Net margin', f.netMargin, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('ROE', f.roe, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('ROA', f.roa, (x) => pct(x > 1 ? x / 100 : x));
+      pushMetric('Debt/Equity', f.debtEquity ?? f.de, num);
+      pushMetric('Beta', f.beta, num);
+      pushMetric('52w high', f.fiftyTwoWeekHigh ?? f.high52, num);
+      pushMetric('52w low', f.fiftyTwoWeekLow ?? f.low52, num);
+
+      const fairValue = v.fairValue ?? v.intrinsic ?? v.dcfValue;
+      const valuation = {
+        method: v.method ?? (v.dcfValue ? 'DCF' : v.ddmValue ? 'DDM' : v.multiplesValue ? 'Multiples' : undefined),
+        fairValue: typeof fairValue === 'number' ? fairValue : undefined,
+        range: v.low != null && v.high != null ? { low: v.low, high: v.high } : undefined,
+        upsidePct: typeof fairValue === 'number' && typeof price === 'number' && price > 0
+          ? (fairValue - price) / price
+          : undefined,
+      };
+
+      const sources: string[] = [];
+      sources.push('Yahoo Finance — quote, fundamentals, ratios');
+      if ((fundRes as any)?.valuation) sources.push(`Vela deep-analysis · ${valuation.method ?? 'valuation'} model`);
+      sources.push(`Generated ${new Date().toISOString()}`);
+
+      // The frontend renders the PDF from this structured payload. Keep field
+      // names aligned with InvestmentMemoData in src/lib/investmentMemoPdf.ts.
+      const memo = {
+        symbol: sym,
+        name,
+        asOf: new Date().toISOString(),
+        currency,
+        price,
+        recommendation: String(args.recommendation ?? 'hold').toLowerCase(),
+        conviction: args.conviction ? String(args.conviction).toLowerCase() : undefined,
+        horizon: args.horizon ?? '12 months',
+        targetPrice: typeof args.target_price === 'number' ? args.target_price : undefined,
+        thesis: String(args.thesis ?? '').trim(),
+        bullCase: args.bull_case ? String(args.bull_case) : undefined,
+        bearCase: args.bear_case ? String(args.bear_case) : undefined,
+        catalysts: Array.isArray(args.catalysts) ? args.catalysts.map(String) : undefined,
+        risks: Array.isArray(args.risks) ? args.risks.map(String) : undefined,
+        keyMetrics,
+        valuation,
+        scenarios: Array.isArray(args.scenarios)
+          ? args.scenarios.map((s: any) => ({
+              label: String(s?.label ?? 'Scenario'),
+              target: Number(s?.target ?? 0),
+              probability: typeof s?.probability === 'number' ? s.probability : undefined,
+              rationale: s?.rationale ? String(s.rationale) : undefined,
+            }))
+          : undefined,
+        analystNote: args.analyst_note ? String(args.analyst_note) : undefined,
+        sources,
+      };
+
+      return {
+        ok: true,
+        artifact: 'investment_memo',
+        memo,
+        ui: { kind: 'memo_pdf', message: `Investment memo ready: ${name} (${sym}) — ${memo.recommendation.toUpperCase()}.` },
+        disclaimer: 'Educational research only — not investment advice.',
       };
     }
     case 'add_watchlist': {
@@ -368,7 +482,7 @@ WHAT YOU MAY DO FREELY:
 - Rank, compare, and shortlist instruments. Say which one looks strongest on the data and WHY.
 - Build conviction theses, bull/bear cases, scenario tables, position-sizing math (Kelly, risk-of-ruin, max drawdown at €X), and "if I were researching this, here's what I'd weight" framing.
 - Use plain words: "looks cheap", "looks overvalued", "high risk", "speculative", "low conviction", "the data favours X over Y".
-- Call run_screener for criteria-driven shortlists, or generate_research_brief for 1-4 named tickers when the user wants a structured document. Use these tools proactively — don't just describe them.
+- Call run_screener for criteria-driven shortlists, generate_research_brief for 1-4 named tickers when the user wants a structured document, or generate_investment_memo when the user asks for a formal/downloadable PDF memo on a single ticker (it returns a download card in the chat — keep your prose reply short). Use these tools proactively — don't just describe them.
 - Discuss tax, allocation frameworks, rebalancing logic, hedging structures, options strategies — as education and analysis.
 
 THE ONE HARD LINE (regulated personalised advice):

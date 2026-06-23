@@ -551,6 +551,7 @@ export default function OwnerConsole() {
           </Card>
         ))}
       </div>
+      <PurgeDemoSeedCard onAfterPurge={load} />
     </div>
   );
   const rolesSection = (
@@ -1237,6 +1238,79 @@ function BulkRetractCard({ onSubmit }: { onSubmit: (symbol: string, since: strin
       </div>
       <div className="flex justify-end">
         <Button size="sm" variant="destructive" disabled={!symbol || !reason} onClick={() => { onSubmit(symbol, since ? new Date(since).toISOString() : "", reason); setSymbol(""); setSince(""); setReason(""); }}>Retract all & notify</Button>
+      </div>
+    </Card>
+  );
+}
+
+function PurgeDemoSeedCard({ onAfterPurge }: { onAfterPurge: () => void | Promise<unknown> }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [preview, setPreview] = useState<{ matched: number; sample: any[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [lastDeleted, setLastDeleted] = useState<number | null>(null);
+  const call = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke("owner-console", { body: { action: "purge_demo_seed", ...payload } });
+    if (error) { toast.error(error.message || "Action failed"); return null; }
+    return data as { matched: number; deleted: number; sample: any[] } | null;
+  };
+  const runPreview = async () => {
+    setBusy(true);
+    try {
+      const res = await call({ dry_run: true, reason: reason || "preview demo seed" });
+      if (res) setPreview({ matched: res.matched ?? 0, sample: res.sample ?? [] });
+    } finally { setBusy(false); }
+  };
+  const runPurge = async () => {
+    setBusy(true);
+    try {
+      const res = await call({ dry_run: false, reason });
+      if (res) {
+        setLastDeleted(res.deleted ?? 0);
+        setPreview(null);
+        toast.success(`Deleted ${res.deleted ?? 0} legacy demo seed holdings`);
+        setOpen(false);
+        await onAfterPurge();
+      }
+    } finally { setBusy(false); }
+  };
+  return (
+    <Card className="p-4 space-y-2 border-amber-400/40">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="font-semibold text-sm flex items-center gap-2"><Database className="h-4 w-4 text-amber-500" /> Purge legacy demo seed holdings</h3>
+          <p className="text-[11px] text-muted-foreground max-w-xl">
+            Removes the deterministic demo rows (ENEL "Enel" 100 @ 6.20 EUR · UCG "UniCredit" 50 @ 35.50 EUR) that older releases seeded into every new user portfolio. Real user-entered holdings are never touched. Every run is logged to the incident &amp; audit log.
+          </p>
+          {lastDeleted != null && <div className="text-[11px] text-emerald-500 mt-1">Last purge: {lastDeleted} rows deleted.</div>}
+        </div>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setPreview(null); } }}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-2"><Trash2 className="h-3.5 w-3.5" />Review & purge</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Purge legacy demo seed holdings</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">First run a dry-run preview, then confirm deletion. Both actions are audited.</p>
+            <Textarea placeholder="Reason (recorded in incident log)" value={reason} onChange={(e) => setReason(e.target.value)} />
+            <div className="flex items-center justify-between gap-2">
+              <Button variant="ghost" size="sm" onClick={runPreview} disabled={busy}>Preview matches</Button>
+              {preview && <span className="text-xs text-muted-foreground">{preview.matched} rows match the seed signature</span>}
+            </div>
+            {preview && preview.sample.length > 0 && (
+              <div className="max-h-48 overflow-auto border rounded text-[11px] font-mono p-2 bg-muted/40">
+                {preview.sample.map((r: any) => (
+                  <div key={r.id}>{r.symbol} · {r.name} · {r.shares}@{r.avg_price} {r.currency} · user {String(r.user_id).slice(0, 8)}…</div>
+                ))}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="destructive" disabled={busy || !preview || preview.matched === 0 || reason.trim().length < 5} onClick={runPurge}>
+                Delete {preview?.matched ?? 0} rows
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Card>
   );

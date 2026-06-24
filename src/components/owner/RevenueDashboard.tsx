@@ -128,6 +128,21 @@ export default function RevenueDashboard() {
         </Card>
       ) : data ? (
         <>
+          {data.total === 0 && (
+            <Card className="p-4 border-dashed text-xs text-muted-foreground flex gap-3 items-start">
+              <Info className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <div className="space-y-1">
+                <div className="font-medium text-foreground">No {env} subscriptions recorded yet.</div>
+                <div>Reasons this view can be empty even when Stripe is connected:</div>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>The Stripe webhook (<code className="font-mono">payments-webhook</code>) is not delivering events into the <code className="font-mono">subscriptions</code> table.</li>
+                  <li>You're looking at <span className="font-medium">{env}</span> — try the other environment toggle.</li>
+                  <li>Plans in <code className="font-mono">subscription_plans</code> have no <code className="font-mono">stripe_monthly_price_id</code> / <code className="font-mono">stripe_yearly_price_id</code>, so checkout can't create subscriptions.</li>
+                  <li>Nobody has completed a paid checkout in this environment yet.</li>
+                </ul>
+              </div>
+            </Card>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi label="MRR" value={fmtMoney(data.mrr)} />
             <Kpi label="ARR" value={fmtMoney(data.arr)} />
@@ -182,6 +197,28 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={`text-lg font-semibold tabular-nums ${tone === "warn" ? "text-amber-500" : ""}`}>{value}</div>
       {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+    </Card>
+  );
+}
+
+function ProviderStatusBanner({ provider, env }: { provider: ProviderState; env: "live" | "sandbox" }) {
+  const Icon = provider.tone === "ok" ? CheckCircle2 : provider.tone === "warn" ? AlertTriangle : XCircle;
+  const toneClass =
+    provider.tone === "ok"
+      ? "border-success/40 bg-success/5 text-success"
+      : provider.tone === "warn"
+      ? "border-amber-400/40 bg-amber-400/5 text-amber-600 dark:text-amber-400"
+      : "border-destructive/40 bg-destructive/5 text-destructive";
+  return (
+    <Card className={`p-3 flex items-start gap-3 ${toneClass}`}>
+      <Icon className="h-4 w-4 mt-0.5 shrink-0" />
+      <div className="text-xs flex-1 min-w-0">
+        <div className="font-semibold flex items-center gap-2 flex-wrap">
+          <span>{provider.label}</span>
+          <Badge variant="outline" className="text-[10px] font-normal">Stripe · viewing {env}</Badge>
+        </div>
+        <p className="text-[11px] opacity-90 mt-0.5">{provider.detail}</p>
+      </div>
     </Card>
   );
 }

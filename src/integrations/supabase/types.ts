@@ -2668,6 +2668,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_revenue_overview: { Args: { _env?: string }; Returns: Json }
       ai_credits_this_month: { Args: { _user_id: string }; Returns: number }
       ai_margin_summary: {
         Args: never

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
 
 type Overview = {
   env: string;
@@ -22,11 +22,55 @@ type Overview = {
 const fmtMoney = (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v || 0);
 
+type ProviderState = {
+  status: "connected" | "test-only" | "missing";
+  label: string;
+  detail: string;
+  tone: "ok" | "warn" | "err";
+};
+
+function detectProvider(): ProviderState {
+  const token = (import.meta as any).env?.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
+  if (!token) {
+    return {
+      status: "missing",
+      label: "Payment provider not connected",
+      detail:
+        "No Stripe publishable token is configured for this build (VITE_PAYMENTS_CLIENT_TOKEN missing). Complete Stripe go-live or enable the built-in Stripe integration to start collecting payments.",
+      tone: "err",
+    };
+  }
+  if (token.startsWith("pk_live_")) {
+    return {
+      status: "connected",
+      label: "Stripe live keys configured",
+      detail: "Checkout sessions in production will hit your live Stripe account. New subscriptions appear here as the webhook records them.",
+      tone: "ok",
+    };
+  }
+  if (token.startsWith("pk_test_")) {
+    return {
+      status: "test-only",
+      label: "Stripe is in test mode",
+      detail:
+        "Only the sandbox client token is configured (pk_test_). Live revenue will stay at €0 until you finish Stripe go-live and live keys are provisioned.",
+      tone: "warn",
+    };
+  }
+  return {
+    status: "missing",
+    label: "Unrecognised payment token",
+    detail: "VITE_PAYMENTS_CLIENT_TOKEN does not look like a Stripe publishable key.",
+    tone: "err",
+  };
+}
+
 export default function RevenueDashboard() {
   const [env, setEnv] = useState<"live" | "sandbox">("live");
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const provider = useMemo(detectProvider, []);
 
   const load = async (e = env) => {
     setLoading(true);
@@ -44,6 +88,8 @@ export default function RevenueDashboard() {
 
   return (
     <div className="space-y-4">
+      <ProviderStatusBanner provider={provider} env={env} />
+
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-lg font-semibold">Revenue</h2>

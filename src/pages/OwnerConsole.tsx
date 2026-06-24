@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
+import RevenueDashboard from "@/components/owner/RevenueDashboard";
 import { toast } from "sonner";
 import {
   Users, Activity, ShieldCheck, Briefcase, Crown, Power, AlertTriangle, Megaphone, Bot,

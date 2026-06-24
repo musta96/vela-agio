@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
 
 type Overview = {
   env: string;
@@ -22,11 +22,55 @@ type Overview = {
 const fmtMoney = (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v || 0);
 
+type ProviderState = {
+  status: "connected" | "test-only" | "missing";
+  label: string;
+  detail: string;
+  tone: "ok" | "warn" | "err";
+};
+
+function detectProvider(): ProviderState {
+  const token = (import.meta as any).env?.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
+  if (!token) {
+    return {
+      status: "missing",
+      label: "Payment provider not connected",
+      detail:
+        "No Stripe publishable token is configured for this build (VITE_PAYMENTS_CLIENT_TOKEN missing). Complete Stripe go-live or enable the built-in Stripe integration to start collecting payments.",
+      tone: "err",
+    };
+  }
+  if (token.startsWith("pk_live_")) {
+    return {
+      status: "connected",
+      label: "Stripe live keys configured",
+      detail: "Checkout sessions in production will hit your live Stripe account. New subscriptions appear here as the webhook records them.",
+      tone: "ok",
+    };
+  }
+  if (token.startsWith("pk_test_")) {
+    return {
+      status: "test-only",
+      label: "Stripe is in test mode",
+      detail:
+        "Only the sandbox client token is configured (pk_test_). Live revenue will stay at €0 until you finish Stripe go-live and live keys are provisioned.",
+      tone: "warn",
+    };
+  }
+  return {
+    status: "missing",
+    label: "Unrecognised payment token",
+    detail: "VITE_PAYMENTS_CLIENT_TOKEN does not look like a Stripe publishable key.",
+    tone: "err",
+  };
+}
+
 export default function RevenueDashboard() {
   const [env, setEnv] = useState<"live" | "sandbox">("live");
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const provider = useMemo(detectProvider, []);
 
   const load = async (e = env) => {
     setLoading(true);
@@ -44,6 +88,8 @@ export default function RevenueDashboard() {
 
   return (
     <div className="space-y-4">
+      <ProviderStatusBanner provider={provider} env={env} />
+
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-lg font-semibold">Revenue</h2>
@@ -82,6 +128,21 @@ export default function RevenueDashboard() {
         </Card>
       ) : data ? (
         <>
+          {data.total === 0 && (
+            <Card className="p-4 border-dashed text-xs text-muted-foreground flex gap-3 items-start">
+              <Info className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <div className="space-y-1">
+                <div className="font-medium text-foreground">No {env} subscriptions recorded yet.</div>
+                <div>Reasons this view can be empty even when Stripe is connected:</div>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>The Stripe webhook (<code className="font-mono">payments-webhook</code>) is not delivering events into the <code className="font-mono">subscriptions</code> table.</li>
+                  <li>You're looking at <span className="font-medium">{env}</span> — try the other environment toggle.</li>
+                  <li>Plans in <code className="font-mono">subscription_plans</code> have no <code className="font-mono">stripe_monthly_price_id</code> / <code className="font-mono">stripe_yearly_price_id</code>, so checkout can't create subscriptions.</li>
+                  <li>Nobody has completed a paid checkout in this environment yet.</li>
+                </ul>
+              </div>
+            </Card>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi label="MRR" value={fmtMoney(data.mrr)} />
             <Kpi label="ARR" value={fmtMoney(data.arr)} />
@@ -136,6 +197,28 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={`text-lg font-semibold tabular-nums ${tone === "warn" ? "text-amber-500" : ""}`}>{value}</div>
       {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+    </Card>
+  );
+}
+
+function ProviderStatusBanner({ provider, env }: { provider: ProviderState; env: "live" | "sandbox" }) {
+  const Icon = provider.tone === "ok" ? CheckCircle2 : provider.tone === "warn" ? AlertTriangle : XCircle;
+  const toneClass =
+    provider.tone === "ok"
+      ? "border-success/40 bg-success/5 text-success"
+      : provider.tone === "warn"
+      ? "border-amber-400/40 bg-amber-400/5 text-amber-600 dark:text-amber-400"
+      : "border-destructive/40 bg-destructive/5 text-destructive";
+  return (
+    <Card className={`p-3 flex items-start gap-3 ${toneClass}`}>
+      <Icon className="h-4 w-4 mt-0.5 shrink-0" />
+      <div className="text-xs flex-1 min-w-0">
+        <div className="font-semibold flex items-center gap-2 flex-wrap">
+          <span>{provider.label}</span>
+          <Badge variant="outline" className="text-[10px] font-normal">Stripe · viewing {env}</Badge>
+        </div>
+        <p className="text-[11px] opacity-90 mt-0.5">{provider.detail}</p>
+      </div>
     </Card>
   );
 }

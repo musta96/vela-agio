@@ -589,12 +589,7 @@ export default function OwnerConsole() {
             </Card>
     </div>
   );
-  const billingSection = (
-    <Card className="p-10 text-center">
-      <h3 className="font-semibold mb-1">Connect a payment provider</h3>
-      <p className="text-sm text-muted-foreground max-w-md mx-auto">Once Stripe or Paddle is enabled, MRR / ARR, churn, failed payments, refunds and per-user invoice history will land here automatically.</p>
-    </Card>
-  );
+  const billingSection = <RevenueDashboard />;
   const dataSection = (
     <div className="space-y-3">
       <Card className="p-4 flex items-center justify-between">

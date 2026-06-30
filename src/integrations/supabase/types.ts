@@ -2680,6 +2680,15 @@ export type Database = {
         }[]
       }
       ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
+      check_paid_plans_stripe_ids: {
+        Args: never
+        Returns: {
+          missing_monthly: boolean
+          missing_yearly: boolean
+          slug: string
+          tier: string
+        }[]
+      }
       get_enabled_feature_flags: {
         Args: never
         Returns: {

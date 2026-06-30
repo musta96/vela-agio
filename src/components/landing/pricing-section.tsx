@@ -8,6 +8,8 @@ import { CheckCircle2, Star } from "lucide-react";
 import { type FREQUENCY, FrequencyToggle } from "@/components/landing/frequency-toggle";
 import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { useAuth } from "@/hooks/useAuth";
+import { logPaymentEvent } from "@/lib/paymentsTelemetry";
+import { getStripeEnvironment } from "@/lib/stripe";
 
 type Plan = {
   name: string;
@@ -87,8 +89,16 @@ export function PricingSection() {
       navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.name.toLowerCase()}&freq=${frequency}`)}`);
       return;
     }
+    const lookupKey = plan.lookupKey[frequency];
+    logPaymentEvent("open_checkout", {
+      plan: plan.name.toLowerCase(),
+      frequency,
+      lookupKey,
+      userId: user.id,
+      environment: getStripeEnvironment(),
+    });
     openCheckout({
-      priceId: plan.lookupKey[frequency],
+      priceId: lookupKey,
       userId: user.id,
       customerEmail: user.email ?? undefined,
       returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,

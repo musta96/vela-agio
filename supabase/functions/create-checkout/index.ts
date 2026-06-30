@@ -35,16 +35,23 @@ async function resolveOrCreateCustomer(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const t0 = Date.now();
+  let logCtx: Record<string, unknown> = {};
   try {
     const body = await req.json();
     const { priceId, quantity, customerEmail, userId, returnUrl, environment, referralCode } = body ?? {};
+    logCtx = { event: "create-checkout:start", lookupKey: priceId, userId, environment, hasReferral: !!referralCode };
+    console.log("[payments]", logCtx);
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
     if (!returnUrl) throw new Error("returnUrl required");
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";
 
     const stripe = createStripeClient(env);
     const prices = await stripe.prices.list({ lookup_keys: [priceId] });
-    if (!prices.data.length) throw new Error("Price not found");
+    if (!prices.data.length) {
+      console.warn("[payments]", { event: "create-checkout:price_not_found", lookupKey: priceId, environment: env });
+      throw new Error(`Price not found for lookup key "${priceId}"`);
+    }
     const stripePrice = prices.data[0];
     const isRecurring = stripePrice.type === "recurring";
 
@@ -86,11 +93,12 @@ Deno.serve(async (req) => {
       }),
     });
 
+    console.log("[payments]", { event: "create-checkout:success", lookupKey: (logCtx as any).lookupKey, duration_ms: Date.now() - t0 });
     return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("create-checkout error", e);
+    console.error("[payments]", { event: "create-checkout:error", lookupKey: (logCtx as any).lookupKey, userId: (logCtx as any).userId, error: (e as Error).message });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

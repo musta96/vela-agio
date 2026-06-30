@@ -1,6 +1,7 @@
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
+import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 
 interface Props {
   priceId: string;
@@ -14,10 +15,17 @@ interface Props {
 export function StripeEmbeddedCheckout({ priceId, quantity, customerEmail, userId, returnUrl, referralCode }: Props) {
   const fetchClientSecret = async (): Promise<string> => {
     const finalReturnUrl = returnUrl ?? `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
+    const env = getStripeEnvironment();
+    logPaymentEvent("checkout_invoke_start", { lookupKey: priceId, userId, environment: env });
     const { data, error } = await supabase.functions.invoke("create-checkout", {
-      body: { priceId, quantity, customerEmail, userId, returnUrl: finalReturnUrl, environment: getStripeEnvironment(), referralCode },
+      body: { priceId, quantity, customerEmail, userId, returnUrl: finalReturnUrl, environment: env, referralCode },
     });
-    if (error || !data?.clientSecret) throw new Error(error?.message || "Failed to create checkout session");
+    if (error || !data?.clientSecret) {
+      const msg = error?.message || (data as any)?.error || "Failed to create checkout session";
+      logPaymentEvent("checkout_invoke_error", { lookupKey: priceId, userId, environment: env, error: msg });
+      throw new Error(msg);
+    }
+    logPaymentEvent("checkout_invoke_success", { lookupKey: priceId, userId, environment: env });
     return data.clientSecret;
   };
 

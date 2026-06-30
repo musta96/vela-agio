@@ -18,6 +18,7 @@ import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 import { useStripeCheckout } from "@/hooks/useStripeCheckout";
+import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 
 type SubRow = {
   id: string;
@@ -215,13 +216,16 @@ export default function PlansBilling() {
   const handlePortal = async () => {
     if (!sub) return;
     setPortalLoading(true);
+    logPaymentEvent("portal_invoke_start", { userId: user?.id, environment: getStripeEnvironment() });
     try {
       const { data, error } = await supabase.functions.invoke("create-portal-session", {
         body: { environment: getStripeEnvironment(), returnUrl: `${window.location.origin}/plans-billing` },
       });
       if (error || !(data as any)?.url) throw new Error((data as any)?.error || error?.message || "Could not open billing portal");
+      logPaymentEvent("portal_invoke_success", { userId: user?.id, environment: getStripeEnvironment() });
       window.open((data as any).url as string, "_blank", "noopener,noreferrer");
     } catch (e: any) {
+      logPaymentEvent("portal_invoke_error", { userId: user?.id, error: e?.message });
       toast.error(e.message || "Unable to open billing portal");
     } finally {
       setPortalLoading(false);
@@ -584,14 +588,21 @@ export default function PlansBilling() {
                     p={p}
                     isCurrent={isCurrent}
                     frequency={billingFrequency}
-                    onChoose={(priceId) =>
+                    onChoose={(priceId) => {
+                      logPaymentEvent("open_checkout", {
+                        plan: p.slug || p.tier || p.id,
+                        frequency: billingFrequency,
+                        lookupKey: priceId,
+                        userId: user?.id,
+                        environment: getStripeEnvironment(),
+                      });
                       openCheckout({
                         priceId,
                         userId: user?.id,
                         customerEmail: user?.email ?? undefined,
                         returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-                      })
-                    }
+                      });
+                    }}
                   />
                 );
               })}
@@ -619,12 +630,18 @@ function PlanCard({
   const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
   const yearly = variant === "B" && p.ab_yearly_price_cents != null ? p.ab_yearly_price_cents : p.yearly_price_cents;
   const lookupKey = frequency === "yearly" ? p.stripe_yearly_price_id : p.stripe_monthly_price_id;
+  // Paid tier (price > 0 on either cadence) but Stripe lookup key missing →
+  // a misconfiguration we want to surface loudly instead of silently falling
+  // back to /pricing where the same broken link awaits.
+  const isPaidTier = (p.monthly_price_cents ?? 0) > 0 || (p.yearly_price_cents ?? 0) > 0;
+  const missingKey = isPaidTier && !lookupKey;
   const canCheckout = !isCurrent && !!lookupKey;
   return (
     <div
       className={`rounded-xl border p-4 flex flex-col ${
-        isCurrent ? "border-primary/60 bg-primary/5" : p.highlighted ? "border-primary/30" : "border-border"
+        isCurrent ? "border-primary/60 bg-primary/5" : missingKey ? "border-destructive/40" : p.highlighted ? "border-primary/30" : "border-border"
       }`}
+      data-testid={`plan-card-${p.slug || p.tier || p.id}`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="font-semibold">{p.name}</div>
@@ -644,6 +661,19 @@ function PlanCard({
           <li>• {p.ai_monthly_quota === -1 ? "Unlimited" : p.ai_monthly_quota.toLocaleString()} AI credits / month</li>
         )}
       </ul>
+      {missingKey && (
+        <div
+          role="alert"
+          data-testid={`plan-missing-key-${p.slug || p.tier || p.id}`}
+          className="mt-3 flex items-start gap-2 text-xs rounded-md border border-destructive/40 bg-destructive/5 p-2 text-destructive"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Checkout for this plan isn't configured yet (missing Stripe price). An admin needs to backfill
+            <code className="mx-1">stripe_{frequency}_price_id</code> before users can subscribe.
+          </span>
+        </div>
+      )}
       {canCheckout ? (
         <Button
           size="sm"
@@ -658,14 +688,17 @@ function PlanCard({
         // No Stripe lookup key (Free / Enterprise / contact tiers) → keep the
         // legacy /pricing redirect so marketing / contact-sales flow still works.
         <Button
-          asChild={!isCurrent}
+          asChild={!isCurrent && !missingKey}
           size="sm"
           variant={isCurrent ? "outline" : p.highlighted ? "default" : "outline"}
           className="mt-4 w-full"
-          disabled={isCurrent}
+          disabled={isCurrent || missingKey}
+          data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
         >
           {isCurrent ? (
             <span>Current plan</span>
+          ) : missingKey ? (
+            <span>Unavailable</span>
           ) : (
             <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
               Choose

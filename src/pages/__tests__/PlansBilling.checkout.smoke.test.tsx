@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 
 // --- Mocks ---------------------------------------------------------------
 
@@ -98,7 +99,7 @@ describe("PlansBilling → Stripe checkout (smoke)", () => {
   });
 
   it("clicking the Pro plan calls create-checkout with stripe_monthly_price_id and mounts the provider", async () => {
-    render(<MemoryRouter><PlansBilling /></MemoryRouter>);
+    render(<HelmetProvider><MemoryRouter><PlansBilling /></MemoryRouter></HelmetProvider>);
 
     const cta = await screen.findByTestId("plan-cta-pro");
     fireEvent.click(cta);
@@ -136,7 +137,7 @@ describe("PlansBilling → Stripe checkout (smoke)", () => {
       return buildQuery([]);
     });
 
-    render(<MemoryRouter><PlansBilling /></MemoryRouter>);
+    render(<HelmetProvider><MemoryRouter><PlansBilling /></MemoryRouter></HelmetProvider>);
 
     expect(await screen.findByTestId("plan-missing-key-broken")).toBeInTheDocument();
     const cta = screen.getByTestId("plan-cta-broken") as HTMLButtonElement;

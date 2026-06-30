@@ -588,14 +588,21 @@ export default function PlansBilling() {
                     p={p}
                     isCurrent={isCurrent}
                     frequency={billingFrequency}
-                    onChoose={(priceId) =>
+                    onChoose={(priceId) => {
+                      logPaymentEvent("open_checkout", {
+                        plan: p.slug || p.tier || p.id,
+                        frequency: billingFrequency,
+                        lookupKey: priceId,
+                        userId: user?.id,
+                        environment: getStripeEnvironment(),
+                      });
                       openCheckout({
                         priceId,
                         userId: user?.id,
                         customerEmail: user?.email ?? undefined,
                         returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-                      })
-                    }
+                      });
+                    }}
                   />
                 );
               })}

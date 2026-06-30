@@ -688,14 +688,17 @@ function PlanCard({
         // No Stripe lookup key (Free / Enterprise / contact tiers) → keep the
         // legacy /pricing redirect so marketing / contact-sales flow still works.
         <Button
-          asChild={!isCurrent}
+          asChild={!isCurrent && !missingKey}
           size="sm"
           variant={isCurrent ? "outline" : p.highlighted ? "default" : "outline"}
           className="mt-4 w-full"
-          disabled={isCurrent}
+          disabled={isCurrent || missingKey}
+          data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
         >
           {isCurrent ? (
             <span>Current plan</span>
+          ) : missingKey ? (
+            <span>Unavailable</span>
           ) : (
             <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
               Choose

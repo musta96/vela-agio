@@ -20,23 +20,17 @@ describe("subscription_plans health", () => {
     "every active paid plan has both stripe_monthly_price_id and stripe_yearly_price_id",
     async () => {
       const sb = createClient(url!, key!);
-      const { data, error } = await sb
-        .from("subscription_plans")
-        .select("id,slug,tier,is_active,monthly_price_cents,yearly_price_cents,stripe_monthly_price_id,stripe_yearly_price_id")
-        .eq("is_active", true);
+      // SECURITY DEFINER RPC — returns ONLY active paid plans that are
+      // missing one or both Stripe lookup keys. Empty result == healthy.
+      const { data, error } = await sb.rpc("check_paid_plans_stripe_ids");
       expect(error, error?.message).toBeNull();
-      expect(Array.isArray(data)).toBe(true);
-
-      const broken = (data ?? []).filter((p: any) => {
-        const isPaid = (p.monthly_price_cents ?? 0) > 0 || (p.yearly_price_cents ?? 0) > 0;
-        if (!isPaid) return false; // free tier exempt
-        return !p.stripe_monthly_price_id || !p.stripe_yearly_price_id;
-      });
-
+      const broken = (data ?? []) as Array<{ slug: string; tier: string; missing_monthly: boolean; missing_yearly: boolean }>;
       if (broken.length) {
         const detail = broken
-          .map((p: any) =>
-            `  - ${p.slug ?? p.id} (tier=${p.tier}): monthly=${p.stripe_monthly_price_id ?? "NULL"}, yearly=${p.stripe_yearly_price_id ?? "NULL"}`)
+          .map((p) => `  - ${p.slug} (tier=${p.tier}): ${[
+            p.missing_monthly ? "monthly=NULL" : null,
+            p.missing_yearly ? "yearly=NULL" : null,
+          ].filter(Boolean).join(", ")}`)
           .join("\n");
         throw new Error(
           `subscription_plans has ${broken.length} active paid plan(s) missing Stripe lookup keys:\n${detail}\n` +

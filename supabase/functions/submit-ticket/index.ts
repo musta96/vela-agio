@@ -76,17 +76,17 @@ Deno.serve(async (req) => {
   // ---- Rate limit: 5 tickets / 10 min, 20 / 24h, and duplicate-subject in last hour ----
   const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
   const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
-  const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+  const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
 
   const [{ count: recent10 }, { count: recent24h }, { data: dupe }] = await Promise.all([
     admin.from("support_tickets").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", tenMinAgo),
     admin.from("support_tickets").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", dayAgo),
-    admin.from("support_tickets").select("id").eq("user_id", user.id).eq("subject", subject).gte("created_at", hourAgo).limit(1),
+    admin.from("support_tickets").select("id").eq("user_id", user.id).eq("subject", subject).eq("message", message).gte("created_at", fiveMinAgo).limit(1),
   ]);
 
   if ((recent10 ?? 0) >= 5)  return json({ error: "Too many submissions. Please wait 10 minutes before submitting again." }, 429);
   if ((recent24h ?? 0) >= 20) return json({ error: "Daily ticket limit reached. Please email support directly." }, 429);
-  if (dupe && dupe.length > 0) return json({ error: "We already received a ticket with this subject in the last hour." }, 429);
+  if (dupe && dupe.length > 0) return json({ error: "This looks like a duplicate of a ticket you just submitted. Please wait a few minutes or change the subject/message." }, 429);
 
   // ---- Insert ----
   const { data: ticket, error: insErr } = await admin

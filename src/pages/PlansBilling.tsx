@@ -18,6 +18,7 @@ import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 import { useStripeCheckout } from "@/hooks/useStripeCheckout";
+import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 
 type SubRow = {
   id: string;
@@ -215,13 +216,16 @@ export default function PlansBilling() {
   const handlePortal = async () => {
     if (!sub) return;
     setPortalLoading(true);
+    logPaymentEvent("portal_invoke_start", { userId: user?.id, environment: getStripeEnvironment() });
     try {
       const { data, error } = await supabase.functions.invoke("create-portal-session", {
         body: { environment: getStripeEnvironment(), returnUrl: `${window.location.origin}/plans-billing` },
       });
       if (error || !(data as any)?.url) throw new Error((data as any)?.error || error?.message || "Could not open billing portal");
+      logPaymentEvent("portal_invoke_success", { userId: user?.id, environment: getStripeEnvironment() });
       window.open((data as any).url as string, "_blank", "noopener,noreferrer");
     } catch (e: any) {
+      logPaymentEvent("portal_invoke_error", { userId: user?.id, error: e?.message });
       toast.error(e.message || "Unable to open billing portal");
     } finally {
       setPortalLoading(false);

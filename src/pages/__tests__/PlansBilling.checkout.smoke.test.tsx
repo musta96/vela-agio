@@ -28,8 +28,13 @@ vi.mock("@/lib/stripe", () => ({
   getStripeEnvironment: () => "sandbox" as const,
 }));
 
+const STABLE_USER = { id: "u_1", email: "u@vela.ai" };
+const STABLE_AUTH = { user: STABLE_USER, loading: false };
 vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "u_1", email: "u@vela.ai" }, loading: false }),
+  // Return the SAME object reference every call — PlansBilling has
+  // `useEffect(..., [user])`, and a fresh object on every render would
+  // cause an infinite re-render loop.
+  useAuth: () => STABLE_AUTH,
 }));
 
 vi.mock("@/hooks/useFeatureFlags", () => ({

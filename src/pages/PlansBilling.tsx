@@ -630,12 +630,18 @@ function PlanCard({
   const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
   const yearly = variant === "B" && p.ab_yearly_price_cents != null ? p.ab_yearly_price_cents : p.yearly_price_cents;
   const lookupKey = frequency === "yearly" ? p.stripe_yearly_price_id : p.stripe_monthly_price_id;
+  // Paid tier (price > 0 on either cadence) but Stripe lookup key missing →
+  // a misconfiguration we want to surface loudly instead of silently falling
+  // back to /pricing where the same broken link awaits.
+  const isPaidTier = (p.monthly_price_cents ?? 0) > 0 || (p.yearly_price_cents ?? 0) > 0;
+  const missingKey = isPaidTier && !lookupKey;
   const canCheckout = !isCurrent && !!lookupKey;
   return (
     <div
       className={`rounded-xl border p-4 flex flex-col ${
-        isCurrent ? "border-primary/60 bg-primary/5" : p.highlighted ? "border-primary/30" : "border-border"
+        isCurrent ? "border-primary/60 bg-primary/5" : missingKey ? "border-destructive/40" : p.highlighted ? "border-primary/30" : "border-border"
       }`}
+      data-testid={`plan-card-${p.slug || p.tier || p.id}`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="font-semibold">{p.name}</div>
@@ -655,6 +661,19 @@ function PlanCard({
           <li>• {p.ai_monthly_quota === -1 ? "Unlimited" : p.ai_monthly_quota.toLocaleString()} AI credits / month</li>
         )}
       </ul>
+      {missingKey && (
+        <div
+          role="alert"
+          data-testid={`plan-missing-key-${p.slug || p.tier || p.id}`}
+          className="mt-3 flex items-start gap-2 text-xs rounded-md border border-destructive/40 bg-destructive/5 p-2 text-destructive"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Checkout for this plan isn't configured yet (missing Stripe price). An admin needs to backfill
+            <code className="mx-1">stripe_{frequency}_price_id</code> before users can subscribe.
+          </span>
+        </div>
+      )}
       {canCheckout ? (
         <Button
           size="sm"

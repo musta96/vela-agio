@@ -93,14 +93,10 @@ Deno.serve(async (req) => {
       }),
     });
 
+    console.log("[payments]", { event: "create-checkout:success", lookupKey: (logCtx as any).lookupKey, duration_ms: Date.now() - t0 });
     return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } finally {
-    // success path falls through here too — log duration for SLO tracking
-    if ((logCtx as any).event) {
-      console.log("[payments]", { event: "create-checkout:done", lookupKey: (logCtx as any).lookupKey, duration_ms: Date.now() - t0 });
-    }
   } catch (e) {
     console.error("[payments]", { event: "create-checkout:error", lookupKey: (logCtx as any).lookupKey, userId: (logCtx as any).userId, error: (e as Error).message });
     return new Response(JSON.stringify({ error: (e as Error).message }), {

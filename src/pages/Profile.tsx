@@ -12,6 +12,7 @@ import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useSignedAvatarUrl } from "@/lib/avatar";
 
 interface ProfileRow {
   display_name: string | null; avatar_url: string | null; phone: string | null;
@@ -26,6 +27,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarSrc = useSignedAvatarUrl(p.avatar_url);
 
   useEffect(() => {
     if (!user) return;
@@ -55,10 +57,9 @@ export default function Profile() {
     const path = `${user.id}/avatar-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) { setUploading(false); toast.error("Upload failed", { description: upErr.message }); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-    const url = pub.publicUrl;
-    setP((prev) => ({ ...prev, avatar_url: url }));
-    await supabase.from("profiles").upsert({ user_id: user.id, avatar_url: url }, { onConflict: "user_id" });
+    // Bucket is private — store the path; UI resolves to a signed URL at render time.
+    setP((prev) => ({ ...prev, avatar_url: path }));
+    await supabase.from("profiles").upsert({ user_id: user.id, avatar_url: path }, { onConflict: "user_id" });
     setUploading(false);
     toast.success("Avatar updated");
   };
@@ -83,7 +84,7 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              {p.avatar_url ? <AvatarImage src={p.avatar_url} alt="avatar" /> : null}
+              {avatarSrc ? <AvatarImage src={avatarSrc} alt="avatar" /> : null}
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />

@@ -11,6 +11,7 @@ import OwnerTickets from "@/pages/owner/Tickets";
 import OwnerBlogAdmin from "@/pages/owner/BlogAdmin";
 import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
 import OwnerReferralsPage from "@/pages/owner/Referrals";
+import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -87,7 +88,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/data-feeds": "data",
   "/owner/gdpr": "gdpr",
   "/owner/legal": "legal",
-  "/owner/security": "gdpr",
+  "/owner/security": "security",
 };
 
 // Canonical route per section (reverse of OWNER_ROUTE_SECTIONS, first wins).
@@ -114,6 +115,8 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
   gdpr: "/owner/gdpr",
   legal: "/owner/legal",
 };
+// Extra sections registered after the initial map:
+(OWNER_SECTION_ROUTES as any).security = "/owner/security";
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
@@ -840,6 +843,7 @@ export default function OwnerConsole() {
     landing: <LandingEditor />,
     tickets: <OwnerTickets />,
     blog: <OwnerBlogAdmin />,
+    security: <OwnerSecurityAudit />,
   };
 
   return (
@@ -946,6 +950,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
     { label: "Compliance", items: [
       { key: "gdpr", label: "GDPR requests", icon: <Scale className="h-3.5 w-3.5" />, badge: gdprPending || undefined },
       { key: "legal", label: "Legal documents", icon: <FileText className="h-3.5 w-3.5" /> },
+      { key: "security", label: "Security audit", icon: <Shield className="h-3.5 w-3.5" /> },
     ]},
   ];
   return (

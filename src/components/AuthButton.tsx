@@ -14,11 +14,13 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSignedAvatarUrl } from "@/lib/avatar";
 
 export const AuthButton = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const signedAvatar = useSignedAvatarUrl(avatarUrl);
   useEffect(() => {
     if (!user) { setAvatarUrl(null); return; }
     let cancelled = false;
@@ -55,7 +57,7 @@ export const AuthButton = () => {
               className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-card text-foreground border border-border hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-colors overflow-hidden"
             >
               <Avatar className="h-9 w-9">
-                {avatarUrl && <AvatarImage src={avatarUrl} alt={label} />}
+                {signedAvatar && <AvatarImage src={signedAvatar} alt={label} />}
                 <AvatarFallback className="bg-card text-foreground text-xs font-semibold">
                   {initials}
                 </AvatarFallback>

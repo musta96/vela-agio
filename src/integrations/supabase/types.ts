@@ -559,6 +559,13 @@ export type Database = {
             referencedRelation: "blog_posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "blog_leads_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       blog_posts: {
@@ -2525,6 +2532,81 @@ export type Database = {
       }
     }
     Views: {
+      blog_posts_public: {
+        Row: {
+          author_name: string | null
+          category: string | null
+          content_html: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          excerpt: string | null
+          has_gated: boolean | null
+          id: string | null
+          lead_magnet_cta: string | null
+          lead_magnet_enabled: boolean | null
+          lead_magnet_fields: Json | null
+          lead_magnet_file_name: string | null
+          lead_magnet_layout: string | null
+          published: boolean | null
+          published_at: string | null
+          reading_minutes: number | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          author_name?: string | null
+          category?: string | null
+          content_html?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          has_gated?: never
+          id?: string | null
+          lead_magnet_cta?: string | null
+          lead_magnet_enabled?: boolean | null
+          lead_magnet_fields?: Json | null
+          lead_magnet_file_name?: string | null
+          lead_magnet_layout?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          reading_minutes?: number | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          author_name?: string | null
+          category?: string | null
+          content_html?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          has_gated?: never
+          id?: string | null
+          lead_magnet_cta?: string | null
+          lead_magnet_enabled?: boolean | null
+          lead_magnet_fields?: Json | null
+          lead_magnet_file_name?: string | null
+          lead_magnet_layout?: string | null
+          published?: boolean | null
+          published_at?: string | null
+          reading_minutes?: number | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_api_keys_meta: {
         Row: {
           created_at: string | null
@@ -2562,15 +2644,25 @@ export type Database = {
           tier: string
         }[]
       }
-      admin_feature_block_summary: {
-        Args: { _since?: string }
-        Returns: {
-          blocks: number
-          feature_key: string
-          last_block: string
-          unique_users: number
-        }[]
-      }
+      admin_feature_block_summary:
+        | {
+            Args: { _days?: number }
+            Returns: {
+              blocks: number
+              feature_key: string
+              last_block: string
+              unique_users: number
+            }[]
+          }
+        | {
+            Args: { _since?: string }
+            Returns: {
+              blocks: number
+              feature_key: string
+              last_block: string
+              unique_users: number
+            }[]
+          }
       admin_list_blog_leads: {
         Args: never
         Returns: {
@@ -2669,6 +2761,25 @@ export type Database = {
         }[]
       }
       admin_revenue_overview: { Args: { _env?: string }; Returns: Json }
+      admin_rls_audit: {
+        Args: never
+        Returns: {
+          allows_anon_select: boolean
+          policy_count: number
+          rls_enabled: boolean
+          table_name: string
+        }[]
+      }
+      admin_subscriptions_missing_plan: {
+        Args: { _env?: string }
+        Returns: {
+          created_at: string
+          price_id: string
+          status: string
+          subscription_id: string
+          user_id: string
+        }[]
+      }
       ai_credits_this_month: { Args: { _user_id: string }; Returns: number }
       ai_margin_summary: {
         Args: never

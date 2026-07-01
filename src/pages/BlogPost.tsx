@@ -46,10 +46,9 @@ export default function BlogPost() {
     let cancel = false;
     (async () => {
       const { data } = await supabase
-        .from("blog_posts" as any)
+        .from("blog_posts_public" as any)
         .select(PUBLIC_SELECT)
         .eq("slug", slug)
-        .eq("published", true)
         .maybeSingle();
       if (!cancel) {
         // gated_html is not selectable via column-level grant; surface presence via the alias.

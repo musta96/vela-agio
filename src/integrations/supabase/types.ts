@@ -2644,15 +2644,25 @@ export type Database = {
           tier: string
         }[]
       }
-      admin_feature_block_summary: {
-        Args: { _since?: string }
-        Returns: {
-          blocks: number
-          feature_key: string
-          last_block: string
-          unique_users: number
-        }[]
-      }
+      admin_feature_block_summary:
+        | {
+            Args: { _days?: number }
+            Returns: {
+              blocks: number
+              feature_key: string
+              last_block: string
+              unique_users: number
+            }[]
+          }
+        | {
+            Args: { _since?: string }
+            Returns: {
+              blocks: number
+              feature_key: string
+              last_block: string
+              unique_users: number
+            }[]
+          }
       admin_list_blog_leads: {
         Args: never
         Returns: {

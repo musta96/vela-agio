@@ -231,3 +231,37 @@ function ProviderStatusBanner({ provider, env }: { provider: ProviderState; env:
     </Card>
   );
 }
+function MissingPlanWarning({ count, sample, env }: { count: number; sample: { subscription_id: string; user_id: string; status: string; price_id: string | null }[]; env: "live" | "sandbox" }) {
+  return (
+    <Card className="p-3 flex items-start gap-3 border-amber-400/40 bg-amber-400/5 text-amber-600 dark:text-amber-400">
+      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+      <div className="text-xs flex-1 min-w-0 space-y-2">
+        <div className="font-semibold">
+          {count} {env} subscription{count === 1 ? "" : "s"} not mapped to a plan
+        </div>
+        <p className="text-[11px] opacity-90">
+          These rows have a <code className="font-mono">price_id</code> that does not match any{" "}
+          <code className="font-mono">stripe_monthly_price_id</code> or <code className="font-mono">stripe_yearly_price_id</code>{" "}
+          in <code className="font-mono">subscription_plans</code>. They will not count toward MRR/ARR until fixed.
+        </p>
+        {sample.length > 0 && (
+          <ul className="text-[11px] font-mono opacity-90 list-disc pl-4 space-y-0.5">
+            {sample.map((r) => (
+              <li key={r.subscription_id}>
+                {r.subscription_id.slice(0, 8)}… · {r.status} · price=<span className="italic">{r.price_id || "null"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button size="sm" variant="outline" onClick={() => (window.location.href = "/owner/plans")}>
+            Open Plans & pricing
+          </Button>
+          <Button size="sm" variant="ghost" asChild>
+            <a href="https://dashboard.stripe.com/prices" target="_blank" rel="noreferrer">Find price IDs in Stripe</a>
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}

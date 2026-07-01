@@ -38,7 +38,9 @@ export function InstrumentCard({ symbol, name, quote }: Props) {
           <div className="text-[13px] font-medium truncate leading-tight">{name || symbol}</div>
           <div className="mt-1.5 flex items-baseline justify-between gap-2">
             <span className="text-sm font-semibold tabular-nums">
-              {quote ? `${currencySign(quote.currency)}${quote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "-"}
+              {quote && Number.isFinite(quote.price)
+                ? `${currencySign(quote.currency)}${quote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                : "-"}
             </span>
             <span className={`inline-flex items-center gap-0.5 text-[11px] tabular-nums ${colorClass}`}>
               {change != null && <Arrow className="h-3 w-3" strokeWidth={2.5} />}

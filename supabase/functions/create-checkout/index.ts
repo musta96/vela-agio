@@ -39,8 +39,8 @@ Deno.serve(async (req) => {
   let logCtx: Record<string, unknown> = {};
   try {
     const body = await req.json();
-    const { priceId, quantity, customerEmail, userId, returnUrl, environment, referralCode } = body ?? {};
-    logCtx = { event: "create-checkout:start", lookupKey: priceId, userId, environment, hasReferral: !!referralCode };
+    const { priceId, quantity, customerEmail, userId, returnUrl, environment, referralCode, correlationId } = body ?? {};
+    logCtx = { event: "create-checkout:start", lookupKey: priceId, userId, environment, hasReferral: !!referralCode, correlationId };
     console.log("[payments]", logCtx);
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
     if (!returnUrl) throw new Error("returnUrl required");
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     const stripe = createStripeClient(env);
     const prices = await stripe.prices.list({ lookup_keys: [priceId] });
     if (!prices.data.length) {
-      console.warn("[payments]", { event: "create-checkout:price_not_found", lookupKey: priceId, environment: env });
+      console.warn("[payments]", { event: "create-checkout:price_not_found", lookupKey: priceId, environment: env, correlationId });
       throw new Error(`Price not found for lookup key "${priceId}"`);
     }
     const stripePrice = prices.data[0];
@@ -93,12 +93,12 @@ Deno.serve(async (req) => {
       }),
     });
 
-    console.log("[payments]", { event: "create-checkout:success", lookupKey: (logCtx as any).lookupKey, duration_ms: Date.now() - t0 });
+    console.log("[payments]", { event: "create-checkout:success", lookupKey: (logCtx as any).lookupKey, correlationId, duration_ms: Date.now() - t0 });
     return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[payments]", { event: "create-checkout:error", lookupKey: (logCtx as any).lookupKey, userId: (logCtx as any).userId, error: (e as Error).message });
+    console.error("[payments]", { event: "create-checkout:error", lookupKey: (logCtx as any).lookupKey, userId: (logCtx as any).userId, correlationId: (logCtx as any).correlationId, error: (e as Error).message });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

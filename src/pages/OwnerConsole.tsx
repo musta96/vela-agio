@@ -11,6 +11,7 @@ import OwnerTickets from "@/pages/owner/Tickets";
 import OwnerBlogAdmin from "@/pages/owner/BlogAdmin";
 import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
 import OwnerReferralsPage from "@/pages/owner/Referrals";
+import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

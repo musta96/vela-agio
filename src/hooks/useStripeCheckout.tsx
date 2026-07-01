@@ -8,6 +8,19 @@ interface CheckoutOptions {
   userId?: string;
   returnUrl?: string;
   referralCode?: string;
+  /**
+   * Optional client-generated ID used to correlate this checkout attempt
+   * across UI telemetry, the `create-checkout` edge function log lines and
+   * downstream Stripe metadata. When omitted, one is generated automatically.
+   */
+  correlationId?: string;
+}
+
+function makeCorrelationId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  } catch { /* ignore */ }
+  return `co_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function useStripeCheckout() {
@@ -15,7 +28,7 @@ export function useStripeCheckout() {
   const [options, setOptions] = useState<CheckoutOptions | null>(null);
 
   const openCheckout = useCallback((opts: CheckoutOptions) => {
-    setOptions(opts);
+    setOptions({ ...opts, correlationId: opts.correlationId ?? makeCorrelationId() });
     setIsOpen(true);
   }, []);
 

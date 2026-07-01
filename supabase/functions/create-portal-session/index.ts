@@ -26,6 +26,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const env: StripeEnv = body.environment === "live" ? "live" : "sandbox";
     const returnUrl: string | undefined = body.returnUrl;
+    const correlationId: string | undefined = typeof body.correlationId === "string" ? body.correlationId : undefined;
+    console.log("[payments]", { event: "create-portal-session:start", userId: user.id, environment: env, correlationId });
 
     const { data: sub } = await supabase
       .from("subscriptions")
@@ -36,6 +38,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (!sub?.stripe_customer_id) {
+      console.log("[payments]", { event: "create-portal-session:no_subscription", userId: user.id, environment: env, correlationId });
       // Expected case for users on the free/launch plan — return 200 with a
       // typed flag so the client can route to /pricing without surfacing an error.
       return new Response(JSON.stringify({ noSubscription: true }), {
@@ -48,11 +51,12 @@ Deno.serve(async (req) => {
       customer: sub.stripe_customer_id,
       ...(returnUrl && { return_url: returnUrl }),
     });
+    console.log("[payments]", { event: "create-portal-session:success", userId: user.id, environment: env, correlationId });
     return new Response(JSON.stringify({ url: portal.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("create-portal-session error", e);
+    console.error("[payments]", { event: "create-portal-session:error", error: (e as Error).message });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

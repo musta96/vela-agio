@@ -216,16 +216,20 @@ export default function PlansBilling() {
   const handlePortal = async () => {
     if (!sub) return;
     setPortalLoading(true);
-    logPaymentEvent("portal_invoke_start", { userId: user?.id, environment: getStripeEnvironment() });
+    const correlationId =
+      (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
+        ? crypto.randomUUID()
+        : `co_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    logPaymentEvent("portal_invoke_start", { userId: user?.id, environment: getStripeEnvironment(), correlationId });
     try {
       const { data, error } = await supabase.functions.invoke("create-portal-session", {
-        body: { environment: getStripeEnvironment(), returnUrl: `${window.location.origin}/plans-billing` },
+        body: { environment: getStripeEnvironment(), returnUrl: `${window.location.origin}/plans-billing`, correlationId },
       });
       if (error || !(data as any)?.url) throw new Error((data as any)?.error || error?.message || "Could not open billing portal");
-      logPaymentEvent("portal_invoke_success", { userId: user?.id, environment: getStripeEnvironment() });
+      logPaymentEvent("portal_invoke_success", { userId: user?.id, environment: getStripeEnvironment(), correlationId });
       window.open((data as any).url as string, "_blank", "noopener,noreferrer");
     } catch (e: any) {
-      logPaymentEvent("portal_invoke_error", { userId: user?.id, error: e?.message });
+      logPaymentEvent("portal_invoke_error", { userId: user?.id, error: e?.message, correlationId });
       toast.error(e.message || "Unable to open billing portal");
     } finally {
       setPortalLoading(false);

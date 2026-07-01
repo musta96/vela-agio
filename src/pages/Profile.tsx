@@ -55,10 +55,9 @@ export default function Profile() {
     const path = `${user.id}/avatar-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) { setUploading(false); toast.error("Upload failed", { description: upErr.message }); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-    const url = pub.publicUrl;
-    setP((prev) => ({ ...prev, avatar_url: url }));
-    await supabase.from("profiles").upsert({ user_id: user.id, avatar_url: url }, { onConflict: "user_id" });
+    // Bucket is private — store the path; UI resolves to a signed URL at render time.
+    setP((prev) => ({ ...prev, avatar_url: path }));
+    await supabase.from("profiles").upsert({ user_id: user.id, avatar_url: path }, { onConflict: "user_id" });
     setUploading(false);
     toast.success("Avatar updated");
   };

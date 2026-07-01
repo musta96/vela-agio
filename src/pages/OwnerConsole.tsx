@@ -89,6 +89,8 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/legal": "legal",
   "/owner/security": "gdpr",
 };
+// Route -> section mapping (kept in sync with OWNER_ROUTE_SECTIONS below)
+// Adding here without touching the source-of-truth constant would drift; instead extend it:
 
 // Canonical route per section (reverse of OWNER_ROUTE_SECTIONS, first wins).
 const OWNER_SECTION_ROUTES: Record<string, string> = {

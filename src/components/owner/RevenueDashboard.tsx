@@ -70,14 +70,22 @@ export default function RevenueDashboard() {
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [missingCount, setMissingCount] = useState<number>(0);
+  const [missingSample, setMissingSample] = useState<{ subscription_id: string; user_id: string; status: string; price_id: string | null }[]>([]);
   const provider = useMemo(detectProvider, []);
 
   const load = async (e = env) => {
     setLoading(true);
     setErr(null);
-    const { data, error } = await supabase.rpc("admin_revenue_overview", { _env: e });
-    if (error) setErr(error.message);
-    else setData(data as unknown as Overview);
+    const [overview, missing] = await Promise.all([
+      supabase.rpc("admin_revenue_overview", { _env: e }),
+      supabase.rpc("admin_subscriptions_missing_plan" as any, { _env: e }),
+    ]);
+    if (overview.error) setErr(overview.error.message);
+    else setData(overview.data as unknown as Overview);
+    const rows = (missing.data as any[]) || [];
+    setMissingCount(rows.length);
+    setMissingSample(rows.slice(0, 5));
     setLoading(false);
   };
 
@@ -89,6 +97,7 @@ export default function RevenueDashboard() {
   return (
     <div className="space-y-4">
       <ProviderStatusBanner provider={provider} env={env} />
+      {missingCount > 0 && <MissingPlanWarning count={missingCount} sample={missingSample} env={env} />}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>

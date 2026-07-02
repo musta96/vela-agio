@@ -318,6 +318,8 @@ async function evaluateSymbolRule(rule: Rule) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const unauth = requireCronSecret(req);
+  if (unauth) return unauth;
 
   try {
     const { data: rules, error } = await supabase

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, Loader2, TrendingUp, TrendingDown, Minus, Eye, MessageSquare, X } from "lucide-react";
+import { ArrowRight, Sparkles, Loader2, TrendingUp, TrendingDown, Minus, Eye, MessageSquare, X, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { persistDashboardTourSeen } from "@/components/dashboard/DashboardTour";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const HOT_TICKERS = [
+const FALLBACK_TICKERS = [
   { sym: "AAPL", name: "Apple" },
   { sym: "TSLA", name: "Tesla" },
   { sym: "NVDA", name: "NVIDIA" },
@@ -44,6 +44,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SignalResult | null>(null);
+  const [hotTickers, setHotTickers] = useState<{ sym: string; name: string }[]>(FALLBACK_TICKERS);
   const inputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +52,36 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     inputRef.current?.focus();
     track("onboarding_start");
+  }, []);
+
+  // Load today's most-scanned tickers (rotating). Falls back to defaults if empty.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data } = await supabase
+          .from("sentiment_history")
+          .select("symbol")
+          .gte("created_at", since)
+          .limit(200);
+        if (cancelled || !data?.length) return;
+        const counts = new Map<string, number>();
+        for (const r of data as { symbol: string | null }[]) {
+          const s = (r.symbol || "").toUpperCase();
+          if (!s) continue;
+          counts.set(s, (counts.get(s) ?? 0) + 1);
+        }
+        const top = [...counts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([sym]) => ({ sym, name: sym }));
+        if (top.length >= 3) setHotTickers(top);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // ESC = skip
@@ -148,14 +179,14 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
             <Sparkles className="h-3.5 w-3.5" /> Welcome to Vela
           </div>
           <h1 id="first-run-title" className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Get an AI research signal on any stock in 10 seconds.
+            Research any stock in your portfolio — in 10 seconds.
           </h1>
           <p className="text-sm text-muted-foreground">
-            Pick one below or type your own ticker. No setup, no forms.
+            Pick one of today's most-scanned tickers or type your own. No setup, no forms.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            {HOT_TICKERS.map((t) => (
+            {hotTickers.map((t) => (
               <button
                 key={t.sym}
                 onClick={() => fetchSignal(t.sym)}
@@ -188,6 +219,20 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
               Get signal <ArrowRight className="h-4 w-4" />
             </button>
           </form>
+
+          <div className="pt-2">
+            <button
+              onClick={async () => {
+                track("onboarding_cta_connect_portfolio");
+                await markSeen();
+                navigate("/portfolio");
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            >
+              <Briefcase className="h-3.5 w-3.5" />
+              Or connect your portfolio to research what you already own
+            </button>
+          </div>
         </div>
       )}
 

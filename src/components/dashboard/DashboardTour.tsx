@@ -6,6 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
 
 const TOUR_KEY = "vela_dashboard_tour_v1";
 
+export type TourLoadResult = {
+  done: boolean;
+  source: "server" | "local" | "anonymous";
+  error?: string;
+};
+
+export type TourPersistResult = {
+  ok: boolean;
+  local: boolean;
+  error?: string;
+};
+
 type Step = {
   target: string; // data-tour attribute value
   title: string;
@@ -67,33 +79,51 @@ export function markDashboardTourSeen() {
  * localStorage. Returns true if the walkthrough has already been completed on
  * ANY device. Falls back gracefully to the local flag when offline.
  */
-export async function loadDashboardTourState(userId: string | null | undefined): Promise<boolean> {
-  if (!userId) return hasSeenDashboardTour();
+export async function loadDashboardTourState(
+  userId: string | null | undefined,
+): Promise<TourLoadResult> {
+  if (!userId) {
+    return { done: hasSeenDashboardTour(), source: "anonymous" };
+  }
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("dashboard_tour_completed_at")
       .eq("user_id", userId)
       .maybeSingle();
-    const done = !!(data as { dashboard_tour_completed_at?: string | null } | null)?.dashboard_tour_completed_at;
+    if (error) throw error;
+    const done = !!(data as { dashboard_tour_completed_at?: string | null } | null)
+      ?.dashboard_tour_completed_at;
     if (done) markDashboardTourSeen();
-    return done || hasSeenDashboardTour();
-  } catch {
-    return hasSeenDashboardTour();
+    return { done: done || hasSeenDashboardTour(), source: "server" };
+  } catch (e) {
+    return {
+      done: hasSeenDashboardTour(),
+      source: "local",
+      error: e instanceof Error ? e.message : "sync_failed",
+    };
   }
 }
 
 /** Persist completion for the signed-in user (per-account, cross-device). */
-export async function persistDashboardTourSeen(userId: string | null | undefined) {
+export async function persistDashboardTourSeen(
+  userId: string | null | undefined,
+): Promise<TourPersistResult> {
   markDashboardTourSeen();
-  if (!userId) return;
+  if (!userId) return { ok: true, local: true };
   try {
-    await supabase
+    const { error } = await supabase
       .from("profiles")
       .update({ dashboard_tour_completed_at: new Date().toISOString() })
       .eq("user_id", userId);
-  } catch {
-    /* offline / RLS — localStorage still holds the flag until we sync next time */
+    if (error) throw error;
+    return { ok: true, local: true };
+  } catch (e) {
+    return {
+      ok: false,
+      local: true,
+      error: e instanceof Error ? e.message : "persist_failed",
+    };
   }
 }
 
@@ -108,6 +138,7 @@ export function DashboardTour({
 }) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const nextBtnRef = useRef<HTMLButtonElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -120,8 +151,15 @@ export function DashboardTour({
   }, [open]);
 
   const finish = useCallback(() => {
-    void persistDashboardTourSeen(userId ?? null);
-    onClose();
+    setSaveError(null);
+    void persistDashboardTourSeen(userId ?? null).then((r) => {
+      if (!r.ok && r.error) {
+        // Keep the tooltip open so the user sees the accessible sync warning.
+        setSaveError(r.error);
+      } else {
+        onClose();
+      }
+    });
   }, [onClose, userId]);
 
   const focusHighlighted = useCallback(() => {
@@ -300,6 +338,16 @@ export function DashboardTour({
         <p id="dashboard-tour-body" className="mt-3 text-sm text-muted-foreground leading-relaxed">
           {step.body}
         </p>
+        {saveError && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="dashboard-tour-save-error"
+            className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground"
+          >
+            We couldn't sync your progress. It's saved on this device and we'll retry next time.
+          </div>
+        )}
         <div className="mt-3 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs font-medium text-foreground">
           {step.input}
         </div>

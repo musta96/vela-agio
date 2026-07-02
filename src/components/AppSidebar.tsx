@@ -311,9 +311,11 @@ function PortfolioGroup() {
 
   if (collapsed) {
     return (
-      <SidebarMenu>
-        <NavItemLink it={{ title: PORTFOLIO.title, url: PORTFOLIO.url, icon: PORTFOLIO.icon }} />
-      </SidebarMenu>
+      <SidebarGroup>
+        <SidebarMenu>
+          <NavItemLink it={{ title: PORTFOLIO.title, url: PORTFOLIO.url, icon: PORTFOLIO.icon }} />
+        </SidebarMenu>
+      </SidebarGroup>
     );
   }
 

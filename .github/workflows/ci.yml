@@ -9,6 +9,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Hourly cron so a live-only regression (e.g. a plan row edited via the
+    # owner console after merge) is caught within an hour, not next PR.
+    - cron: "0 * * * *"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -56,3 +60,50 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  stripe-price-health:
+    name: stripe-price-health
+    # Guards against a silent-broken checkout: fails the pipeline the moment
+    # `check_paid_plans_stripe_ids()` reports any active paid plan missing
+    # `stripe_monthly_price_id` or `stripe_yearly_price_id`, and fans the
+    # failure out to Slack + Sentry so ops sees it without waiting for a
+    # customer report. Runs on every push/PR and hourly via schedule below.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - run: bun install --frozen-lockfile
+      - name: Run subscription_plans health check
+        id: health
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -o pipefail
+          bun run vitest run src/lib/__tests__/subscriptionPlans.health.test.ts \
+            --reporter=default 2>&1 | tee /tmp/health.log
+      - name: Notify Slack on missing Stripe price IDs
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.OPS_SLACK_WEBHOOK_URL }}
+        run: |
+          TAIL=$(tail -c 2500 /tmp/health.log | sed 's/"/\\"/g' | tr '\n' ' ')
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK_URL" \
+            --data "{\"text\":\":rotating_light: *Stripe price health check FAILED* — one or more active paid plans are missing stripe_monthly_price_id / stripe_yearly_price_id. Users will hit a broken checkout.\n<${RUN_URL}|View CI run>\n\`\`\`${TAIL}\`\`\`\"}"
+      - name: Report to Sentry
+        if: failure() && env.SENTRY_DSN != ''
+        env:
+          SENTRY_DSN: ${{ secrets.OPS_SENTRY_DSN }}
+        run: |
+          # Minimal Sentry envelope — no SDK needed. Uses the store endpoint
+          # so a plain curl is enough from CI runners without extra deps.
+          KEY=$(echo "$SENTRY_DSN" | sed -E 's|^https?://([^:@]+)(:[^@]+)?@.*|\1|')
+          HOST=$(echo "$SENTRY_DSN" | sed -E 's|^https?://[^@]+@([^/]+)/.*|\1|')
+          PROJECT=$(echo "$SENTRY_DSN" | sed -E 's|^.*/([0-9]+)$|\1|')
+          curl -sS -X POST "https://${HOST}/api/${PROJECT}/store/" \
+            -H "Content-Type: application/json" \
+            -H "X-Sentry-Auth: Sentry sentry_version=7, sentry_key=${KEY}, sentry_client=lovable-ci/1.0" \
+            --data "{\"level\":\"error\",\"logger\":\"ci.stripe-price-health\",\"platform\":\"other\",\"message\":\"check_paid_plans_stripe_ids reports active paid plans missing Stripe price IDs\",\"tags\":{\"repo\":\"${{ github.repository }}\",\"run_id\":\"${{ github.run_id }}\"}}"

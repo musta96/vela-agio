@@ -151,6 +151,7 @@ export default function AppShell() {
               onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
               className="flex flex-1 min-w-0 max-w-2xl items-center gap-2 rounded-xl glass-card px-3 sm:px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 transition-colors"
               aria-label="Search"
+              data-tour="app-search"
             >
               <Search className="h-4 w-4 shrink-0" />
               <span className="truncate"><span className="hidden sm:inline">Search tickers, markets, news, screeners…</span><span className="sm:hidden">Search…</span></span>

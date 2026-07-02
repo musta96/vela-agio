@@ -1,9 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { isAiOptedOut, aiOptOutResponse } from '../_shared/ai-opt-out.ts';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __aiAccess = await resolveAiAccess(req.headers.get('Authorization'));
+  if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     if (await isAiOptedOut(req.headers.get('Authorization'))) return aiOptOutResponse(corsHeaders);
     const { portfolio, risk, lang } = await req.json();

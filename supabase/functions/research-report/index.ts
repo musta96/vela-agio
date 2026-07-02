@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -41,6 +42,8 @@ async function aiSection(cfg: AIConfig, prompt: string, schema: string, lang = "
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __aiAccess = await resolveAiAccess(req.headers.get('Authorization'));
+  if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     const body = (await req.json()) as Body;
     if (!body?.symbol) {

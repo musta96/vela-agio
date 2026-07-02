@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 import { getInvestorProfileSummary } from '../_shared/investor-profile.ts';
 
 type Holding = { symbol: string; name?: string; shares: number; avg_price: number; current_price?: number };
@@ -55,6 +56,8 @@ async function weather(city?: string) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __aiAccess = await resolveAiAccess(req.headers.get('Authorization'));
+  if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     const { holdings = [], goals = {}, riskProfile = 'balanced', weatherCity, lang = 'en' } = await req.json() as {
       holdings: Holding[]; goals: Record<string, unknown>; riskProfile?: string; weatherCity?: string; lang?: string;

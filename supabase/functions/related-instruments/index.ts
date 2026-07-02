@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
 async function yahooMeta(symbol: string) {
   try {
@@ -52,6 +53,8 @@ async function aiSemantic(authHeader: string | null, symbol: string, name: strin
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __aiAccess = await resolveAiAccess(req.headers.get('Authorization'));
+  if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     const { symbol } = await req.json();
     if (!symbol) return new Response(JSON.stringify({ error: 'symbol required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

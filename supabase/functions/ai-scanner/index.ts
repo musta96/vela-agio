@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
 interface Bar { t: number; close: number }
 
@@ -73,6 +74,8 @@ Candidates: ${JSON.stringify(rows).slice(0, 12000)}`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const __aiAccess = await resolveAiAccess(req.headers.get('Authorization'));
+  if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     const { universe = 'ftse_mib', symbols, criteria = '', limit = 10 } = await req.json();
     let list: string[] = Array.isArray(symbols) && symbols.length ? symbols.map(String) : UNIVERSES[universe]?.symbols ?? UNIVERSES.ftse_mib.symbols;

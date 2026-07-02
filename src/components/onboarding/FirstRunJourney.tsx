@@ -26,16 +26,41 @@ type Step = "welcome" | "signal";
 
 function track(event: string, payload?: Record<string, unknown>) {
   try {
-    // Reuse whatever telemetry sink is available; fallback to console.
     (window as any).plausible?.(event, { props: payload });
     // eslint-disable-next-line no-console
     console.info("[onboarding]", event, payload ?? {});
-  } catch {
-    /* ignore */
-  }
+  } catch { /* ignore */ }
+  // Persist server-side (fire-and-forget). RLS restricts inserts to auth.uid().
+  try {
+    void supabase.from("ai_event_log").insert({
+      event_type: event,
+      feature: "onboarding_first_run",
+      payload: (payload ?? {}) as any,
+    });
+  } catch { /* ignore */ }
 }
 
-export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
+const MAX_RETRIES = 3;
+function backoffMs(attempt: number) {
+  // 600ms, 1400ms, 3000ms + small jitter
+  const base = Math.min(600 * Math.pow(2, attempt), 3000);
+  return base + Math.floor(Math.random() * 200);
+}
+function friendlyError(raw: string): string {
+  const m = raw.toLowerCase();
+  if (m.includes("timeout") || m.includes("network") || m.includes("fetch")) {
+    return "We couldn't reach Vela's signal service. Check your connection and try again.";
+  }
+  if (m.includes("rate") || m.includes("429")) {
+    return "Vela is a bit busy right now. Give it a moment and retry.";
+  }
+  if (m.includes("not found") || m.includes("unknown symbol") || m.includes("invalid")) {
+    return "We couldn't find that ticker. Double-check the symbol and try again.";
+  }
+  return "We couldn't generate a signal right now. Please retry.";
+}
+
+export function FirstRunJourney({ onComplete }: { onComplete: (symbol?: string | null) => void }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [step, setStep] = useState<Step>("welcome");
@@ -46,13 +71,28 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
   const [result, setResult] = useState<SignalResult | null>(null);
   const [hotTickers, setHotTickers] = useState<{ sym: string; name: string }[]>(FALLBACK_TICKERS);
   const [autoStarted, setAutoStarted] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [retryingIn, setRetryingIn] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const tickerRowRef = useRef<HTMLDivElement>(null);
+  const startedAtRef = useRef<number>(Date.now());
+  const signalStartedAtRef = useRef<number | null>(null);
+  const retryTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
-  // Autofocus + analytics on mount
+  // Autofocus + analytics + focus-restore on unmount
   useEffect(() => {
+    previouslyFocusedRef.current = (document.activeElement as HTMLElement) ?? null;
     inputRef.current?.focus();
+    startedAtRef.current = Date.now();
     track("onboarding_start");
+    return () => {
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+      if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
+      previouslyFocusedRef.current?.focus?.();
+    };
   }, []);
 
   // Load today's most-scanned tickers (rotating, server-cached per UTC day).
@@ -112,19 +152,29 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
 
   const markSeen = useCallback(async () => {
     try { localStorage.setItem("vela.firstRun.done", "1"); } catch { /* ignore */ }
-    if (user?.id) await persistDashboardTourSeen(user.id);
-  }, [user?.id]);
+    if (user?.id) {
+      await persistDashboardTourSeen(user.id);
+      // Persist first-run completion + selected symbol server-side so the
+      // journey stays consistent across devices.
+      try {
+        await supabase.from("profiles").update({
+          first_run_completed_at: new Date().toISOString(),
+          first_run_symbol: activeSymbol,
+        }).eq("user_id", user.id);
+      } catch { /* ignore */ }
+    }
+  }, [user?.id, activeSymbol]);
 
   const handleSkip = useCallback(async () => {
     track("onboarding_skip_intro", { step });
     await markSeen();
-    onComplete();
-  }, [markSeen, onComplete, step]);
+    onComplete(activeSymbol);
+  }, [markSeen, onComplete, step, activeSymbol]);
 
   const handleExplore = useCallback(async () => {
     track("onboarding_explore_dashboard", { symbol: activeSymbol });
     await markSeen();
-    onComplete();
+    onComplete(activeSymbol);
   }, [markSeen, onComplete, activeSymbol]);
 
   const handleConnectPortfolio = useCallback(async () => {
@@ -136,12 +186,16 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
 
   const handleRetry = useCallback(() => {
     if (!activeSymbol) return;
-    track("onboarding_signal_retry", { symbol: activeSymbol });
-    fetchSignal(activeSymbol);
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
+    setRetryingIn(null);
+    setAttempt(0);
+    track("onboarding_signal_retry", { symbol: activeSymbol, manual: true });
+    fetchSignal(activeSymbol, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSymbol]);
 
-  const fetchSignal = useCallback(async (raw: string) => {
+  const fetchSignal = useCallback(async (raw: string, retryAttempt = 0) => {
     const sym = raw.trim().toUpperCase();
     if (!sym) return;
     setActiveSymbol(sym);
@@ -149,7 +203,11 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
     setLoading(true);
     setError(null);
     setResult(null);
-    track("onboarding_ticker_chosen", { symbol: sym });
+    setAttempt(retryAttempt);
+    if (retryAttempt === 0) {
+      signalStartedAtRef.current = Date.now();
+      track("onboarding_ticker_chosen", { symbol: sym });
+    }
     try {
       const { data, error: fnErr } = await supabase.functions.invoke("analyze-sentiment", {
         body: { symbol: sym },
@@ -157,15 +215,46 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
       if (fnErr) throw fnErr;
       if ((data as any)?.error) throw new Error((data as any).error);
       setResult(data as SignalResult);
-      track("onboarding_signal_revealed", { symbol: sym });
+      const ttfs = signalStartedAtRef.current ? Date.now() - signalStartedAtRef.current : null;
+      track("onboarding_step_completed", { step: "signal_revealed", symbol: sym, time_to_first_signal_ms: ttfs, under_30s: ttfs !== null && ttfs <= 30_000, attempts: retryAttempt + 1 });
+      track("onboarding_signal_revealed", { symbol: sym, time_to_first_signal_ms: ttfs });
+      // Persist ttfs + symbol on the profile so success metrics survive reloads/devices.
+      if (user?.id && ttfs !== null) {
+        try {
+          await supabase.from("profiles").update({
+            first_run_symbol: sym,
+            first_run_time_to_signal_ms: ttfs,
+          }).eq("user_id", user.id);
+        } catch { /* ignore */ }
+      }
       // move focus to the result card for screen readers
       setTimeout(() => cardRef.current?.focus(), 50);
     } catch (e: any) {
-      setError(e?.message || "Couldn't fetch a signal right now.");
+      const raw = e?.message || "unknown error";
+      // Auto-retry with exponential backoff up to MAX_RETRIES.
+      if (retryAttempt < MAX_RETRIES - 1) {
+        const wait = backoffMs(retryAttempt);
+        track("onboarding_signal_retry", { symbol: sym, manual: false, attempt: retryAttempt + 1, wait_ms: wait });
+        setError(`${friendlyError(raw)} Retrying automatically…`);
+        setRetryingIn(Math.ceil(wait / 1000));
+        if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = window.setInterval(() => {
+          setRetryingIn((n) => (n && n > 1 ? n - 1 : null));
+        }, 1000);
+        retryTimerRef.current = window.setTimeout(() => {
+          if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
+          setRetryingIn(null);
+          fetchSignal(sym, retryAttempt + 1);
+        }, wait);
+      } else {
+        setError(friendlyError(raw));
+        track("onboarding_signal_failed", { symbol: sym, attempts: retryAttempt + 1, raw });
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleAddToWatchlist = useCallback(async () => {
     if (!activeSymbol || !user) return;
@@ -178,7 +267,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
     }
     await markSeen();
     track("onboarding_complete", { via: "watchlist", symbol: activeSymbol });
-    onComplete();
+    onComplete(activeSymbol);
   }, [activeSymbol, user, markSeen, onComplete]);
 
   const handleAskFollowup = useCallback(async () => {
@@ -187,7 +276,25 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
     await markSeen();
     track("onboarding_complete", { via: "assistant", symbol: activeSymbol });
     navigate(`/copilot?q=${encodeURIComponent(`Tell me more about ${activeSymbol}`)}`);
-  }, [activeSymbol, markSeen, navigate, navigate]);
+  }, [activeSymbol, markSeen, navigate]);
+
+  // Roving tab order across hot-ticker buttons: ArrowLeft/Right + Home/End.
+  const onTickerRowKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      tickerRowRef.current?.querySelectorAll<HTMLButtonElement>('[data-ft-ticker="1"]') ?? []
+    );
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (idx === -1) return;
+    let next = idx;
+    if (e.key === "ArrowRight") next = (idx + 1) % items.length;
+    else if (e.key === "ArrowLeft") next = (idx - 1 + items.length) % items.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = items.length - 1;
+    else return;
+    e.preventDefault();
+    items[next]?.focus();
+  };
 
   const scoreTone = (score: number) =>
     score >= 60 ? { label: "Bullish", icon: TrendingUp, cls: "text-success bg-success/10" }
@@ -221,11 +328,26 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
             Pick one of today's most-scanned tickers or type your own. No setup, no forms.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            {hotTickers.map((t) => (
+          <div
+            ref={tickerRowRef}
+            role="group"
+            aria-label="Popular tickers — use arrow keys to move"
+            onKeyDown={onTickerRowKeyDown}
+            className="flex flex-wrap items-center justify-center gap-2 pt-2"
+          >
+            {hotTickers.map((t, i) => (
               <button
                 key={t.sym}
+                data-ft-ticker="1"
+                tabIndex={i === 0 ? 0 : -1}
+                onFocus={(e) => {
+                  // roving: make focused item the only tabbable one
+                  Array.from(tickerRowRef.current?.querySelectorAll<HTMLButtonElement>('[data-ft-ticker="1"]') ?? [])
+                    .forEach((b) => (b.tabIndex = -1));
+                  e.currentTarget.tabIndex = 0;
+                }}
                 onClick={() => fetchSignal(t.sym)}
+                aria-label={`Analyze ${t.name} (${t.sym})`}
                 className="group inline-flex items-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-semibold text-foreground hover:border-primary/50 hover:bg-primary/5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="tabular-nums">{t.sym}</span>
@@ -292,7 +414,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
           </div>
           <div className="h-px bg-border my-4" />
 
-          <div aria-live="polite" className="min-h-[140px]">
+          <div aria-live="polite" aria-busy={loading} className="min-h-[140px]">
             {loading && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -300,13 +422,18 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
               </div>
             )}
             {error && !loading && (
-              <div className="space-y-3">
+              <div role="alert" className="space-y-3">
                 <p className="text-sm text-destructive">{error}</p>
+                {retryingIn !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Retrying in {retryingIn}s… (attempt {attempt + 1} of {MAX_RETRIES})
+                  </p>
+                )}
                 <button
                   onClick={handleRetry}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted/40"
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Retry
+                  Retry now
                 </button>
               </div>
             )}

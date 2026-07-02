@@ -16,8 +16,14 @@ import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useEffect, useMemo } from "react";
+import { useRef, useCallback } from "react";
 
 const STORAGE_PREFIX = "vela.sidebar.group.";
+
+// Small helper to give animated Collapsible content a nice, reduced-motion-aware feel.
+const COLLAPSIBLE_ANIM =
+  "overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up motion-reduce:animate-none";
+
 function loadGroupOpen(key: string, fallback: boolean): boolean {
   if (typeof window === "undefined") return fallback;
   try {
@@ -211,7 +217,7 @@ function NetWorthSubMenu() {
             </button>
           </CollapsibleTrigger>
         </SidebarMenuItem>
-        <CollapsibleContent>
+        <CollapsibleContent className={COLLAPSIBLE_ANIM}>
           {NET_WORTH_SUB.map((it) => {
             const active = isRouteActive(pathname, it.url);
             return (
@@ -317,7 +323,7 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <CollapsibleContent>
+            <CollapsibleContent className={COLLAPSIBLE_ANIM}>
               {group.items.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}

@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const BROWSERLESS_URL = Deno.env.get('BROWSERLESS_URL') ?? 'https://production-sfo.browserless.io';
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY') ?? '';
@@ -24,6 +25,20 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return bad(405, 'Method not allowed');
   if (!BROWSERLESS_API_KEY) return bad(500, 'BROWSERLESS_API_KEY not configured');
+
+  // Require an authenticated user — prevents unauthenticated cost abuse / SSRF via the paid Browserless API.
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return bad(401, 'Unauthorized');
+  try {
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await sb.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (error || !data?.claims?.sub) return bad(401, 'Unauthorized');
+  } catch {
+    return bad(401, 'Unauthorized');
+  }
 
   let body: Body;
   try {

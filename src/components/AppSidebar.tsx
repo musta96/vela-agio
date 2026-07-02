@@ -15,7 +15,27 @@ import {
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+
+const STORAGE_PREFIX = "vela.sidebar.group.";
+function loadGroupOpen(key: string, fallback: boolean): boolean {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const v = window.localStorage.getItem(STORAGE_PREFIX + key);
+    if (v === null) return fallback;
+    return v === "1";
+  } catch {
+    return fallback;
+  }
+}
+function saveGroupOpen(key: string, open: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_PREFIX + key, open ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 
@@ -42,12 +62,7 @@ const RESEARCH: NavGroup = {
   ],
 };
 
-const HOME: NavGroup = {
-  title: "Home",
-  url: "/dashboard",
-  icon: Home,
-  items: [{ title: "Dashboard", url: "/dashboard", icon: Home }],
-};
+const DASHBOARD_ITEM: Item = { title: "Dashboard", url: "/dashboard", icon: Home };
 
 const MARKETS: NavGroup = {
   title: "Markets",
@@ -122,7 +137,7 @@ const ACCOUNT: NavGroup = {
   ],
 };
 
-const NAV_GROUPS: NavGroup[] = [RESEARCH, HOME, MARKETS, PORTFOLIO, ASSISTANT, LEARN, ACCOUNT];
+const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, PORTFOLIO, ASSISTANT, LEARN, ACCOUNT];
 
 const OWNER_ITEM: Item = { title: "Owner Console", url: "/owner", icon: Crown, badge: "you" };
 
@@ -139,11 +154,19 @@ function NetWorthSubMenu() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const onAnyNW = pathname.startsWith("/net-worth");
-  const [open, setOpen] = useState(onAnyNW);
+  const [open, setOpen] = useState(() => loadGroupOpen("net-worth", onAnyNW));
 
   useEffect(() => {
-    if (onAnyNW) setOpen(true);
+    if (onAnyNW) {
+      setOpen(true);
+      saveGroupOpen("net-worth", true);
+    }
   }, [onAnyNW]);
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    saveGroupOpen("net-worth", v);
+  };
 
   if (collapsed) {
     return (
@@ -168,7 +191,7 @@ function NetWorthSubMenu() {
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={handleOpenChange}>
       <SidebarMenu>
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
@@ -255,11 +278,19 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const groupActive = useGroupActive(pathname, group);
-  const [open, setOpen] = useState(groupActive);
+  const [open, setOpen] = useState(() => loadGroupOpen(group.title, groupActive));
 
   useEffect(() => {
-    if (groupActive) setOpen(true);
-  }, [groupActive]);
+    if (groupActive) {
+      setOpen(true);
+      saveGroupOpen(group.title, true);
+    }
+  }, [groupActive, group.title]);
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    saveGroupOpen(group.title, v);
+  };
 
   if (collapsed) {
     return (
@@ -273,7 +304,7 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
 
   return (
     <SidebarGroup>
-      <Collapsible open={open} onOpenChange={setOpen}>
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
         <SidebarGroupLabel asChild className="px-0">
           <CollapsibleTrigger
             type="button"
@@ -303,11 +334,19 @@ function PortfolioGroup() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const groupActive = useGroupActive(pathname, PORTFOLIO) || pathname.startsWith("/net-worth");
-  const [open, setOpen] = useState(groupActive);
+  const [open, setOpen] = useState(() => loadGroupOpen(PORTFOLIO.title, groupActive));
 
   useEffect(() => {
-    if (groupActive) setOpen(true);
+    if (groupActive) {
+      setOpen(true);
+      saveGroupOpen(PORTFOLIO.title, true);
+    }
   }, [groupActive]);
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    saveGroupOpen(PORTFOLIO.title, v);
+  };
 
   if (collapsed) {
     return (
@@ -321,7 +360,7 @@ function PortfolioGroup() {
 
   return (
     <SidebarGroup>
-      <Collapsible open={open} onOpenChange={setOpen}>
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
         <SidebarGroupLabel asChild className="px-0">
           <CollapsibleTrigger
             type="button"
@@ -392,6 +431,23 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { user } = useAuth();
   const isOwner = (user?.email || "").toLowerCase() === "mustarelli.edoardo@gmail.com";
+  const { pathname } = useLocation();
+
+  const breadcrumb = useMemo(() => {
+    if (isRouteActive(pathname, DASHBOARD_ITEM.url)) {
+      return { group: null as string | null, page: DASHBOARD_ITEM.title };
+    }
+    for (const g of NAV_GROUPS) {
+      const nwHit = g.title === "Portfolio" && pathname.startsWith("/net-worth")
+        ? NET_WORTH_SUB.find((it) => isRouteActive(pathname, it.url))
+        : undefined;
+      if (nwHit) return { group: g.title, page: `Net Worth · ${nwHit.title}` };
+      const hit = g.items.find((it) => isRouteActive(pathname, it.url));
+      if (hit) return { group: g.title, page: hit.title };
+    }
+    if (pathname.startsWith("/owner")) return { group: "Founder", page: "Owner Console" };
+    return null;
+  }, [pathname]);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
@@ -399,15 +455,30 @@ export function AppSidebar() {
         {collapsed ? (
           <VelaLogo size={22} withWordmark={false} />
         ) : (
-          <span className="inline-flex items-center gap-2 text-base font-semibold tracking-tight text-sidebar-foreground">
-            <VelaLogo size={22} withWordmark={false} />
-            <span>
-              Vela<span className="text-[hsl(var(--sidebar-ring))]">.ai</span>
+          <div className="flex flex-col min-w-0">
+            <span className="inline-flex items-center gap-2 text-base font-semibold tracking-tight text-sidebar-foreground">
+              <VelaLogo size={22} withWordmark={false} />
+              <span>
+                Vela<span className="text-[hsl(var(--sidebar-ring))]">.ai</span>
+              </span>
             </span>
-          </span>
+            {breadcrumb && (
+              <span
+                aria-label="Current location"
+                className="mt-0.5 pl-[30px] truncate text-[10px] tracking-wide text-sidebar-foreground/50"
+              >
+                {breadcrumb.group ? `${breadcrumb.group} › ${breadcrumb.page}` : breadcrumb.page}
+              </span>
+            )}
+          </div>
         )}
       </SidebarHeader>
       <SidebarContent className="py-3">
+        <SidebarGroup>
+          <SidebarMenu>
+            <NavItemLink it={DASHBOARD_ITEM} />
+          </SidebarMenu>
+        </SidebarGroup>
         {NAV_GROUPS.map((group) =>
           group.title === "Portfolio" ? (
             <PortfolioGroup key={group.title} />

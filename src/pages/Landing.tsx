@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } fr
 import { PricingSection } from "@/components/landing/pricing-section";
 import { ProductDemoCarousel } from "@/components/landing/ProductDemoCarousel";
 import { useFlag } from "@/hooks/useFeatureFlags";
+import { trackLandingEvent } from "@/lib/landingAnalytics";
 import type { BlogPostRow } from "@/lib/blog";
 
 
@@ -43,12 +44,26 @@ export default function Landing() {
   const [livePosts, setLivePosts] = useState<BlogPostRow[]>([]);
   const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingEnabled = useFlag("pricing", false);
+  const footerRef = useRef<HTMLElement | null>(null);
+  const [footerInView, setFooterInView] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setShowStickyCta(window.scrollY > 640);
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Hide the floating CTA when the footer scrolls into view so it never
+  // overlaps footer links or the bottom of the page on small screens.
+  useEffect(() => {
+    if (!footerRef.current) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setFooterInView(entry.isIntersecting),
+      { rootMargin: "0px 0px -20% 0px" },
+    );
+    io.observe(footerRef.current);
+    return () => io.disconnect();
   }, []);
 
   useEffect(() => {
@@ -179,6 +194,7 @@ export default function Landing() {
           <div className="flex items-center gap-3 sm:gap-5">
             <Link
               to="/auth"
+              data-testid="nav-sign-in"
               className="hidden sm:inline-flex items-center text-xs font-medium hover:underline transition"
               style={{ color: "#3d4f66" }}
             >
@@ -186,6 +202,8 @@ export default function Landing() {
             </Link>
             <Link
               to="/auth"
+              data-testid="nav-get-started"
+              onClick={() => trackLandingEvent("landing_get_started_click", { source: "nav" })}
               className="button-gradient inline-flex items-center px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap"
             >
               Get started free
@@ -208,7 +226,11 @@ export default function Landing() {
           {hero.subtitle || "Vela turns markets into one clear signal. Ask a question, get a directional call backed by real-time data — in seconds."}
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 px-4 sm:px-0">
-          <Link to={hero.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-xl">
+       <Link
+         to={hero.primaryCta?.href || "/auth"}
+         onClick={() => trackLandingEvent("landing_get_started_click", { source: "hero" })}
+         className="button-gradient inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-xl"
+       >
             {hero.primaryCta?.label || "Start Alpha Hunt"} <ArrowRight className="h-4 w-4" />
           </Link>
           <a href={hero.secondaryCta?.href || "#features"} className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold">
@@ -586,7 +608,7 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer className="relative z-10 backdrop-blur-md" style={{ borderTop: "1px solid rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.5)" }}>
+      <footer ref={footerRef} className="relative z-10 backdrop-blur-md" style={{ borderTop: "1px solid rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.5)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
           <div className="flex items-center gap-3 text-center md:text-left">
             <VelaLogo size={24} />
@@ -608,19 +630,31 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* FLOATING STICKY CTA */}
+      {/* FLOATING STICKY CTA
+          - Header (z-40) sits above; this uses z-30 so it never overlaps the sticky nav.
+          - Hidden while the footer is in view so it doesn't cover footer links.
+          - On mobile it hugs the bottom-right with safe-area inset padding; a
+            small negative bottom on desktop keeps it out of key hero content. */}
       <div
-        className={`fixed bottom-5 right-5 z-50 transition-all duration-300 ${
-          showStickyCta ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        data-testid="sticky-cta"
+        aria-hidden={!showStickyCta || footerInView}
+        className={`fixed right-4 sm:right-5 z-30 transition-all duration-300 ${
+          showStickyCta && !footerInView
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-4 pointer-events-none"
         }`}
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
       >
         <Link
           to="/auth"
+          data-testid="sticky-cta-link"
           aria-label="Get started free"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold text-white shadow-2xl"
+          onClick={() => trackLandingEvent("landing_get_started_click", { source: "sticky" })}
+          tabIndex={showStickyCta && !footerInView ? 0 : -1}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold text-white shadow-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]"
           style={{ background: "linear-gradient(135deg,#185FA5,#1D9E75)" }}
         >
-          Get started free <ArrowRight className="h-4 w-4" />
+          Get started free <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBriefing } from "@/components/AIBriefing";
 import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
-import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { ProfileSetupBanner } from "@/components/ProfileSetupBanner";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolios } from "@/hooks/usePortfolios";
@@ -221,7 +221,7 @@ export default function Index() {
             onDismiss={dismissHero}
           />
         ) : (
-          <OnboardingChecklist />
+          <ProfileSetupBanner />
         )}
 
         {!isFirstRun && (

@@ -204,6 +204,8 @@ function NetWorthSubMenu() {
             <button
               type="button"
               aria-expanded={open}
+              data-sidebar-nav="group"
+              aria-controls="sidebar-group-net-worth"
               className={cn(
                 "w-full flex items-center gap-2.5 rounded-none border-l-2 px-4 py-2.5 text-[13px] transition-colors",
                 onAnyNW
@@ -217,7 +219,7 @@ function NetWorthSubMenu() {
             </button>
           </CollapsibleTrigger>
         </SidebarMenuItem>
-        <CollapsibleContent className={COLLAPSIBLE_ANIM}>
+        <CollapsibleContent id="sidebar-group-net-worth" className={COLLAPSIBLE_ANIM}>
           {NET_WORTH_SUB.map((it) => {
             const active = isRouteActive(pathname, it.url);
             return (

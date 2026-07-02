@@ -10,8 +10,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import React from "react";
 
-const updateMock = vi.fn(() => Promise.resolve({ error: null }));
-const eqMock = vi.fn(() => Promise.resolve({ error: null }));
+const updateMock = vi.fn<(payload: unknown) => Promise<{ error: null }>>(() =>
+  Promise.resolve({ error: null }),
+);
+const eqMock = vi.fn<(col: string, val: string) => Promise<{ error: null }>>(() =>
+  Promise.resolve({ error: null }),
+);
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {

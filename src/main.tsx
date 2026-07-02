@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import { initNative } from "./lib/native";
+import { installAuthBadgeStripper } from "./lib/hideEditorBadge";
 
 // Service worker hygiene for Lovable preview iframes.
 // In iframes or on preview hostnames, unregister any SW so cached shells
@@ -27,3 +28,8 @@ createRoot(document.getElementById("root")!).render(
 
 // Initialize native plugins (no-op on web)
 initNative();
+
+// Strip any editor-injected "Edit with Lovable" pill from auth screens
+// (login/signup/reset) so those surfaces show only Vela branding — even
+// inside the workspace preview iframe.
+installAuthBadgeStripper();

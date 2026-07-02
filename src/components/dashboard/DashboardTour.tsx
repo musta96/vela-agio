@@ -6,6 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
 
 const TOUR_KEY = "vela_dashboard_tour_v1";
 
+export type TourLoadResult = {
+  done: boolean;
+  source: "server" | "local" | "anonymous";
+  error?: string;
+};
+
+export type TourPersistResult = {
+  ok: boolean;
+  local: boolean;
+  error?: string;
+};
+
 type Step = {
   target: string; // data-tour attribute value
   title: string;

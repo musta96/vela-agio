@@ -446,6 +446,49 @@ export function AppSidebar() {
   const { user } = useAuth();
   const isOwner = (user?.email || "").toLowerCase() === "mustarelli.edoardo@gmail.com";
   const { pathname } = useLocation();
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // Roving keyboard navigation across every visible sidebar link + group trigger.
+  // - ArrowDown/ArrowUp: move focus to next/previous item
+  // - Home/End: jump to first/last
+  // - ArrowRight/ArrowLeft on a group trigger: expand/collapse (Enter/Space still work natively)
+  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const root = navRef.current;
+    if (!root) return;
+    const key = e.key;
+    if (!["ArrowDown", "ArrowUp", "Home", "End", "ArrowRight", "ArrowLeft"].includes(key)) return;
+
+    const items = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-sidebar-nav="item"], [data-sidebar-nav="group"]')
+    ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+    if (items.length === 0) return;
+
+    const activeEl = document.activeElement as HTMLElement | null;
+    const idx = activeEl ? items.indexOf(activeEl) : -1;
+
+    if (key === "ArrowDown") {
+      e.preventDefault();
+      const next = items[Math.min(items.length - 1, idx + 1)] ?? items[0];
+      next.focus();
+    } else if (key === "ArrowUp") {
+      e.preventDefault();
+      const prev = items[Math.max(0, idx - 1)] ?? items[0];
+      prev.focus();
+    } else if (key === "Home") {
+      e.preventDefault();
+      items[0].focus();
+    } else if (key === "End") {
+      e.preventDefault();
+      items[items.length - 1].focus();
+    } else if ((key === "ArrowRight" || key === "ArrowLeft") && activeEl?.dataset.sidebarNav === "group") {
+      // Toggle expand/collapse via a synthetic click when the user presses arrow keys.
+      const expanded = activeEl.getAttribute("aria-expanded") === "true";
+      if ((key === "ArrowRight" && !expanded) || (key === "ArrowLeft" && expanded)) {
+        e.preventDefault();
+        activeEl.click();
+      }
+    }
+  }, []);
 
   const breadcrumb = useMemo(() => {
     if (isRouteActive(pathname, DASHBOARD_ITEM.url)) {
@@ -477,17 +520,36 @@ export function AppSidebar() {
               </span>
             </span>
             {breadcrumb && (
-              <span
-                aria-label="Current location"
-                className="mt-0.5 pl-[30px] truncate text-[10px] tracking-wide text-sidebar-foreground/50"
+              <nav
+                aria-label="Breadcrumb"
+                className="mt-0.5 pl-[30px] text-[10px] tracking-wide text-sidebar-foreground/50"
               >
-                {breadcrumb.group ? `${breadcrumb.group} › ${breadcrumb.page}` : breadcrumb.page}
-              </span>
+                <ol className="flex items-center gap-1 truncate" role="list">
+                  {breadcrumb.group && (
+                    <>
+                      <li className="truncate">
+                        <span className="sr-only">Section: </span>
+                        <span aria-hidden="true">{breadcrumb.group}</span>
+                      </li>
+                      <li aria-hidden="true" className="opacity-60">›</li>
+                    </>
+                  )}
+                  <li className="truncate" aria-current="page">
+                    <span className="sr-only">Current page: </span>
+                    {breadcrumb.page}
+                  </li>
+                </ol>
+              </nav>
             )}
           </div>
         )}
       </SidebarHeader>
-      <SidebarContent className="py-3">
+      <SidebarContent
+        ref={navRef as any}
+        onKeyDown={onKeyDown}
+        aria-label="Primary"
+        className="py-3"
+      >
         <SidebarGroup>
           <SidebarMenu>
             <NavItemLink it={DASHBOARD_ITEM} />

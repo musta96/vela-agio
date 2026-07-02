@@ -310,7 +310,7 @@ export default function Landing() {
           </p>
         </div>
         <div className="mt-10 text-center">
-          <Link to="/features" className="ghost-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold">
+          <Link to="/pricing" className="ghost-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold">
             See the full feature breakdown <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

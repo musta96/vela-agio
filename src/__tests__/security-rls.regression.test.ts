@@ -38,12 +38,16 @@ function psql(sql: string): { stdout: string; status: number | null; stderr: str
 }
 
 function policyRow(table: string, name: string) {
+  // Flatten multi-line pretty-printed predicates so we can grep them reliably.
   const r = psql(
-    `select cmd, coalesce(qual,''), coalesce(with_check,''), array_to_string(roles,',') ` +
-    `from pg_policies where schemaname='public' and tablename='${table}' and policyname='${name}'`,
+    `select cmd || '|' || ` +
+    `regexp_replace(coalesce(qual,''), E'\\\\s+', ' ', 'g') || '|' || ` +
+    `regexp_replace(coalesce(with_check,''), E'\\\\s+', ' ', 'g') || '|' || ` +
+    `array_to_string(roles,',') ` +
+    `from pg_policies where schemaname='public' and tablename='${table}' and policyname=$$${name}$$`,
   );
   if (r.status !== 0) throw new Error(`psql failed: ${r.stderr}`);
-  const line = r.stdout.trim().split("\n").filter(Boolean)[0];
+  const line = r.stdout.replace(/\n/g, " ").trim();
   if (!line) return null;
   const [cmd, qual, withCheck, roles] = line.split("|");
   return { cmd, qual, withCheck, roles };

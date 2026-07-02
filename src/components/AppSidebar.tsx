@@ -379,7 +379,7 @@ function PortfolioGroup() {
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <CollapsibleContent>
+            <CollapsibleContent className={COLLAPSIBLE_ANIM}>
               {PORTFOLIO.items.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}

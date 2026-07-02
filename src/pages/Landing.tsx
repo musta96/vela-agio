@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } from "@/data/landingDefaults";
 import { PricingSection } from "@/components/landing/pricing-section";
+import { ProductDemoCarousel } from "@/components/landing/ProductDemoCarousel";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import type { BlogPostRow } from "@/lib/blog";
 
@@ -40,7 +41,15 @@ export default function Landing() {
   const [seo, setSeo] = useState<any>({});
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [livePosts, setLivePosts] = useState<BlogPostRow[]>([]);
+  const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingEnabled = useFlag("pricing", false);
+
+  useEffect(() => {
+    const onScroll = () => setShowStickyCta(window.scrollY > 640);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -170,16 +179,16 @@ export default function Landing() {
           <div className="flex items-center gap-3 sm:gap-5">
             <Link
               to="/auth"
-              className="hidden sm:inline-flex items-center text-[11px] font-bold tracking-[0.22em] uppercase hover:opacity-70 transition"
-              style={{ color: "#042C53" }}
+              className="hidden sm:inline-flex items-center text-xs font-medium hover:underline transition"
+              style={{ color: "#3d4f66" }}
             >
-              Sign In
+              Sign in
             </Link>
             <Link
               to="/auth"
               className="button-gradient inline-flex items-center px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap"
             >
-              Get Started
+              Get started free
             </Link>
           </div>
         </div>
@@ -189,14 +198,14 @@ export default function Landing() {
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 md:pt-20 pb-16 sm:pb-20 md:pb-24 text-center">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[0.2em] uppercase ticker" style={{ color: "#185FA5" }}>
           <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: "#1D9E75" }} />
-          {hero.eyebrow || "GENESIS v4.0 NOW LIVE"}
+          {hero.eyebrow || "AI-powered market research"}
         </span>
         <h1 className="mt-6 sm:mt-8 text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.95]">
-          <span className="block" style={{ color: "#042C53" }}>{hero.title || "Research like"}</span>
-          <span className="block hero-gradient-text">{hero.titleAccent || "the elite."}</span>
+          <span className="block" style={{ color: "#042C53" }}>{hero.title || "Ask any market."}</span>
+          <span className="block hero-gradient-text">{hero.titleAccent || "Get a clear answer."}</span>
         </h1>
-        <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed px-2" style={{ color: "#3d4f66" }}>
-          {hero.subtitle || "The playground of high-frequency precision. Vela leverages industrial-grade AI to decode market velocity for everyone."}
+        <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl max-w-xl mx-auto leading-relaxed px-2" style={{ color: "#3d4f66" }}>
+          {hero.subtitle || "Vela turns markets into one clear signal. Ask a question, get a directional call backed by real-time data — in seconds."}
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 px-4 sm:px-0">
           <Link to={hero.primaryCta?.href || "/auth"} className="button-gradient inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-xl">
@@ -245,6 +254,9 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* PRODUCT DEMO */}
+      <ProductDemoCarousel />
+
       {/* FEATURES */}
       <section id="features" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
@@ -289,10 +301,18 @@ export default function Landing() {
       {/* FULL FEATURE GRID - Everything you need */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Platform</div>
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Also included</div>
           <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            Everything you need to research the markets
+            Backtesting, sentiment, screeners and more
           </h2>
+          <p className="mt-3 text-sm sm:text-base" style={{ color: "#3d4f66" }}>
+            The heavy toolkit is a click away when you need it — never in your face when you don't.
+          </p>
+        </div>
+        <div className="mt-10 text-center">
+          <Link to="/pricing" className="ghost-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold">
+            See the full feature breakdown <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
         <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {(features.items || []).map((f: any, i: number) => {
@@ -587,6 +607,22 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* FLOATING STICKY CTA */}
+      <div
+        className={`fixed bottom-5 right-5 z-50 transition-all duration-300 ${
+          showStickyCta ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
+      >
+        <Link
+          to="/auth"
+          aria-label="Get started free"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold text-white shadow-2xl"
+          style={{ background: "linear-gradient(135deg,#185FA5,#1D9E75)" }}
+        >
+          Get started free <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
     </div>
   );
 }

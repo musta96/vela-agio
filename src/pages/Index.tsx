@@ -111,8 +111,8 @@ export default function Index() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    loadDashboardTourState(user.id).then((done) => {
-      if (!cancelled) setTourSeen(done);
+    loadDashboardTourState(user.id).then((result) => {
+      if (!cancelled) setTourSeen(result.done);
     });
     return () => {
       cancelled = true;

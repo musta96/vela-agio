@@ -52,28 +52,29 @@ describe("DashboardTour · graceful Supabase fallback", () => {
     expect(r.done).toBe(true);
   });
 
-  it("still runs the tour on server failure and shows an accessible sync-error status when persistence fails", async () => {
+  it("shows an accessible sync-error status when persistence fails", async () => {
+    const onClose = vi.fn();
     render(
       <>
         <Scaffold />
-        <DashboardTour open userId="user-1" onClose={() => {}} />
+        <DashboardTour open userId="user-1" onClose={onClose} />
       </>,
     );
 
-    // Advance to the final step and finish → persistence rejects.
     fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
     fireEvent.click(screen.getByRole("button", { name: /Got it/i }));
 
-    // Local mirror is written unconditionally.
+    // Local mirror is written even though the server rejected.
     await waitFor(() =>
       expect(localStorage.getItem("vela_dashboard_tour_v1")).toBe("1"),
     );
 
-    // Accessible error state renders (role=status, aria-live=polite).
-    // NOTE: onClose in test hides tour immediately, so we assert state via
-    // re-rendering the tour open once more — the saveError persists in that
-    // scenario across visits only if we keep the dialog open. Instead we
-    // exercise the state directly by re-opening:
+    // Accessible status message renders and dialog stays open.
+    const status = await screen.findByTestId("dashboard-tour-save-error");
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toMatch(/saved on this device/i);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

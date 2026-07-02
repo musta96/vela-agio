@@ -71,31 +71,31 @@ export function ProfileSetupBanner({ className }: { className?: string }) {
       role="status"
       data-testid="profile-setup-banner"
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm",
+        "flex items-start sm:items-center gap-2 sm:gap-3 rounded-xl border border-border bg-card px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm",
         "dark:bg-[hsl(var(--surface-glass))] dark:border-[hsl(var(--border-glass))]",
         className,
       )}
     >
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-        <Sparkles className="h-3.5 w-3.5" />
+      <span className="mt-0.5 sm:mt-0 grid h-6 w-6 sm:h-7 sm:w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+        <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 leading-snug">
         <Link
           to="/profile#getting-started"
           className="text-foreground font-medium hover:underline inline-flex items-center gap-1"
         >
           Finish setting up your profile
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
         </Link>
-        <span className="ml-2 text-xs text-muted-foreground tabular-nums">{pct}% complete</span>
+        <span className="ml-1.5 sm:ml-2 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{pct}% complete</span>
       </div>
       <button
         type="button"
         onClick={dismiss}
         aria-label="Dismiss"
-        className="text-muted-foreground hover:text-foreground rounded-md p-1"
+        className="mt-0.5 sm:mt-0 -mr-1 text-muted-foreground hover:text-foreground rounded-md p-1"
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </button>
     </div>
   );

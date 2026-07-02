@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, ArrowRight, ArrowLeft, Search, Star, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const TOUR_KEY = "vela_dashboard_tour_v1";
 
@@ -61,11 +62,62 @@ export function markDashboardTourSeen() {
   }
 }
 
-export function DashboardTour({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Read the server-side completion flag for the current user and mirror it into
+ * localStorage. Returns true if the walkthrough has already been completed on
+ * ANY device. Falls back gracefully to the local flag when offline.
+ */
+export async function loadDashboardTourState(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return hasSeenDashboardTour();
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("dashboard_tour_completed_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const done = !!(data as { dashboard_tour_completed_at?: string | null } | null)?.dashboard_tour_completed_at;
+    if (done) markDashboardTourSeen();
+    return done || hasSeenDashboardTour();
+  } catch {
+    return hasSeenDashboardTour();
+  }
+}
+
+/** Persist completion for the signed-in user (per-account, cross-device). */
+export async function persistDashboardTourSeen(userId: string | null | undefined) {
+  markDashboardTourSeen();
+  if (!userId) return;
+  try {
+    await supabase
+      .from("profiles")
+      .update({ dashboard_tour_completed_at: new Date().toISOString() })
+      .eq("user_id", userId);
+  } catch {
+    /* offline / RLS — localStorage still holds the flag until we sync next time */
+  }
+}
+
+export function DashboardTour({
+  open,
+  onClose,
+  userId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  userId?: string | null;
+}) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const tipRef = useRef<HTMLDivElement | null>(null);
+  const nextBtnRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
 
   const step = STEPS[i];
+
+  // Reset to step 0 whenever the tour reopens so re-runs always start at Search.
+  useEffect(() => {
+    if (open) setI(0);
+  }, [open]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -95,10 +147,49 @@ export function DashboardTour({ open, onClose }: { open: boolean; onClose: () =>
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight") setI((v) => Math.min(STEPS.length - 1, v + 1));
       if (e.key === "ArrowLeft") setI((v) => Math.max(0, v - 1));
+      // Simple focus trap: Tab cycles within the tooltip.
+      if (e.key === "Tab" && tipRef.current) {
+        const focusables = tipRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  // Focus management: capture the previously-focused element on open,
+  // move focus into the dialog, and restore focus on close.
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocused.current = (document.activeElement as HTMLElement) ?? null;
+    // Wait a tick so the tooltip is mounted before focusing.
+    const t = window.setTimeout(() => {
+      nextBtnRef.current?.focus();
+    }, 30);
+    return () => {
+      window.clearTimeout(t);
+      previouslyFocused.current?.focus?.();
+    };
+  }, [open]);
+
+  // Re-focus the primary action after each step change so keyboard users
+  // always know where they are.
+  useEffect(() => {
+    if (!open) return;
+    nextBtnRef.current?.focus();
+  }, [i, open]);
 
   if (!open) return null;
 
@@ -128,13 +219,17 @@ export function DashboardTour({ open, onClose }: { open: boolean; onClose: () =>
   const Icon = step.icon;
   const isLast = i === STEPS.length - 1;
 
-  const finish = () => {
-    markDashboardTourSeen();
+  const finish = useCallback(() => {
+    void persistDashboardTourSeen(userId ?? null);
     onClose();
-  };
+  }, [onClose, userId]);
 
   return createPortal(
     <div className="fixed inset-0 z-[100]" role="dialog" aria-label="Dashboard walkthrough">
+      {/* Off-screen live region announces step changes to screen readers. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        Step {i + 1} of {STEPS.length}: {step.title}. {step.body}
+      </div>
       {/* Dim + spotlight cutout via 4 rects */}
       {highlight ? (
         <>
@@ -166,15 +261,22 @@ export function DashboardTour({ open, onClose }: { open: boolean; onClose: () =>
       )}
 
       <div
+        ref={tipRef}
         className="absolute rounded-2xl border border-border bg-card text-card-foreground shadow-2xl p-5"
         style={{ top: tipTop, left: tipLeft, width: tipW }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dashboard-tour-title"
+        aria-describedby="dashboard-tour-body"
+        data-testid={`dashboard-tour-step-${i + 1}`}
+        data-tour-step={step.target}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Icon className="h-4 w-4" />
             </div>
-            <div className="text-sm font-semibold">{step.title}</div>
+            <div id="dashboard-tour-title" className="text-sm font-semibold">{step.title}</div>
           </div>
           <button
             onClick={finish}
@@ -185,7 +287,9 @@ export function DashboardTour({ open, onClose }: { open: boolean; onClose: () =>
           </button>
         </div>
 
-        <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{step.body}</p>
+        <p id="dashboard-tour-body" className="mt-3 text-sm text-muted-foreground leading-relaxed">
+          {step.body}
+        </p>
         <div className="mt-3 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs font-medium text-foreground">
           {step.input}
         </div>
@@ -206,11 +310,11 @@ export function DashboardTour({ open, onClose }: { open: boolean; onClose: () =>
               </Button>
             )}
             {isLast ? (
-              <Button size="sm" onClick={finish}>
+              <Button ref={nextBtnRef} size="sm" onClick={finish}>
                 Got it
               </Button>
             ) : (
-              <Button size="sm" onClick={() => setI((v) => v + 1)}>
+              <Button ref={nextBtnRef} size="sm" onClick={() => setI((v) => v + 1)}>
                 Next <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             )}

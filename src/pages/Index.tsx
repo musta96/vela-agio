@@ -506,8 +506,12 @@ export default function Index() {
           </div>
         </div>
 
+          </>
+        )}
+
         <AiDisclaimerStrip />
       </div>
+      <DashboardTour open={tourOpen} onClose={() => { markDashboardTourSeen(); setTourOpen(false); }} />
     </>
   );
 }

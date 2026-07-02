@@ -23,7 +23,10 @@ function hasPsql() {
   return r.status === 0;
 }
 function hasDbConn() {
-  return Boolean(process.env.SUPABASE_DB_URL || process.env.PGHOST);
+  // Require the explicit superuser URL (CI provides it). The sandbox's
+  // PG* env vars point at a limited role that can't ALTER/DROP the tables
+  // under test, so we don't attempt it there.
+  return Boolean(process.env.SUPABASE_DB_URL);
 }
 
 const shouldRun = hasPsql() && hasDbConn();

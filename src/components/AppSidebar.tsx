@@ -258,6 +258,8 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
         <NavLink
           to={it.url}
           end={it.url === "/"}
+          data-sidebar-nav="item"
+          aria-current={active ? "page" : undefined}
           className={cn(
             "flex items-center gap-2.5 rounded-none border-l-2 px-4 py-2.5 text-[13px] transition-colors",
             active

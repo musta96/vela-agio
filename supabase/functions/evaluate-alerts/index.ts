@@ -14,6 +14,17 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+function requireCronSecret(req: Request): Response | null {
+  const expected = Deno.env.get("CRON_SECRET") ?? "";
+  const got = req.headers.get("x-cron-secret") ?? "";
+  if (!expected || got !== expected) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return null;
+}
+
 const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -307,6 +318,8 @@ async function evaluateSymbolRule(rule: Rule) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const unauth = requireCronSecret(req);
+  if (unauth) return unauth;
 
   try {
     const { data: rules, error } = await supabase

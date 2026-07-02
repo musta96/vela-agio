@@ -39,7 +39,34 @@ Deno.serve(async (req) => {
   let logCtx: Record<string, unknown> = {};
   try {
     const body = await req.json();
-    const { priceId, quantity, customerEmail, userId, returnUrl, environment, referralCode, correlationId } = body ?? {};
+    const { priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment, referralCode, correlationId } = body ?? {};
+
+    // Derive userId from the caller's JWT — never trust the client-supplied value.
+    // Guest checkouts (no auth header) may still proceed but cannot bind to any account.
+    let userId: string | undefined = undefined;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const userClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
+        );
+        const { data } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+        const sub = data?.claims?.sub as string | undefined;
+        if (sub) userId = sub;
+      } catch { /* fall through as guest */ }
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (bodyUserId && bodyUserId !== userId) {
+        return new Response(JSON.stringify({ error: "userId mismatch" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
     logCtx = { event: "create-checkout:start", lookupKey: priceId, userId, environment, hasReferral: !!referralCode, correlationId };
     console.log("[payments]", logCtx);
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");

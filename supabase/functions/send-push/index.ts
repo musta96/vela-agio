@@ -42,6 +42,41 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Authorization: allow only (a) trusted server-to-server calls carrying the CRON_SECRET,
+    // (b) the target user themself, or (c) an admin. Prevents anyone with the anon key from
+    // sending arbitrary push notifications to any user.
+    const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+    const providedCron = req.headers.get("x-cron-secret") ?? "";
+    const isCron = !!cronSecret && providedCron === cronSecret;
+    if (!isCron) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
+      );
+      const { data: claimsData } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+      const callerId = claimsData?.claims?.sub as string | undefined;
+      if (!callerId) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (callerId !== user_id) {
+        const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: callerId, _role: "admin" });
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
     const { data: subs, error } = await supabase
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth")

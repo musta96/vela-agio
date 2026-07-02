@@ -30,7 +30,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       titleAccent: "Without becoming one.",
       subtitle: "Vela.ai is an educational research platform for FTSE MIB, European and US markets. AI copilot, portfolio coach, optimizer and compliance tools - built for individual investors and professionals alike.",
       primaryCta: { label: "Start free", href: "/auth" },
-      secondaryCta: { label: "See features", href: "#features" },
+      secondaryCta: { label: "See features", href: "/features" },
       note: "No credit card. Free forever plan. Cancel anytime.",
       trust: [
         { icon: "Lock", label: "GDPR & EU-hosted" },

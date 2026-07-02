@@ -68,19 +68,20 @@ describe("DashboardTour · first-time walkthrough", () => {
     // Step 1 targets the search input.
     const step1 = await screen.findByTestId("dashboard-tour-step-1");
     expect(step1.getAttribute("data-tour-step")).toBe("app-search");
-    expect(screen.getByText(/Find any market/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading")).toBeDefined();
+    expect(step1.textContent).toMatch(/Find any market/i);
 
     // Advance with the Next button.
     fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
     const step2 = await screen.findByTestId("dashboard-tour-step-2");
     expect(step2.getAttribute("data-tour-step")).toBe("watchlist-card");
-    expect(screen.getByText(/Save what you watch/i)).toBeInTheDocument();
+    expect(step2.textContent).toMatch(/Save what you watch/i);
 
     // Advance with the keyboard (ArrowRight is supported for a11y).
     fireEvent.keyDown(window, { key: "ArrowRight" });
     const step3 = await screen.findByTestId("dashboard-tour-step-3");
     expect(step3.getAttribute("data-tour-step")).toBe("ai-briefing");
-    expect(screen.getByText(/Ask for the brief/i)).toBeInTheDocument();
+    expect(step3.textContent).toMatch(/Ask for the brief/i);
 
     // Finish persists per-user completion.
     fireEvent.click(screen.getByRole("button", { name: /Got it/i }));

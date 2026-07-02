@@ -15,8 +15,9 @@ import { useMarketClock } from "@/hooks/useMarketClock";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { usePortfolio } from "@/hooks/usePortfolio";
-import { FirstRunHero } from "@/components/dashboard/FirstRunHero";
-import { DashboardTour, hasSeenDashboardTour, loadDashboardTourState, persistDashboardTourSeen } from "@/components/dashboard/DashboardTour";
+import { hasSeenDashboardTour, loadDashboardTourState } from "@/components/dashboard/DashboardTour";
+import { FirstRunJourney } from "@/components/onboarding/FirstRunJourney";
+import { NextStepsStrip } from "@/components/dashboard/NextStepsStrip";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -100,11 +101,12 @@ export default function Index() {
   const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);
   const [sentimentAvg, setSentimentAvg] = useState<number | null>(null);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
-  const [heroDismissed, setHeroDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem("vela_first_run_dismissed_v1") === "1"; } catch { return false; }
+  const [tourSeen, setTourSeen] = useState<boolean | null>(() => {
+    try {
+      if (localStorage.getItem("vela.firstRun.done") === "1") return true;
+    } catch { /* ignore */ }
+    return hasSeenDashboardTour() ? true : null;
   });
-  const [tourOpen, setTourOpen] = useState(false);
-  const [tourSeen, setTourSeen] = useState<boolean | null>(() => (hasSeenDashboardTour() ? true : null));
 
   // Sync the walkthrough completion flag from the user's profile so it stays
   // consistent across devices and sessions.
@@ -163,25 +165,8 @@ export default function Index() {
 
   const ftse = quotes["FTSEMIB.MI"];
 
-  const isFirstRun =
-    !!user &&
-    !heroDismissed &&
-    portfolio.count === 0 &&
-    (watchlistCount === 0 || watchlistCount === null);
-
-  // Auto-launch the walkthrough on first ever visit (per-user, cross-device).
-  useEffect(() => {
-    if (!user) return;
-    if (tourSeen !== false) return; // wait until we've confirmed "never seen"
-    if (watchlistCount === null) return; // wait for data
-    const t = setTimeout(() => setTourOpen(true), 600);
-    return () => clearTimeout(t);
-  }, [user?.id, watchlistCount, tourSeen]);
-
-  const dismissHero = () => {
-    try { localStorage.setItem("vela_first_run_dismissed_v1", "1"); } catch { /* ignore */ }
-    setHeroDismissed(true);
-  };
+  // First-run onboarding: show the focused journey until the user completes or skips it.
+  const isFirstRun = !!user && tourSeen === false;
 
   return (
     <>

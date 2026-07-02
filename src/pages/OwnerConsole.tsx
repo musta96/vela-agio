@@ -12,6 +12,7 @@ import OwnerBlogAdmin from "@/pages/owner/BlogAdmin";
 import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
 import OwnerReferralsPage from "@/pages/owner/Referrals";
 import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
+import OwnerOnboardingFunnel from "@/pages/owner/OnboardingFunnel";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/gdpr": "gdpr",
   "/owner/legal": "legal",
   "/owner/security": "security",
+  "/owner/onboarding-funnel": "onboarding-funnel",
 };
 
 // Canonical route per section (reverse of OWNER_ROUTE_SECTIONS, first wins).
@@ -117,6 +119,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 };
 // Extra sections registered after the initial map:
 (OWNER_SECTION_ROUTES as any).security = "/owner/security";
+(OWNER_SECTION_ROUTES as any)["onboarding-funnel"] = "/owner/onboarding-funnel";
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
@@ -844,6 +847,7 @@ export default function OwnerConsole() {
     tickets: <OwnerTickets />,
     blog: <OwnerBlogAdmin />,
     security: <OwnerSecurityAudit />,
+    "onboarding-funnel": <OwnerOnboardingFunnel />,
   };
 
   return (
@@ -945,6 +949,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "ai", label: "Signal governance", icon: <Bot className="h-3.5 w-3.5" />, badge: signalAlerts || undefined },
       { key: "ai_access", label: "AI access control", icon: <Sparkles className="h-3.5 w-3.5" /> },
       { key: "ai_metrics", label: "AI funnel metrics", icon: <Sparkles className="h-3.5 w-3.5" /> },
+      { key: "onboarding-funnel", label: "Onboarding funnel", icon: <Activity className="h-3.5 w-3.5" /> },
       { key: "data", label: "Data feeds", icon: <Database className="h-3.5 w-3.5" /> },
     ]},
     { label: "Compliance", items: [

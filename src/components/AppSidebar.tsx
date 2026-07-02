@@ -263,9 +263,11 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
 
   if (collapsed) {
     return (
-      <SidebarMenu>
-        <NavItemLink it={{ title: group.title, url: group.url, icon: group.icon }} />
-      </SidebarMenu>
+      <SidebarGroup>
+        <SidebarMenu>
+          <NavItemLink it={{ title: group.title, url: group.url, icon: group.icon }} />
+        </SidebarMenu>
+      </SidebarGroup>
     );
   }
 

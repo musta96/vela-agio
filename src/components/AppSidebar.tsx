@@ -317,6 +317,8 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
           <CollapsibleTrigger
             type="button"
             aria-expanded={open}
+            data-sidebar-nav="group"
+            aria-controls={`sidebar-group-${group.title.toLowerCase()}`}
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
             <span>{group.title}</span>
@@ -325,7 +327,7 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <CollapsibleContent className={COLLAPSIBLE_ANIM}>
+            <CollapsibleContent id={`sidebar-group-${group.title.toLowerCase()}`} className={COLLAPSIBLE_ANIM}>
               {group.items.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}
@@ -373,6 +375,8 @@ function PortfolioGroup() {
           <CollapsibleTrigger
             type="button"
             aria-expanded={open}
+            data-sidebar-nav="group"
+            aria-controls="sidebar-group-portfolio"
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
             <span>{PORTFOLIO.title}</span>
@@ -381,7 +385,7 @@ function PortfolioGroup() {
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <CollapsibleContent className={COLLAPSIBLE_ANIM}>
+            <CollapsibleContent id="sidebar-group-portfolio" className={COLLAPSIBLE_ANIM}>
               {PORTFOLIO.items.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}

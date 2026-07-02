@@ -55,6 +55,7 @@ import CheckoutReturn from "./pages/CheckoutReturn";
 import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
 import Home from "./pages/Home";
+import Features from "./pages/Features";
 import NetWorth from "./pages/NetWorth";
 import NetWorthCategory from "./pages/NetWorthCategory";
 import Explore from "./pages/Explore";
@@ -115,6 +116,7 @@ const App = () => (
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
+        <Route path="/features" element={<Features />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

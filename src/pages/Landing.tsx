@@ -323,46 +323,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FULL FEATURE GRID - Everything you need */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Also included</div>
-          <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            Backtesting, sentiment, screeners and more
-          </h2>
-          <p className="mt-3 text-sm sm:text-base" style={{ color: "#3d4f66" }}>
-            The heavy toolkit is a click away when you need it — never in your face when you don't.
-          </p>
-        </div>
-        <div className="mt-10 text-center">
-          <Link to="/pricing" className="ghost-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold">
-            See the full feature breakdown <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        <div className="mt-10 sm:mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {(features.items || []).map((f: any, i: number) => {
-            const grads = [
-              "linear-gradient(135deg,#042C53,#185FA5)",
-              "linear-gradient(135deg,#185FA5,#378ADD)",
-              "linear-gradient(135deg,#378ADD,#7CD0AE)",
-              "linear-gradient(135deg,#1D9E75,#7CD0AE)",
-              "linear-gradient(135deg,#042C53,#378ADD)",
-              "linear-gradient(135deg,#185FA5,#1D9E75)",
-              "linear-gradient(135deg,#1D9E75,#042C53)",
-              "linear-gradient(135deg,#378ADD,#185FA5)",
-            ];
-            return (
-              <div key={i} className="glass-card p-6 sm:p-8 rounded-3xl">
-                <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: grads[i % grads.length] }}>
-                  <Icon name={f.icon} className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-base sm:text-lg font-bold" style={{ color: "#042C53" }}>{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{f.desc}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      {/* Full feature grid removed from landing to reduce clutter.
+          The complete breakdown now lives on the dedicated /features page. */}
 
       {/* AUDIENCES - investors vs professionals */}
       <section id="who-its-for" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
@@ -538,7 +500,7 @@ export default function Landing() {
           <PricingSection />
           <div className="mt-10 text-center">
             <Link
-              to="/pricing"
+              to="/features"
               className="inline-flex items-center gap-2 text-sm font-semibold hover:underline transition"
               style={{ color: "#185FA5" }}
             >

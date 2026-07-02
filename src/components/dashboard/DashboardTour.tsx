@@ -151,10 +151,15 @@ export function DashboardTour({
   }, [open]);
 
   const finish = useCallback(() => {
+    setSaveError(null);
     void persistDashboardTourSeen(userId ?? null).then((r) => {
-      if (!r.ok && r.error) setSaveError(r.error);
+      if (!r.ok && r.error) {
+        // Keep the tooltip open so the user sees the accessible sync warning.
+        setSaveError(r.error);
+      } else {
+        onClose();
+      }
     });
-    onClose();
   }, [onClose, userId]);
 
   const focusHighlighted = useCallback(() => {

@@ -104,7 +104,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
     if (!activeSymbol || !user) return;
     track("onboarding_cta_watchlist", { symbol: activeSymbol });
     try {
-      await supabase.from("watchlist_items").insert({ user_id: user.id, symbol: activeSymbol });
+      await supabase.from("watchlist_items").insert({ user_id: user.id, symbol: activeSymbol, name: activeSymbol });
       toast.success(`${activeSymbol} added to your watchlist`);
     } catch {
       toast.error("Couldn't save to watchlist");

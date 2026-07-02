@@ -501,6 +501,7 @@ export default function Landing() {
           <div className="mt-10 text-center">
             <Link
               to="/features"
+              onClick={() => trackLandingEvent("landing_features_cta_click", { source: "pricing_footer" })}
               className="inline-flex items-center gap-2 text-sm font-semibold hover:underline transition"
               style={{ color: "#185FA5" }}
             >

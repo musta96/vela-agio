@@ -2,7 +2,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type LandingEventType =
   | "landing_demo_slide_view"
-  | "landing_get_started_click";
+  | "landing_get_started_click"
+  | "landing_features_cta_click"
+  | "features_scroll_depth";
 
 const seen = new Set<string>();
 

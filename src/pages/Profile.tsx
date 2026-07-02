@@ -75,7 +75,13 @@ export default function Profile() {
           <p className="text-sm text-muted-foreground">Your personal information across Vela.</p>
         </div>
 
-        <OnboardingChecklist pinned />
+        <section id="getting-started" className="scroll-mt-24 space-y-2">
+          <div>
+            <h2 className="text-lg font-semibold">Getting started</h2>
+            <p className="text-xs text-muted-foreground">Finish these steps to get the most out of Vela.</p>
+          </div>
+          <OnboardingChecklist pinned />
+        </section>
 
         <Card>
           <CardHeader>

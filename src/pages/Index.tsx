@@ -15,6 +15,8 @@ import { useMarketClock } from "@/hooks/useMarketClock";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { FirstRunHero } from "@/components/dashboard/FirstRunHero";
+import { DashboardTour, hasSeenDashboardTour, markDashboardTourSeen } from "@/components/dashboard/DashboardTour";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -97,17 +99,24 @@ export default function Index() {
   const holdings = portfolioData.holdings;
   const [activeSignalCount, setActiveSignalCount] = useState<number | null>(null);
   const [sentimentAvg, setSentimentAvg] = useState<number | null>(null);
+  const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
+  const [heroDismissed, setHeroDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem("vela_first_run_dismissed_v1") === "1"; } catch { return false; }
+  });
+  const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [rules, sent] = await Promise.all([
+      const [rules, sent, watch] = await Promise.all([
         supabase.from("alert_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),
         supabase.from("sentiment_history").select("score").order("created_at", { ascending: false }).limit(50),
+        supabase.from("watchlist_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
       setActiveSignalCount(rules.count ?? 0);
       const scores = (sent.data ?? []).map((r: any) => Number(r.score)).filter((n) => Number.isFinite(n));
       setSentimentAvg(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null);
+      setWatchlistCount(watch.count ?? 0);
     })();
   }, [user?.id, primary?.id]);
 
@@ -140,6 +149,26 @@ export default function Index() {
 
   const ftse = quotes["FTSEMIB.MI"];
 
+  const isFirstRun =
+    !!user &&
+    !heroDismissed &&
+    portfolio.count === 0 &&
+    (watchlistCount === 0 || watchlistCount === null);
+
+  // Auto-launch the walkthrough on first ever visit if the user hasn't seen it.
+  useEffect(() => {
+    if (!user) return;
+    if (hasSeenDashboardTour()) return;
+    if (watchlistCount === null) return; // wait for data
+    const t = setTimeout(() => setTourOpen(true), 600);
+    return () => clearTimeout(t);
+  }, [user?.id, watchlistCount]);
+
+  const dismissHero = () => {
+    try { localStorage.setItem("vela_first_run_dismissed_v1", "1"); } catch { /* ignore */ }
+    setHeroDismissed(true);
+  };
+
   return (
     <>
       <SEO title="Dashboard · Vela.ai" description="Real-time market intelligence, AI signals, portfolio snapshot and macro briefing." path="/dashboard" />
@@ -171,7 +200,18 @@ export default function Index() {
           </div>
         </div>
 
-        <OnboardingChecklist />
+        {isFirstRun ? (
+          <FirstRunHero
+            firstName={firstName === "trader" ? "" : firstName}
+            onStartTour={() => setTourOpen(true)}
+            onDismiss={dismissHero}
+          />
+        ) : (
+          <OnboardingChecklist />
+        )}
+
+        {!isFirstRun && (
+          <>
 
         {/* KPI strip - 5 cells: portfolio, P&L, net worth, sentiment, signals */}
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">

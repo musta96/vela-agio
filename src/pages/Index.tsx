@@ -16,7 +16,7 @@ import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { FirstRunHero } from "@/components/dashboard/FirstRunHero";
-import { DashboardTour, hasSeenDashboardTour, markDashboardTourSeen } from "@/components/dashboard/DashboardTour";
+import { DashboardTour, hasSeenDashboardTour, loadDashboardTourState, persistDashboardTourSeen } from "@/components/dashboard/DashboardTour";
 
 const WATCH = [
   { sym: "ISP.MI",  name: "Intesa Sanpaolo" },
@@ -104,6 +104,20 @@ export default function Index() {
     try { return localStorage.getItem("vela_first_run_dismissed_v1") === "1"; } catch { return false; }
   });
   const [tourOpen, setTourOpen] = useState(false);
+  const [tourSeen, setTourSeen] = useState<boolean | null>(() => (hasSeenDashboardTour() ? true : null));
+
+  // Sync the walkthrough completion flag from the user's profile so it stays
+  // consistent across devices and sessions.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    loadDashboardTourState(user.id).then((done) => {
+      if (!cancelled) setTourSeen(done);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -155,14 +169,14 @@ export default function Index() {
     portfolio.count === 0 &&
     (watchlistCount === 0 || watchlistCount === null);
 
-  // Auto-launch the walkthrough on first ever visit if the user hasn't seen it.
+  // Auto-launch the walkthrough on first ever visit (per-user, cross-device).
   useEffect(() => {
     if (!user) return;
-    if (hasSeenDashboardTour()) return;
+    if (tourSeen !== false) return; // wait until we've confirmed "never seen"
     if (watchlistCount === null) return; // wait for data
     const t = setTimeout(() => setTourOpen(true), 600);
     return () => clearTimeout(t);
-  }, [user?.id, watchlistCount]);
+  }, [user?.id, watchlistCount, tourSeen]);
 
   const dismissHero = () => {
     try { localStorage.setItem("vela_first_run_dismissed_v1", "1"); } catch { /* ignore */ }
@@ -511,7 +525,15 @@ export default function Index() {
 
         <AiDisclaimerStrip />
       </div>
-      <DashboardTour open={tourOpen} onClose={() => { markDashboardTourSeen(); setTourOpen(false); }} />
+      <DashboardTour
+        open={tourOpen}
+        userId={user?.id ?? null}
+        onClose={() => {
+          void persistDashboardTourSeen(user?.id ?? null);
+          setTourSeen(true);
+          setTourOpen(false);
+        }}
+      />
     </>
   );
 }

@@ -1892,6 +1892,7 @@ export type Database = {
           country_residence: string | null
           country_tax_residence: string | null
           created_at: string
+          dashboard_tour_completed_at: string | null
           date_of_birth: string | null
           display_name: string | null
           id: string
@@ -1918,6 +1919,7 @@ export type Database = {
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
+          dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
           id?: string
@@ -1944,6 +1946,7 @@ export type Database = {
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
+          dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
           id?: string

@@ -107,6 +107,7 @@ export default function Index() {
     } catch { /* ignore */ }
     return hasSeenDashboardTour() ? true : null;
   });
+  const [firstRunSymbol, setFirstRunSymbol] = useState<string | null>(null);
 
   // Sync the walkthrough completion flag from the user's profile so it stays
   // consistent across devices and sessions.
@@ -119,6 +120,22 @@ export default function Index() {
     return () => {
       cancelled = true;
     };
+  }, [user?.id]);
+
+  // Hydrate the last analyzed symbol so the contextual Next Steps strip
+  // can render across devices/sessions.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_run_symbol")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!cancelled && data?.first_run_symbol) setFirstRunSymbol(data.first_run_symbol);
+    })();
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   useEffect(() => {
@@ -200,10 +217,15 @@ export default function Index() {
         </div>
 
         {isFirstRun ? (
-          <FirstRunJourney onComplete={() => setTourSeen(true)} />
+          <FirstRunJourney
+            onComplete={(sym) => {
+              if (sym) setFirstRunSymbol(sym);
+              setTourSeen(true);
+            }}
+          />
         ) : (
           <>
-            <NextStepsStrip />
+            <NextStepsStrip symbol={firstRunSymbol} />
             <ProfileSetupBanner />
           </>
         )}

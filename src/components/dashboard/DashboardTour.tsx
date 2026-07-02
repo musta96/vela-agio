@@ -119,6 +119,21 @@ export function DashboardTour({
     if (open) setI(0);
   }, [open]);
 
+  const finish = useCallback(() => {
+    void persistDashboardTourSeen(userId ?? null);
+    onClose();
+  }, [onClose, userId]);
+
+  const focusHighlighted = useCallback(() => {
+    const el = findEl(step.target) ?? (step.fallbackTarget ? findEl(step.fallbackTarget) : null);
+    if (!el) return;
+    // Buttons/inputs are natively focusable; give cards a temporary tab index.
+    if (!el.hasAttribute("tabindex") && !/^(a|button|input|select|textarea)$/i.test(el.tagName)) {
+      el.setAttribute("tabindex", "-1");
+    }
+    el.focus({ preventScroll: false });
+  }, [step]);
+
   useLayoutEffect(() => {
     if (!open) return;
     const measure = () => {
@@ -219,11 +234,6 @@ export function DashboardTour({
   const Icon = step.icon;
   const isLast = i === STEPS.length - 1;
 
-  const finish = useCallback(() => {
-    void persistDashboardTourSeen(userId ?? null);
-    onClose();
-  }, [onClose, userId]);
-
   return createPortal(
     <div className="fixed inset-0 z-[100]" role="dialog" aria-label="Dashboard walkthrough">
       {/* Off-screen live region announces step changes to screen readers. */}
@@ -304,6 +314,15 @@ export function DashboardTour({
             ))}
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={focusHighlighted}
+              aria-label={`Focus ${step.title}`}
+              className="text-xs"
+            >
+              Try it
+            </Button>
             {i > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setI((v) => v - 1)}>
                 <ArrowLeft className="h-3.5 w-3.5" /> Back

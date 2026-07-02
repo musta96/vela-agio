@@ -238,9 +238,12 @@ export default function Landing() {
           </a>
         </div>
 
-        {/* Floating stat cards */}
-        <div className="mt-12 lg:mt-16 relative max-w-4xl mx-auto h-48 hidden lg:block">
-          <div className="glass-card absolute left-0 top-4 px-6 py-5 rounded-2xl float-slow">
+        {/* Floating stat cards — grid on small screens, absolute on lg+ */}
+        <div
+          data-testid="floating-cards"
+          className="mt-10 sm:mt-12 lg:mt-16 relative max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:block lg:h-48"
+        >
+          <div data-testid="floating-card" className="glass-card lg:absolute lg:left-0 lg:top-4 px-4 sm:px-6 py-4 sm:py-5 rounded-2xl lg:float-slow">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#1D9E75,#7CD0AE)" }}>
                 <TrendingUp className="h-5 w-5" />
@@ -251,7 +254,7 @@ export default function Landing() {
               </div>
             </div>
           </div>
-          <div className="glass-card absolute right-0 top-2 px-6 py-5 rounded-2xl float-delayed">
+          <div data-testid="floating-card" className="glass-card lg:absolute lg:right-0 lg:top-2 px-4 sm:px-6 py-4 sm:py-5 rounded-2xl lg:float-delayed">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#185FA5,#378ADD)" }}>
                 <Shield className="h-5 w-5" />
@@ -262,7 +265,7 @@ export default function Landing() {
               </div>
             </div>
           </div>
-          <div className="glass-card absolute left-1/2 -translate-x-1/2 bottom-0 px-6 py-5 rounded-2xl float-slow">
+          <div data-testid="floating-card" className="glass-card lg:absolute lg:left-1/2 lg:-translate-x-1/2 lg:bottom-0 px-4 sm:px-6 py-4 sm:py-5 rounded-2xl lg:float-slow">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#042C53,#185FA5)" }}>
                 <Sparkles className="h-5 w-5" />

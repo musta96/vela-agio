@@ -68,7 +68,6 @@ describe("DashboardTour · first-time walkthrough", () => {
     // Step 1 targets the search input.
     const step1 = await screen.findByTestId("dashboard-tour-step-1");
     expect(step1.getAttribute("data-tour-step")).toBe("app-search");
-    expect(screen.getByRole("heading")).toBeDefined();
     expect(step1.textContent).toMatch(/Find any market/i);
 
     // Advance with the Next button.

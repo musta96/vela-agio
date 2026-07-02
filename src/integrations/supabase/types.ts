@@ -1162,18 +1162,21 @@ export type Database = {
       }
       landing_globals: {
         Row: {
+          is_public: boolean
           key: string
           label: string | null
           updated_at: string
           value: Json
         }
         Insert: {
+          is_public?: boolean
           key: string
           label?: string | null
           updated_at?: string
           value?: Json
         }
         Update: {
+          is_public?: boolean
           key?: string
           label?: string | null
           updated_at?: string

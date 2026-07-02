@@ -45,6 +45,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SignalResult | null>(null);
   const [hotTickers, setHotTickers] = useState<{ sym: string; name: string }[]>(FALLBACK_TICKERS);
+  const [autoStarted, setAutoStarted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -54,35 +55,50 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
     track("onboarding_start");
   }, []);
 
-  // Load today's most-scanned tickers (rotating). Falls back to defaults if empty.
+  // Load today's most-scanned tickers (rotating, server-cached per UTC day).
+  // Falls back to a same-day localStorage cache, then to static defaults.
   useEffect(() => {
     let cancelled = false;
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheKey = `vela.hotTickers.${today}`;
+
+    // 1) synchronous localStorage read to keep first paint stable
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { sym: string; name: string }[];
+        if (Array.isArray(parsed) && parsed.length >= 3) setHotTickers(parsed);
+      }
+    } catch { /* ignore */ }
+
+    // 2) refresh from server (cached per-day server-side)
     (async () => {
       try {
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { data } = await supabase
-          .from("sentiment_history")
-          .select("symbol")
-          .gte("created_at", since)
-          .limit(200);
-        if (cancelled || !data?.length) return;
-        const counts = new Map<string, number>();
-        for (const r of data as { symbol: string | null }[]) {
-          const s = (r.symbol || "").toUpperCase();
-          if (!s) continue;
-          counts.set(s, (counts.get(s) ?? 0) + 1);
+        const { data } = await supabase.functions.invoke("hot-tickers", { body: {} });
+        if (cancelled) return;
+        const t = (data as any)?.tickers;
+        if (Array.isArray(t) && t.length >= 3) {
+          setHotTickers(t);
+          try { localStorage.setItem(cacheKey, JSON.stringify(t)); } catch { /* ignore */ }
         }
-        const top = [...counts.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([sym]) => ({ sym, name: sym }));
-        if (top.length >= 3) setHotTickers(top);
       } catch {
-        /* keep fallback */
+        /* keep whatever we have */
       }
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Auto-select the first hot-start ticker on load so users see a signal
+  // immediately. Users can still click "← Try another" to pick a different one.
+  useEffect(() => {
+    if (autoStarted) return;
+    if (step !== "welcome") return;
+    if (!hotTickers.length) return;
+    setAutoStarted(true);
+    track("onboarding_auto_default", { symbol: hotTickers[0].sym });
+    fetchSignal(hotTickers[0].sym);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotTickers, autoStarted, step]);
 
   // ESC = skip
   useEffect(() => {
@@ -100,10 +116,30 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
   }, [user?.id]);
 
   const handleSkip = useCallback(async () => {
-    track("onboarding_skipped");
+    track("onboarding_skip_intro", { step });
     await markSeen();
     onComplete();
-  }, [markSeen, onComplete]);
+  }, [markSeen, onComplete, step]);
+
+  const handleExplore = useCallback(async () => {
+    track("onboarding_explore_dashboard", { symbol: activeSymbol });
+    await markSeen();
+    onComplete();
+  }, [markSeen, onComplete, activeSymbol]);
+
+  const handleConnectPortfolio = useCallback(async () => {
+    track("onboarding_cta_connect_portfolio");
+    await markSeen();
+    track("onboarding_complete", { via: "connect_portfolio" });
+    navigate("/portfolio");
+  }, [markSeen, navigate]);
+
+  const handleRetry = useCallback(() => {
+    if (!activeSymbol) return;
+    track("onboarding_signal_retry", { symbol: activeSymbol });
+    fetchSignal(activeSymbol);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSymbol]);
 
   const fetchSignal = useCallback(async (raw: string) => {
     const sym = raw.trim().toUpperCase();
@@ -121,7 +157,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
       if (fnErr) throw fnErr;
       if ((data as any)?.error) throw new Error((data as any).error);
       setResult(data as SignalResult);
-      track("onboarding_signal_rendered", { symbol: sym });
+      track("onboarding_signal_revealed", { symbol: sym });
       // move focus to the result card for screen readers
       setTimeout(() => cardRef.current?.focus(), 50);
     } catch (e: any) {
@@ -222,11 +258,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
 
           <div className="pt-2">
             <button
-              onClick={async () => {
-                track("onboarding_cta_connect_portfolio");
-                await markSeen();
-                navigate("/portfolio");
-              }}
+              onClick={handleConnectPortfolio}
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
             >
               <Briefcase className="h-3.5 w-3.5" />
@@ -271,7 +303,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
               <div className="space-y-3">
                 <p className="text-sm text-destructive">{error}</p>
                 <button
-                  onClick={() => activeSymbol && fetchSignal(activeSymbol)}
+                  onClick={handleRetry}
                   className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted/40"
                 >
                   Retry
@@ -315,7 +347,7 @@ export function FirstRunJourney({ onComplete }: { onComplete: () => void }) {
                 <MessageSquare className="h-4 w-4" /> Ask a follow-up
               </button>
               <button
-                onClick={handleSkip}
+                onClick={handleExplore}
                 className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Explore dashboard

@@ -12,6 +12,7 @@ import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults, type LandingSectionRow } fr
 import { PricingSection } from "@/components/landing/pricing-section";
 import { ProductDemoCarousel } from "@/components/landing/ProductDemoCarousel";
 import { useFlag } from "@/hooks/useFeatureFlags";
+import { trackLandingEvent } from "@/lib/landingAnalytics";
 import type { BlogPostRow } from "@/lib/blog";
 
 
@@ -43,12 +44,26 @@ export default function Landing() {
   const [livePosts, setLivePosts] = useState<BlogPostRow[]>([]);
   const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingEnabled = useFlag("pricing", false);
+  const footerRef = useRef<HTMLElement | null>(null);
+  const [footerInView, setFooterInView] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setShowStickyCta(window.scrollY > 640);
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Hide the floating CTA when the footer scrolls into view so it never
+  // overlaps footer links or the bottom of the page on small screens.
+  useEffect(() => {
+    if (!footerRef.current) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setFooterInView(entry.isIntersecting),
+      { rootMargin: "0px 0px -20% 0px" },
+    );
+    io.observe(footerRef.current);
+    return () => io.disconnect();
   }, []);
 
   useEffect(() => {

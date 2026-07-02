@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults } from "@/data/landingDefaults";
+import { trackLandingEvent } from "@/lib/landingAnalytics";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -57,6 +59,28 @@ export default function Features() {
     })();
   }, []);
 
+  // Scroll-depth tracking: fire once per threshold (25/50/75/100) per session.
+  useEffect(() => {
+    const thresholds = [25, 50, 75, 100];
+    const fired = new Set<number>();
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop;
+      const height = doc.scrollHeight - doc.clientHeight;
+      if (height <= 0) return;
+      const pct = Math.min(100, Math.round((scrollTop / height) * 100));
+      for (const t of thresholds) {
+        if (pct >= t && !fired.has(t)) {
+          fired.add(t);
+          trackLandingEvent("features_scroll_depth", { depth: t });
+        }
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const get = (key: string) => sections.find((s) => s.key === key) ?? DEFAULT_SECTIONS.find((s) => s.key === key)!;
   const features = get("features").content;
   const items: any[] = features.items || [];
@@ -68,6 +92,22 @@ export default function Features() {
         description="Explore the full Vela.ai toolkit — AI research copilot, live markets, portfolio coach, backtesting, sentiment, screeners, alerts, risk analytics and more."
         path="/features"
       />
+      <Helmet>
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Vela.ai" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          "name": "Vela.ai features",
+          "itemListElement": items.map((f: any, i: number) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: f.title,
+            description: f.desc,
+          })),
+        })}</script>
+      </Helmet>
 
       <style>{`
         .vela-landing .glass-card { background:rgba(255,255,255,0.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,0.9); box-shadow:0 10px 40px -10px rgba(4,44,83,0.12); transition:transform 0.4s cubic-bezier(0.23,1,0.32,1), box-shadow 0.4s ease, background 0.4s ease; }
@@ -110,20 +150,37 @@ export default function Features() {
       </section>
 
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20 md:pb-24">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {items.map((f: any, i: number) => (
-            <div key={i} className="glass-card p-6 sm:p-8 rounded-3xl">
-              <div className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg" style={{ background: GRADS[i % GRADS.length] }}>
-                <Icon name={f.icon} className="h-6 w-6" />
+            <article
+              key={i}
+              className="glass-card p-5 sm:p-7 rounded-3xl flex sm:block gap-4 items-start"
+            >
+              <div
+                className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-2xl grid place-items-center text-white shadow-lg"
+                style={{ background: GRADS[i % GRADS.length] }}
+                aria-hidden="true"
+              >
+                <Icon name={f.icon} className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <h2 className="mt-5 text-lg sm:text-xl font-bold" style={{ color: "#042C53" }}>{f.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{f.desc}</p>
-            </div>
+              <div className="min-w-0">
+                <h2 className="sm:mt-5 text-base sm:text-lg lg:text-xl font-bold leading-snug" style={{ color: "#042C53" }}>
+                  {f.title}
+                </h2>
+                <p className="mt-1.5 sm:mt-2 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>
+                  {f.desc}
+                </p>
+              </div>
+            </article>
           ))}
         </div>
 
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link to="/auth" className="button-gradient inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
+          <Link
+            to="/auth"
+            onClick={() => trackLandingEvent("landing_get_started_click", { source: "features_footer" })}
+            className="button-gradient inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold shadow-lg"
+          >
             Get started free <ArrowRight className="h-4 w-4" />
           </Link>
           <Link to="/pricing" className="ghost-btn inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold">

@@ -265,7 +265,7 @@ export default function Index() {
 
         {/* Main bento - AI briefing hero (wide dark navy) + right rail */}
         <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 lg:col-span-8">
+          <div className="col-span-12 lg:col-span-8" data-tour="ai-briefing">
             <AIBriefing />
           </div>
           <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
@@ -357,7 +357,7 @@ export default function Index() {
           </div>
 
           {/* Watchlist */}
-          <div className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
+          <div data-tour="watchlist-card" className="col-span-12 lg:col-span-4 bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-semibold text-foreground">Watchlist</h3>
               <button onClick={() => navigate("/watchlist")} className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">Edit <ChevronRight className="h-3 w-3" /></button>

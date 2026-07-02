@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.macro-series]
 verify_jwt = false
+
+[functions.hot-tickers]
+verify_jwt = false

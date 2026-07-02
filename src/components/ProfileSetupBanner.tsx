@@ -82,7 +82,8 @@ export function ProfileSetupBanner({ className }: { className?: string }) {
       <div className="min-w-0 flex-1 leading-snug">
         <Link
           to="/profile#getting-started"
-          className="text-foreground font-medium hover:underline inline-flex items-center gap-1"
+          aria-label={`Finish setting up your profile, ${pct}% complete`}
+          className="text-foreground font-medium hover:underline inline-flex items-center gap-1 focus-visible:outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           Finish setting up your profile
           <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -92,8 +93,8 @@ export function ProfileSetupBanner({ className }: { className?: string }) {
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Dismiss"
-        className="mt-0.5 sm:mt-0 -mr-1 text-muted-foreground hover:text-foreground rounded-md p-1"
+        aria-label="Dismiss profile setup banner"
+        className="mt-0.5 sm:mt-0 -mr-1 text-muted-foreground hover:text-foreground rounded-md p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </button>

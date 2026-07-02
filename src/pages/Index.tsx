@@ -200,13 +200,12 @@ export default function Index() {
         </div>
 
         {isFirstRun ? (
-          <FirstRunHero
-            firstName={firstName === "trader" ? "" : firstName}
-            onStartTour={() => setTourOpen(true)}
-            onDismiss={dismissHero}
-          />
+          <FirstRunJourney onComplete={() => setTourSeen(true)} />
         ) : (
-          <ProfileSetupBanner />
+          <>
+            <NextStepsStrip />
+            <ProfileSetupBanner />
+          </>
         )}
 
         {!isFirstRun && (
@@ -510,15 +509,6 @@ export default function Index() {
 
         <AiDisclaimerStrip />
       </div>
-      <DashboardTour
-        open={tourOpen}
-        userId={user?.id ?? null}
-        onClose={() => {
-          void persistDashboardTourSeen(user?.id ?? null);
-          setTourSeen(true);
-          setTourOpen(false);
-        }}
-      />
     </>
   );
 }

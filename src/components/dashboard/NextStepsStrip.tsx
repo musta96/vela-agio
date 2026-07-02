@@ -1,16 +1,27 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { X, ArrowRight, Briefcase, Bell, Repeat } from "lucide-react";
+import { X, ArrowRight, Briefcase, Bell, Repeat, Eye, GitCompare, LineChart } from "lucide-react";
 
 const KEY = "vela.nextSteps.dismissed";
 
-const STEPS = [
+type StepLink = { to: string; label: string; icon: typeof Briefcase };
+
+const GENERIC_STEPS: StepLink[] = [
   { to: "/portfolio", label: "Track a portfolio", icon: Briefcase },
   { to: "/alerts", label: "Set an alert", icon: Bell },
   { to: "/backtest", label: "Run a backtest", icon: Repeat },
 ];
 
-export function NextStepsStrip() {
+function contextualSteps(symbol: string): StepLink[] {
+  const s = encodeURIComponent(symbol);
+  return [
+    { to: `/watchlist?add=${s}`, label: `Watch ${symbol}`, icon: Eye },
+    { to: `/compare?symbols=${s}`, label: `Compare ${symbol}`, icon: GitCompare },
+    { to: `/backtest?symbol=${s}`, label: `Backtest ${symbol}`, icon: LineChart },
+  ];
+}
+
+export function NextStepsStrip({ symbol }: { symbol?: string | null } = {}) {
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try { return localStorage.getItem(KEY) === "1"; } catch { return false; }
   });
@@ -22,10 +33,16 @@ export function NextStepsStrip() {
     setDismissed(true);
   };
 
+  const steps = symbol ? contextualSteps(symbol) : GENERIC_STEPS;
+  const label = symbol ? `Next for ${symbol}:` : "Next:";
+
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs">
-      <span className="font-medium text-muted-foreground">Next:</span>
-      {STEPS.map((s) => (
+    <div
+      className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs"
+      aria-label={symbol ? `Suggested next steps for ${symbol}` : "Suggested next steps"}
+    >
+      <span className="font-medium text-muted-foreground">{label}</span>
+      {steps.map((s) => (
         <Link
           key={s.to}
           to={s.to}

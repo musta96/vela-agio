@@ -1898,6 +1898,9 @@ export type Database = {
           dashboard_tour_completed_at: string | null
           date_of_birth: string | null
           display_name: string | null
+          first_run_completed_at: string | null
+          first_run_symbol: string | null
+          first_run_time_to_signal_ms: number | null
           id: string
           onboarding_dismissed: boolean
           phone: string | null
@@ -1925,6 +1928,9 @@ export type Database = {
           dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
+          first_run_completed_at?: string | null
+          first_run_symbol?: string | null
+          first_run_time_to_signal_ms?: number | null
           id?: string
           onboarding_dismissed?: boolean
           phone?: string | null
@@ -1952,6 +1958,9 @@ export type Database = {
           dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
+          first_run_completed_at?: string | null
+          first_run_symbol?: string | null
+          first_run_time_to_signal_ms?: number | null
           id?: string
           onboarding_dismissed?: boolean
           phone?: string | null

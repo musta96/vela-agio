@@ -1,6 +1,7 @@
 // Batch translation via Lovable AI Gateway.
 // Input: { targetLang: 'it'|'en'|..., texts: string[] }
 // Output: { translations: string[] } (same order, same length)
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 
 const cors = {
@@ -16,6 +17,8 @@ const LANG_NAMES: Record<string, string> = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+  const __access = await resolveAiAccess(req.headers.get('Authorization'));
+  if (!__access.allowed) return aiDeniedResponse(__access, cors);
   try {
     const { targetLang, texts } = await req.json();
     if (!targetLang || !Array.isArray(texts) || texts.length === 0) {

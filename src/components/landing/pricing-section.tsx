@@ -269,17 +269,25 @@ export function PricingCard({
               {plan.btn.text}
             </Link>
           )
-        ) : (
-          <Button
-            className="w-full rounded-full"
-            variant="outline"
+        ) : onChoose ? (
+          <button
+            type="button"
+            onClick={() => onChoose(plan)}
             data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
-            {...(onChoose
-              ? { onClick: () => onChoose(plan) }
-              : { asChild: true } as any)}
+            className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold shadow-sm transition hover:bg-[#042C53] hover:text-white"
+            style={{ background: "#ffffff", color: "#042C53", border: "1px solid rgba(4,44,83,0.2)" }}
           >
-            {onChoose ? plan.btn.text : <Link to={plan.btn.href}>{plan.btn.text}</Link>}
-          </Button>
+            {plan.btn.text}
+          </button>
+        ) : (
+          <Link
+            to={plan.btn.href}
+            data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
+            className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold shadow-sm transition hover:bg-[#042C53] hover:text-white"
+            style={{ background: "#ffffff", color: "#042C53", border: "1px solid rgba(4,44,83,0.2)" }}
+          >
+            {plan.btn.text}
+          </Link>
         )}
       </div>
     </div>

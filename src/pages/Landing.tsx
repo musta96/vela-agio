@@ -13,6 +13,7 @@ import { PricingSection } from "@/components/landing/pricing-section";
 import { ProductDemoCarousel } from "@/components/landing/ProductDemoCarousel";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { trackLandingEvent } from "@/lib/landingAnalytics";
+import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
 import type { BlogPostRow } from "@/lib/blog";
 
 
@@ -53,6 +54,12 @@ export default function Landing() {
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Verify every "/features" CTA on this page has the analytics binding.
+  // Re-runs when sections change (async CMS load can inject new CTAs).
+  useEffect(() => {
+    verifyFeaturesCtaBindings("Landing");
+  }, [sections]);
 
   // Hide the floating CTA when the footer scrolls into view so it never
   // overlaps footer links or the bottom of the page on small screens.
@@ -233,9 +240,22 @@ export default function Landing() {
        >
             {hero.primaryCta?.label || "Start Alpha Hunt"} <ArrowRight className="h-4 w-4" />
           </Link>
-          <a href={hero.secondaryCta?.href || "#features"} className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold">
-            {hero.secondaryCta?.label || "Watch Performance"}
-          </a>
+          {(() => {
+            const href = hero.secondaryCta?.href || "#features";
+            const isFeatures = href === "/features";
+            return (
+              <a
+                href={href}
+                {...(isFeatures ? { "data-track": "landing_features_cta_click" } : {})}
+                onClick={() => {
+                  if (isFeatures) trackLandingEvent("landing_features_cta_click", { source: "hero_secondary" });
+                }}
+                className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold"
+              >
+                {hero.secondaryCta?.label || "Watch Performance"}
+              </a>
+            );
+          })()}
         </div>
 
         {/* Floating stat cards — grid on small screens, absolute on lg+ */}
@@ -501,6 +521,7 @@ export default function Landing() {
           <div className="mt-10 text-center">
             <Link
               to="/features"
+              data-track="landing_features_cta_click"
               onClick={() => trackLandingEvent("landing_features_cta_click", { source: "pricing_footer" })}
               className="inline-flex items-center gap-2 text-sm font-semibold hover:underline transition"
               style={{ color: "#185FA5" }}

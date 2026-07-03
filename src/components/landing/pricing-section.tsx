@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { AnimatePresence, motion } from "motion/react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Star } from "lucide-react";
@@ -75,6 +75,7 @@ export function PricingSection() {
   const { openCheckout, checkoutElement } = useStripeCheckout();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   /** Single entry point used by every PricingCard CTA. */
   const onChoose = React.useCallback((plan: Plan) => {
@@ -104,6 +105,30 @@ export function PricingSection() {
       returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
     });
   }, [user, frequency, navigate, openCheckout]);
+
+  // Auto-resume checkout after auth: if we land here with ?plan=pro&freq=yearly
+  // and the user is logged in, open the Stripe form immediately so the journey
+  // (pricing → auth → checkout) feels continuous.
+  const autoOpenedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (autoOpenedRef.current || !user) return;
+    const planParam = (searchParams.get("plan") || "").toLowerCase();
+    const freqParam = (searchParams.get("freq") || "").toLowerCase();
+    if (!planParam) return;
+    const plan = plans.find((p) => p.name.toLowerCase() === planParam);
+    if (!plan || !plan.lookupKey || plan.contact) return;
+    autoOpenedRef.current = true;
+    if (freqParam === "monthly" || freqParam === "yearly") {
+      setFrequency(freqParam as FREQUENCY);
+    }
+    // Clear the params so a refresh doesn't re-trigger checkout.
+    const cleaned = new URLSearchParams(searchParams);
+    cleaned.delete("plan");
+    cleaned.delete("freq");
+    setSearchParams(cleaned, { replace: true });
+    // Defer to next tick so the frequency state is committed before opening.
+    setTimeout(() => onChoose(plan), 0);
+  }, [user, searchParams, setSearchParams, onChoose]);
 
   return (
     <div className="flex w-full flex-col items-center justify-center space-y-8 p-4">

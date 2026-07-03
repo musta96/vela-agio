@@ -801,6 +801,36 @@ export type Database = {
           },
         ]
       }
+      cancellation_feedback: {
+        Row: {
+          accepted_offer: boolean
+          created_at: string
+          feedback: string | null
+          id: string
+          reason: string | null
+          stripe_subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_offer?: boolean
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          reason?: string | null
+          stripe_subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_offer?: boolean
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          reason?: string | null
+          stripe_subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       copilot_messages: {
         Row: {
           content: string
@@ -3006,6 +3036,16 @@ export type Database = {
         Returns: {
           enabled: boolean
           key: string
+        }[]
+      }
+      get_retention_offer: {
+        Args: never
+        Returns: {
+          copy: string
+          discount_type: string
+          discount_value: number
+          duration_months: number
+          enabled: boolean
         }[]
       }
       has_active_mandate: {

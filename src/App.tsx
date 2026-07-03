@@ -14,6 +14,8 @@ import TechnicalAnalysis from "./pages/TechnicalAnalysis";
 import Compare from "./pages/Compare";
 import SectorHeatmap from "./pages/SectorHeatmap";
 import Auth from "./pages/Auth";
+import SignupTrial from "./pages/SignupTrial";
+import SignupTrialReturn from "./pages/SignupTrialReturn";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import AdminAuditLog from "./pages/AdminAuditLog";

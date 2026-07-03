@@ -51,7 +51,7 @@ describe("Pricing → Checkout → Portal end-to-end (mocked)", () => {
     currentUser = null;
     const { unmount } = render(
       <MemoryRouter initialEntries={["/pricing"]}>
-        <PricingSection />
+        <PricingSection confirmBeforeCheckout={false} />
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByTestId("pricing-cta-pro"));
@@ -66,7 +66,7 @@ describe("Pricing → Checkout → Portal end-to-end (mocked)", () => {
 
     render(
       <MemoryRouter initialEntries={["/pricing"]}>
-        <PricingSection />
+        <PricingSection confirmBeforeCheckout={false} />
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByTestId("pricing-cta-pro"));

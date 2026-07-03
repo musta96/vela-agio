@@ -384,6 +384,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
+      <UpgradeStepper current={priceMismatch ? "payment" : "review"} />
       {priceMismatch && (
         <div
           role="alert"

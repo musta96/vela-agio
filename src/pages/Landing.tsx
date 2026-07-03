@@ -234,9 +234,22 @@ export default function Landing() {
        >
             {hero.primaryCta?.label || "Start Alpha Hunt"} <ArrowRight className="h-4 w-4" />
           </Link>
-          <a href={hero.secondaryCta?.href || "#features"} className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold">
-            {hero.secondaryCta?.label || "Watch Performance"}
-          </a>
+          {(() => {
+            const href = hero.secondaryCta?.href || "#features";
+            const isFeatures = href === "/features";
+            return (
+              <a
+                href={href}
+                {...(isFeatures ? { "data-track": "landing_features_cta_click" } : {})}
+                onClick={() => {
+                  if (isFeatures) trackLandingEvent("landing_features_cta_click", { source: "hero_secondary" });
+                }}
+                className="ghost-btn inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold"
+              >
+                {hero.secondaryCta?.label || "Watch Performance"}
+              </a>
+            );
+          })()}
         </div>
 
         {/* Floating stat cards — grid on small screens, absolute on lg+ */}
@@ -502,6 +515,7 @@ export default function Landing() {
           <div className="mt-10 text-center">
             <Link
               to="/features"
+              data-track="landing_features_cta_click"
               onClick={() => trackLandingEvent("landing_features_cta_click", { source: "pricing_footer" })}
               className="inline-flex items-center gap-2 text-sm font-semibold hover:underline transition"
               style={{ color: "#185FA5" }}

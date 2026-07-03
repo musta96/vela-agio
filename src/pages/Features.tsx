@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Check, Minus } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults } from "@/data/landingDefaults";
 import { trackLandingEvent } from "@/lib/landingAnalytics";
+import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -81,9 +82,88 @@ export default function Features() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    verifyFeaturesCtaBindings("Features");
+  }, [sections]);
+
   const get = (key: string) => sections.find((s) => s.key === key) ?? DEFAULT_SECTIONS.find((s) => s.key === key)!;
   const features = get("features").content;
   const items: any[] = features.items || [];
+
+  // -------- Plan comparison matrix ---------------------------------------
+  // Kept in sync with src/components/landing/pricing-section.tsx. Values:
+  //   true  → included
+  //   false → not included
+  //   string → tier-specific note (e.g. "25 / mo")
+  const PLAN_COLUMNS = [
+    { key: "explorer", name: "Explorer", price: "Free" },
+    { key: "pro", name: "Pro", price: "€29 /mo", highlight: true },
+    { key: "enterprise", name: "Enterprise", price: "€149 /mo" },
+  ] as const;
+
+  type PlanKey = typeof PLAN_COLUMNS[number]["key"];
+  type Cell = boolean | string;
+
+  const COMPARISON: Array<{
+    category: string;
+    rows: Array<{ label: string; hint?: string; values: Record<PlanKey, Cell> }>;
+  }> = [
+    {
+      category: "Market data & research",
+      rows: [
+        { label: "Market data",         values: { explorer: "Delayed",  pro: "Real-time", enterprise: "Real-time" } },
+        { label: "Watchlists",          values: { explorer: "Up to 3",  pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Screeners & filters", values: { explorer: false,      pro: true,        enterprise: true } },
+        { label: "Backtesting engine",  values: { explorer: false,      pro: true,        enterprise: true } },
+      ],
+    },
+    {
+      category: "AI copilot",
+      rows: [
+        { label: "AI summaries",           values: { explorer: "25 / mo", pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Deep research reports",  values: { explorer: false,     pro: true,        enterprise: true } },
+        { label: "Portfolio doctor",       values: { explorer: false,     pro: true,        enterprise: true } },
+      ],
+    },
+    {
+      category: "Portfolio & analytics",
+      rows: [
+        { label: "Manual portfolio tracking", values: { explorer: true,  pro: true, enterprise: true } },
+        { label: "Broker connect (read-only)", values: { explorer: false, pro: true, enterprise: true } },
+        { label: "DCF / DDM intrinsic value",  values: { explorer: false, pro: true, enterprise: true } },
+        { label: "Risk analytics (VaR / Monte Carlo)", values: { explorer: false, pro: true, enterprise: true } },
+      ],
+    },
+    {
+      category: "Team, compliance & support",
+      rows: [
+        { label: "Community access",           values: { explorer: true,  pro: true,  enterprise: true } },
+        { label: "Priority support",           values: { explorer: false, pro: true,  enterprise: true } },
+        { label: "Advisor seats & MiFID II",   values: { explorer: false, pro: false, enterprise: true } },
+        { label: "REST API & WebSocket",       values: { explorer: false, pro: false, enterprise: true } },
+        { label: "SSO & audit logs",           values: { explorer: false, pro: false, enterprise: true } },
+        { label: "Dedicated success manager",  values: { explorer: false, pro: false, enterprise: true } },
+      ],
+    },
+  ];
+
+  const renderCell = (v: Cell) => {
+    if (v === true) {
+      return (
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(29,158,117,0.12)" }} aria-label="Included">
+          <Check className="h-4 w-4" style={{ color: "#1D9E75" }} />
+        </span>
+      );
+    }
+    if (v === false) {
+      return (
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(4,44,83,0.05)" }} aria-label="Not included">
+          <Minus className="h-4 w-4" style={{ color: "#9aa8b8" }} />
+        </span>
+      );
+    }
+    return <span className="text-sm font-medium" style={{ color: "#042C53" }}>{v}</span>;
+  };
 
   return (
     <div className="vela-landing min-h-screen relative" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif", background: "#ffffff", color: "#042C53" }}>

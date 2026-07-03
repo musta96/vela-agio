@@ -70,6 +70,14 @@ Deno.serve(async (req) => {
       stripe_subscription_id: sub.stripe_subscription_id,
       reason: "accepted_retention_offer",
       accepted_offer: true,
+      event_type: "retention_offer_accepted",
+      metadata: {
+        discount_type: type,
+        discount_value: value,
+        duration_months: months,
+        coupon_id: coupon.id,
+        environment: env,
+      },
     });
 
     return json({ ok: true, coupon_id: coupon.id });

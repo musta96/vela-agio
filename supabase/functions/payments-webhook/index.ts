@@ -170,7 +170,17 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   }).eq("stripe_subscription_id", subscription.id).eq("environment", env);
 
   // Revert profile to free immediately when Stripe confirms cancellation.
-  const userId = subscription.metadata?.userId;
+  // Also clear every transient billing flag the Settings UI reads
+  // (past-due banner, scheduled-cancel banner, dunning email marker,
+  // reactivation marker) so the account cleanly moves back to Explorer.
+  let userId = subscription.metadata?.userId;
+  if (!userId) {
+    const { data: subRow } = await getSupabase()
+      .from("subscriptions").select("user_id")
+      .eq("stripe_subscription_id", subscription.id).eq("environment", env)
+      .maybeSingle();
+    userId = (subRow as any)?.user_id;
+  }
   if (userId) {
     await getSupabase().from("profiles").update({
       plan: "explorer",
@@ -178,7 +188,31 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
       trial_ends_at: null,
       current_period_end: null,
       billing_cycle: null,
+      cancel_at_period_end: false,
+      cancellation_scheduled_at: null,
+      past_due_since: null,
+      dunning_email_sent_at: null,
+      reactivated_at: null,
+      retention_offer_applied_at: null,
     }).eq("user_id", userId);
+
+    // Audit row so the Settings billing timeline reflects the final
+    // termination (as opposed to the "scheduled to cancel" event that
+    // was recorded when the user first hit Cancel).
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    const { data: recent } = await getSupabase()
+      .from("cancellation_feedback").select("id")
+      .eq("user_id", userId).eq("event_type", "subscription_ended")
+      .gte("created_at", cutoff).limit(1).maybeSingle();
+    if (!recent) {
+      await getSupabase().from("cancellation_feedback").insert({
+        user_id: userId,
+        stripe_subscription_id: subscription.id,
+        event_type: "subscription_ended",
+        accepted_offer: false,
+        metadata: { source: "stripe_webhook", environment: env, ended_at: new Date().toISOString() },
+      });
+    }
   }
 }
 
@@ -282,10 +316,46 @@ async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
     .from("subscriptions").select("user_id").eq("stripe_subscription_id", subId).eq("environment", env).maybeSingle();
   const userId = (sub as any)?.user_id;
   if (!userId) return;
+  // Mirror the failed payment onto the subscription row so the Settings
+  // billing UI (which reads `subscriptions.status`) flips to past_due
+  // even before Stripe re-issues a `subscription.updated` event.
+  await getSupabase().from("subscriptions").update({
+    status: "past_due",
+    updated_at: new Date().toISOString(),
+  }).eq("stripe_subscription_id", subId).eq("environment", env);
+
   const { data: prof } = await getSupabase().from("profiles").select("past_due_since, dunning_email_sent_at").eq("user_id", userId).maybeSingle();
   const patch: Record<string, unknown> = { subscription_status: "past_due" };
   if (!(prof as any)?.past_due_since) patch.past_due_since = new Date().toISOString();
   await getSupabase().from("profiles").update(patch).eq("user_id", userId);
+
+  // Audit row for the Settings billing timeline. Dedupe by invoice id
+  // so Stripe smart-retries don't spam the log.
+  try {
+    const { data: existing } = await getSupabase()
+      .from("cancellation_feedback").select("id")
+      .eq("user_id", userId).eq("event_type", "payment_failed")
+      .contains("metadata", { invoice_id: invoice.id }).limit(1).maybeSingle();
+    if (!existing) {
+      await getSupabase().from("cancellation_feedback").insert({
+        user_id: userId,
+        stripe_subscription_id: subId,
+        event_type: "payment_failed",
+        accepted_offer: false,
+        metadata: {
+          source: "stripe_webhook",
+          environment: env,
+          invoice_id: invoice.id,
+          attempt_count: invoice.attempt_count ?? null,
+          next_payment_attempt: invoice.next_payment_attempt
+            ? new Date(invoice.next_payment_attempt * 1000).toISOString()
+            : null,
+          amount_due: invoice.amount_due ?? null,
+          currency: invoice.currency ?? null,
+        },
+      });
+    }
+  } catch (e) { console.warn("payment_failed audit failed", (e as Error).message); }
 
   // Best-effort auto-apply of the retention offer to reduce churn on the
   // very next Stripe smart-retry attempt. Deduped so we only apply once.

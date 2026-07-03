@@ -748,7 +748,7 @@ function PlanCard({
               Talk to us about Enterprise
             </Link>
           ) : (
-            <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
+            <Link to={`/upgrade?plan=${encodeURIComponent(p.slug || p.tier || p.id)}&cycle=${frequency === "yearly" ? "annual" : "monthly"}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
               Choose
             </Link>
           )}

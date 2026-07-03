@@ -10,6 +10,8 @@ export default function Upgrade() {
   const feature = params.get("feature") ?? undefined;
   const featureName = params.get("featureName") ?? undefined;
   const returnPath = params.get("return") ?? undefined;
+  const cycleParam = params.get("cycle");
+  const initialCycle = cycleParam === "monthly" || cycleParam === "annual" ? cycleParam : undefined;
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0 max-w-3xl mx-auto">
@@ -24,6 +26,7 @@ export default function Upgrade() {
         contextFeatureKey={feature}
         contextFeatureName={featureName}
         returnPath={returnPath}
+        initialCycle={initialCycle}
       />
     </div>
   );

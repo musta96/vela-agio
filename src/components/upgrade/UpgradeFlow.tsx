@@ -17,6 +17,58 @@ import { CreditCard } from "lucide-react";
 
 type Cycle = "monthly" | "annual";
 
+type StepId = "review" | "payment" | "confirm";
+
+function UpgradeStepper({ current }: { current: StepId }) {
+  const steps: { id: StepId; label: string }[] = [
+    { id: "review", label: "Review plan" },
+    { id: "payment", label: "Payment" },
+    { id: "confirm", label: "Confirmation" },
+  ];
+  const currentIdx = steps.findIndex((s) => s.id === current);
+  return (
+    <ol
+      aria-label="Upgrade progress"
+      data-testid="upgrade-stepper"
+      className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm"
+    >
+      {steps.map((s, i) => {
+        const done = i < currentIdx;
+        const active = i === currentIdx;
+        return (
+          <li key={s.id} className="flex items-center gap-2 min-w-0">
+            <span
+              aria-current={active ? "step" : undefined}
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold shrink-0 ${
+                done
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : active
+                  ? "bg-primary/10 text-primary border-primary"
+                  : "bg-muted text-muted-foreground border-border"
+              }`}
+            >
+              {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
+            </span>
+            <span
+              className={`truncate ${
+                active ? "font-semibold text-foreground" : done ? "text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {s.label}
+            </span>
+            {i < steps.length - 1 && (
+              <span
+                aria-hidden
+                className={`h-px w-6 sm:w-10 ${i < currentIdx ? "bg-primary" : "bg-border"}`}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 type ProPlan = {
   monthly_cents: number;
   annual_cents: number;
@@ -47,14 +99,16 @@ interface Props {
   compact?: boolean;
   /** Called after Stripe checkout is mounted (parent may want to hide surrounding chrome). */
   onCheckoutMounted?: () => void;
+  /** Preselect the billing cycle (from ?cycle= query param). */
+  initialCycle?: Cycle;
 }
 
-export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath, compact, onCheckoutMounted }: Props) {
+export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath, compact, onCheckoutMounted, initialCycle }: Props) {
   const { user } = useAuth();
   const ent = useEntitlements();
   const credits = useAiCredits();
   const navigate = useNavigate();
-  const [cycle, setCycle] = useState<Cycle>("annual");
+  const [cycle, setCycle] = useState<Cycle>(initialCycle ?? "annual");
   const [plan, setPlan] = useState<ProPlan | null>(null);
   const [portfolioCount, setPortfolioCount] = useState<number | null>(null);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
@@ -261,6 +315,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     const renewalAmount = `€${(priceForCycle / 100).toFixed(2)}`;
     return (
       <div className="space-y-3">
+        <UpgradeStepper current="payment" />
         {/* Confirmation summary — shown above the Stripe payment form so the
             user sees the exact plan, cadence and final (post-discount) amount
             they're about to authorise. */}
@@ -329,6 +384,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
+      <UpgradeStepper current={priceMismatch ? "payment" : "review"} />
       {priceMismatch && (
         <div
           role="alert"

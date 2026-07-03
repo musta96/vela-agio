@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -119,6 +119,7 @@ function StatusBadge({ status, cancel }: { status: string; cancel?: boolean | nu
 
 export default function PlansBilling() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const pricingEnabled = useFlag("pricing", false);
   const [loading, setLoading] = useState(true);
   const [subError, setSubError] = useState<string | null>(null);

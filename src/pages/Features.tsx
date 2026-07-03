@@ -157,9 +157,30 @@ export default function Features() {
     return `${included}/${rows.length} capabilities`;
   };
 
-  // "Show only differences" filter: hide rows where every tier has the same value.
+  // "Show only differences" filter.
+  //
+  // A row is a real "difference" when the cell values are meaningfully
+  // different across tiers — not just cosmetic variant labels of the same
+  // capability. We compare on the tuple (included-boolean, normalised text)
+  // so that:
+  //   - all-identical rows ("Community access: Included/Included/Included")
+  //     are hidden;
+  //   - rows with a real included-vs-not-included split
+  //     ("Screeners: —/Included/Included") are shown;
+  //   - rows where every tier is technically "included" but with a variant
+  //     label ("Market data: Delayed/Real-time/Real-time") are ALSO shown,
+  //     because the variant IS the difference customers care about;
+  //   - rows where every tier has the exact same variant label are hidden.
+  //
+  // Previously the filter only hid rows where every raw value was byte-for-
+  // byte identical, which meant only 2 rows ever disappeared and the toggle
+  // looked broken.
   const rowDiffers = (row: { values: Record<PlanKey, Cell> }) => {
-    const norm = (v: Cell) => (v === true ? "__true__" : v === false ? "__false__" : String(v).toLowerCase());
+    const norm = (v: Cell) => {
+      if (v === true) return "in:included";
+      if (v === false) return "out:none";
+      return `in:${String(v).trim().toLowerCase()}`;
+    };
     const vals = PLAN_COLUMNS.map((p) => norm(row.values[p.key]));
     return new Set(vals).size > 1;
   };

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, verifyWebhook } from "../_shared/stripe.ts";
+import { autoApplyRetentionOffer, planFromPriceLookup } from "../_shared/retention.ts";
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -33,6 +34,19 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
     environment: env,
     updated_at: new Date().toISOString(),
   }, { onConflict: "stripe_subscription_id" });
+
+  // Reflect the plan tier on the profile so app UI (banners, gates, plan
+  // label in settings) updates without a Stripe round trip. Trials keep
+  // the special "pro_trial" marker used by the trial banner.
+  const planSlug = subscription.status === "trialing"
+    ? "pro_trial"
+    : planFromPriceLookup(priceId);
+  await getSupabase().from("profiles").update({
+    plan: planSlug,
+    subscription_status: subscription.status,
+    trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+    current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+  }).eq("user_id", userId);
 }
 
 async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
@@ -55,9 +69,10 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
   // Mirror trial → active transition onto profiles so app UI updates without a Stripe call.
   const userId = subscription.metadata?.userId;
   if (userId) {
+    const activePlan = planFromPriceLookup(priceId);
     if (subscription.status === "active") {
       await getSupabase().from("profiles").update({
-        plan: "pro",
+        plan: activePlan,
         subscription_status: "active",
         trial_ends_at: null,
         past_due_since: null,
@@ -84,6 +99,10 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   await getSupabase().from("subscriptions").update({
     status: "canceled",
+    // Null out the period end so `has_feature` / `my_entitlements` can't
+    // keep the grace-period branch open after a hard cancellation.
+    current_period_end: null,
+    cancel_at_period_end: false,
     updated_at: new Date().toISOString(),
   }).eq("stripe_subscription_id", subscription.id).eq("environment", env);
 
@@ -91,13 +110,57 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   const userId = subscription.metadata?.userId;
   if (userId) {
     await getSupabase().from("profiles").update({
-      plan: "free",
+      plan: "explorer",
       subscription_status: "canceled",
       trial_ends_at: null,
       current_period_end: null,
       billing_cycle: null,
     }).eq("user_id", userId);
   }
+}
+
+// Fires ~3 days before the trial converts. Send the reminder email (if we
+// haven't already) and, when the retention offer is enabled, attach the
+// configured coupon to the subscription so the first paid invoice is
+// discounted. Deduped via `profiles.retention_offer_applied_at`.
+async function handleTrialWillEnd(subscription: any, env: StripeEnv) {
+  const userId = subscription.metadata?.userId;
+  if (!userId) return;
+  const trialEnd = subscription.trial_end
+    ? new Date(subscription.trial_end * 1000).toISOString()
+    : null;
+  await getSupabase().from("profiles").update({
+    trial_ends_at: trialEnd,
+    subscription_status: "trialing",
+  }).eq("user_id", userId);
+
+  // Best-effort retention nudge.
+  try {
+    const result = await autoApplyRetentionOffer({ userId, env, reason: "trial_will_end" });
+    console.log("[payments-webhook] retention trial_will_end", result);
+  } catch (e) {
+    console.warn("retention auto-apply (trial) failed", (e as Error).message);
+  }
+
+  // Send the "trial ending soon" transactional email — the client copy
+  // template handles the CTA. Idempotency keyed on subscription id.
+  try {
+    const { data: authUser } = await getSupabase().auth.admin.getUserById(userId);
+    const email = (authUser as any)?.user?.email;
+    if (email) {
+      await getSupabase().functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "trial-ending",
+          recipientEmail: email,
+          idempotencyKey: `trial-ending-${subscription.id}`,
+          templateData: {
+            trialEndsAt: trialEnd,
+            settingsUrl: "https://vela-agio.lovable.app/settings?tab=Billing",
+          },
+        },
+      });
+    }
+  } catch (e) { console.warn("trial-ending email failed", (e as Error).message); }
 }
 
 async function handleInvoicePaid(invoice: any, env: StripeEnv) {
@@ -160,6 +223,15 @@ async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
   if (!(prof as any)?.past_due_since) patch.past_due_since = new Date().toISOString();
   await getSupabase().from("profiles").update(patch).eq("user_id", userId);
 
+  // Best-effort auto-apply of the retention offer to reduce churn on the
+  // very next Stripe smart-retry attempt. Deduped so we only apply once.
+  try {
+    const result = await autoApplyRetentionOffer({ userId, env, reason: "past_due" });
+    console.log("[payments-webhook] retention past_due", result);
+  } catch (e) {
+    console.warn("retention auto-apply (past_due) failed", (e as Error).message);
+  }
+
   // Best-effort initial dunning email; idempotent via dunning_email_sent_at.
   if (!(prof as any)?.dunning_email_sent_at) {
     try {
@@ -200,6 +272,8 @@ Deno.serve(async (req) => {
         await handleSubscriptionUpdated(event.data.object, env); break;
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event.data.object, env); break;
+      case "customer.subscription.trial_will_end":
+        await handleTrialWillEnd(event.data.object, env); break;
       case "invoice.paid":
       case "invoice.payment_succeeded":
         await handleInvoicePaid(event.data.object, env); break;

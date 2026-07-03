@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { meanVariance, riskParity, hrp, covMatrix, portfolioStats } from "@/lib/optimizer";
 import { CorrelationMatrix } from "@/components/CorrelationMatrix";
 import { Scale } from "lucide-react";
+import { LockedPreview } from "@/components/gating/LockedPreview";
 
 const LOOKBACKS = [
   { value: "3mo", label: "3M" },
@@ -60,6 +61,21 @@ export default function Optimizer() {
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Scale className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Portfolio Optimizer</h1></div>
+        <LockedPreview
+          feature="strategy.proposal_builder"
+          title="Unlock the Strategy Proposal Builder"
+          description="Run Mean-Variance, Risk-Parity and HRP allocations across any basket, with correlation matrix and Sharpe/vol comparison."
+          source="strategy_optimizer"
+          previewSlot={
+            <Card>
+              <CardHeader><CardTitle className="text-base">What you'll get</CardTitle></CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>Enter any ticker basket and instantly compare four allocation strategies (Equal-Weight, Mean-Variance, Risk-Parity, HRP) with expected return, vol, Sharpe and a full correlation matrix.</p>
+                <p className="text-xs">Preview only — inputs are disabled on the Free plan.</p>
+              </CardContent>
+            </Card>
+          }
+        >
         <div className="flex gap-2">
           <Input value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="SPY,QQQ,GLD,TLT" />
           <Select value={lookback} onValueChange={(v) => setLookback(v as Lookback)}>
@@ -99,6 +115,7 @@ export default function Optimizer() {
         {returns.length > 0 && (
           <CorrelationMatrix symbols={syms} returns={returns} />
         )}
+        </LockedPreview>
       </main>
     </div>
   );

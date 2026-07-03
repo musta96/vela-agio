@@ -55,6 +55,12 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Verify every "/features" CTA on this page has the analytics binding.
+  // Re-runs when sections change (async CMS load can inject new CTAs).
+  useEffect(() => {
+    verifyFeaturesCtaBindings("Landing");
+  }, [sections]);
+
   // Hide the floating CTA when the footer scrolls into view so it never
   // overlaps footer links or the bottom of the page on small screens.
   useEffect(() => {

@@ -54,6 +54,7 @@ import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
 import PlansBilling from "./pages/PlansBilling";
 import Upgrade from "./pages/Upgrade";
+import PricingRedirect from "./components/PricingRedirect";
 import LegalDoc from "./pages/LegalDoc";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import DealFlow from "./pages/DealFlow";

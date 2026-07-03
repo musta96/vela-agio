@@ -315,6 +315,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     const renewalAmount = `€${(priceForCycle / 100).toFixed(2)}`;
     return (
       <div className="space-y-3">
+        <UpgradeStepper current="payment" />
         {/* Confirmation summary — shown above the Stripe payment form so the
             user sees the exact plan, cadence and final (post-discount) amount
             they're about to authorise. */}

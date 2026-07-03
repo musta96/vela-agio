@@ -328,7 +328,7 @@ function RiskPageBody(props: any) {
                         <tr key={s.name} className="border-b border-border/40">
                           <td className="py-2 pr-3 font-medium">{s.name}</td>
                           <td className="py-2 pr-3 text-muted-foreground">{s.description}</td>
-                          <td className={`py-2 pr-3 text-right font-mono ${s.pnlPct >= 0 ? "text-success" : "text-destructive"}`}>{fmtPct(s.pnlPct)}</td>
+                          <td className={`py-2 pr-3 text-right font-mono ${s.pnlPct >= 0 ? "text-success" : "text-destructive"}`}>{`${s.pnlPct >= 0 ? "+" : ""}${(s.pnlPct * 100).toFixed(2)}%`}</td>
                           <td className={`py-2 pr-3 text-right font-mono ${s.pnl >= 0 ? "text-success" : "text-destructive"}`}>{(s.pnl >= 0 ? "+€" : "−€") + Math.abs(s.pnl).toFixed(0)}</td>
                         </tr>
                       ))}

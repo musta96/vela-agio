@@ -837,6 +837,7 @@ export default function OwnerConsole() {
     apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
     "billing-settings": <BillingSettingsPanel />,
+    "enterprise-leads": <EnterpriseLeadsPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,
     revenue: billingSection,

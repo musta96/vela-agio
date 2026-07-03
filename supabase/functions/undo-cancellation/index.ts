@@ -26,6 +26,19 @@ Deno.serve(async (req) => {
       .update({ cancel_at_period_end: false, updated_at: new Date().toISOString() })
       .eq("stripe_subscription_id", sub.stripe_subscription_id).eq("environment", env);
 
+    await sb.from("profiles").update({
+      cancel_at_period_end: false,
+      cancellation_scheduled_at: null,
+    }).eq("user_id", user.id);
+
+    await sb.from("cancellation_feedback").insert({
+      user_id: user.id,
+      stripe_subscription_id: sub.stripe_subscription_id,
+      event_type: "cancellation_undone",
+      accepted_offer: false,
+      metadata: { source: "app", environment: env },
+    });
+
     return json({ ok: true });
   } catch (e) {
     return json({ error: (e as Error).message }, 400);

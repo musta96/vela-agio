@@ -17,6 +17,7 @@ export default function Upgrade() {
   const PLAN_LABELS: Record<string, string> = {
     plus: "Plus",
     pro: "Pro",
+    enterprise: "Enterprise",
     elite: "Elite",
     premium: "Premium",
   };

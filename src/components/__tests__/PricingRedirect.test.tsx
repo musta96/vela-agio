@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 
 vi.mock("@/pages/Pricing", () => ({
@@ -73,6 +73,7 @@ describe("PricingRedirect", () => {
 });
 
 function CaptureSearch({ onSearch }: { onSearch: (s: string) => void }) {
-  onSearch(window.location.search || "");
+  const loc = useLocation();
+  onSearch(loc.search || "");
   return <div data-testid="upgrade-capture">Upgrade</div>;
 }

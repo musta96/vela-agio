@@ -141,8 +141,12 @@ export function CancelSubscriptionDialog({ open, onOpenChange, currentPeriodEnd,
               <Button className="flex-1" onClick={acceptOffer} disabled={busy}>
                 {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Applying…</> : "Accept offer"}
               </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setStep("reason")} disabled={busy}>
-                {/* Track that the user declined the retention offer */}
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setOfferDeclined(true); setStep("reason"); }}
+                disabled={busy}
+              >
                 No thanks, continue cancelling
               </Button>
             </DialogFooter>

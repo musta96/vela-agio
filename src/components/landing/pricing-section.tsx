@@ -51,8 +51,8 @@ const plans: Plan[] = [
       "DCF / DDM intrinsic value tools",
       "Priority support",
     ],
-    btn: { text: "Start Pro trial", href: "/auth" },
-    lookupKey: { monthly: "pro_monthly", yearly: "pro_yearly" },
+    btn: { text: "Start Pro trial", href: "/signup/trial" },
+    lookupKey: { monthly: "pro_monthly", yearly: "pro_annual" },
   },
   {
     name: "Enterprise",
@@ -82,6 +82,14 @@ export function PricingSection() {
     // Free tier or "Contact sales" → keep the legacy navigation.
     if (!plan.lookupKey || plan.contact) {
       navigate(plan.btn.href);
+      return;
+    }
+    // Pro trial signup is a dedicated flow — never gate it behind /auth.
+    // Route logged-out users straight to the trial wizard. Logged-in users
+    // (who obviously can't start a fresh trial) fall through to embedded
+    // checkout as before.
+    if (!user && plan.name.toLowerCase() === "pro") {
+      navigate(`/signup/trial?cycle=${frequency === "yearly" ? "annual" : "monthly"}`);
       return;
     }
     // Stripe Embedded Checkout requires a logged-in user — bounce through /auth

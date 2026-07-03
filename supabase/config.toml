@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.hot-tickers]
 verify_jwt = false
+
+[functions.create-trial-checkout]
+verify_jwt = false
+
+[functions.finalize-trial-signup]
+verify_jwt = false

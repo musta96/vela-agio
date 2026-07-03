@@ -427,7 +427,12 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
             >
               {canceling ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Canceling…</> : "Cancel trial"}
             </Button>
-            <ManageSubscriptionButton size="sm" label="Manage or cancel trial" />
+            <ManageSubscriptionButton
+              size="sm"
+              label="Manage or cancel trial"
+              trialFallback
+              onCanceled={() => { setTrial(null); setTimeout(() => window.location.reload(), 800); }}
+            />
           </div>
           {confirmOpen && (
             <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3">

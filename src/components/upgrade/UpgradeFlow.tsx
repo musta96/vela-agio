@@ -47,14 +47,16 @@ interface Props {
   compact?: boolean;
   /** Called after Stripe checkout is mounted (parent may want to hide surrounding chrome). */
   onCheckoutMounted?: () => void;
+  /** Preselect the billing cycle (from ?cycle= query param). */
+  initialCycle?: Cycle;
 }
 
-export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath, compact, onCheckoutMounted }: Props) {
+export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath, compact, onCheckoutMounted, initialCycle }: Props) {
   const { user } = useAuth();
   const ent = useEntitlements();
   const credits = useAiCredits();
   const navigate = useNavigate();
-  const [cycle, setCycle] = useState<Cycle>("annual");
+  const [cycle, setCycle] = useState<Cycle>(initialCycle ?? "annual");
   const [plan, setPlan] = useState<ProPlan | null>(null);
   const [portfolioCount, setPortfolioCount] = useState<number | null>(null);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);

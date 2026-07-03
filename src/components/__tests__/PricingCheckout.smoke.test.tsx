@@ -46,7 +46,7 @@ import { PricingSection } from "@/components/landing/pricing-section";
 function renderPricing() {
   return render(
     <MemoryRouter>
-      <PricingSection />
+      <PricingSection confirmBeforeCheckout={false} />
     </MemoryRouter>,
   );
 }

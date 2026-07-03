@@ -46,9 +46,11 @@ export function ManageSubscriptionButton({ label = "Manage subscription", trialF
   }, [user]);
 
   const handleClick = async () => {
-    // No subscription yet → take the user to plans instead of failing.
+    // No subscription yet → send the user to the plans overview so they
+    // can compare every tier, instead of dropping them straight into the
+    // "Upgrade to Pro" flow with Pro preselected.
     if (hasSub === false) {
-      navigate("/upgrade");
+      navigate("/plans-billing");
       return;
     }
     setLoading(true);
@@ -78,14 +80,14 @@ export function ManageSubscriptionButton({ label = "Manage subscription", trialF
       });
       if ((data as any)?.noSubscription) {
         if (trialFallback) await cancelTrialFallback("No subscription found.");
-        else navigate("/upgrade");
+        else navigate("/plans-billing");
         return;
       }
       if (error || !data?.url) {
         const msg = (data as any)?.error || error?.message || "";
         if (/no subscription/i.test(msg)) {
           if (trialFallback) await cancelTrialFallback("No subscription found.");
-          else navigate("/upgrade");
+          else navigate("/plans-billing");
           return;
         }
         if (trialFallback) {
@@ -99,7 +101,7 @@ export function ManageSubscriptionButton({ label = "Manage subscription", trialF
       const msg = (e as Error).message;
       if (/no subscription/i.test(msg)) {
         if (trialFallback) await cancelTrialFallback("No subscription found.");
-        else navigate("/upgrade");
+        else navigate("/plans-billing");
         return;
       }
       if (trialFallback) {

@@ -19,6 +19,8 @@ Deno.serve(async (req) => {
     const env: StripeEnv = body.environment === "live" ? "live" : "sandbox";
     const reason: string | null = typeof body.reason === "string" ? body.reason : null;
     const feedback: string | null = typeof body.feedback === "string" ? body.feedback : null;
+    const offerShown: boolean = body.offerShown === true;
+    const offerDeclined: boolean = body.offerDeclined === true;
 
     const { data: sub } = await sb.from("subscriptions")
       .select("stripe_subscription_id, current_period_end")
@@ -40,7 +42,22 @@ Deno.serve(async (req) => {
       user_id: user.id,
       stripe_subscription_id: sub.stripe_subscription_id,
       reason, feedback, accepted_offer: false,
+      event_type: "cancellation",
+      metadata: { environment: env, offer_shown: offerShown, offer_declined: offerDeclined },
     });
+
+    // Audit the retention decline as its own event so dashboards can compute
+    // shown / accepted / declined without inspecting metadata.
+    if (offerDeclined) {
+      await sb.from("cancellation_feedback").insert({
+        user_id: user.id,
+        stripe_subscription_id: sub.stripe_subscription_id,
+        event_type: "retention_offer_declined",
+        accepted_offer: false,
+        reason,
+        metadata: { environment: env },
+      });
+    }
 
     const endsAt = updated.current_period_end
       ? new Date(updated.current_period_end * 1000).toISOString()

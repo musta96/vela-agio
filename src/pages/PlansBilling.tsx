@@ -266,7 +266,7 @@ export default function PlansBilling() {
         description="Your current plan, credit usage, and upgrade options."
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/pricing"><Sparkles className="h-4 w-4" /> See all plans</Link>
+            <Link to="/upgrade"><Sparkles className="h-4 w-4" /> See all plans</Link>
           </Button>
         }
       />
@@ -325,7 +325,7 @@ export default function PlansBilling() {
               )}
                 {pricingEnabled && !isBeta && (
                 <Button asChild size="sm" className="gap-2">
-                  <Link to="/pricing">
+                  <Link to="/upgrade">
                     <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
                   </Link>
                 </Button>

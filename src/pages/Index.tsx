@@ -13,6 +13,7 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
+import { trackFirstCoreAction } from "@/lib/signupAnalytics";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { hasSeenDashboardTour, loadDashboardTourState } from "@/components/dashboard/DashboardTour";
@@ -184,6 +185,13 @@ export default function Index() {
 
   // First-run onboarding: show the focused journey until the user completes or skips it.
   const isFirstRun = !!user && tourSeen === false;
+
+  // First core action: user lands on the dashboard after signup/onboarding.
+  // Dedupes per browser via localStorage inside trackFirstCoreAction.
+  useEffect(() => {
+    if (!user) return;
+    void trackFirstCoreAction("dashboard_view");
+  }, [user]);
 
   return (
     <>

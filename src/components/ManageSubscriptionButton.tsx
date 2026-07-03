@@ -9,9 +9,18 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface Props extends Omit<ButtonProps, "onClick"> {
   label?: string;
+  /**
+   * When true and the Stripe billing portal link is unavailable
+   * (missing subscription / portal not configured / portal error),
+   * cancel the active trial via the backend instead of redirecting.
+   * Used from trial confirmation & billing screens to give users a
+   * true one-click "Manage or cancel trial" affordance.
+   */
+  trialFallback?: boolean;
+  onCanceled?: () => void;
 }
 
-export function ManageSubscriptionButton({ label = "Manage subscription", ...buttonProps }: Props) {
+export function ManageSubscriptionButton({ label = "Manage subscription", trialFallback = false, onCanceled, ...buttonProps }: Props) {
   const [loading, setLoading] = useState(false);
   const [hasSub, setHasSub] = useState<boolean | null>(null);
   const navigate = useNavigate();
@@ -43,6 +52,23 @@ export function ManageSubscriptionButton({ label = "Manage subscription", ...but
       return;
     }
     setLoading(true);
+    const cancelTrialFallback = async (reason: string) => {
+      try {
+        const { error } = await supabase.functions.invoke("cancel-trial");
+        if (error) throw error;
+        toast({
+          title: "Trial canceled",
+          description: "Billing portal was unavailable, so we canceled your trial directly. No charge was made.",
+        });
+        onCanceled?.();
+      } catch (e) {
+        toast({
+          title: "Unable to manage subscription",
+          description: `${reason} And we couldn't cancel automatically: ${(e as Error).message}`,
+          variant: "destructive",
+        });
+      }
+    };
     try {
       const { data, error } = await supabase.functions.invoke("create-portal-session", {
         body: {
@@ -51,13 +77,19 @@ export function ManageSubscriptionButton({ label = "Manage subscription", ...but
         },
       });
       if ((data as any)?.noSubscription) {
-        navigate("/pricing");
+        if (trialFallback) await cancelTrialFallback("No subscription found.");
+        else navigate("/pricing");
         return;
       }
       if (error || !data?.url) {
         const msg = (data as any)?.error || error?.message || "";
         if (/no subscription/i.test(msg)) {
-          navigate("/pricing");
+          if (trialFallback) await cancelTrialFallback("No subscription found.");
+          else navigate("/pricing");
+          return;
+        }
+        if (trialFallback) {
+          await cancelTrialFallback(msg || "Billing portal was unavailable.");
           return;
         }
         throw new Error(msg || "Could not open billing portal");
@@ -66,7 +98,12 @@ export function ManageSubscriptionButton({ label = "Manage subscription", ...but
     } catch (e) {
       const msg = (e as Error).message;
       if (/no subscription/i.test(msg)) {
-        navigate("/pricing");
+        if (trialFallback) await cancelTrialFallback("No subscription found.");
+        else navigate("/pricing");
+        return;
+      }
+      if (trialFallback) {
+        await cancelTrialFallback(msg);
         return;
       }
       toast({

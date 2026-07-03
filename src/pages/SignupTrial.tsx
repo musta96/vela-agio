@@ -14,6 +14,7 @@ import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { PromoCodeField, type PromoValidation } from "@/components/billing/PromoCodeField";
+import { markSignupStart, trackSignupEvent } from "@/lib/signupAnalytics";
 
 type Cycle = "monthly" | "annual";
 
@@ -33,6 +34,7 @@ export default function SignupTrial() {
   const [params] = useSearchParams();
 
   const initialCycle = (params.get("cycle") === "annual" ? "annual" : "monthly") as Cycle;
+  const isResume = params.get("resume") === "1";
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,6 +54,38 @@ export default function SignupTrial() {
   useEffect(() => {
     if (!authLoading && user) navigate("/dashboard", { replace: true });
   }, [user, authLoading, navigate]);
+
+  // Mark funnel start + fire step-view event on mount.
+  useEffect(() => {
+    markSignupStart();
+    void trackSignupEvent("trial_signup_started", { resume: isResume });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void trackSignupEvent("trial_signup_step_view", { step });
+  }, [step]);
+
+  // Resume support: if the user came back from a card decline, rehydrate the
+  // draft from sessionStorage and jump straight to step 2 so they can pick a
+  // new card without re-entering email/password/legal acks.
+  useEffect(() => {
+    if (!isResume) return;
+    try {
+      const raw = sessionStorage.getItem("vela.trialSignup");
+      if (!raw) return;
+      const d = JSON.parse(raw) as { email: string; password: string; cycle: Cycle; consent: any };
+      setEmail(d.email ?? "");
+      setPassword(d.password ?? "");
+      setCycle(d.cycle ?? "monthly");
+      setAckTerms(!!d.consent?.ackTerms);
+      setAckNotAdvice(!!d.consent?.ackNotAdvice);
+      setAckRisk(!!d.consent?.ackRisk);
+      setMarketingOptIn(!!d.consent?.marketingOptIn);
+      setStep(2);
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Persist details across the checkout iframe → return page hop.
   useEffect(() => {
@@ -84,8 +118,10 @@ export default function SignupTrial() {
       setTrialEndDate(data.trialEndDate);
       setTrialDays(data.trialDays ?? 7);
       setStep(3);
+      void trackSignupEvent("trial_signup_card_submitted", { billing_cycle: cycle });
     } catch (e) {
       toast({ title: "Could not start trial", description: (e as Error).message, variant: "destructive" });
+      void trackSignupEvent("trial_signup_failed", { reason: "start_checkout_error", message: (e as Error).message });
     } finally {
       setBusy(false);
     }

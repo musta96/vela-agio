@@ -628,12 +628,13 @@ export default function PlansBilling() {
                         userId: user?.id,
                         environment: getStripeEnvironment(),
                       });
-                      openCheckout({
-                        priceId,
-                        userId: user?.id,
-                        customerEmail: user?.email ?? undefined,
-                        returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-                      });
+                      // Route through the unified /upgrade flow so users see
+                      // the stepper + current-plan context and land in the
+                      // Stripe form with clear framing (instead of the form
+                      // mounting silently at the bottom of this page).
+                      const slug = p.slug || p.tier || p.id;
+                      const cycle = billingFrequency === "yearly" ? "annual" : "monthly";
+                      navigate(`/upgrade?plan=${encodeURIComponent(slug)}&cycle=${cycle}`);
                     }}
                   />
                 );

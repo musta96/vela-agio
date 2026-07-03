@@ -51,8 +51,8 @@ const plans: Plan[] = [
       "DCF / DDM intrinsic value tools",
       "Priority support",
     ],
-    btn: { text: "Start Pro trial", href: "/auth" },
-    lookupKey: { monthly: "pro_monthly", yearly: "pro_yearly" },
+    btn: { text: "Start Pro trial", href: "/signup/trial" },
+    lookupKey: { monthly: "pro_monthly", yearly: "pro_annual" },
   },
   {
     name: "Enterprise",

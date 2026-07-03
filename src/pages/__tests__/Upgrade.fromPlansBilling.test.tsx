@@ -16,7 +16,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     from: () => {
       const chain: any = {};
       const result = Promise.resolve({ data: null, error: null, count: 0 });
-      for (const m of ["select", "eq", "order", "limit"]) chain[m] = vi.fn(() => chain);
+      for (const m of ["select", "eq", "or", "order", "limit"]) chain[m] = vi.fn(() => chain);
       chain.maybeSingle = vi.fn(() => result);
       chain.then = (r: any, j: any) => result.then(r, j);
       return chain;

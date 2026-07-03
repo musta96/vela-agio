@@ -28,16 +28,46 @@ Deno.serve(async (req) => {
       .select("stripe_customer_id, stripe_subscription_id")
       .eq("user_id", user.id).eq("environment", env)
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (!sub?.stripe_customer_id) return json({ error: "No customer on file" }, 400);
 
     const stripe = createStripeClient(env);
+
+    // Resolve a Stripe customer: prefer the one on the subscription row,
+    // else search by metadata.userId, else by email, else create one so
+    // free-tier users can still add a card before their first checkout.
+    let customerId = sub?.stripe_customer_id ?? null;
+    if (!customerId && /^[a-zA-Z0-9_-]+$/.test(user.id)) {
+      const found = await stripe.customers.search({
+        query: `metadata['userId']:'${user.id}'`,
+        limit: 1,
+      });
+      if (found.data.length) customerId = found.data[0].id;
+    }
+    if (!customerId && user.email) {
+      const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (existing.data.length) {
+        customerId = existing.data[0].id;
+        if (existing.data[0].metadata?.userId !== user.id) {
+          await stripe.customers.update(customerId, {
+            metadata: { ...existing.data[0].metadata, userId: user.id },
+          });
+        }
+      }
+    }
+    if (!customerId) {
+      const created = await stripe.customers.create({
+        ...(user.email && { email: user.email }),
+        metadata: { userId: user.id },
+      });
+      customerId = created.id;
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "setup",
-      customer: sub.stripe_customer_id,
+      customer: customerId,
       currency: "eur",
       ui_mode: "embedded",
       return_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}pm_session_id={CHECKOUT_SESSION_ID}`,
-      metadata: { userId: user.id, subscription_id: sub.stripe_subscription_id ?? "", purpose: "update_payment_method" },
+      metadata: { userId: user.id, subscription_id: sub?.stripe_subscription_id ?? "", purpose: "update_payment_method" },
     } as Stripe.Checkout.SessionCreateParams);
 
     return json({ clientSecret: session.client_secret });

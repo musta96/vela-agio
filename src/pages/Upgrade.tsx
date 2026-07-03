@@ -37,6 +37,7 @@ export default function Upgrade() {
         contextFeatureName={featureName}
         returnPath={returnPath}
         initialCycle={initialCycle}
+        initialPlanSlug={planParam || undefined}
       />
     </div>
   );

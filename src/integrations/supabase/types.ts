@@ -2089,6 +2089,7 @@ export type Database = {
           preferred_market: string | null
           reactivated_at: string | null
           recommendation_verdicts_override: string
+          retention_offer_applied_at: string | null
           reverted_to_free_at: string | null
           secondary_tax_residences: string[] | null
           subscription_status: Database["public"]["Enums"]["sub_status"] | null
@@ -2132,6 +2133,7 @@ export type Database = {
           preferred_market?: string | null
           reactivated_at?: string | null
           recommendation_verdicts_override?: string
+          retention_offer_applied_at?: string | null
           reverted_to_free_at?: string | null
           secondary_tax_residences?: string[] | null
           subscription_status?: Database["public"]["Enums"]["sub_status"] | null
@@ -2175,6 +2177,7 @@ export type Database = {
           preferred_market?: string | null
           reactivated_at?: string | null
           recommendation_verdicts_override?: string
+          retention_offer_applied_at?: string | null
           reverted_to_free_at?: string | null
           secondary_tax_residences?: string[] | null
           subscription_status?: Database["public"]["Enums"]["sub_status"] | null
@@ -3077,6 +3080,7 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: boolean
       }
+      has_pro_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

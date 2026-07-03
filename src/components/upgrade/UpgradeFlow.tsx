@@ -118,8 +118,8 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     });
   }, [contextFeatureKey]);
 
-  const aiUsed = credits?.quotaUsed ?? 0;
-  const aiLimit = credits?.quotaLimit ?? ent.limits.maxAiQuestionsPerMonth ?? null;
+  const aiUsed = credits?.used ?? 0;
+  const aiLimit = credits?.hasCap ? credits.limit : (ent.limits.maxAiQuestionsPerMonth ?? null);
 
   const returnUrl = (() => {
     const back = returnPath ?? (typeof window !== "undefined" ? window.location.pathname : "/dashboard");

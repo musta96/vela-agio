@@ -18,7 +18,6 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
-import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 
 type SubRow = {
@@ -131,7 +130,6 @@ export default function PlansBilling() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
   const ent = useEntitlements();
-  const { checkoutElement } = useStripeCheckout();
   // Toggle for the "Available plans" grid so users can compare and switch
   // between monthly and annual pricing before checkout.
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
@@ -645,7 +643,6 @@ export default function PlansBilling() {
           </CardContent>
         </Card>
       )}
-      {checkoutElement}
     </div>
   );
 }

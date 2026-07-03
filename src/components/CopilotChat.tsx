@@ -515,7 +515,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
           {hasCap && !unlimited && (
             <div className={`text-[10px] mt-1 px-1 ${exhausted ? "text-destructive" : (remaining ?? 0) <= Math.max(5, Math.round((limit as number) * 0.2)) ? "text-warning" : "text-muted-foreground"}`}>
               {exhausted ? (
-                <>0 AI credits left. <Link to="/pricing" className="underline">Upgrade</Link> or <Link to="/settings?tab=Connections" className="underline">add your key</Link>. Paper trading still works.</>
+                <>0 AI credits left. <Link to="/upgrade" className="underline">Upgrade</Link> or <Link to="/settings?tab=Connections" className="underline">add your key</Link>. Paper trading still works.</>
               ) : (
                 <>{remaining} AI credits left this month · <Link to="/ai-usage" className="underline">view usage</Link></>
               )}

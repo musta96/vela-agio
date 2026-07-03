@@ -48,7 +48,7 @@ export function AiCreditsBadge({ compact = false, className = "" }: Props) {
   if (!hasCap && status.source !== "beta") {
     return (
       <Link
-        to="/pricing"
+        to="/upgrade"
         className={`inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 text-warning px-2 py-0.5 text-[10px] font-medium hover:bg-warning/20 ${className}`}
         title="Your current plan doesn't include AI credits. Upgrade to unlock the assistant."
       >

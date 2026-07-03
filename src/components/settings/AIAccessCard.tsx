@@ -114,7 +114,7 @@ export function AIAccessCard() {
               <Button asChild size="sm" variant="outline"><Link to="/settings?tab=Connections">Use my own API key</Link></Button>
             )}
             {status.source === "none" && (
-              <Button asChild size="sm"><Link to="/pricing">Upgrade plan</Link></Button>
+              <Button asChild size="sm"><Link to="/upgrade">Upgrade plan</Link></Button>
             )}
             <Button size="sm" variant="ghost" onClick={load} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" /> Refresh

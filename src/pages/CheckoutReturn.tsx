@@ -25,7 +25,7 @@ export default function CheckoutReturn() {
         ) : (
           <>
             <h1 className="text-3xl font-bold">No session found</h1>
-            <Button asChild className="mt-6" variant="outline"><Link to="/pricing">Back to pricing</Link></Button>
+            <Button asChild className="mt-6" variant="outline"><Link to="/upgrade">Back to plans</Link></Button>
           </>
         )}
       </main>

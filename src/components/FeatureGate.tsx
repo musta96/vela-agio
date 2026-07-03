@@ -83,7 +83,7 @@ export function FeatureGate({ feature, children, fallback, silent }: Props) {
             Details
           </Button>
           <Button asChild size="sm" className="gap-2">
-            <Link to={target?.slug ? `/pricing?plan=${encodeURIComponent(target.slug)}` : "/pricing"}>
+            <Link to={target?.slug ? `/upgrade?plan=${encodeURIComponent(target.slug)}` : "/upgrade"}>
               <Sparkles className="h-4 w-4" /> {target?.name ? `Upgrade to ${target.name}` : "Upgrade"}
             </Link>
           </Button>

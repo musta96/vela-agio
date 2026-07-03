@@ -84,6 +84,14 @@ export function PricingSection() {
       navigate(plan.btn.href);
       return;
     }
+    // Pro trial signup is a dedicated flow — never gate it behind /auth.
+    // Route logged-out users straight to the trial wizard. Logged-in users
+    // (who obviously can't start a fresh trial) fall through to embedded
+    // checkout as before.
+    if (!user && plan.name.toLowerCase() === "pro") {
+      navigate(`/signup/trial?cycle=${frequency === "yearly" ? "annual" : "monthly"}`);
+      return;
+    }
     // Stripe Embedded Checkout requires a logged-in user — bounce through /auth
     // and return to /pricing so the user can finish the flow without losing place.
     if (!user) {

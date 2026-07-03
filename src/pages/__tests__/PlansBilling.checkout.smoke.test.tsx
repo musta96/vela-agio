@@ -85,7 +85,7 @@ const PRO_PLAN = {
   monthly_price_cents: 2900, yearly_price_cents: 24000,
   ai_monthly_quota: 1000, ai_model_tier: "advanced", monthly_credit_cap: null,
   features: ["Real-time"],
-  stripe_monthly_price_id: "pro_monthly", stripe_yearly_price_id: "pro_yearly",
+  stripe_monthly_price_id: "pro_monthly", stripe_yearly_price_id: "pro_annual",
   highlighted: true, sort_order: 1, is_active: true,
 };
 

@@ -99,7 +99,7 @@ describe("Pricing CTA → Stripe Embedded Checkout (smoke)", () => {
     expect(screen.getByTestId("embedded-checkout-mounted")).toBeInTheDocument();
   });
 
-  it("switching to yearly sends pro_yearly", async () => {
+  it("switching to yearly sends pro_annual", async () => {
     renderPricing();
 
     // The frequency toggle has two buttons labelled Monthly / Yearly.
@@ -113,7 +113,7 @@ describe("Pricing CTA → Stripe Embedded Checkout (smoke)", () => {
     expect(invokeMock).toHaveBeenCalledWith(
       "create-checkout",
       expect.objectContaining({
-        body: expect.objectContaining({ priceId: "pro_yearly" }),
+        body: expect.objectContaining({ priceId: "pro_annual" }),
       }),
     );
   });

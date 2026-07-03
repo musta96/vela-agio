@@ -1,7 +1,7 @@
 /**
  * End-to-end (mocked) test — user toggles the yearly frequency on the
  * public pricing surface, clicks Upgrade on the Pro plan, and we assert:
- *   1. `create-checkout` is invoked with `pro_yearly` (not `pro_monthly`)
+ *   1. `create-checkout` is invoked with `pro_annual` (not `pro_monthly`)
  *   2. The correlationId set client-side is forwarded to the edge function
  *   3. `EmbeddedCheckoutProvider` mounts with a real client secret
  */
@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 describe("Pricing → yearly checkout", () => {
-  it("clicking Upgrade after toggling yearly calls create-checkout with stripe_yearly_price_id", async () => {
+  it("clicking Upgrade after toggling yearly calls create-checkout with the pro_annual lookup key", async () => {
     render(
       <MemoryRouter initialEntries={["/pricing"]}>
         <PricingSection confirmBeforeCheckout={false} />
@@ -74,7 +74,7 @@ describe("Pricing → yearly checkout", () => {
       "create-checkout",
       expect.objectContaining({
         body: expect.objectContaining({
-          priceId: "pro_yearly",
+          priceId: "pro_annual",
           userId: "u_yearly",
           customerEmail: "y@vela.ai",
           environment: "sandbox",

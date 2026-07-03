@@ -595,10 +595,20 @@ export default function PlansBilling() {
       {pricingEnabled && plans.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Available plans</CardTitle>
-            <CardDescription>
-              Pick the tier that matches how you invest. You'll be redirected to checkout where any active price experiments apply.
-            </CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Available plans</CardTitle>
+                <CardDescription>
+                  Pick the tier that matches how you invest. Switch between monthly and annual pricing — annual saves ~20% on most tiers.
+                </CardDescription>
+              </div>
+              <Tabs value={billingFrequency} onValueChange={(v) => setBillingFrequency(v as "monthly" | "yearly")}>
+                <TabsList className="h-9">
+                  <TabsTrigger value="monthly" className="text-xs">Monthly</TabsTrigger>
+                  <TabsTrigger value="yearly" className="text-xs">Annual · save ~20%</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

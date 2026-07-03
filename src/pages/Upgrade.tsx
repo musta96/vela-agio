@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Check } from "lucide-react";
 import { UpgradeFlow } from "@/components/upgrade/UpgradeFlow";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
@@ -21,8 +21,15 @@ const SELF_SERVE_PLANS = [
   { slug: "pro", name: "Pro", description: "Advanced analytics, backtesting, reports, and priority AI access." },
 ] as const;
 
+// Tiers exposed in the on-page plan switcher. Enterprise routes to sales.
+const SWITCHABLE_PLANS = [
+  { slug: "plus", name: "Plus" },
+  { slug: "pro", name: "Pro" },
+  { slug: "enterprise", name: "Enterprise" },
+] as const;
+
 export default function Upgrade() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const feature = params.get("feature") ?? undefined;
   const featureName = params.get("featureName") ?? undefined;
   const returnPath = params.get("return") ?? undefined;
@@ -37,6 +44,12 @@ export default function Upgrade() {
   const selectedLabel = planLabel ?? "Choose a plan";
   const cycleLabel = initialCycle === "annual" ? "Annual" : initialCycle === "monthly" ? "Monthly" : null;
   const cycleQuery = initialCycle ? `&cycle=${initialCycle}` : "";
+
+  const switchPlan = (slug: string) => {
+    const next = new URLSearchParams(params);
+    next.set("plan", slug);
+    setParams(next, { replace: true });
+  };
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0 max-w-3xl mx-auto">
@@ -57,10 +70,52 @@ export default function Upgrade() {
           </>
         )}
       </div>
+      {planLabel && (
+        <Card className="p-3" data-testid="upgrade-plan-switcher">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-xs text-muted-foreground">
+              Change tier without leaving this page:
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {SWITCHABLE_PLANS.map((p) => {
+                const isActive = p.slug === planParam;
+                if (p.slug === "enterprise") {
+                  return (
+                    <Button
+                      key={p.slug}
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      data-testid="switch-plan-enterprise"
+                    >
+                      <Link to="/contact-sales?source=upgrade_switcher">Talk to sales · Enterprise</Link>
+                    </Button>
+                  );
+                }
+                return (
+                  <Button
+                    key={p.slug}
+                    type="button"
+                    size="sm"
+                    variant={isActive ? "default" : "outline"}
+                    onClick={() => switchPlan(p.slug)}
+                    data-testid={`switch-plan-${p.slug}`}
+                    aria-pressed={isActive}
+                    className="gap-1"
+                  >
+                    {isActive && <Check className="h-3.5 w-3.5" />} {p.name}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
       <PastDueBanner />
       <CurrentPlanBanner />
       {planLabel ? (
         <UpgradeFlow
+          key={`${planParam}-${initialCycle ?? "default"}`}
           contextFeatureKey={feature}
           contextFeatureName={featureName}
           returnPath={returnPath}

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Sparkles, ArrowLeft, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { markOnboardingStart, trackSignupEvent } from "@/lib/signupAnalytics";
 
 const Q_EN = [
   { title: "Investment horizon", sub: "When do you expect to need most of this money?", opts: [["⏳ <3y", 1], ["📅 3-7y", 2], ["🌱 7-15y", 3], ["🌳 >15y", 4]], why: "Horizon defines how much volatility you can absorb." },
@@ -39,6 +40,20 @@ export default function Onboarding() {
   const [ans, setAns] = useState<number[]>(Array(Q.length).fill(0));
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    markOnboardingStart();
+    void trackSignupEvent("onboarding_started");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    void trackSignupEvent("onboarding_step_completed", { step, total: Q.length });
+  }, [step, Q.length]);
+  useEffect(() => {
+    if (done) void trackSignupEvent("onboarding_completed", { score: ans.reduce((s, v) => s + v, 0), total: Q.length });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done]);
+
   const score = ans.reduce((s, v) => s + v, 0);
   const bucket = score < 10 ? "conservative" : score < 14 ? "balanced" : score < 18 ? "growth" : "aggressive";
   const profile = PORTFOLIOS[bucket as keyof typeof PORTFOLIOS];

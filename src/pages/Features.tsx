@@ -292,8 +292,8 @@ export default function Features() {
               </thead>
               <tbody>
                 {COMPARISON.map((group) => (
-                  <>
-                    <tr key={`${group.category}-h`}>
+                  <React.Fragment key={group.category}>
+                    <tr>
                       <td
                         colSpan={1 + PLAN_COLUMNS.length}
                         className="py-3 px-6 text-[11px] font-bold tracking-[0.2em] uppercase"
@@ -316,7 +316,7 @@ export default function Features() {
                         ))}
                       </tr>
                     ))}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

@@ -886,6 +886,7 @@ export default function OwnerConsole() {
         signalAlerts={flaggedSignals}
         gdprPending={pendingGdpr}
         openTickets={openTickets}
+        newEnterpriseLeads={newEnterpriseLeads}
         onKill={() => setOwnerSection("kill")}
       />
       <div className="flex-1 min-w-0 flex flex-col">

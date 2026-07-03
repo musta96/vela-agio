@@ -16,6 +16,7 @@ import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
 import OwnerReferralsPage from "@/pages/owner/Referrals";
 import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import OwnerOnboardingFunnel from "@/pages/owner/OnboardingFunnel";
+import SignupConversionPanel from "@/components/owner/SignupConversionPanel";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -127,6 +128,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 // Extra sections registered after the initial map:
 (OWNER_SECTION_ROUTES as any).security = "/owner/security";
 (OWNER_SECTION_ROUTES as any)["onboarding-funnel"] = "/owner/onboarding-funnel";
+(OWNER_SECTION_ROUTES as any)["signup-conversion"] = "/owner/signup-conversion";
 (OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 (OWNER_SECTION_ROUTES as any)["retention-audit"] = "/owner/retention-audit";
 
@@ -877,6 +879,7 @@ export default function OwnerConsole() {
     blog: <OwnerBlogAdmin />,
     security: <OwnerSecurityAudit />,
     "onboarding-funnel": <OwnerOnboardingFunnel />,
+    "signup-conversion": <SignupConversionPanel />,
   };
 
   return (
@@ -983,6 +986,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "ai_access", label: "AI access control", icon: <Sparkles className="h-3.5 w-3.5" /> },
       { key: "ai_metrics", label: "AI funnel metrics", icon: <Sparkles className="h-3.5 w-3.5" /> },
       { key: "onboarding-funnel", label: "Onboarding funnel", icon: <Activity className="h-3.5 w-3.5" /> },
+      { key: "signup-conversion", label: "Signup conversion", icon: <TrendingUp className="h-3.5 w-3.5" /> },
       { key: "data", label: "Data feeds", icon: <Database className="h-3.5 w-3.5" /> },
     ]},
     { label: "Compliance", items: [

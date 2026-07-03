@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from "react-router-dom";
+import { TrialStatusBanner } from "@/components/trial/TrialStatusBanner";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Search } from "lucide-react";

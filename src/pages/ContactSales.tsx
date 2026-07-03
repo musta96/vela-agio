@@ -233,7 +233,7 @@ export default function ContactSales() {
                     aria-invalid={!!errors.role}
                   />
                 </Field>
-                <Field label="Company" error={errors.company} htmlFor="company">
+                <Field label="Firm / company name" error={errors.company} htmlFor="company">
                   <Input
                     id="company"
                     autoComplete="organization"
@@ -242,17 +242,20 @@ export default function ContactSales() {
                     onChange={(e) => update("company", e.target.value)}
                   />
                 </Field>
-                <Field label="Team size" error={errors.team_size} htmlFor="team_size">
-                  <Select value={form.team_size} onValueChange={(v) => update("team_size", v)}>
-                    <SelectTrigger id="team_size">
-                      <SelectValue placeholder="Select team size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEAM_SIZES.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field
+                  label="Approx. number of clients"
+                  error={errors.num_clients}
+                  htmlFor="num_clients"
+                >
+                  <Input
+                    id="num_clients"
+                    inputMode="numeric"
+                    placeholder="e.g. 25"
+                    value={form.num_clients}
+                    maxLength={10}
+                    onChange={(e) => update("num_clients", e.target.value.replace(/[^\d]/g, ""))}
+                    aria-invalid={!!errors.num_clients}
+                  />
                 </Field>
               </div>
 

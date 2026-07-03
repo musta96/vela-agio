@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Settings as SettingsIcon, Download, Plus, User, FileText, Coins, Briefcase, Bell, ShieldCheck, CreditCard, ExternalLink, Loader2, Plug, Sparkles, LifeBuoy } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,31 @@ function StatusPill({ s }: { s: string }) {
 
 function ProfileTab() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [replaying, setReplaying] = useState(false);
+  const replayOnboarding = async () => {
+    setReplaying(true);
+    try {
+      try {
+        localStorage.removeItem("vela.firstRun.done");
+        localStorage.removeItem("vela_dashboard_tour_v1");
+      } catch { /* ignore */ }
+      if (user?.id) {
+        await supabase.from("profiles").update({
+          dashboard_tour_completed_at: null,
+          first_run_completed_at: null,
+          first_run_symbol: null,
+          first_run_time_to_signal_ms: null,
+        }).eq("user_id", user.id);
+      }
+      toast.success("Onboarding reset — taking you to the start");
+      navigate("/dashboard");
+    } catch (e: any) {
+      toast.error("Couldn't reset onboarding", { description: e?.message });
+    } finally {
+      setReplaying(false);
+    }
+  };
   const [mifid, setMifid] = useState<{ completed_at: string | null; score: number | null; answers: Record<string, any> | null } | null>(null);
   useEffect(() => {
     if (!user) return;
@@ -99,6 +125,18 @@ function ProfileTab() {
         </div>
         <Button asChild size="sm" variant={mifid?.completed_at ? "outline" : "default"}>
           <Link to="/suitability">{mifid?.completed_at ? "Update questionnaire" : "Start questionnaire"} <ExternalLink className="h-3 w-3 ml-1.5" /></Link>
+        </Button>
+      </Card>
+      <Card className="p-6 rounded-2xl">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <h2 className="text-base font-semibold">Product tour & onboarding</h2>
+            <p className="text-sm text-muted-foreground">Replay the first-run journey — pick a ticker, see a Vela signal, and rediscover the core flow.</p>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" onClick={replayOnboarding} disabled={replaying}>
+          {replaying ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5 mr-1.5" />}
+          Replay onboarding
         </Button>
       </Card>
     </div>

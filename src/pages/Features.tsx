@@ -334,7 +334,29 @@ export default function Features() {
             ))}
           </div>
 
-          {/* Desktop / tablet: feature-first matrix table for direct tier comparison. */}
+          {/* Legend — clarifies chip meanings before the matrix. */}
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs" style={{ color: "#6b7a8c" }}>
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full" style={{ background: "rgba(29,158,117,0.18)", color: "#1D9E75" }}>
+                <Check className="h-3 w-3" />
+              </span>
+              Included
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full" style={{ background: "rgba(4,44,83,0.05)", color: "#a6b0bd" }}>
+                <Minus className="h-3 w-3" />
+              </span>
+              Not in this tier
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "rgba(29,158,117,0.18)", color: "#1D9E75" }}>
+                25 / mo
+              </span>
+              Tier-specific limit or note
+            </span>
+          </div>
+
+          {/* Desktop / tablet: feature-first matrix with tinted plan columns. */}
           <div className="hidden md:block glass-card rounded-3xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] table-fixed text-left border-collapse">
@@ -346,8 +368,8 @@ export default function Features() {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr style={{ background: "linear-gradient(135deg,rgba(4,44,83,0.04),rgba(29,158,117,0.04))" }}>
-                    <th scope="col" className="py-5 px-6 align-bottom text-xs font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>
+                  <tr>
+                    <th scope="col" className="sticky left-0 z-10 py-5 px-6 align-bottom text-xs font-bold tracking-wider uppercase" style={{ background: "rgba(255,255,255,0.96)", color: "#6b7a8c", borderBottom: "1px solid rgba(4,44,83,0.08)" }}>
                       Capability
                     </th>
                     {PLAN_COLUMNS.map((p) => (
@@ -355,16 +377,16 @@ export default function Features() {
                         key={p.key}
                         scope="col"
                         className="py-5 px-5 text-center align-bottom"
-                        style={p.highlight ? { background: "rgba(29,158,117,0.06)", color: "#042C53" } : { color: "#042C53" }}
+                        style={{ background: PLAN_TINT[p.key].bg, color: "#042C53", borderBottom: `2px solid ${PLAN_TINT[p.key].strong}` }}
                       >
                         <div className="flex min-h-[92px] flex-col items-center justify-end gap-1">
                           {p.highlight && (
-                            <span className="mb-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: "rgba(29,158,117,0.14)", color: "#1D9E75" }}>
+                            <span className="mb-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: PLAN_TINT[p.key].strong, color: PLAN_TINT[p.key].accent }}>
                               Most popular
                             </span>
                           )}
                           <span className="text-base font-extrabold">{p.name}</span>
-                          <span className="text-sm font-bold" style={{ color: p.highlight ? "#1D9E75" : "#185FA5" }}>{p.price}</span>
+                          <span className="text-sm font-bold" style={{ color: PLAN_TINT[p.key].accent }}>{p.price}</span>
                           <span className="max-w-[180px] text-xs leading-snug" style={{ color: "#6b7a8c" }}>{p.bestFor}</span>
                         </div>
                       </th>
@@ -372,21 +394,39 @@ export default function Features() {
                   </tr>
                 </thead>
                 <tbody>
-                  {COMPARISON.map((group) => (
+                  {COMPARISON.map((group, gi) => (
                     <React.Fragment key={group.category}>
                       <tr>
                         <th
                           scope="rowgroup"
                           colSpan={1 + PLAN_COLUMNS.length}
-                          className="py-3 px-6 text-[11px] font-bold tracking-[0.2em] uppercase"
-                          style={{ background: "rgba(4,44,83,0.04)", color: "#185FA5", borderTop: "1px solid rgba(4,44,83,0.08)" }}
+                          className="py-3 px-6 text-[11px] font-bold tracking-[0.22em] uppercase"
+                          style={{
+                            background: "linear-gradient(90deg,rgba(4,44,83,0.06),rgba(4,44,83,0.02))",
+                            color: "#042C53",
+                            borderTop: gi === 0 ? "none" : "1px solid rgba(4,44,83,0.08)",
+                          }}
                         >
-                          {group.category}
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full" style={{ background: "#1D9E75" }} aria-hidden="true" />
+                            {group.category}
+                          </span>
                         </th>
                       </tr>
-                      {group.rows.map((row) => (
-                        <tr key={`${group.category}-${row.label}`} className="border-t" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
-                          <th scope="row" className="py-4 px-6 text-sm font-semibold" style={{ color: "#1f3147" }}>
+                      {group.rows.map((row, ri) => (
+                        <tr
+                          key={`${group.category}-${row.label}`}
+                          style={{ background: ri % 2 === 1 ? "rgba(4,44,83,0.015)" : undefined }}
+                        >
+                          <th
+                            scope="row"
+                            className="sticky left-0 py-4 px-6 text-sm font-semibold"
+                            style={{
+                              background: ri % 2 === 1 ? "rgba(248,249,251,1)" : "rgba(255,255,255,1)",
+                              color: "#1f3147",
+                              borderTop: "1px solid rgba(4,44,83,0.06)",
+                            }}
+                          >
                             <span className="block">{row.label}</span>
                             {row.hint && <span className="mt-1 block text-xs font-normal" style={{ color: "#6b7a8c" }}>{row.hint}</span>}
                           </th>
@@ -394,9 +434,9 @@ export default function Features() {
                             <td
                               key={p.key}
                               className="py-4 px-5 text-center align-middle"
-                              style={p.highlight ? { background: "rgba(29,158,117,0.04)" } : undefined}
+                              style={{ background: PLAN_TINT[p.key].bg, borderTop: "1px solid rgba(4,44,83,0.06)" }}
                             >
-                              {renderCell(row.values[p.key])}
+                              {renderCell(row.values[p.key], p.key)}
                             </td>
                           ))}
                         </tr>
@@ -408,36 +448,40 @@ export default function Features() {
             </div>
           </div>
 
-          {/* Mobile: feature-first cards with all three tiers visible on every row. */}
-          <div className="md:hidden space-y-5">
-            <div className="grid grid-cols-[1fr_repeat(3,minmax(58px,72px))] items-end gap-2 rounded-2xl border px-3 py-3" style={{ borderColor: "rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.76)" }}>
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#6b7a8c" }}>Feature</span>
-              {PLAN_COLUMNS.map((p) => (
-                <span key={p.key} className="text-center text-[11px] font-extrabold leading-tight" style={{ color: p.highlight ? "#1D9E75" : "#042C53" }}>
-                  {p.name}
-                  <span className="mt-0.5 block font-semibold" style={{ color: "#6b7a8c" }}>{p.price.replace(" /mo", "")}</span>
-                </span>
-              ))}
-            </div>
-
+          {/* Mobile: per-feature stacked rows — each feature lists all three
+              tiers on their own labeled line so ownership is unambiguous. */}
+          <div className="md:hidden space-y-6">
             {COMPARISON.map((group) => (
               <section key={group.category} className="glass-card rounded-3xl overflow-hidden">
-                <div className="px-4 py-3 text-[10px] font-bold tracking-[0.2em] uppercase" style={{ background: "rgba(4,44,83,0.04)", color: "#185FA5" }}>
+                <div className="flex items-center gap-2 px-4 py-3 text-[10px] font-bold tracking-[0.22em] uppercase" style={{ background: "linear-gradient(90deg,rgba(4,44,83,0.07),rgba(4,44,83,0.02))", color: "#042C53" }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#1D9E75" }} aria-hidden="true" />
                   {group.category}
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
                   {group.rows.map((row) => (
-                    <div key={row.label} className="grid grid-cols-[1fr_repeat(3,minmax(58px,72px))] items-center gap-2 px-3 py-3">
-                      <div className="min-w-0 pr-1">
-                        <div className="text-sm font-semibold leading-snug" style={{ color: "#1f3147" }}>{row.label}</div>
-                        {row.hint && <div className="mt-0.5 text-xs leading-snug" style={{ color: "#6b7a8c" }}>{row.hint}</div>}
-                      </div>
-                      {PLAN_COLUMNS.map((p) => (
-                        <div key={p.key} className="flex justify-center">
-                          {renderCell(row.values[p.key], true)}
-                        </div>
-                      ))}
-                    </div>
+                    <article key={row.label} className="px-4 py-4">
+                      <div className="text-sm font-bold leading-snug" style={{ color: "#042C53" }}>{row.label}</div>
+                      {row.hint && <div className="mt-0.5 text-xs leading-snug" style={{ color: "#6b7a8c" }}>{row.hint}</div>}
+                      <ul className="mt-3 space-y-1.5">
+                        {PLAN_COLUMNS.map((p) => (
+                          <li
+                            key={p.key}
+                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-2"
+                            style={{ background: PLAN_TINT[p.key].bg, borderLeft: `3px solid ${PLAN_TINT[p.key].strong}` }}
+                          >
+                            <span className="min-w-0 flex items-baseline gap-2">
+                              <span className="text-[13px] font-extrabold" style={{ color: PLAN_TINT[p.key].accent }}>
+                                {p.name}
+                              </span>
+                              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#6b7a8c" }}>
+                                {p.price.replace(" /mo", "")}
+                              </span>
+                            </span>
+                            <span className="shrink-0">{renderCell(row.values[p.key], p.key)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
                   ))}
                 </div>
               </section>

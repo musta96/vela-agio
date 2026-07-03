@@ -131,7 +131,7 @@ export default function PlansBilling() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
   const ent = useEntitlements();
-  const { openCheckout, checkoutElement } = useStripeCheckout();
+  const { checkoutElement } = useStripeCheckout();
   // Toggle for the "Available plans" grid so users can compare and switch
   // between monthly and annual pricing before checkout.
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
@@ -267,7 +267,7 @@ export default function PlansBilling() {
         description="Your current plan, credit usage, and upgrade options."
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/upgrade"><Sparkles className="h-4 w-4" /> See all plans</Link>
+            <a href="#available-plans"><Sparkles className="h-4 w-4" /> See all plans</a>
           </Button>
         }
       />
@@ -326,9 +326,9 @@ export default function PlansBilling() {
               )}
                 {pricingEnabled && !isBeta && (
                 <Button asChild size="sm" className="gap-2">
-                  <Link to="/upgrade">
+                  <a href="#available-plans">
                     <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
-                  </Link>
+                  </a>
                 </Button>
               )}
             </div>
@@ -403,7 +403,7 @@ export default function PlansBilling() {
 
       {/* Invoices / Payments summary -------------------------------------- */}
       {hasStripeCustomer && (
-        <Card>
+        <Card id="available-plans">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -614,7 +614,8 @@ export default function PlansBilling() {
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((p) => {
-                const isCurrent = matchedPlan?.id === p.id;
+                const isFreePlan = (p.monthly_price_cents ?? 0) === 0 && (p.yearly_price_cents ?? 0) === 0;
+                const isCurrent = matchedPlan?.id === p.id || (onFree && isFreePlan);
                 return (
                   <PlanCard
                     key={p.id}

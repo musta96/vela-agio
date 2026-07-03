@@ -1,0 +1,1 @@
+GRANT SELECT (id, slug, title, excerpt, cover_image_url, content_html, category, tags, author_name, reading_minutes, seo_title, seo_description, published, published_at, created_at, updated_at, lead_magnet_enabled, lead_magnet_layout, lead_magnet_file_path, lead_magnet_file_name, lead_magnet_cta, lead_magnet_fields, has_gated) ON public.blog_posts TO anon, authenticated;

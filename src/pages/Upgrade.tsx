@@ -35,6 +35,7 @@ export default function Upgrade() {
     ? `Everything you're missing on ${planLabel}, side-by-side with what you're using today.`
     : "Compare the available tiers first, then pick the plan you want to start checkout.";
   const selectedLabel = planLabel ?? "Choose a plan";
+  const cycleLabel = initialCycle === "annual" ? "Annual" : initialCycle === "monthly" ? "Monthly" : null;
   const cycleQuery = initialCycle ? `&cycle=${initialCycle}` : "";
 
   return (
@@ -48,6 +49,13 @@ export default function Upgrade() {
         className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm"
       >
         You selected: <span className="font-semibold text-primary">{selectedLabel}</span>
+        {cycleLabel && (
+          <>
+            {" · "}
+            <span data-testid="upgrade-selected-cycle" className="font-semibold text-primary">{cycleLabel}</span>
+            <span className="text-muted-foreground"> billing</span>
+          </>
+        )}
       </div>
       <PastDueBanner />
       <CurrentPlanBanner />

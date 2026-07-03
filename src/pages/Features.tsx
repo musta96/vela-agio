@@ -95,13 +95,12 @@ export default function Features() {
   //   true  → included
   //   false → not included
   //   string → tier-specific note (e.g. "25 / mo")
-  const PLAN_COLUMNS = [
+  type PlanKey = "explorer" | "pro" | "enterprise";
+  const PLAN_COLUMNS: Array<{ key: PlanKey; name: string; price: string; highlight?: boolean }> = [
     { key: "explorer", name: "Explorer", price: "Free" },
     { key: "pro", name: "Pro", price: "€29 /mo", highlight: true },
     { key: "enterprise", name: "Enterprise", price: "€149 /mo" },
-  ] as const;
-
-  type PlanKey = typeof PLAN_COLUMNS[number]["key"];
+  ];
   type Cell = boolean | string;
 
   const COMPARISON: Array<{

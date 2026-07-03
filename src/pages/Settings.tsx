@@ -22,6 +22,7 @@ import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SupportCard } from "@/components/settings/SupportCard";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
+import { SubscriptionActionsCard } from "@/components/billing/SubscriptionActionsCard";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { computeSuitability } from "@/lib/suitability";
@@ -406,6 +407,7 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
     <div className="space-y-4">
       <PastDueBanner />
       <PaymentMethodCard />
+      <SubscriptionActionsCard />
       <Card className="p-6 rounded-2xl">
       <h2 className="text-base font-semibold mb-2">Subscription & billing</h2>
       <p className="text-sm text-muted-foreground mb-5">Manage your plan, download invoices, or cancel in the secure billing portal.</p>

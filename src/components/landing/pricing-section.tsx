@@ -10,65 +10,10 @@ import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { useAuth } from "@/hooks/useAuth";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { PLAN_LIST, type PlanDefinition } from "@/lib/planFeatures";
 
-type Plan = {
-  name: string;
-  info: string;
-  price: { monthly: number; yearly: number };
-  features: string[];
-  btn: { text: string; href: string };
-  highlighted?: boolean;
-  /** Stripe lookup keys backfilled on subscription_plans. Omit for free/contact tiers. */
-  lookupKey?: { monthly: string; yearly: string };
-  /** True for "Contact sales" / no self-serve checkout. */
-  contact?: boolean;
-};
-
-const plans: Plan[] = [
-  {
-    name: "Explorer",
-    info: "For self-directed retail investors",
-    price: { monthly: 0, yearly: 0 },
-    features: [
-      "Delayed market data",
-      "Up to 3 watchlists",
-      "25 AI summaries / month",
-      "Manual portfolio tracking",
-      "Community access",
-    ],
-    btn: { text: "Start free", href: "/auth" },
-  },
-  {
-    highlighted: true,
-    name: "Pro",
-    info: "For serious investors seeking alpha",
-    price: { monthly: 29, yearly: 24 },
-    features: [
-      "Real-time market data",
-      "Unlimited watchlists & AI research",
-      "Backtesting & screeners",
-      "Broker connect (read-only)",
-      "DCF / DDM intrinsic value tools",
-      "Priority support",
-    ],
-    btn: { text: "Start Pro trial", href: "/signup/trial" },
-    lookupKey: { monthly: "pro_monthly", yearly: "pro_annual" },
-  },
-  {
-    name: "Enterprise",
-    info: "For advisors, teams & institutions",
-    price: { monthly: 149, yearly: 125 },
-    features: [
-      "Everything in Pro",
-      "Advisor seats & MiFID II tools",
-      "REST API & WebSocket streams",
-      "SSO & audit logs",
-      "Dedicated success manager",
-    ],
-    btn: { text: "Talk to us about Enterprise", href: "/contact-sales?source=pricing_enterprise" },
-    contact: true,
-  },
-];
+/** Plans rendered on the pricing section (single source of truth in planFeatures.ts). */
+const plans: PlanDefinition[] = PLAN_LIST;
 
 export function PricingSection() {
   const [frequency, setFrequency] = React.useState<FREQUENCY>("monthly");
@@ -78,29 +23,21 @@ export function PricingSection() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   /** Single entry point used by every PricingCard CTA. */
-  const onChoose = React.useCallback((plan: Plan) => {
-    // Free tier or "Contact sales" → keep the legacy navigation.
-    if (!plan.lookupKey || plan.contact) {
-      navigate(plan.btn.href);
-      return;
-    }
-    // Pro trial signup is a dedicated flow — never gate it behind /auth.
-    // Route logged-out users straight to the trial wizard. Logged-in users
-    // (who obviously can't start a fresh trial) fall through to embedded
-    // checkout as before.
-    if (!user && plan.name.toLowerCase() === "pro") {
-      navigate(`/signup/trial?cycle=${frequency === "yearly" ? "annual" : "monthly"}`);
+  const onChoose = React.useCallback((plan: PlanDefinition) => {
+    // Free tier or "Contact sales" → simple navigation.
+    if (!plan.lookupKey || plan.contactSales) {
+      navigate(plan.ctaHref);
       return;
     }
     // Stripe Embedded Checkout requires a logged-in user — bounce through /auth
     // and return to /pricing so the user can finish the flow without losing place.
     if (!user) {
-      navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.name.toLowerCase()}&freq=${frequency}`)}`);
+      navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.slug}&freq=${frequency}`)}`);
       return;
     }
-    const lookupKey = plan.lookupKey[frequency];
+    const lookupKey = plan.lookupKey[frequency === "yearly" ? "annual" : "monthly"];
     logPaymentEvent("open_checkout", {
-      plan: plan.name.toLowerCase(),
+      plan: plan.slug,
       frequency,
       lookupKey,
       userId: user.id,
@@ -123,8 +60,8 @@ export function PricingSection() {
     const planParam = (searchParams.get("plan") || "").toLowerCase();
     const freqParam = (searchParams.get("freq") || "").toLowerCase();
     if (!planParam) return;
-    const plan = plans.find((p) => p.name.toLowerCase() === planParam);
-    if (!plan || !plan.lookupKey || plan.contact) return;
+    const plan = plans.find((p) => p.slug === planParam);
+    if (!plan || !plan.lookupKey || plan.contactSales) return;
     autoOpenedRef.current = true;
     if (freqParam === "monthly" || freqParam === "yearly") {
       setFrequency(freqParam as FREQUENCY);
@@ -142,27 +79,27 @@ export function PricingSection() {
     <div className="flex w-full flex-col items-center justify-center space-y-8 p-4">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
         <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>
-          Investment Tiers
+          Plans and pricing
         </div>
         <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
           Pricing that scales with you
         </h2>
         <p className="text-base md:text-lg" style={{ color: "#3d4f66" }}>
-          Start free. Upgrade when you need real-time depth, broker connect or team seats.
-          EU VAT applied where required.
+          Start free. Move up when you need live data, broker connect, backtesting or team seats.
+          Prices in euros. EU VAT applied where required.
         </p>
       </div>
 
       <FrequencyToggle frequency={frequency} setFrequency={setFrequency} />
 
-      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
-          <PricingCard frequency={frequency} key={plan.name} plan={plan} onChoose={onChoose} />
+          <PricingCard frequency={frequency} key={plan.slug} plan={plan} onChoose={onChoose} />
         ))}
       </div>
 
       <p className="text-xs text-center max-w-xl" style={{ color: "#6b7a8c" }}>
-        All plans include EU data hosting, GDPR-compliant data export and account deletion.
+        Educational research, not investment advice. Cancel anytime.
       </p>
 
       {/* Stripe Embedded Checkout mounts inline when the hook opens it. */}
@@ -172,9 +109,9 @@ export function PricingSection() {
 }
 
 type PricingCardProps = React.ComponentProps<"div"> & {
-  plan: Plan;
+  plan: PlanDefinition;
   frequency?: FREQUENCY;
-  onChoose?: (plan: Plan) => void;
+  onChoose?: (plan: PlanDefinition) => void;
 };
 
 export function PricingCard({
@@ -184,27 +121,29 @@ export function PricingCard({
   onChoose,
   ...props
 }: PricingCardProps) {
+  const isYearly = frequency === "yearly";
+  const displayPrice = isYearly ? plan.priceAnnualMonthly : plan.priceMonthly;
+  const showsSavings = isYearly && plan.priceAnnualMonthly < plan.priceMonthly;
   return (
     <div
       className={cn(
         "relative flex w-full flex-col overflow-hidden rounded-2xl shadow-sm bg-white/80 backdrop-blur-md",
-        plan.highlighted && "md:scale-105 shadow-xl",
+        plan.highlighted && "lg:scale-[1.03] shadow-xl",
         className
       )}
       style={{
         border: plan.highlighted
-          ? "1px solid rgba(24,95,165,0.4)"
+          ? "1px solid rgba(11,36,71,0.5)"
           : "1px solid rgba(4,44,83,0.1)",
+        background: plan.highlighted ? "#0B2447" : undefined,
+        color: plan.highlighted ? "#ffffff" : undefined,
       }}
       {...props}
     >
       <div
         className="relative border-b p-5"
         style={{
-          borderColor: "rgba(4,44,83,0.08)",
-          background: plan.highlighted
-            ? "linear-gradient(135deg,rgba(24,95,165,0.08),rgba(29,158,117,0.08))"
-            : undefined,
+          borderColor: plan.highlighted ? "rgba(255,255,255,0.12)" : "rgba(4,44,83,0.08)",
         }}
       >
         <AnimatePresence mode="wait">
@@ -212,17 +151,17 @@ export function PricingCard({
             {plan.highlighted && (
               <motion.div
                 className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow"
-                style={{ background: "linear-gradient(135deg,#185FA5,#1D9E75)" }}
+                style={{ background: "#1D9E75" }}
                 key="popular-badge"
                 layout
                 transition={{ duration: 0.1 }}
               >
                 <Star className="size-3 fill-current" />
-                Popular
+                Most popular
               </motion.div>
             )}
 
-            {frequency === "yearly" && plan.price.monthly > plan.price.yearly && (
+            {showsSavings && (
               <motion.div
                 animate={{ opacity: 1 }}
                 className="flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold"
@@ -233,43 +172,45 @@ export function PricingCard({
                 layout
                 transition={{ duration: 0.15 }}
               >
-                {Math.round(
-                  ((plan.price.monthly - plan.price.yearly) / plan.price.monthly) * 100
-                )}
-                % off
+                Save with annual
               </motion.div>
             )}
           </div>
         </AnimatePresence>
 
-        <div className="font-semibold text-lg" style={{ color: "#042C53" }}>
+        <div className="font-semibold text-lg" style={{ color: plan.highlighted ? "#ffffff" : "#042C53" }}>
           {plan.name}
         </div>
-        <p className="text-sm" style={{ color: "#6b7a8c" }}>{plan.info}</p>
+        <p className="text-sm" style={{ color: plan.highlighted ? "rgba(255,255,255,0.7)" : "#6b7a8c" }}>
+          {plan.audience}
+        </p>
         <h3 className="mt-5 mb-1 flex w-max items-end gap-1">
           <NumberFlow
-            className="font-extrabold text-4xl tracking-tight [&::part(suffix)]:font-normal [&::part(suffix)]:text-sm [&::part(suffix)]:text-[#6b7a8c]"
-            format={{ style: "currency", currency: "EUR", notation: "compact" }}
-            suffix="/month"
-            value={plan.price[frequency]}
-            style={{ color: "#042C53" }}
+            className="font-extrabold text-4xl tracking-tight [&::part(suffix)]:font-normal [&::part(suffix)]:text-sm"
+            format={{ style: "currency", currency: "EUR", maximumFractionDigits: 0 }}
+            suffix=" / month"
+            value={displayPrice}
+            style={{ color: plan.highlighted ? "#1D9E75" : "#042C53" }}
           />
         </h3>
-        <p className="mb-1 text-xs" style={{ color: "#6b7a8c" }}>
-          billed {frequency}
+        <p className="mb-1 text-xs" style={{ color: plan.highlighted ? "rgba(255,255,255,0.6)" : "#6b7a8c" }}>
+          {plan.priceMonthly === 0
+            ? "Free forever"
+            : isYearly
+              ? `Billed €${plan.priceAnnualTotal} per year`
+              : "Billed monthly"}
         </p>
       </div>
 
       <div
         className="space-y-3 px-5 pt-6 pb-8 text-sm"
         style={{
-          color: "#1f3147",
-          background: plan.highlighted ? "rgba(241,239,232,0.4)" : undefined,
+          color: plan.highlighted ? "rgba(255,255,255,0.92)" : "#1f3147",
         }}
       >
-        {plan.features.map((feature) => (
+        {plan.featureList.map((feature) => (
           <div className="flex items-center gap-2" key={feature}>
-            <CheckCircle2 className="size-4 shrink-0" style={{ color: "#1D9E75" }} />
+            <CheckCircle2 className="size-4 shrink-0 mt-0.5" style={{ color: "#1D9E75" }} />
             <p>{feature}</p>
           </div>
         ))}
@@ -278,8 +219,7 @@ export function PricingCard({
       <div
         className="mt-auto w-full border-t p-3"
         style={{
-          borderColor: "rgba(4,44,83,0.08)",
-          background: plan.highlighted ? "rgba(255,255,255,0.6)" : undefined,
+          borderColor: plan.highlighted ? "rgba(255,255,255,0.12)" : "rgba(4,44,83,0.08)",
         }}
       >
         {plan.highlighted ? (
@@ -287,39 +227,39 @@ export function PricingCard({
             <button
               type="button"
               onClick={() => onChoose(plan)}
-              data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
+              data-testid={`pricing-cta-${plan.slug}`}
               className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold text-white shadow-md transition hover:brightness-110"
-              style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}
+              style={{ background: "#1D9E75" }}
             >
-              {plan.btn.text}
+              {plan.cta}
             </button>
           ) : (
             <Link
-              to={plan.btn.href}
+              to={plan.ctaHref}
               className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold text-white shadow-md transition hover:brightness-110"
-              style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}
+              style={{ background: "#1D9E75" }}
             >
-              {plan.btn.text}
+              {plan.cta}
             </Link>
           )
         ) : onChoose ? (
           <button
             type="button"
             onClick={() => onChoose(plan)}
-            data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
+            data-testid={`pricing-cta-${plan.slug}`}
             className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold shadow-sm transition hover:bg-[#042C53] hover:text-white"
             style={{ background: "#ffffff", color: "#042C53", border: "1px solid rgba(4,44,83,0.2)" }}
           >
-            {plan.btn.text}
+            {plan.cta}
           </button>
         ) : (
           <Link
-            to={plan.btn.href}
-            data-testid={`pricing-cta-${plan.name.toLowerCase()}`}
+            to={plan.ctaHref}
+            data-testid={`pricing-cta-${plan.slug}`}
             className="w-full inline-flex items-center justify-center px-6 py-2.5 rounded-full text-sm font-semibold shadow-sm transition hover:bg-[#042C53] hover:text-white"
             style={{ background: "#ffffff", color: "#042C53", border: "1px solid rgba(4,44,83,0.2)" }}
           >
-            {plan.btn.text}
+            {plan.cta}
           </Link>
         )}
       </div>

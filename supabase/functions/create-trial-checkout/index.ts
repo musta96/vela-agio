@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await req.json();
-    const { email, priceId, returnUrl, environment } = body ?? {};
+    const { email, priceId, returnUrl, environment, promoCode } = body ?? {};
     if (!email || typeof email !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       throw new Error("Valid email required");
     }
@@ -41,6 +41,21 @@ Deno.serve(async (req) => {
     if (!prices.data.length) throw new Error(`Stripe price not found for "${priceId}"`);
     const stripePrice = prices.data[0];
 
+    // Optional promo code — resolve promotion_code (customer-facing) or coupon id.
+    // Silently ignore invalid codes; the UI validated them via `validate-promo-code`
+    // before submit, so any invalid value here is a stale attempt.
+    let promoDiscounts: { promotion_code?: string; coupon?: string }[] | undefined;
+    if (promoCode && typeof promoCode === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(promoCode)) {
+      try {
+        const promos = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 });
+        if (promos.data.length) promoDiscounts = [{ promotion_code: promos.data[0].id }];
+        else {
+          const c = await stripe.coupons.retrieve(promoCode);
+          if (c?.valid) promoDiscounts = [{ coupon: c.id }];
+        }
+      } catch (e) { console.warn("promo lookup failed", (e as Error).message); }
+    }
+
     // Trial-eligibility check: block any email that already has Stripe history
     // (previous subscription, invoice, or existing customer). Prior customers
     // are directed to the paid upgrade flow instead of receiving another trial.
@@ -71,9 +86,10 @@ Deno.serve(async (req) => {
       subscription_data: {
         trial_period_days: trialDays,
         trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
-        metadata: { flow: "trial_signup", pending_signup_email: email.toLowerCase() },
+        metadata: { flow: "trial_signup", pending_signup_email: email.toLowerCase(), ...(promoCode ? { promoCode } : {}) },
       },
-      metadata: { flow: "trial_signup", pending_signup_email: email.toLowerCase(), price_lookup_key: priceId },
+      metadata: { flow: "trial_signup", pending_signup_email: email.toLowerCase(), price_lookup_key: priceId, ...(promoCode ? { promoCode } : {}) },
+      ...(promoDiscounts ? { discounts: promoDiscounts } : { allow_promotion_codes: true }),
     } as any);
 
     const trialEndDate = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString();

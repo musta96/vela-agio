@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   let logCtx: Record<string, unknown> = {};
   try {
     const body = await req.json();
-    const { priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment, referralCode, correlationId } = body ?? {};
+    const { priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment, referralCode, promoCode, correlationId } = body ?? {};
 
     // Derive userId from the caller's JWT — never trust the client-supplied value.
     // Guest checkouts (no auth header) may still proceed but cannot bind to any account.
@@ -106,6 +106,22 @@ Deno.serve(async (req) => {
       } catch (e) { console.warn("referral lookup failed", e); }
     }
 
+    // Resolve optional user-entered promo code -> Stripe promotion_code / coupon.
+    // If both a referralCode-derived coupon and a promo are present, the referral
+    // wins (referral code took the explicit action of being applied first).
+    let promoDiscounts: { promotion_code?: string; coupon?: string }[] | undefined;
+    if (!discounts && promoCode && typeof promoCode === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(promoCode)) {
+      try {
+        const promos = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 });
+        if (promos.data.length) promoDiscounts = [{ promotion_code: promos.data[0].id }];
+        else {
+          const c = await stripe.coupons.retrieve(promoCode);
+          if (c?.valid) promoDiscounts = [{ coupon: c.id }];
+        }
+      } catch (e) { console.warn("promo lookup failed", (e as Error).message); }
+    }
+    const finalDiscounts = discounts ?? promoDiscounts;
+
     const session = await stripe.checkout.sessions.create({
       line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
       mode: isRecurring ? "subscription" : "payment",
@@ -113,7 +129,7 @@ Deno.serve(async (req) => {
       return_url: returnUrl,
       ...(customerId && { customer: customerId }),
       ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
-      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
+      ...(finalDiscounts ? { discounts: finalDiscounts } : { allow_promotion_codes: true }),
       ...(userId && {
         metadata: { userId, ...(referralCode ? { referralCode } : {}) },
         ...(isRecurring && { subscription_data: { metadata: { userId, ...(referralCode ? { referralCode } : {}) } } }),

@@ -2078,6 +2078,7 @@ export type Database = {
           phone: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
           preferred_market: string | null
+          reactivated_at: string | null
           recommendation_verdicts_override: string
           reverted_to_free_at: string | null
           secondary_tax_residences: string[] | null
@@ -2120,6 +2121,7 @@ export type Database = {
           phone?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           preferred_market?: string | null
+          reactivated_at?: string | null
           recommendation_verdicts_override?: string
           reverted_to_free_at?: string | null
           secondary_tax_residences?: string[] | null
@@ -2162,6 +2164,7 @@ export type Database = {
           phone?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           preferred_market?: string | null
+          reactivated_at?: string | null
           recommendation_verdicts_override?: string
           reverted_to_free_at?: string | null
           secondary_tax_residences?: string[] | null

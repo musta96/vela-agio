@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { PromoCodeField, type PromoValidation } from "@/components/billing/PromoCodeField";
 
 type Cycle = "monthly" | "annual";
 
@@ -46,6 +47,7 @@ export default function SignupTrial() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [trialEndDate, setTrialEndDate] = useState<string | null>(null);
   const [trialDays, setTrialDays] = useState<number>(7);
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) navigate("/dashboard", { replace: true });
@@ -73,7 +75,7 @@ export default function SignupTrial() {
     try {
       const returnUrl = `${window.location.origin}/signup/trial/return?session_id={CHECKOUT_SESSION_ID}`;
       const { data, error } = await supabase.functions.invoke("create-trial-checkout", {
-        body: { email, priceId, returnUrl, environment: getStripeEnvironment() },
+        body: { email, priceId, returnUrl, environment: getStripeEnvironment(), promoCode: promo?.code },
       });
       if (error) throw new Error(error.message);
       if (!data?.clientSecret) throw new Error(data?.error ?? "Failed to start checkout");
@@ -195,6 +197,14 @@ export default function SignupTrial() {
               <div className="rounded-md bg-muted/40 border border-border p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Calendar className="h-4 w-4 mt-0.5 text-primary" />
                 <span>You won't be charged until <strong>{formatDate(new Date(Date.now() + trialDays * 86400000).toISOString())}</strong>. If you cancel before then, nothing is charged.</span>
+              </div>
+              <div>
+                <PromoCodeField priceLookupKey={priceId} onChange={setPromo} />
+                {promo && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Promo applied — first charge after your trial will be {promo.final.formatted} instead of {promo.original.formatted}.
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} disabled={busy}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>

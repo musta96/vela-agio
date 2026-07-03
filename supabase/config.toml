@@ -44,3 +44,12 @@ verify_jwt = false
 
 [functions.finalize-trial-signup]
 verify_jwt = false
+
+[functions.validate-promo-code]
+verify_jwt = false
+
+[functions.check-billing-history]
+verify_jwt = false
+
+[functions.reactivate-subscription]
+verify_jwt = false

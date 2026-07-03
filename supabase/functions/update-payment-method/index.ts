@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       mode: "setup",
       customer: customerId,
       currency: "eur",
-      ui_mode: "embedded",
+      ui_mode: "embedded_page",
       return_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}pm_session_id={CHECKOUT_SESSION_ID}`,
       metadata: { userId: user.id, subscription_id: sub?.stripe_subscription_id ?? "", purpose: "update_payment_method" },
     } as Stripe.Checkout.SessionCreateParams);

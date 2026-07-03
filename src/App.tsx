@@ -180,9 +180,9 @@ const App = () => (
             <Route path="/related" element={<RelatedInstruments />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/suitability" element={<Suitability />} />
-            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/pricing" element={<PricingRedirect />} />
             <Route path="/plans-billing" element={<PlansBilling />} />
-            <Route path="/upgrade" element={<Navigate to="/pricing" replace />} />
+            <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/legal/:kind" element={<LegalDoc />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />
             <Route path="/dealflow" element={<DealFlow />} />

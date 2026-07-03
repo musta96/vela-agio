@@ -150,7 +150,11 @@ async function runFlow(cycle: "monthly" | "annual", expectedFinalCents: number) 
   if (cycle === "monthly") {
     fireEvent.click(screen.getByRole("button", { name: /^monthly$/i }));
   } else {
-    fireEvent.click(screen.getByRole("button", { name: /annual/i }));
+    // The toggle button reads "Annual Save 17%" — pick the one that
+    // starts with "Annual" and skip other buttons that happen to
+    // include the word.
+    const annualButtons = screen.getAllByRole("button", { name: /^annual/i });
+    fireEvent.click(annualButtons[0]);
   }
 
   // Apply the promo (stubbed PromoCodeField writes the discount up in one click).

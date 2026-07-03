@@ -269,7 +269,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
             )}
             <div className="flex items-center justify-between text-base font-semibold pt-1 border-t border-primary/10">
               <span>Due today</span>
-              <span>{finalFormatted}</span>
+              <span data-testid="due-today-amount" data-cents={promo?.final?.cents ?? priceForCycle}>{finalFormatted}</span>
             </div>
             {hasDiscount && promo?.durationLabel && (
               <div className="text-[11px] text-muted-foreground text-right">
@@ -288,6 +288,8 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
           customerEmail={user?.email}
           returnUrl={returnUrl}
           promoCode={promo?.code}
+          expectedTotalCents={promo?.final?.cents ?? priceForCycle}
+          expectedCurrency={promo?.final?.currency ?? "eur"}
         />
       </div>
     );

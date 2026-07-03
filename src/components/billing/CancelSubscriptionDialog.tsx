@@ -42,10 +42,13 @@ export function CancelSubscriptionDialog({ open, onOpenChange, currentPeriodEnd,
   const [reason, setReason] = useState<string>("");
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
+  const [offerShown, setOfferShown] = useState(false);
+  const [offerDeclined, setOfferDeclined] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setReason(""); setFeedback(""); setBusy(false); setStep("offer");
+    setOfferShown(false); setOfferDeclined(false);
     (async () => {
       const { data } = await supabase.rpc("get_retention_offer");
       const row = Array.isArray(data) ? data[0] : data;
@@ -56,6 +59,21 @@ export function CancelSubscriptionDialog({ open, onOpenChange, currentPeriodEnd,
           discount_value: Number(row.discount_value),
           duration_months: Number(row.duration_months),
           copy: String(row.copy ?? ""),
+        });
+        setOfferShown(true);
+        // Fire-and-forget audit of the offer impression.
+        supabase.auth.getUser().then(({ data: u }) => {
+          if (!u.user) return;
+          void supabase.from("cancellation_feedback").insert({
+            user_id: u.user.id,
+            event_type: "retention_offer_shown",
+            accepted_offer: false,
+            metadata: {
+              discount_type: row.discount_type,
+              discount_value: Number(row.discount_value),
+              duration_months: Number(row.duration_months),
+            },
+          });
         });
       } else {
         setOffer({ enabled: false, discount_type: "percentage", discount_value: 0, duration_months: 0, copy: "" });
@@ -88,7 +106,13 @@ export function CancelSubscriptionDialog({ open, onOpenChange, currentPeriodEnd,
     setStep("working"); setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("cancel-subscription", {
-        body: { environment: getStripeEnvironment(), reason, feedback: feedback || null },
+        body: {
+          environment: getStripeEnvironment(),
+          reason,
+          feedback: feedback || null,
+          offerShown,
+          offerDeclined,
+        },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Cancellation failed");
@@ -118,6 +142,7 @@ export function CancelSubscriptionDialog({ open, onOpenChange, currentPeriodEnd,
                 {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Applying…</> : "Accept offer"}
               </Button>
               <Button variant="outline" className="flex-1" onClick={() => setStep("reason")} disabled={busy}>
+                {/* Track that the user declined the retention offer */}
                 No thanks, continue cancelling
               </Button>
             </DialogFooter>

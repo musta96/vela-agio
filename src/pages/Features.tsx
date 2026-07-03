@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Sparkles, ArrowRight, Check, Minus } from "lucide-react";
 import { Helmet } from "react-helmet-async";
+import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import VelaLogo from "@/components/VelaLogo";

@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     const stripe = createStripeClient(env);
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["subscription", "customer"],
+      expand: ["subscription", "customer", "subscription.latest_invoice.payment_intent", "setup_intent", "payment_intent"],
     });
     if (!session) throw new Error("Checkout session not found");
     const meta = (session.metadata ?? {}) as Record<string, string>;
@@ -33,7 +33,30 @@ Deno.serve(async (req) => {
 
     const subscription = session.subscription as any;
     if (!subscription || !["trialing", "active"].includes(subscription.status)) {
-      throw new Error(`Card was not validated (status: ${subscription?.status ?? "unknown"}). Please try again with a different card.`);
+      // Surface the SPECIFIC decline reason so the client can render an
+      // actionable message ("Insufficient funds", "Card declined by your
+      // bank", "Card requires 3D Secure", etc.) instead of a generic error.
+      const setupIntent: any = (session as any).setup_intent;
+      const paymentIntent: any =
+        (subscription?.latest_invoice as any)?.payment_intent ??
+        (session as any).payment_intent;
+      const lastError =
+        setupIntent?.last_setup_error ??
+        paymentIntent?.last_payment_error ??
+        null;
+      const declineCode: string | null = lastError?.decline_code ?? lastError?.code ?? null;
+      const declineMessage: string | null = lastError?.message ?? null;
+      const humanReason = declineMessage
+        ?? (declineCode ? `Card was declined (${declineCode}).` : `Card was not validated (status: ${subscription?.status ?? "unknown"}).`);
+      return new Response(JSON.stringify({
+        error: `${humanReason} Please try a different card — no account has been created.`,
+        declineCode,
+        declineReason: humanReason,
+        canRetryWithNewCard: true,
+      }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
     if (!customerId) throw new Error("Missing customer on session");

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, Loader2, TrendingUp, TrendingDown, Minus, Eye, MessageSquare, X, Briefcase } from "lucide-react";
+import { ArrowRight, Sparkles, Loader2, TrendingUp, TrendingDown, Minus, Eye, MessageSquare, X, Briefcase, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { persistDashboardTourSeen } from "@/components/dashboard/DashboardTour";
@@ -278,6 +278,22 @@ export function FirstRunJourney({ onComplete }: { onComplete: (symbol?: string |
     navigate(`/copilot?q=${encodeURIComponent(`Tell me more about ${activeSymbol}`)}`);
   }, [activeSymbol, markSeen, navigate]);
 
+  const handleSeeResearch = useCallback(async () => {
+    if (!activeSymbol) return;
+    track("onboarding_cta_research", { symbol: activeSymbol });
+    await markSeen();
+    track("onboarding_complete", { via: "research", symbol: activeSymbol });
+    navigate(`/stock/${encodeURIComponent(activeSymbol)}`);
+  }, [activeSymbol, markSeen, navigate]);
+
+  const handleTryAnotherFromSignal = useCallback((sym: string) => {
+    track("onboarding_try_another", { from: activeSymbol, to: sym });
+    setResult(null);
+    setError(null);
+    fetchSignal(sym);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSymbol, fetchSignal]);
+
   // Roving tab order across hot-ticker buttons: ArrowLeft/Right + Home/End.
   const onTickerRowKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const items = Array.from(
@@ -392,13 +408,6 @@ export function FirstRunJourney({ onComplete }: { onComplete: (symbol?: string |
 
       {step === "signal" && (
         <div ref={cardRef} tabIndex={-1} className="m-auto w-full max-w-2xl focus-visible:outline-none">
-          <button
-            onClick={() => { setStep("welcome"); setResult(null); setError(null); setActiveSymbol(null); }}
-            className="mb-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ← Try another
-          </button>
-
           <div className="flex items-baseline justify-between mb-1">
             <h2 className="text-2xl font-bold text-foreground">{activeSymbol}</h2>
             {result && (() => {
@@ -460,25 +469,47 @@ export function FirstRunJourney({ onComplete }: { onComplete: (symbol?: string |
           </div>
 
           {result && !loading && (
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                onClick={handleAddToWatchlist}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Eye className="h-4 w-4" /> Add to watchlist
-              </button>
-              <button
-                onClick={handleAskFollowup}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <MessageSquare className="h-4 w-4" /> Ask a follow-up
-              </button>
-              <button
-                onClick={handleExplore}
-                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Explore dashboard
-              </button>
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleSeeResearch}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <FileText className="h-4 w-4" /> See full research on {activeSymbol}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleAddToWatchlist}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Eye className="h-4 w-4" /> Add to watchlist
+                </button>
+                <button
+                  onClick={handleAskFollowup}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <MessageSquare className="h-4 w-4" /> Ask a follow-up
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
+                <span className="text-xs text-muted-foreground">Or try another:</span>
+                {hotTickers.filter((t) => t.sym !== activeSymbol).slice(0, 3).map((t) => (
+                  <button
+                    key={t.sym}
+                    onClick={() => handleTryAnotherFromSignal(t.sym)}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-background/60 border border-border/60 px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {t.sym}
+                  </button>
+                ))}
+                <button
+                  onClick={handleExplore}
+                  className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  Explore dashboard →
+                </button>
+              </div>
             </div>
           )}
         </div>

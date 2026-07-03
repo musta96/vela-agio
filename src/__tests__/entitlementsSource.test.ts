@@ -121,6 +121,9 @@ const TIER_LITERAL_ALLOWLIST = new Set<string>([
   "components/upgrade/UpgradeFlow.tsx",
   "components/trial/TrialStatusBanner.tsx",
   "pages/PlansBilling.tsx",
+  // Derived tier caps hook — reads `tier` from useEntitlements and maps
+  // it to numeric limits. Kept next to PLAN_FEATURES conceptually.
+  "hooks/usePlanLimits.ts",
 ]);
 
 // Any of the current or legacy tier identifiers. Legacy ones stay in the
@@ -175,6 +178,7 @@ describe("No component bypasses PLAN_FEATURES for entitlement decisions", () => 
     "pages/Pricing.tsx",
     "pages/OwnerConsole.tsx",
     "pages/admin/",
+    "pages/AdminAiQuotas.tsx",
     "pages/owner/",
     "components/owner/",
     "components/admin/",

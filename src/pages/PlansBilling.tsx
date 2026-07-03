@@ -140,6 +140,15 @@ export default function PlansBilling() {
   const betaBonus = ent.source === "subscription" && ent.betaActive;
   const isBeta = isBetaOnly; // back-compat with existing render branches below
 
+  const scrollToPlans = () => {
+    const el = document.getElementById("available-plans");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      navigate("/upgrade");
+    }
+  };
+
   const loadSubscription = async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
@@ -264,8 +273,8 @@ export default function PlansBilling() {
         title="Plans & Billing"
         description="Your current plan, credit usage, and upgrade options."
         actions={
-          <Button asChild variant="outline" size="sm" className="gap-2">
-            <a href="#available-plans"><Sparkles className="h-4 w-4" /> See all plans</a>
+          <Button variant="outline" size="sm" className="gap-2" onClick={scrollToPlans}>
+            <Sparkles className="h-4 w-4" /> See all plans
           </Button>
         }
       />
@@ -322,11 +331,9 @@ export default function PlansBilling() {
                   Manage billing
                 </Button>
               )}
-                {pricingEnabled && !isBeta && (
-                <Button asChild size="sm" className="gap-2">
-                  <a href="#available-plans">
-                    <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
-                  </a>
+                {!isBeta && (
+                <Button size="sm" className="gap-2" onClick={scrollToPlans}>
+                  <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
                 </Button>
               )}
             </div>
@@ -401,7 +408,7 @@ export default function PlansBilling() {
 
       {/* Invoices / Payments summary -------------------------------------- */}
       {hasStripeCustomer && (
-        <Card id="available-plans">
+        <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -592,7 +599,7 @@ export default function PlansBilling() {
 
       {/* Upgrade options (shows tiers when pricing flag enabled) ------------ */}
       {pricingEnabled && plans.length > 0 && (
-        <Card>
+        <Card id="available-plans">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>

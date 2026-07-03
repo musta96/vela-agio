@@ -170,7 +170,17 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   }).eq("stripe_subscription_id", subscription.id).eq("environment", env);
 
   // Revert profile to free immediately when Stripe confirms cancellation.
-  const userId = subscription.metadata?.userId;
+  // Also clear every transient billing flag the Settings UI reads
+  // (past-due banner, scheduled-cancel banner, dunning email marker,
+  // reactivation marker) so the account cleanly moves back to Explorer.
+  let userId = subscription.metadata?.userId;
+  if (!userId) {
+    const { data: subRow } = await getSupabase()
+      .from("subscriptions").select("user_id")
+      .eq("stripe_subscription_id", subscription.id).eq("environment", env)
+      .maybeSingle();
+    userId = (subRow as any)?.user_id;
+  }
   if (userId) {
     await getSupabase().from("profiles").update({
       plan: "explorer",
@@ -178,7 +188,31 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
       trial_ends_at: null,
       current_period_end: null,
       billing_cycle: null,
+      cancel_at_period_end: false,
+      cancellation_scheduled_at: null,
+      past_due_since: null,
+      dunning_email_sent_at: null,
+      reactivated_at: null,
+      retention_offer_applied_at: null,
     }).eq("user_id", userId);
+
+    // Audit row so the Settings billing timeline reflects the final
+    // termination (as opposed to the "scheduled to cancel" event that
+    // was recorded when the user first hit Cancel).
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    const { data: recent } = await getSupabase()
+      .from("cancellation_feedback").select("id")
+      .eq("user_id", userId).eq("event_type", "subscription_ended")
+      .gte("created_at", cutoff).limit(1).maybeSingle();
+    if (!recent) {
+      await getSupabase().from("cancellation_feedback").insert({
+        user_id: userId,
+        stripe_subscription_id: subscription.id,
+        event_type: "subscription_ended",
+        accepted_offer: false,
+        metadata: { source: "stripe_webhook", environment: env, ended_at: new Date().toISOString() },
+      });
+    }
   }
 }
 

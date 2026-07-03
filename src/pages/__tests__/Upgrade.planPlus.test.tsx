@@ -80,4 +80,24 @@ describe("/upgrade?plan=plus", () => {
     expect(summary.textContent).toMatch(/You selected:\s*Plus/);
     expect(summary.textContent).not.toMatch(/\bPro\b/);
   });
+
+  it("renders plan choices on bare /upgrade instead of defaulting to Pro", async () => {
+    render(
+      <HelmetProvider>
+        <MemoryRouter initialEntries={["/upgrade"]}>
+          <Upgrade />
+        </MemoryRouter>
+      </HelmetProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: /Choose a plan/i })).toBeInTheDocument();
+
+    const summary = screen.getByTestId("upgrade-selected-summary");
+    expect(summary.textContent).toMatch(/You selected:\s*Choose a plan/);
+    expect(summary.textContent).not.toMatch(/You selected:\s*Pro/);
+
+    expect(screen.getByTestId("upgrade-plan-chooser")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Choose Plus/i })).toHaveAttribute("href", "/upgrade?plan=plus");
+    expect(screen.getByRole("link", { name: /Choose Pro/i })).toHaveAttribute("href", "/upgrade?plan=pro");
+  });
 });

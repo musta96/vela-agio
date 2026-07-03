@@ -169,9 +169,10 @@ async function handleInvoicePaid(invoice: any, env: StripeEnv) {
   const subId = invoice.subscription;
   if (!subId) return;
   const { data: sub } = await getSupabase()
-    .from("subscriptions").select("user_id").eq("stripe_subscription_id", subId).eq("environment", env).maybeSingle();
+    .from("subscriptions").select("user_id, price_id").eq("stripe_subscription_id", subId).eq("environment", env).maybeSingle();
   const userId = (sub as any)?.user_id;
   if (!userId) return;
+  const activePlan = planFromPriceLookup((sub as any)?.price_id);
 
   // Reactivation path: the profile was marked `reactivated_at` when the user
   // resubscribed after cancellation. Suppress the standard "Welcome to Pro"
@@ -181,7 +182,7 @@ async function handleInvoicePaid(invoice: any, env: StripeEnv) {
   const isReactivation = !!(prof as any)?.reactivated_at;
 
   await getSupabase().from("profiles").update({
-    plan: "pro",
+    plan: activePlan,
     subscription_status: "active",
     trial_ends_at: null,
     past_due_since: null,

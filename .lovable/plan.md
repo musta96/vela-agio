@@ -1,78 +1,55 @@
+## Goal
 
-# Billing foundation for Vela
+Make `/pricing` the single upgrade destination, driven by one shared component that reads from `PLAN_FEATURES` (single source of truth) and routes to the correct Stripe `price_id`. Every "Upgrade" entry point in the app funnels through it. Users always see their **current plan**, and picking a plan opens a **confirmation step** before Stripe Checkout starts.
 
-No user-facing UI in this step. This wires up the data model, Stripe products, trial rules, and an admin-tunable settings table that later prompts (checkout, retention, owner dashboard) will build on top of.
+## What changes
 
-## 1. Data model — `profiles` additions
+### 1. Shared pricing component
+Create `src/components/pricing/PricingPlans.tsx` — the single source of truth for the pricing UI:
+- Renders the four tiers from `PLAN_FEATURES` (Explorer, Plus, Pro, Enterprise).
+- Monthly/annual toggle. Uses `lookupKey.monthly` / `lookupKey.annual` from `PLAN_FEATURES` as the `price_id` passed to checkout.
+- One `CurrentPlanBanner` sub-component that reads `useEntitlements` and shows the user's active tier, cadence, renewal date, and cancel-at-period-end state.
+- A `variant` prop: `"page"` (full pricing page grid) and `"modal"` (compact list for `UpgradeModal`).
+- Every CTA calls a single `onSelectPlan(slug, cadence)` handler → opens the confirmation step (see §4).
 
-Vela already has `public.subscriptions` (populated by the Stripe webhook) as the source of truth for billing state. To match the field names you asked for, we mirror the resolved status onto `public.profiles` so the client can read it in one round-trip:
+### 2. Consolidate entry points
+- `src/pages/Pricing.tsx`, `src/pages/PlansBilling.tsx`, `src/pages/Upgrade.tsx` all render `<PricingPlans variant="page" />`. Any tier-specific copy stays in `PLAN_FEATURES`.
+- `src/components/upgrade/UpgradeModal.tsx` and `UpgradeFlow.tsx` render `<PricingPlans variant="modal" />` above the checkout embed.
+- `src/components/UpgradeDialog.tsx` becomes a thin wrapper around the modal.
+- Every button/link labelled "Upgrade" across `AppSidebar`, `AiCreditsBadge`, `AIBriefing`, `Watchlist`, `CopilotChat`, `FeatureGate`, `LockedPreview`, `LimitReachedCTA`, `AIAccessCard`, `PastDueBanner`, `ManageSubscriptionButton`, `Settings`, `Reactivate`, `Features`, `owner/UserProfile`, `AiUsageHistory` routes to `/pricing` (or opens `UpgradeModal` where inline is required). Same copy: "Upgrade plan".
 
-- `plan` — enum `plan_tier`: `free` | `pro_trial` | `pro` | `enterprise` (default `free`)
-- `trial_ends_at` — `timestamptz` nullable
-- `current_period_end` — `timestamptz` nullable
-- `billing_cycle` — enum `billing_cycle`: `monthly` | `annual` nullable
-- `subscription_status` — enum `sub_status`: `active` | `trialing` | `past_due` | `canceled` nullable
+### 3. Current-plan context
+- `CurrentPlanBanner` renders at the top of `/pricing` and inside every upgrade modal.
+- Shows: tier name, price, cadence, next renewal / expiry, badge for `cancel_at_period_end`.
+- On plan cards in `PricingPlans`, the user's current tier is disabled with a "Current plan" pill; higher tiers show "Upgrade to X", lower tiers show "Downgrade to X".
 
-The Stripe webhook (`payments-webhook`) will write these fields alongside the existing `subscriptions` row on every `customer.subscription.*` event, so `profiles.plan` is always in sync with Stripe.
+### 4. Confirmation step before Stripe Checkout
+- New `src/components/pricing/PlanConfirmDialog.tsx`. When the user clicks a plan, opens a dialog summarizing:
+  - Plan name, monthly vs annual, effective monthly price and total charged.
+  - Trial info (if `trialDays` present on the tier).
+  - What changes vs current plan (feature deltas from `PLAN_FEATURES`).
+  - Primary CTA: **Continue to payment** → opens `StripeEmbeddedCheckout` with the resolved `price_id`.
+  - Secondary CTA: **Back**.
 
-RLS: users read/update only their own profile (existing policy); the webhook writes via `service_role`.
+### 5. Automated route + CTA audit
+- New `src/lib/pricingAudit.ts` exporting:
+  - `AUDIT_UPGRADE_ROUTES` — the canonical map: any "upgrade" CTA must resolve to `/pricing` or open `UpgradeModal`.
+  - `getExpectedPriceId(slug, cadence)` — returns `PLAN_FEATURES[slug].lookupKey[cadence]`.
+- New test `src/components/__tests__/pricingAudit.test.tsx`:
+  - Renders `<PricingPlans />` in both variants for each tier, clicks each plan button, and asserts the `PlanConfirmDialog` reports the exact `price_id` from `PLAN_FEATURES`.
+  - Renders every registered "upgrade" entry point (from a small registry list) inside `MemoryRouter`, clicks the CTA, and asserts navigation goes to `/pricing` or opens `UpgradeModal` — never to legacy `/upgrade` or `/plans-billing` deep links.
+  - Snapshot-asserts the four tiers, plan names, and Stripe price ids to catch drift from `PLAN_FEATURES`.
 
-## 2. Stripe products & prices
+## Technical details
 
-Two prices on one product, both with a 7-day trial. **Enterprise is intentionally NOT created here** — activation stays manual per Prompt 17.
+- No backend/schema changes. `create-checkout` already resolves human-readable `price_id` via `lookup_keys` — the confirmation step just passes the slug returned by `PLAN_FEATURES[slug].lookupKey[cadence]`.
+- Enterprise stays as `Contact sales` (no Stripe checkout).
+- Routes `/upgrade`, `/plans`, `/plans-billing` remain mounted as redirects to `/pricing` to preserve inbound links and analytics.
+- `verifyFeaturesCtaBindings` in Features.tsx and existing bindings tests get updated to match the new single-destination rule.
+- Files not touched: `src/integrations/supabase/*`, edge functions, `PLAN_FEATURES` itself.
 
-| product_id | price_id      | Amount   | Cycle    |
-| ---------- | ------------- | -------- | -------- |
-| `pro`      | `pro_monthly` | €29 / mo | monthly  |
-| `pro`      | `pro_annual`  | €290 / yr | annual  |
+## Out of scope
 
-**Annual discount proposal — please confirm before I create the price:**
-
-- List price 12 × €29 = €348/yr
-- Proposed annual: **€290/yr** → effective **€24.17/mo**, saves €58/yr (~16.7% off, i.e. ~2 months free — the classic SaaS "2 months on us" positioning)
-- Alternative if you want it punchier: **€278/yr** (~20% off, ≈ €23.17/mo) or **€261/yr** (~25% off, ≈ €21.75/mo)
-
-Tax code: `txcd_10103001` (SaaS — electronic services).
-
-## 3. Trial rules — 7 days, card required
-
-Enforced server-side in `create-checkout` when opening a Pro session:
-
-```ts
-subscription_data: {
-  trial_period_days: settings.trial_length_days,        // default 7
-  trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
-},
-payment_method_collection: 'always',
-```
-
-`payment_method_collection: 'always'` + `missing_payment_method: 'cancel'` is Stripe's guarantee that no trial can start without a validated card on file. If Stripe fails to charge on day 7, the subscription auto-cancels rather than lingering as `past_due`.
-
-## 4. Admin-tunable `billing_settings` table
-
-Single-row config table so you can tune trial length, grace period, and the retention offer without a redeploy. Prompt 15 will render the owner UI; Prompt 14/16 will read from it.
-
-Columns (all nullable defaults so a fresh install just works):
-
-- `trial_length_days` int, default `7`
-- `grace_period_days` int, default `3`
-- `retention_offer_enabled` bool, default `true`
-- `retention_discount_type` enum (`percentage` | `fixed`), default `percentage`
-- `retention_discount_value` numeric, default `30` (i.e. 30% off)
-- `retention_duration_months` int, default `3`
-- `retention_offer_copy` text, default: *"We'd hate to see you go. Stay on Pro for 30% off the next 3 months — same features, better price."*
-
-RLS: only admins (`has_role(auth.uid(), 'admin')`) can `SELECT`/`UPDATE`; edge functions read via `service_role`. Enforced as a single row (`id = 1`, `CHECK id = 1`).
-
-## 5. Files & migrations that will land in the next step
-
-- `supabase/migrations/<ts>_billing_foundation.sql` — enums, `profiles` additions, `billing_settings` table + seed row, GRANTs, RLS, policies.
-- `src/integrations/supabase/types.ts` — regenerated automatically after migration approval.
-- **No edge function or UI changes in this prompt.** `create-checkout` trial wiring lands with the checkout flow prompt; webhook mirror-write into `profiles.plan` lands there too, so we don't touch it in isolation.
-
-## Awaiting your confirmation on
-
-1. **Annual price** — €290 (16.7% off / 2 months free), €278 (20%), or €261 (25%)?
-2. **Retention defaults** — 30% off for 3 months as the placeholder, editable later?
-
-Once you confirm, I'll run the migration and create the two Stripe prices.
+- No changes to Stripe products/prices (already created).
+- No new billing flows (cancel/undo/webhooks stay as-is).
+- No visual redesign of the pricing table beyond the current-plan banner + confirmation dialog.

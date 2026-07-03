@@ -100,9 +100,10 @@ export default function Features() {
   //   true  → included
   //   false → not included
   //   string → tier-specific note (e.g. "25 / mo")
-  type PlanKey = "explorer" | "pro" | "enterprise";
+  type PlanKey = "explorer" | "plus" | "pro" | "enterprise";
   const PLAN_COLUMNS: Array<{ key: PlanKey; name: string; price: string; bestFor: string; highlight?: boolean }> = [
     { key: "explorer", name: "Explorer", price: "Free", bestFor: "Try AI signals and track a small watchlist" },
+    { key: "plus", name: "Plus", price: "€12 /mo", bestFor: "Live data, portfolio sync and generous AI research" },
     { key: "pro", name: "Pro", price: "€29 /mo", bestFor: "Daily research, backtesting and portfolio analytics", highlight: true },
     { key: "enterprise", name: "Enterprise", price: "€149 /mo", bestFor: "Teams, advisors, compliance and API access" },
   ];
@@ -115,38 +116,39 @@ export default function Features() {
     {
       category: "Market data & research",
       rows: [
-        { label: "Market data",         hint: "Delayed feeds refresh every 15 minutes. Real-time is exchange-live streaming.", values: { explorer: "Delayed",  pro: "Real-time", enterprise: "Real-time" } },
-        { label: "Watchlists",          hint: "Custom lists of tickers you can group, alert on and share across devices.",     values: { explorer: "Up to 3",  pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Screeners & filters", hint: "Multi-factor screeners across fundamentals, technicals and sentiment.",         values: { explorer: false,      pro: true,        enterprise: true } },
-        { label: "Backtesting engine",  hint: "Simulate strategies against historical data with slippage and costs modeled.",   values: { explorer: false,      pro: true,        enterprise: true } },
+        { label: "Market data",         hint: "Delayed feeds refresh every 15 minutes. Real-time is exchange-live streaming.", values: { explorer: "Delayed",  plus: "Real-time", pro: "Real-time", enterprise: "Real-time" } },
+        { label: "Watchlists",          hint: "Custom lists of tickers you can group, alert on and share across devices.",     values: { explorer: "Up to 3",  plus: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Screeners & filters", hint: "Multi-factor screeners across fundamentals, technicals and sentiment.",         values: { explorer: false,      plus: false,       pro: true,        enterprise: true } },
+        { label: "Backtesting engine",  hint: "Simulate strategies against historical data with slippage and costs modeled.",   values: { explorer: false,      plus: false,       pro: true,        enterprise: true } },
       ],
     },
     {
       category: "AI copilot",
       rows: [
-        { label: "AI summaries",           hint: "Short AI-written briefs on tickers, news and filings.",                              values: { explorer: "25 / mo", pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Deep research reports",  hint: "Multi-page reports combining fundamentals, sentiment, valuation and risk.",         values: { explorer: false,     pro: true,        enterprise: true } },
-        { label: "Portfolio doctor",       hint: "AI review of your holdings with concentration, factor and risk suggestions.",       values: { explorer: false,     pro: true,        enterprise: true } },
+        { label: "AI summaries",           hint: "Short AI-written briefs on tickers, news and filings.",                              values: { explorer: "25 / mo", plus: "100 / day", pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Deep research reports",  hint: "Multi-page reports combining fundamentals, sentiment, valuation and risk.",         values: { explorer: false,     plus: false,       pro: true,        enterprise: true } },
+        { label: "Portfolio doctor",       hint: "AI review of your holdings with concentration, factor and risk suggestions.",       values: { explorer: false,     plus: false,       pro: true,        enterprise: true } },
       ],
     },
     {
       category: "Portfolio & analytics",
       rows: [
-        { label: "Manual portfolio tracking",           hint: "Add trades and cash manually to track performance across accounts.",           values: { explorer: true,  pro: true, enterprise: true } },
-        { label: "Broker connect (read-only)",          hint: "Sync live positions from your broker. Read-only — Vela never places trades.",   values: { explorer: false, pro: true, enterprise: true } },
-        { label: "DCF / DDM intrinsic value",           hint: "Discounted cash-flow and dividend-discount models with editable assumptions.", values: { explorer: false, pro: true, enterprise: true } },
-        { label: "Risk analytics (VaR / Monte Carlo)",  hint: "Value-at-Risk and Monte Carlo simulations for portfolio stress-testing.",       values: { explorer: false, pro: true, enterprise: true } },
+        { label: "Manual portfolio tracking",           hint: "Add trades and cash manually to track performance across accounts.",           values: { explorer: true,  plus: true,  pro: true, enterprise: true } },
+        { label: "Broker connect (read-only)",          hint: "Sync live positions from your broker. Read-only — Vela never places trades.",   values: { explorer: false, plus: true,  pro: true, enterprise: true } },
+        { label: "Smart alerts (price, signal, events)", hint: "Alerts on price moves, AI signals and calendar events, delivered by email or push.", values: { explorer: false, plus: true,  pro: true, enterprise: true } },
+        { label: "DCF / DDM intrinsic value",           hint: "Discounted cash-flow and dividend-discount models with editable assumptions.", values: { explorer: false, plus: false, pro: true, enterprise: true } },
+        { label: "Risk analytics (VaR / Monte Carlo)",  hint: "Value-at-Risk and Monte Carlo simulations for portfolio stress-testing.",       values: { explorer: false, plus: false, pro: true, enterprise: true } },
       ],
     },
     {
       category: "Team, compliance & support",
       rows: [
-        { label: "Community access",           hint: "Discord community with other investors and the Vela team.",                                 values: { explorer: true,  pro: true,  enterprise: true } },
-        { label: "Priority support",           hint: "Faster email response times with a dedicated queue for paying customers.",                  values: { explorer: false, pro: true,  enterprise: true } },
-        { label: "Advisor seats & MiFID II",   hint: "Multi-seat advisor workspace with client mandates and MiFID II-ready audit trails.",         values: { explorer: false, pro: false, enterprise: true } },
-        { label: "REST API & WebSocket",       hint: "Programmatic access to Vela data and signals for internal tools or research pipelines.",     values: { explorer: false, pro: false, enterprise: true } },
-        { label: "SSO & audit logs",           hint: "SAML / OIDC single sign-on plus tamper-evident audit logs of every user action.",           values: { explorer: false, pro: false, enterprise: true } },
-        { label: "Dedicated success manager",  hint: "Named contact for onboarding, training and quarterly reviews.",                             values: { explorer: false, pro: false, enterprise: true } },
+        { label: "Community access",           hint: "Discord community with other investors and the Vela team.",                                 values: { explorer: true,  plus: true,  pro: true,  enterprise: true } },
+        { label: "Priority support",           hint: "Faster email response times with a dedicated queue for paying customers.",                  values: { explorer: false, plus: false, pro: true,  enterprise: true } },
+        { label: "Advisor seats & MiFID II",   hint: "Multi-seat advisor workspace with client mandates and MiFID II-ready audit trails.",         values: { explorer: false, plus: false, pro: false, enterprise: true } },
+        { label: "REST API & WebSocket",       hint: "Programmatic access to Vela data and signals for internal tools or research pipelines.",     values: { explorer: false, plus: false, pro: false, enterprise: true } },
+        { label: "SSO & audit logs",           hint: "SAML / OIDC single sign-on plus tamper-evident audit logs of every user action.",           values: { explorer: false, plus: false, pro: false, enterprise: true } },
+        { label: "Dedicated success manager",  hint: "Named contact for onboarding, training and quarterly reviews.",                             values: { explorer: false, plus: false, pro: false, enterprise: true } },
       ],
     },
   ];
@@ -197,6 +199,7 @@ export default function Features() {
   // top-to-bottom on both desktop and mobile.
   const PLAN_TINT: Record<PlanKey, { bg: string; strong: string; accent: string }> = {
     explorer:   { bg: "rgba(4,44,83,0.035)",  strong: "rgba(24,95,165,0.10)",  accent: "#185FA5" },
+    plus:       { bg: "rgba(124,58,237,0.05)", strong: "rgba(124,58,237,0.16)", accent: "#7C3AED" },
     pro:        { bg: "rgba(29,158,117,0.06)", strong: "rgba(29,158,117,0.18)", accent: "#1D9E75" },
     enterprise: { bg: "rgba(55,138,221,0.05)", strong: "rgba(55,138,221,0.16)", accent: "#378ADD" },
   };
@@ -343,11 +346,11 @@ export default function Features() {
               Exactly what's in each tier
             </h2>
             <p className="mt-3 text-sm sm:text-base" style={{ color: "#3d4f66" }}>
-              Every capability, mapped to Explorer, Pro and Enterprise. No fine print.
+              Every capability, mapped to Explorer, Plus, Pro and Enterprise. No fine print.
             </p>
           </div>
 
-          <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
             {PLAN_COLUMNS.map((p) => {
               const isSelected = selectedPlan === p.key;
               const tint = PLAN_TINT[p.key];
@@ -426,11 +429,11 @@ export default function Features() {
           <div className="hidden md:block glass-card rounded-3xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] table-fixed text-left border-collapse">
-                <caption className="sr-only">Feature availability comparison across Explorer, Pro and Enterprise plans</caption>
+                <caption className="sr-only">Feature availability comparison across Explorer, Plus, Pro and Enterprise plans</caption>
                 <colgroup>
-                  <col className="w-[34%]" />
+                  <col className="w-[28%]" />
                   {PLAN_COLUMNS.map((p) => (
-                    <col key={p.key} className="w-[22%]" />
+                    <col key={p.key} className="w-[18%]" />
                   ))}
                 </colgroup>
                 <thead>

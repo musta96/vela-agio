@@ -523,6 +523,45 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_settings: {
+        Row: {
+          created_at: string
+          grace_period_days: number
+          id: number
+          retention_discount_type: Database["public"]["Enums"]["retention_discount_type"]
+          retention_discount_value: number
+          retention_duration_months: number
+          retention_offer_copy: string
+          retention_offer_enabled: boolean
+          trial_length_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grace_period_days?: number
+          id?: number
+          retention_discount_type?: Database["public"]["Enums"]["retention_discount_type"]
+          retention_discount_value?: number
+          retention_duration_months?: number
+          retention_offer_copy?: string
+          retention_offer_enabled?: boolean
+          trial_length_days?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grace_period_days?: number
+          id?: number
+          retention_discount_type?: Database["public"]["Enums"]["retention_discount_type"]
+          retention_discount_value?: number
+          retention_duration_months?: number
+          retention_offer_copy?: string
+          retention_offer_enabled?: boolean
+          trial_length_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       blog_leads: {
         Row: {
           company: string | null
@@ -1989,11 +2028,13 @@ export type Database = {
           allow_shorts: boolean
           avatar_url: string | null
           base_currency: string | null
+          billing_cycle: Database["public"]["Enums"]["billing_cycle"] | null
           bio: string | null
           briefing_focus: string | null
           country_residence: string | null
           country_tax_residence: string | null
           created_at: string
+          current_period_end: string | null
           dashboard_tour_completed_at: string | null
           date_of_birth: string | null
           display_name: string | null
@@ -2003,9 +2044,12 @@ export type Database = {
           id: string
           onboarding_dismissed: boolean
           phone: string | null
+          plan: Database["public"]["Enums"]["plan_tier"]
           preferred_market: string | null
           recommendation_verdicts_override: string
           secondary_tax_residences: string[] | null
+          subscription_status: Database["public"]["Enums"]["sub_status"] | null
+          trial_ends_at: string | null
           unrestricted_advice: boolean
           updated_at: string
           user_id: string
@@ -2019,11 +2063,13 @@ export type Database = {
           allow_shorts?: boolean
           avatar_url?: string | null
           base_currency?: string | null
+          billing_cycle?: Database["public"]["Enums"]["billing_cycle"] | null
           bio?: string | null
           briefing_focus?: string | null
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
+          current_period_end?: string | null
           dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
@@ -2033,9 +2079,12 @@ export type Database = {
           id?: string
           onboarding_dismissed?: boolean
           phone?: string | null
+          plan?: Database["public"]["Enums"]["plan_tier"]
           preferred_market?: string | null
           recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
+          subscription_status?: Database["public"]["Enums"]["sub_status"] | null
+          trial_ends_at?: string | null
           unrestricted_advice?: boolean
           updated_at?: string
           user_id: string
@@ -2049,11 +2098,13 @@ export type Database = {
           allow_shorts?: boolean
           avatar_url?: string | null
           base_currency?: string | null
+          billing_cycle?: Database["public"]["Enums"]["billing_cycle"] | null
           bio?: string | null
           briefing_focus?: string | null
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
+          current_period_end?: string | null
           dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
@@ -2063,9 +2114,12 @@ export type Database = {
           id?: string
           onboarding_dismissed?: boolean
           phone?: string | null
+          plan?: Database["public"]["Enums"]["plan_tier"]
           preferred_market?: string | null
           recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
+          subscription_status?: Database["public"]["Enums"]["sub_status"] | null
+          trial_ends_at?: string | null
           unrestricted_advice?: boolean
           updated_at?: string
           user_id?: string
@@ -2988,12 +3042,16 @@ export type Database = {
         | "compliance"
         | "engineer"
         | "beta_tester"
+      billing_cycle: "monthly" | "annual"
       client_role:
         | "principal"
         | "family_view"
         | "advisor_ro"
         | "accountant"
         | "broker_ro"
+      plan_tier: "free" | "pro_trial" | "pro" | "enterprise"
+      retention_discount_type: "percentage" | "fixed"
+      sub_status: "active" | "trialing" | "past_due" | "canceled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3131,6 +3189,7 @@ export const Constants = {
         "engineer",
         "beta_tester",
       ],
+      billing_cycle: ["monthly", "annual"],
       client_role: [
         "principal",
         "family_view",
@@ -3138,6 +3197,9 @@ export const Constants = {
         "accountant",
         "broker_ro",
       ],
+      plan_tier: ["free", "pro_trial", "pro", "enterprise"],
+      retention_discount_type: ["percentage", "fixed"],
+      sub_status: ["active", "trialing", "past_due", "canceled"],
     },
   },
 } as const

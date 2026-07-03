@@ -62,10 +62,11 @@ describe("Features comparison table · plus tier", () => {
     const headers = within(table).getAllByRole("columnheader");
     const names = headers.map((h) => h.textContent ?? "");
     // Plus header exists exactly once.
-    expect(names.some((n) => /Plus/.test(n))).toBe(true);
-    expect(names.some((n) => /Explorer/.test(n))).toBe(true);
-    expect(names.some((n) => /\bPro\b/.test(n))).toBe(true);
-    expect(names.some((n) => /Enterprise/.test(n))).toBe(true);
+    const joined = names.join(" || ");
+    expect(joined).toMatch(/Explorer/);
+    expect(joined).toMatch(/Plus/);
+    expect(joined).toMatch(/Pro/);
+    expect(joined).toMatch(/Enterprise/);
   });
 
   it("plus column cells match PLAN_FEATURES.plus for the mapped rows", async () => {

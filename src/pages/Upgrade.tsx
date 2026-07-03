@@ -13,15 +13,23 @@ export default function Upgrade() {
   const returnPath = params.get("return") ?? undefined;
   const cycleParam = params.get("cycle");
   const initialCycle = cycleParam === "monthly" || cycleParam === "annual" ? cycleParam : undefined;
+  const planParam = (params.get("plan") || "").toLowerCase();
+  const PLAN_LABELS: Record<string, string> = {
+    plus: "Plus",
+    pro: "Pro",
+    elite: "Elite",
+    premium: "Premium",
+  };
+  const planLabel = PLAN_LABELS[planParam];
+  const title = planLabel ? `Upgrade to ${planLabel}` : "Upgrade your plan";
+  const description = planLabel
+    ? `Everything you're missing on ${planLabel}, side-by-side with what you're using today.`
+    : "Compare plans side-by-side with what you're using today, then pick the right fit.";
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0 max-w-3xl mx-auto">
-      <SEO title="Upgrade to Pro | Vela" description="Unlock every Pro feature. See your current usage and pick monthly or annual billing." path="/upgrade" />
-      <PageHeader
-        icon={Sparkles}
-        title="Upgrade to Pro"
-        description="Everything you're missing, side-by-side with what you're using today."
-      />
+      <SEO title={`${title} | Vela`} description="Compare plans and pick monthly or annual billing." path="/upgrade" />
+      <PageHeader icon={Sparkles} title={title} description={description} />
       <PastDueBanner />
       <CurrentPlanBanner />
       <UpgradeFlow

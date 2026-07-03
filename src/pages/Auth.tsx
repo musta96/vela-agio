@@ -21,6 +21,11 @@ const Auth = () => {
   const [search] = useSearchParams();
   const refFromUrl = (search.get("ref") || "").trim();
   useEffect(() => { if (refFromUrl) rememberReferral(refFromUrl); }, [refFromUrl]);
+  // Honor ?next=/some/path so post-auth flows (e.g. pricing → checkout) resume
+  // where the user left off. Restrict to same-origin relative paths.
+  const nextParam = search.get("next") || "";
+  const safeNext = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "";
+  const postAuthTarget = safeNext || "/dashboard";
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
@@ -36,9 +41,9 @@ const Auth = () => {
     if (!loading && user) {
       const pending = consumePendingReferral();
       if (pending) { navigate(`/r/${encodeURIComponent(pending)}`, { replace: true }); return; }
-      navigate("/dashboard");
+      navigate(postAuthTarget, { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, postAuthTarget]);
 
   const signIn = async () => {
     setBusy(true);
@@ -46,7 +51,7 @@ const Auth = () => {
     setBusy(false);
     if (error) return toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     toast({ title: "Welcome back" });
-    navigate("/dashboard");
+    navigate(postAuthTarget, { replace: true });
   };
 
   const signUp = async () => {
@@ -61,7 +66,7 @@ const Auth = () => {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}${postAuthTarget}`,
         data: {
           tos_version: TOS_VERSION,
           privacy_version: PRIVACY_VERSION,
@@ -100,7 +105,7 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    navigate("/dashboard");
+    navigate(postAuthTarget, { replace: true });
   };
 
   const appleSignIn = async () => {
@@ -114,7 +119,7 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    navigate("/dashboard");
+    navigate(postAuthTarget, { replace: true });
   };
 
   return (

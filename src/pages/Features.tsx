@@ -46,7 +46,7 @@ const GRADS = [
 
 export default function Features() {
   const [sections, setSections] = useState(mergeWithDefaults([]));
-  const [selectedPlan, setSelectedPlan] = useState<"explorer" | "pro" | "enterprise">("pro");
+  const [selectedPlan, setSelectedPlan] = useState<"explorer" | "plus" | "pro" | "enterprise">("pro");
   const [onlyDiffs, setOnlyDiffs] = useState(false);
 
   useEffect(() => {

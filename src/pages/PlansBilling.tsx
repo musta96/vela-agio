@@ -703,6 +703,10 @@ function PlanCard({
             <span>Current plan</span>
           ) : missingKey ? (
             <span>Unavailable</span>
+          ) : (p.tier === "enterprise" || (p.slug ?? "").toLowerCase().includes("enterprise")) ? (
+            <Link to="/contact-sales?source=plans_billing_enterprise">
+              Talk to us about Enterprise
+            </Link>
           ) : (
             <Link to={`/pricing?plan=${encodeURIComponent(p.slug || p.tier || p.id)}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
               Choose

@@ -442,6 +442,9 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
       )}
       <div className="flex flex-wrap gap-2">
         <ManageSubscriptionButton size="sm" />
+        <Button size="sm" onClick={() => navigate("/upgrade")} className="gap-1.5">
+          <ExternalLink className="h-3.5 w-3.5" /> Upgrade or change plan
+        </Button>
         <Button variant="outline" size="sm" onClick={() => navigate("/pricing")}>View plans</Button>
       </div>
       <p className="text-xs text-muted-foreground mt-4">Opens in a new tab. Changes sync back to your account within seconds.</p>

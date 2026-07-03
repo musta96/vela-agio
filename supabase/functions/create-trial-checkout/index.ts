@@ -41,9 +41,23 @@ Deno.serve(async (req) => {
     if (!prices.data.length) throw new Error(`Stripe price not found for "${priceId}"`);
     const stripePrice = prices.data[0];
 
-    // Create a Customer keyed to the entered email only. userId will be
-    // backfilled by finalize-trial-signup once the Supabase account is minted.
-    const existingC = await stripe.customers.list({ email, limit: 1 });
+    // Trial-eligibility check: block any email that already has Stripe history
+    // (previous subscription, invoice, or existing customer). Prior customers
+    // are directed to the paid upgrade flow instead of receiving another trial.
+    const existingC = await stripe.customers.list({ email, limit: 3 });
+    for (const c of existingC.data) {
+      const [subs, invoices] = await Promise.all([
+        stripe.subscriptions.list({ customer: c.id, status: "all", limit: 1 }),
+        stripe.invoices.list({ customer: c.id, limit: 1 }),
+      ]);
+      if (subs.data.length > 0 || invoices.data.length > 0) {
+        return new Response(
+          JSON.stringify({ error: "This email already has a Vela billing history. Please sign in and upgrade from Settings — trials are for first-time customers only." }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+    // Reuse a clean pending customer if one exists, otherwise create fresh.
     const customerId = existingC.data[0]?.id
       ?? (await stripe.customers.create({ email, metadata: { pending_signup: "true" } })).id;
 

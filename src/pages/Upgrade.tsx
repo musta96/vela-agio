@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Sparkles } from "lucide-react";
 import { UpgradeFlow } from "@/components/upgrade/UpgradeFlow";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
+import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 
 export default function Upgrade() {
   const [params] = useSearchParams();
@@ -22,6 +23,7 @@ export default function Upgrade() {
         description="Everything you're missing, side-by-side with what you're using today."
       />
       <PastDueBanner />
+      <CurrentPlanBanner />
       <UpgradeFlow
         contextFeatureKey={feature}
         contextFeatureName={featureName}

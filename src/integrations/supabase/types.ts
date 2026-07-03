@@ -805,8 +805,10 @@ export type Database = {
         Row: {
           accepted_offer: boolean
           created_at: string
+          event_type: string
           feedback: string | null
           id: string
+          metadata: Json | null
           reason: string | null
           stripe_subscription_id: string | null
           user_id: string
@@ -814,8 +816,10 @@ export type Database = {
         Insert: {
           accepted_offer?: boolean
           created_at?: string
+          event_type?: string
           feedback?: string | null
           id?: string
+          metadata?: Json | null
           reason?: string | null
           stripe_subscription_id?: string | null
           user_id: string
@@ -823,8 +827,10 @@ export type Database = {
         Update: {
           accepted_offer?: boolean
           created_at?: string
+          event_type?: string
           feedback?: string | null
           id?: string
+          metadata?: Json | null
           reason?: string | null
           stripe_subscription_id?: string | null
           user_id?: string
@@ -3003,6 +3009,22 @@ export type Database = {
           redeemed_at: string
           redemption_id: string
           stripe_coupon_id: string
+          user_email: string
+          user_id: string
+        }[]
+      }
+      admin_retention_audit: { Args: { _since?: string }; Returns: Json }
+      admin_retention_events: {
+        Args: { _limit?: number }
+        Returns: {
+          accepted_offer: boolean
+          created_at: string
+          event_type: string
+          feedback: string
+          id: string
+          metadata: Json
+          reason: string
+          stripe_subscription_id: string
           user_email: string
           user_id: string
         }[]

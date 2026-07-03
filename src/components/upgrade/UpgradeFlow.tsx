@@ -227,17 +227,58 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
 
   // ── Checkout view ──
   if (showCheckout) {
+    const originalFormatted = `€${(priceForCycle / 100).toFixed(2)}`;
+    const finalFormatted = promo?.final?.formatted ?? originalFormatted;
+    const hasDiscount = !!promo && promo.discount?.cents > 0;
+    const renewalCadence = cycle === "annual" ? "yearly" : "monthly";
+    const renewalAmount = `€${(priceForCycle / 100).toFixed(2)}`;
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="text-sm">
-            <div className="font-semibold">{isReactivation ? "Reactivate Pro" : "Pro"} · {cycle === "annual" ? "Annual" : "Monthly"}</div>
-            <div className="text-xs text-muted-foreground">
-              Charged {cycle === "annual" ? `€${(annual/100).toFixed(0)} today` : `€${(monthly/100).toFixed(0)} today`}, then renews {cycle === "annual" ? "yearly" : "monthly"}.
+        {/* Confirmation summary — shown above the Stripe payment form so the
+            user sees the exact plan, cadence and final (post-discount) amount
+            they're about to authorise. */}
+        <Card className="p-4 border-primary/30 bg-primary/5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">You're subscribing to</div>
+              <div className="font-semibold text-base mt-0.5">
+                Vela Pro · {cycle === "annual" ? "Annual" : "Monthly"}
+                {isReactivation && <span className="text-muted-foreground font-normal"> (reactivation)</span>}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Renews {renewalCadence} at {renewalAmount}. Cancel anytime.
+              </div>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowCheckout(false)}>Change plan</Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setShowCheckout(false)}>Change plan</Button>
-        </div>
+
+          <div className="mt-3 pt-3 border-t border-primary/20 space-y-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Plan price</span>
+              <span className={hasDiscount ? "text-muted-foreground line-through" : "font-medium"}>
+                {originalFormatted}
+              </span>
+            </div>
+            {hasDiscount && (
+              <div className="flex items-center justify-between text-primary">
+                <span>
+                  Promo {promo?.code ? <span className="font-mono uppercase">{promo.code}</span> : null} applied
+                </span>
+                <span>− {promo!.discount.formatted}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-base font-semibold pt-1 border-t border-primary/10">
+              <span>Due today</span>
+              <span>{finalFormatted}</span>
+            </div>
+            {hasDiscount && promo?.durationLabel && (
+              <div className="text-[11px] text-muted-foreground text-right">
+                Discount applies {promo.durationLabel.toLowerCase()}, then renews at {renewalAmount}/{cycle === "annual" ? "yr" : "mo"}.
+              </div>
+            )}
+          </div>
+        </Card>
+
         {lookupForCycle && (
           <PromoCodeField priceLookupKey={lookupForCycle} onChange={setPromo} />
         )}

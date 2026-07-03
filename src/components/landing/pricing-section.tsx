@@ -167,7 +167,7 @@ export function PricingCard({
         }}
       >
         <AnimatePresence mode="wait">
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+          <div className="mb-3 flex min-h-6 flex-wrap items-center justify-end gap-2">
             {plan.highlighted && (
               <motion.div
                 className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow"

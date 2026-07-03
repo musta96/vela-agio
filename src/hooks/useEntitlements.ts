@@ -14,11 +14,19 @@ export type Entitlements = {
   /** Where the entitlement comes from: 'subscription' (paid), 'beta'
    *  (beta role with no paid sub), 'free' (no sub, no role), or 'anonymous'. */
   source: "subscription" | "beta" | "free" | "anonymous";
+  /** Numeric caps for the current plan. `null` means unlimited. */
+  limits: {
+    maxPortfolios: number | null;
+    maxPositionsPerPortfolio: number | null;
+    maxWatchlist: number | null;
+    maxAiQuestionsPerMonth: number | null;
+  };
 };
 
 const EMPTY: Entitlements = {
   tier: "free", planSlug: null, planName: null, featureKeys: new Set(),
   betaActive: false, source: "free",
+  limits: { maxPortfolios: 1, maxPositionsPerPortfolio: 10, maxWatchlist: 5, maxAiQuestionsPerMonth: 5 },
 };
 
 const CACHE_KEY = "vela.entitlements.v1";
@@ -33,6 +41,7 @@ type CachedShape = {
   featureKeys: string[];
   betaActive?: boolean;
   source?: Entitlements["source"];
+  limits?: Entitlements["limits"];
 };
 
 function readCache(userId: string): Entitlements | null {
@@ -49,6 +58,7 @@ function readCache(userId: string): Entitlements | null {
       featureKeys: new Set(parsed.featureKeys),
       betaActive: !!parsed.betaActive,
       source: parsed.source ?? "free",
+      limits: parsed.limits ?? EMPTY.limits,
     };
   } catch { return null; }
 }
@@ -62,6 +72,7 @@ function writeCache(userId: string, ent: Entitlements) {
         tier: ent.tier, planSlug: ent.planSlug, planName: ent.planName,
         featureKeys: Array.from(ent.featureKeys),
           betaActive: ent.betaActive, source: ent.source,
+          limits: ent.limits,
       } satisfies CachedShape),
     );
   } catch { /* noop */ }
@@ -97,6 +108,12 @@ export function useEntitlements() {
             featureKeys: new Set<string>(row.feature_keys ?? []),
             betaActive: !!row.beta_active,
             source: (row.source as Entitlements["source"]) ?? "free",
+            limits: {
+              maxPortfolios: row.max_portfolios ?? null,
+              maxPositionsPerPortfolio: row.max_positions_per_portfolio ?? null,
+              maxWatchlist: row.max_watchlist ?? null,
+              maxAiQuestionsPerMonth: row.max_ai_questions_per_month ?? null,
+            },
           }
         : EMPTY;
       setEnt(next);

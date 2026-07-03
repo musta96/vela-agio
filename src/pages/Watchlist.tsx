@@ -13,6 +13,8 @@ import { AlertSettingsDialog } from "@/components/AlertSettingsDialog";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAlertMonitor } from "@/hooks/useAlertMonitor";
 import { TickerSearch } from "@/components/TickerSearch";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { LimitReachedCTA } from "@/components/gating/LimitReachedCTA";
 
 const Watchlist = () => {
   const { items, remove, add, isWatched } = useWatchlist();
@@ -22,6 +24,9 @@ const Watchlist = () => {
   const { rules, history, clearHistory } = useAlerts();
   useAlertMonitor();
   const [filter, setFilter] = useState("");
+  const limits = usePlanLimits();
+  const watchlistCap = limits.maxWatchlist;
+  const atCap = watchlistCap != null && items.length >= watchlistCap;
 
   const handleRemove = (symbol: string, name: string) => {
     remove(symbol);
@@ -31,6 +36,14 @@ const Watchlist = () => {
   const handleAdd = (hit: { symbol: string; name: string }) => {
     if (isWatched(hit.symbol)) {
       toast({ title: "Already on watchlist", description: `${hit.symbol} — ${hit.name}` });
+      return;
+    }
+    if (atCap) {
+      toast({
+        title: `You've hit your free watchlist limit (${watchlistCap})`,
+        description: "Upgrade to Pro to track unlimited tickers.",
+        variant: "destructive",
+      });
       return;
     }
     add(hit.symbol, hit.name);
@@ -64,12 +77,25 @@ const Watchlist = () => {
       <div className="rounded-2xl border border-border bg-card px-5 py-4">
         <div className="flex items-center gap-2 mb-2 text-sm font-medium">
           <Plus className="h-4 w-4 text-primary" /> Add to watchlist
+          {watchlistCap != null && (
+            <span className="ml-auto text-xs text-muted-foreground">
+              {items.length} / {watchlistCap} on Free
+            </span>
+          )}
         </div>
-        <TickerSearch
-          onSelect={handleAdd}
-          placeholder="Search any company, ETF, index, crypto on any exchange…"
-          clearOnSelect
-        />
+        {atCap ? (
+          <LimitReachedCTA
+            title={`Watchlist full (${watchlistCap} on Free)`}
+            description="Upgrade to Pro to add unlimited tickers, sectors and ETFs to your watchlist."
+            source="watchlist_cap"
+          />
+        ) : (
+          <TickerSearch
+            onSelect={handleAdd}
+            placeholder="Search any company, ETF, index, crypto on any exchange…"
+            clearOnSelect
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">

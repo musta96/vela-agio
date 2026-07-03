@@ -31,6 +31,8 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
 import { useBenchmarkBars, benchmarkFor } from "@/hooks/useBenchmark";
 import { RiskPanel } from "@/components/RiskPanel";
+import { LockedPreview } from "@/components/gating/LockedPreview";
+import { Card as GateCard, CardContent as GateCardContent } from "@/components/ui/card";
 import { analyze, sma, type AnalysisSummary, type Signal } from "@/lib/technicalIndicators";
 import { findCatalogEntry, currencySign } from "@/data/stockCatalog";
 import { useWatchlist } from "@/hooks/useWatchlist";
@@ -791,6 +793,25 @@ const StockDetails = () => {
 
           {/* DEEP ANALYSIS */}
           <TabsContent value="deep" className="space-y-6">
+            <LockedPreview
+              feature="research.full_memo"
+              title="Unlock the full research memo"
+              description="Full valuation ranges (DCF & DDM), scenario analysis, fundamentals table, correlation and analyst targets."
+              source="stock_deep_memo"
+              previewSlot={
+                <GateCard>
+                  <GateCardContent className="p-5 space-y-2">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Snapshot</p>
+                    <p className="text-lg font-semibold">
+                      {entry?.name ?? symbol} · {sign}{price != null ? price.toFixed(2) : "—"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Basic AI take and rating are included on Free. The full multi-page memo — valuation ranges, scenario analysis, fundamentals table and correlation matrix — unlocks on Pro.
+                    </p>
+                  </GateCardContent>
+                </GateCard>
+              }
+            >
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
                 <div>
@@ -1029,6 +1050,7 @@ const StockDetails = () => {
                 )}
               </CardContent>
             </Card>
+            </LockedPreview>
           </TabsContent>
 
           {/* SENTIMENT */}

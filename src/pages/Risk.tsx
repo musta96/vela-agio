@@ -32,6 +32,9 @@ import { generatePortfolioRiskReport, buildPortfolioRiskFilename } from "@/lib/p
 import { useStableMemo } from "@/lib/computeCache";
 import { decodePresetParam } from "@/lib/scenarioPresets";
 import { toast } from "sonner";
+import { LockedPreview } from "@/components/gating/LockedPreview";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { redactValue } from "@/lib/gating/redact";
 
 const FACTOR_PROXIES = [
   { factor: "US Market", symbol: "SPY" },
@@ -209,12 +212,51 @@ const Risk = () => {
         description="Pro-grade risk analytics for your portfolio: VaR, CVaR, Monte Carlo stress, factor exposure, concentration, and beta."
         path="/risk"
       />
+      <RiskPageBody
+        risk={risk} loading={loading} holdings={holdings} stage={stage} totalVal={totalVal}
+        stressRows={stressRows} positions={positions} setMacroImpact={setMacroImpact}
+        sharedMacro={sharedMacro} breakdownPositions={breakdownPositions} factorBetas={factorBetas}
+        conc={conc} exportPdf={exportPdf}
+      />
+    </div>
+  );
+};
+
+// Body split out so we can wrap the deep analytics in a LockedPreview.
+function RiskPageBody(props: any) {
+  const {
+    risk, loading, holdings, stage, totalVal, stressRows, positions,
+    setMacroImpact, sharedMacro, breakdownPositions, factorBetas, conc, exportPdf,
+  } = props;
+  const ent = useEntitlements();
+  const canStress = ent.featureKeys.has("portfolio.stress_test");
+  const canPdf = ent.featureKeys.has("export.pdf");
+  const showRedacted = !canStress; // Free tier: KPI strip is the "real first section" with numbers redacted per spec.
+
+  const kpiStrip = risk ? (
+    <div className="bg-card border border-border rounded-2xl divide-y md:divide-y-0 md:divide-x divide-border grid grid-cols-2 md:grid-cols-4">
+      {[
+        { l: "Portfolio value", v: `€${totalVal.toFixed(0)}`, t: "", real: true },
+        { l: "Ann. volatility", v: showRedacted ? redactValue("percent") : `${(risk.vol * 100).toFixed(1)}%`, t: "" },
+        { l: "Sharpe (1Y)", v: showRedacted ? redactValue("number") : risk.sharpe.toFixed(2), t: showRedacted ? "" : (risk.sharpe > 1 ? "text-success" : risk.sharpe < 0 ? "text-destructive" : "") },
+        { l: "Max drawdown", v: showRedacted ? redactValue("percent") : `${(risk.maxDD * 100).toFixed(1)}%`, t: "text-destructive" },
+      ].map((m) => (
+        <div key={m.l} className="p-5 flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.l}</span>
+          <span className={`text-2xl font-bold tracking-tight ${m.t}`}>{m.v}</span>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <>
       <PageHeader
         icon={ShieldAlert}
         title="Portfolio Risk Engine"
         description="Value-at-Risk, stress tests, factor exposure, and concentration analysis for your live portfolio."
         actions={
-          risk ? (
+          risk && canPdf ? (
             <Button variant="outline" size="sm" className="gap-2" onClick={exportPdf}>
               <FileDown className="h-4 w-4" /> Export PDF
             </Button>
@@ -243,22 +285,13 @@ const Risk = () => {
             </CardContent>
           </Card>
         ) : (
-          <>
-            {/* Top metrics - v2 unified KPI strip */}
-            <div className="bg-card border border-border rounded-2xl divide-y md:divide-y-0 md:divide-x divide-border grid grid-cols-2 md:grid-cols-4">
-              {[
-                { l: "Portfolio value", v: `€${totalVal.toFixed(0)}`, t: "" },
-                { l: "Ann. volatility", v: `${(risk.vol * 100).toFixed(1)}%`, t: "" },
-                { l: "Sharpe (1Y)", v: risk.sharpe.toFixed(2), t: risk.sharpe > 1 ? "text-success" : risk.sharpe < 0 ? "text-destructive" : "" },
-                { l: "Max drawdown", v: `${(risk.maxDD * 100).toFixed(1)}%`, t: "text-destructive" },
-              ].map((m) => (
-                <div key={m.l} className="p-5 flex flex-col gap-1.5">
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.l}</span>
-                  <span className={`text-2xl font-bold tracking-tight ${m.t}`}>{m.v}</span>
-                </div>
-              ))}
-            </div>
-
+          <LockedPreview
+            feature="portfolio.stress_test"
+            title="Unlock the full risk engine"
+            description="Full VaR/CVaR, historical & hypothetical stress tests, macro scenarios, factor exposures and per-position contribution."
+            source="risk_engine"
+            previewSlot={kpiStrip}
+          >
             {/* VaR */}
             <Card>
               <CardHeader className="pb-2">
@@ -295,7 +328,7 @@ const Risk = () => {
                         <tr key={s.name} className="border-b border-border/40">
                           <td className="py-2 pr-3 font-medium">{s.name}</td>
                           <td className="py-2 pr-3 text-muted-foreground">{s.description}</td>
-                          <td className={`py-2 pr-3 text-right font-mono ${s.pnlPct >= 0 ? "text-success" : "text-destructive"}`}>{fmtPct(s.pnlPct)}</td>
+                          <td className={`py-2 pr-3 text-right font-mono ${s.pnlPct >= 0 ? "text-success" : "text-destructive"}`}>{`${s.pnlPct >= 0 ? "+" : ""}${(s.pnlPct * 100).toFixed(2)}%`}</td>
                           <td className={`py-2 pr-3 text-right font-mono ${s.pnl >= 0 ? "text-success" : "text-destructive"}`}>{(s.pnl >= 0 ? "+€" : "−€") + Math.abs(s.pnl).toFixed(0)}</td>
                         </tr>
                       ))}
@@ -406,11 +439,11 @@ const Risk = () => {
                 </div>
               </CardContent>
             </Card>
-          </>
+          </LockedPreview>
         )}
-    </div>
+    </>
   );
-};
+}
 
 const Metric = ({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) => (
   <div className="rounded border border-border/50 p-3">

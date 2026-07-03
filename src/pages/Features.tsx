@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Sparkles, ArrowRight, Check, Minus } from "lucide-react";
+import { Sparkles, ArrowRight, Check, Minus, Info, CircleDashed } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,8 @@ import VelaLogo from "@/components/VelaLogo";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults } from "@/data/landingDefaults";
 import { trackLandingEvent } from "@/lib/landingAnalytics";
 import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -44,6 +46,8 @@ const GRADS = [
 
 export default function Features() {
   const [sections, setSections] = useState(mergeWithDefaults([]));
+  const [selectedPlan, setSelectedPlan] = useState<"explorer" | "pro" | "enterprise">("pro");
+  const [onlyDiffs, setOnlyDiffs] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -111,38 +115,38 @@ export default function Features() {
     {
       category: "Market data & research",
       rows: [
-        { label: "Market data",         values: { explorer: "Delayed",  pro: "Real-time", enterprise: "Real-time" } },
-        { label: "Watchlists",          values: { explorer: "Up to 3",  pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Screeners & filters", values: { explorer: false,      pro: true,        enterprise: true } },
-        { label: "Backtesting engine",  values: { explorer: false,      pro: true,        enterprise: true } },
+        { label: "Market data",         hint: "Delayed feeds refresh every 15 minutes. Real-time is exchange-live streaming.", values: { explorer: "Delayed",  pro: "Real-time", enterprise: "Real-time" } },
+        { label: "Watchlists",          hint: "Custom lists of tickers you can group, alert on and share across devices.",     values: { explorer: "Up to 3",  pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Screeners & filters", hint: "Multi-factor screeners across fundamentals, technicals and sentiment.",         values: { explorer: false,      pro: true,        enterprise: true } },
+        { label: "Backtesting engine",  hint: "Simulate strategies against historical data with slippage and costs modeled.",   values: { explorer: false,      pro: true,        enterprise: true } },
       ],
     },
     {
       category: "AI copilot",
       rows: [
-        { label: "AI summaries",           values: { explorer: "25 / mo", pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Deep research reports",  values: { explorer: false,     pro: true,        enterprise: true } },
-        { label: "Portfolio doctor",       values: { explorer: false,     pro: true,        enterprise: true } },
+        { label: "AI summaries",           hint: "Short AI-written briefs on tickers, news and filings.",                              values: { explorer: "25 / mo", pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Deep research reports",  hint: "Multi-page reports combining fundamentals, sentiment, valuation and risk.",         values: { explorer: false,     pro: true,        enterprise: true } },
+        { label: "Portfolio doctor",       hint: "AI review of your holdings with concentration, factor and risk suggestions.",       values: { explorer: false,     pro: true,        enterprise: true } },
       ],
     },
     {
       category: "Portfolio & analytics",
       rows: [
-        { label: "Manual portfolio tracking", values: { explorer: true,  pro: true, enterprise: true } },
-        { label: "Broker connect (read-only)", values: { explorer: false, pro: true, enterprise: true } },
-        { label: "DCF / DDM intrinsic value",  values: { explorer: false, pro: true, enterprise: true } },
-        { label: "Risk analytics (VaR / Monte Carlo)", values: { explorer: false, pro: true, enterprise: true } },
+        { label: "Manual portfolio tracking",           hint: "Add trades and cash manually to track performance across accounts.",           values: { explorer: true,  pro: true, enterprise: true } },
+        { label: "Broker connect (read-only)",          hint: "Sync live positions from your broker. Read-only — Vela never places trades.",   values: { explorer: false, pro: true, enterprise: true } },
+        { label: "DCF / DDM intrinsic value",           hint: "Discounted cash-flow and dividend-discount models with editable assumptions.", values: { explorer: false, pro: true, enterprise: true } },
+        { label: "Risk analytics (VaR / Monte Carlo)",  hint: "Value-at-Risk and Monte Carlo simulations for portfolio stress-testing.",       values: { explorer: false, pro: true, enterprise: true } },
       ],
     },
     {
       category: "Team, compliance & support",
       rows: [
-        { label: "Community access",           values: { explorer: true,  pro: true,  enterprise: true } },
-        { label: "Priority support",           values: { explorer: false, pro: true,  enterprise: true } },
-        { label: "Advisor seats & MiFID II",   values: { explorer: false, pro: false, enterprise: true } },
-        { label: "REST API & WebSocket",       values: { explorer: false, pro: false, enterprise: true } },
-        { label: "SSO & audit logs",           values: { explorer: false, pro: false, enterprise: true } },
-        { label: "Dedicated success manager",  values: { explorer: false, pro: false, enterprise: true } },
+        { label: "Community access",           hint: "Discord community with other investors and the Vela team.",                                 values: { explorer: true,  pro: true,  enterprise: true } },
+        { label: "Priority support",           hint: "Faster email response times with a dedicated queue for paying customers.",                  values: { explorer: false, pro: true,  enterprise: true } },
+        { label: "Advisor seats & MiFID II",   hint: "Multi-seat advisor workspace with client mandates and MiFID II-ready audit trails.",         values: { explorer: false, pro: false, enterprise: true } },
+        { label: "REST API & WebSocket",       hint: "Programmatic access to Vela data and signals for internal tools or research pipelines.",     values: { explorer: false, pro: false, enterprise: true } },
+        { label: "SSO & audit logs",           hint: "SAML / OIDC single sign-on plus tamper-evident audit logs of every user action.",           values: { explorer: false, pro: false, enterprise: true } },
+        { label: "Dedicated success manager",  hint: "Named contact for onboarding, training and quarterly reviews.",                             values: { explorer: false, pro: false, enterprise: true } },
       ],
     },
   ];
@@ -153,6 +157,16 @@ export default function Features() {
     return `${included}/${rows.length} capabilities`;
   };
 
+  // "Show only differences" filter: hide rows where every tier has the same value.
+  const rowDiffers = (row: { values: Record<PlanKey, Cell> }) => {
+    const norm = (v: Cell) => (v === true ? "__true__" : v === false ? "__false__" : String(v).toLowerCase());
+    const vals = PLAN_COLUMNS.map((p) => norm(row.values[p.key]));
+    return new Set(vals).size > 1;
+  };
+  const FILTERED = onlyDiffs
+    ? COMPARISON.map((g) => ({ ...g, rows: g.rows.filter(rowDiffers) })).filter((g) => g.rows.length > 0)
+    : COMPARISON;
+
   // Consistent tint per plan column so users can visually track ownership
   // top-to-bottom on both desktop and mobile.
   const PLAN_TINT: Record<PlanKey, { bg: string; strong: string; accent: string }> = {
@@ -160,6 +174,8 @@ export default function Features() {
     pro:        { bg: "rgba(29,158,117,0.06)", strong: "rgba(29,158,117,0.18)", accent: "#1D9E75" },
     enterprise: { bg: "rgba(55,138,221,0.05)", strong: "rgba(55,138,221,0.16)", accent: "#378ADD" },
   };
+  // Amber for tier-specific limits/variants so "Limited" reads distinct from "Included".
+  const LIMITED_STYLE = { background: "rgba(234,160,32,0.14)", color: "#8a5a00" };
 
   const renderCell = (v: Cell, plan: PlanKey, compact = false) => {
     const tint = PLAN_TINT[plan];
@@ -189,10 +205,12 @@ export default function Features() {
     }
     return (
       <span
-        className={`inline-flex items-center rounded-full font-bold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
-        style={{ background: tint.strong, color: tint.accent }}
-        aria-label={`${plan}: ${v}`}
+        className={`inline-flex items-center gap-1 rounded-full font-bold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
+        style={LIMITED_STYLE}
+        aria-label={`${plan}: limited — ${v}`}
+        title={`Limited: ${v}`}
       >
+        <CircleDashed className="h-3 w-3" />
         {v}
       </span>
     );

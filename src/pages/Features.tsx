@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Sparkles, ArrowRight, Check, Minus } from "lucide-react";
+import { Sparkles, ArrowRight, Check, Minus, Info, CircleDashed } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,8 @@ import VelaLogo from "@/components/VelaLogo";
 import { ICONS, DEFAULT_SECTIONS, mergeWithDefaults } from "@/data/landingDefaults";
 import { trackLandingEvent } from "@/lib/landingAnalytics";
 import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -44,6 +46,8 @@ const GRADS = [
 
 export default function Features() {
   const [sections, setSections] = useState(mergeWithDefaults([]));
+  const [selectedPlan, setSelectedPlan] = useState<"explorer" | "pro" | "enterprise">("pro");
+  const [onlyDiffs, setOnlyDiffs] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -111,38 +115,38 @@ export default function Features() {
     {
       category: "Market data & research",
       rows: [
-        { label: "Market data",         values: { explorer: "Delayed",  pro: "Real-time", enterprise: "Real-time" } },
-        { label: "Watchlists",          values: { explorer: "Up to 3",  pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Screeners & filters", values: { explorer: false,      pro: true,        enterprise: true } },
-        { label: "Backtesting engine",  values: { explorer: false,      pro: true,        enterprise: true } },
+        { label: "Market data",         hint: "Delayed feeds refresh every 15 minutes. Real-time is exchange-live streaming.", values: { explorer: "Delayed",  pro: "Real-time", enterprise: "Real-time" } },
+        { label: "Watchlists",          hint: "Custom lists of tickers you can group, alert on and share across devices.",     values: { explorer: "Up to 3",  pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Screeners & filters", hint: "Multi-factor screeners across fundamentals, technicals and sentiment.",         values: { explorer: false,      pro: true,        enterprise: true } },
+        { label: "Backtesting engine",  hint: "Simulate strategies against historical data with slippage and costs modeled.",   values: { explorer: false,      pro: true,        enterprise: true } },
       ],
     },
     {
       category: "AI copilot",
       rows: [
-        { label: "AI summaries",           values: { explorer: "25 / mo", pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Deep research reports",  values: { explorer: false,     pro: true,        enterprise: true } },
-        { label: "Portfolio doctor",       values: { explorer: false,     pro: true,        enterprise: true } },
+        { label: "AI summaries",           hint: "Short AI-written briefs on tickers, news and filings.",                              values: { explorer: "25 / mo", pro: "Unlimited", enterprise: "Unlimited" } },
+        { label: "Deep research reports",  hint: "Multi-page reports combining fundamentals, sentiment, valuation and risk.",         values: { explorer: false,     pro: true,        enterprise: true } },
+        { label: "Portfolio doctor",       hint: "AI review of your holdings with concentration, factor and risk suggestions.",       values: { explorer: false,     pro: true,        enterprise: true } },
       ],
     },
     {
       category: "Portfolio & analytics",
       rows: [
-        { label: "Manual portfolio tracking", values: { explorer: true,  pro: true, enterprise: true } },
-        { label: "Broker connect (read-only)", values: { explorer: false, pro: true, enterprise: true } },
-        { label: "DCF / DDM intrinsic value",  values: { explorer: false, pro: true, enterprise: true } },
-        { label: "Risk analytics (VaR / Monte Carlo)", values: { explorer: false, pro: true, enterprise: true } },
+        { label: "Manual portfolio tracking",           hint: "Add trades and cash manually to track performance across accounts.",           values: { explorer: true,  pro: true, enterprise: true } },
+        { label: "Broker connect (read-only)",          hint: "Sync live positions from your broker. Read-only — Vela never places trades.",   values: { explorer: false, pro: true, enterprise: true } },
+        { label: "DCF / DDM intrinsic value",           hint: "Discounted cash-flow and dividend-discount models with editable assumptions.", values: { explorer: false, pro: true, enterprise: true } },
+        { label: "Risk analytics (VaR / Monte Carlo)",  hint: "Value-at-Risk and Monte Carlo simulations for portfolio stress-testing.",       values: { explorer: false, pro: true, enterprise: true } },
       ],
     },
     {
       category: "Team, compliance & support",
       rows: [
-        { label: "Community access",           values: { explorer: true,  pro: true,  enterprise: true } },
-        { label: "Priority support",           values: { explorer: false, pro: true,  enterprise: true } },
-        { label: "Advisor seats & MiFID II",   values: { explorer: false, pro: false, enterprise: true } },
-        { label: "REST API & WebSocket",       values: { explorer: false, pro: false, enterprise: true } },
-        { label: "SSO & audit logs",           values: { explorer: false, pro: false, enterprise: true } },
-        { label: "Dedicated success manager",  values: { explorer: false, pro: false, enterprise: true } },
+        { label: "Community access",           hint: "Discord community with other investors and the Vela team.",                                 values: { explorer: true,  pro: true,  enterprise: true } },
+        { label: "Priority support",           hint: "Faster email response times with a dedicated queue for paying customers.",                  values: { explorer: false, pro: true,  enterprise: true } },
+        { label: "Advisor seats & MiFID II",   hint: "Multi-seat advisor workspace with client mandates and MiFID II-ready audit trails.",         values: { explorer: false, pro: false, enterprise: true } },
+        { label: "REST API & WebSocket",       hint: "Programmatic access to Vela data and signals for internal tools or research pipelines.",     values: { explorer: false, pro: false, enterprise: true } },
+        { label: "SSO & audit logs",           hint: "SAML / OIDC single sign-on plus tamper-evident audit logs of every user action.",           values: { explorer: false, pro: false, enterprise: true } },
+        { label: "Dedicated success manager",  hint: "Named contact for onboarding, training and quarterly reviews.",                             values: { explorer: false, pro: false, enterprise: true } },
       ],
     },
   ];
@@ -153,6 +157,16 @@ export default function Features() {
     return `${included}/${rows.length} capabilities`;
   };
 
+  // "Show only differences" filter: hide rows where every tier has the same value.
+  const rowDiffers = (row: { values: Record<PlanKey, Cell> }) => {
+    const norm = (v: Cell) => (v === true ? "__true__" : v === false ? "__false__" : String(v).toLowerCase());
+    const vals = PLAN_COLUMNS.map((p) => norm(row.values[p.key]));
+    return new Set(vals).size > 1;
+  };
+  const FILTERED = onlyDiffs
+    ? COMPARISON.map((g) => ({ ...g, rows: g.rows.filter(rowDiffers) })).filter((g) => g.rows.length > 0)
+    : COMPARISON;
+
   // Consistent tint per plan column so users can visually track ownership
   // top-to-bottom on both desktop and mobile.
   const PLAN_TINT: Record<PlanKey, { bg: string; strong: string; accent: string }> = {
@@ -160,6 +174,8 @@ export default function Features() {
     pro:        { bg: "rgba(29,158,117,0.06)", strong: "rgba(29,158,117,0.18)", accent: "#1D9E75" },
     enterprise: { bg: "rgba(55,138,221,0.05)", strong: "rgba(55,138,221,0.16)", accent: "#378ADD" },
   };
+  // Amber for tier-specific limits/variants so "Limited" reads distinct from "Included".
+  const LIMITED_STYLE = { background: "rgba(234,160,32,0.14)", color: "#8a5a00" };
 
   const renderCell = (v: Cell, plan: PlanKey, compact = false) => {
     const tint = PLAN_TINT[plan];
@@ -189,10 +205,12 @@ export default function Features() {
     }
     return (
       <span
-        className={`inline-flex items-center rounded-full font-bold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
-        style={{ background: tint.strong, color: tint.accent }}
-        aria-label={`${plan}: ${v}`}
+        className={`inline-flex items-center gap-1 rounded-full font-bold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
+        style={LIMITED_STYLE}
+        aria-label={`${plan}: limited — ${v}`}
+        title={`Limited: ${v}`}
       >
+        <CircleDashed className="h-3 w-3" />
         {v}
       </span>
     );
@@ -304,13 +322,22 @@ export default function Features() {
           </div>
 
           <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {PLAN_COLUMNS.map((p) => (
-              <div
+            {PLAN_COLUMNS.map((p) => {
+              const isSelected = selectedPlan === p.key;
+              const tint = PLAN_TINT[p.key];
+              return (
+              <button
                 key={p.key}
-                className="rounded-2xl border p-4"
+                type="button"
+                onClick={() => setSelectedPlan(p.key)}
+                aria-pressed={isSelected}
+                className="rounded-2xl border p-4 text-left transition focus:outline-none focus-visible:ring-2"
                 style={{
-                  borderColor: p.highlight ? "rgba(29,158,117,0.35)" : "rgba(4,44,83,0.1)",
-                  background: p.highlight ? "linear-gradient(135deg,rgba(29,158,117,0.1),rgba(24,95,165,0.06))" : "rgba(255,255,255,0.72)",
+                  borderColor: isSelected ? tint.accent : "rgba(4,44,83,0.1)",
+                  background: isSelected
+                    ? `linear-gradient(135deg, ${tint.strong}, rgba(255,255,255,0.6))`
+                    : "rgba(255,255,255,0.72)",
+                  boxShadow: isSelected ? `0 8px 24px -12px ${tint.accent}` : undefined,
                 }}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -322,38 +349,51 @@ export default function Features() {
                           Best value
                         </span>
                       )}
+                      {isSelected && (
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: tint.strong, color: tint.accent }}>
+                          Selected
+                        </span>
+                      )}
                     </div>
-                    <p className="mt-1 text-sm font-semibold" style={{ color: p.highlight ? "#1D9E75" : "#185FA5" }}>{p.price}</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: tint.accent }}>{p.price}</p>
                   </div>
                   <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "rgba(4,44,83,0.06)", color: "#3d4f66" }}>
                     {planCoverage(p.key)}
                   </span>
                 </div>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{p.bestFor}</p>
-              </div>
-            ))}
+              </button>
+            );})}
           </div>
 
-          {/* Legend — clarifies chip meanings before the matrix. */}
-          <div className="mb-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs" style={{ color: "#6b7a8c" }}>
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full" style={{ background: "rgba(29,158,117,0.18)", color: "#1D9E75" }}>
-                <Check className="h-3 w-3" />
+          {/* Legend + controls — clarifies chip meanings and lets users filter. */}
+          <div className="mb-4 flex flex-col items-center justify-between gap-3 rounded-2xl border px-4 py-3 md:flex-row" style={{ borderColor: "rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.6)" }}>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs" style={{ color: "#3d4f66" }}>
+              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6b7a8c" }}>Legend</span>
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex h-5 items-center justify-center rounded-full px-1.5" style={{ background: "rgba(29,158,117,0.18)", color: "#1D9E75" }}>
+                  <Check className="h-3 w-3" />
+                </span>
+                <span className="font-semibold">Included</span>
               </span>
-              Included
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full" style={{ background: "rgba(4,44,83,0.05)", color: "#a6b0bd" }}>
-                <Minus className="h-3 w-3" />
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex h-5 items-center justify-center rounded-full px-1.5" style={LIMITED_STYLE}>
+                  <CircleDashed className="h-3 w-3" />
+                </span>
+                <span className="font-semibold">Limited</span>
+                <span style={{ color: "#6b7a8c" }}>(cap or variant)</span>
               </span>
-              Not in this tier
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "rgba(29,158,117,0.18)", color: "#1D9E75" }}>
-                25 / mo
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex h-5 items-center justify-center rounded-full px-1.5" style={{ background: "rgba(4,44,83,0.05)", color: "#a6b0bd" }}>
+                  <Minus className="h-3 w-3" />
+                </span>
+                <span className="font-semibold">Not included</span>
               </span>
-              Tier-specific limit or note
-            </span>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold" style={{ color: "#042C53" }}>
+              <Switch checked={onlyDiffs} onCheckedChange={setOnlyDiffs} aria-label="Show only differences" />
+              Show only differences
+            </label>
           </div>
 
           {/* Desktop / tablet: feature-first matrix with tinted plan columns. */}
@@ -372,29 +412,51 @@ export default function Features() {
                     <th scope="col" className="sticky left-0 z-10 py-5 px-6 align-bottom text-xs font-bold tracking-wider uppercase" style={{ background: "rgba(255,255,255,0.96)", color: "#6b7a8c", borderBottom: "1px solid rgba(4,44,83,0.08)" }}>
                       Capability
                     </th>
-                    {PLAN_COLUMNS.map((p) => (
+                    {PLAN_COLUMNS.map((p) => {
+                      const isSel = selectedPlan === p.key;
+                      return (
                       <th
                         key={p.key}
                         scope="col"
                         className="py-5 px-5 text-center align-bottom"
-                        style={{ background: PLAN_TINT[p.key].bg, color: "#042C53", borderBottom: `2px solid ${PLAN_TINT[p.key].strong}` }}
+                        style={{
+                          background: isSel ? PLAN_TINT[p.key].strong : PLAN_TINT[p.key].bg,
+                          color: "#042C53",
+                          borderBottom: `${isSel ? 3 : 2}px solid ${PLAN_TINT[p.key].accent}`,
+                          borderTop: isSel ? `3px solid ${PLAN_TINT[p.key].accent}` : undefined,
+                        }}
                       >
                         <div className="flex min-h-[92px] flex-col items-center justify-end gap-1">
-                          {p.highlight && (
-                            <span className="mb-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: PLAN_TINT[p.key].strong, color: PLAN_TINT[p.key].accent }}>
-                              Most popular
-                            </span>
-                          )}
-                          <span className="text-base font-extrabold">{p.name}</span>
+                          <div className="mb-1 flex items-center gap-1">
+                            {p.highlight && (
+                              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: "rgba(29,158,117,0.18)", color: "#1D9E75" }}>
+                                Most popular
+                              </span>
+                            )}
+                            {isSel && (
+                              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: PLAN_TINT[p.key].accent, color: "#fff" }}>
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-base font-extrabold">{p.name} <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#6b7a8c" }}>tier</span></span>
                           <span className="text-sm font-bold" style={{ color: PLAN_TINT[p.key].accent }}>{p.price}</span>
                           <span className="max-w-[180px] text-xs leading-snug" style={{ color: "#6b7a8c" }}>{p.bestFor}</span>
                         </div>
                       </th>
-                    ))}
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {COMPARISON.map((group, gi) => (
+                  {FILTERED.length === 0 && (
+                    <tr>
+                      <td colSpan={1 + PLAN_COLUMNS.length} className="py-10 text-center text-sm" style={{ color: "#6b7a8c" }}>
+                        All plans include the same features. Turn off "Show only differences" to see the full list.
+                      </td>
+                    </tr>
+                  )}
+                  {FILTERED.map((group, gi) => (
                     <React.Fragment key={group.category}>
                       <tr>
                         <th
@@ -427,18 +489,41 @@ export default function Features() {
                               borderTop: "1px solid rgba(4,44,83,0.06)",
                             }}
                           >
-                            <span className="block">{row.label}</span>
-                            {row.hint && <span className="mt-1 block text-xs font-normal" style={{ color: "#6b7a8c" }}>{row.hint}</span>}
+                            <span className="flex items-center gap-1.5">
+                              <span>{row.label}</span>
+                              {row.hint && (
+                                <TooltipProvider delayDuration={100}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button type="button" className="inline-flex" aria-label={`What is ${row.label}`}>
+                                        <Info className="h-3.5 w-3.5" style={{ color: "#a6b0bd" }} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs text-xs leading-snug">
+                                      {row.hint}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </span>
                           </th>
-                          {PLAN_COLUMNS.map((p) => (
+                          {PLAN_COLUMNS.map((p) => {
+                            const isSel = selectedPlan === p.key;
+                            return (
                             <td
                               key={p.key}
                               className="py-4 px-5 text-center align-middle"
-                              style={{ background: PLAN_TINT[p.key].bg, borderTop: "1px solid rgba(4,44,83,0.06)" }}
+                              style={{
+                                background: isSel ? PLAN_TINT[p.key].strong : PLAN_TINT[p.key].bg,
+                                borderTop: "1px solid rgba(4,44,83,0.06)",
+                                borderLeft: isSel ? `2px solid ${PLAN_TINT[p.key].accent}` : undefined,
+                                borderRight: isSel ? `2px solid ${PLAN_TINT[p.key].accent}` : undefined,
+                              }}
                             >
                               {renderCell(row.values[p.key], p.key)}
                             </td>
-                          ))}
+                            );
+                          })}
                         </tr>
                       ))}
                     </React.Fragment>
@@ -451,7 +536,12 @@ export default function Features() {
           {/* Mobile: per-feature stacked rows — each feature lists all three
               tiers on their own labeled line so ownership is unambiguous. */}
           <div className="md:hidden space-y-6">
-            {COMPARISON.map((group) => (
+            {FILTERED.length === 0 && (
+              <p className="text-center text-sm" style={{ color: "#6b7a8c" }}>
+                All plans include the same features. Turn off "Show only differences" to see the full list.
+              </p>
+            )}
+            {FILTERED.map((group) => (
               <section key={group.category} className="glass-card rounded-3xl overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-3 text-[10px] font-bold tracking-[0.22em] uppercase" style={{ background: "linear-gradient(90deg,rgba(4,44,83,0.07),rgba(4,44,83,0.02))", color: "#042C53" }}>
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#1D9E75" }} aria-hidden="true" />
@@ -460,18 +550,38 @@ export default function Features() {
                 <div className="divide-y" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
                   {group.rows.map((row) => (
                     <article key={row.label} className="px-4 py-4">
-                      <div className="text-sm font-bold leading-snug" style={{ color: "#042C53" }}>{row.label}</div>
-                      {row.hint && <div className="mt-0.5 text-xs leading-snug" style={{ color: "#6b7a8c" }}>{row.hint}</div>}
+                      <div className="flex items-start gap-1.5 text-sm font-bold leading-snug" style={{ color: "#042C53" }}>
+                        <span>{row.label}</span>
+                        {row.hint && (
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" className="mt-0.5 inline-flex" aria-label={`What is ${row.label}`}>
+                                  <Info className="h-3.5 w-3.5" style={{ color: "#a6b0bd" }} />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs text-xs leading-snug">
+                                {row.hint}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                       <ul className="mt-3 space-y-1.5">
-                        {PLAN_COLUMNS.map((p) => (
+                        {PLAN_COLUMNS.map((p) => {
+                          const isSel = selectedPlan === p.key;
+                          return (
                           <li
                             key={p.key}
                             className="flex items-center justify-between gap-3 rounded-xl px-3 py-2"
-                            style={{ background: PLAN_TINT[p.key].bg, borderLeft: `3px solid ${PLAN_TINT[p.key].strong}` }}
+                            style={{
+                              background: isSel ? PLAN_TINT[p.key].strong : PLAN_TINT[p.key].bg,
+                              borderLeft: `${isSel ? 5 : 3}px solid ${isSel ? PLAN_TINT[p.key].accent : PLAN_TINT[p.key].strong}`,
+                            }}
                           >
                             <span className="min-w-0 flex items-baseline gap-2">
                               <span className="text-[13px] font-extrabold" style={{ color: PLAN_TINT[p.key].accent }}>
-                                {p.name}
+                                {p.name}{isSel && <span className="ml-1 text-[9px] uppercase tracking-wider" style={{ color: PLAN_TINT[p.key].accent }}>· selected</span>}
                               </span>
                               <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#6b7a8c" }}>
                                 {p.price.replace(" /mo", "")}
@@ -479,7 +589,8 @@ export default function Features() {
                             </span>
                             <span className="shrink-0">{renderCell(row.values[p.key], p.key)}</span>
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     </article>
                   ))}

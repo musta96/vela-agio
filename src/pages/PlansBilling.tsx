@@ -681,9 +681,21 @@ function PlanCard({
           ? <Badge className="text-[10px]">Current</Badge>
           : p.highlighted ? <Badge variant="outline" className="text-[10px]">Popular</Badge> : null}
       </div>
-      <div className="text-2xl font-bold">{formatPrice(monthly, "mo")}</div>
-      {yearly != null && yearly > 0 && (
-        <div className="text-xs text-muted-foreground">or {formatPrice(yearly, "yr")}</div>
+      {frequency === "yearly" && yearly != null && yearly > 0 ? (
+        <>
+          <div className="text-2xl font-bold">
+            {formatPrice(Math.round(yearly / 12), "mo")}
+            <span className="text-xs text-muted-foreground font-normal ml-1">effective</span>
+          </div>
+          <div className="text-xs text-muted-foreground">Billed {formatPrice(yearly, "yr")}</div>
+        </>
+      ) : (
+        <>
+          <div className="text-2xl font-bold">{formatPrice(monthly, "mo")}</div>
+          {yearly != null && yearly > 0 && (
+            <div className="text-xs text-muted-foreground">or {formatPrice(yearly, "yr")} annually</div>
+          )}
+        </>
       )}
       <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
         {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (

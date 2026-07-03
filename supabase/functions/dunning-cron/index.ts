@@ -74,10 +74,18 @@ Deno.serve(async (req) => {
         const stripe = createStripeClient(env);
         await stripe.subscriptions.cancel(sub.stripe_subscription_id);
       } catch (e) { console.warn("stripe cancel failed", (e as Error).message); }
+      // Close the grace-period branch in has_feature immediately even if
+      // the deletion webhook is delayed.
+      await sb.from("subscriptions").update({
+        status: "canceled",
+        current_period_end: null,
+        cancel_at_period_end: false,
+        updated_at: new Date().toISOString(),
+      }).eq("stripe_subscription_id", sub.stripe_subscription_id).eq("environment", env);
     }
 
     await sb.from("profiles").update({
-      plan: "free",
+      plan: "explorer",
       subscription_status: "canceled",
       past_due_since: null,
       reverted_to_free_at: new Date().toISOString(),

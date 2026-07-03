@@ -566,7 +566,7 @@ export default function PlansBilling() {
                   <div>
                     You've used all your AI credits this month. Paper trading and non-AI features keep working.
                     {pricingEnabled && (
-                      <> <Link to="/pricing" className="underline font-medium">Upgrade your plan</Link> for more capacity.</>
+                      <> <Link to="/upgrade" className="underline font-medium">Upgrade your plan</Link> for more capacity.</>
                     )}
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export default function PlansBilling() {
             <div className="text-sm text-muted-foreground">
               AI is not currently available on your plan.{" "}
               {pricingEnabled && (
-                <Link to="/pricing" className="underline text-foreground">Upgrade to enable AI features →</Link>
+                <Link to="/upgrade" className="underline text-foreground">Upgrade to enable AI features →</Link>
               )}
             </div>
           )}

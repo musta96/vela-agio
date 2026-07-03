@@ -57,6 +57,10 @@ Deno.serve(async (req) => {
       const created = await stripe.customers.create({
         ...(user.email && { email: user.email }),
         metadata: { userId: user.id },
+      }, {
+        // Idempotency: repeated calls for the same user won't create
+        // duplicate Stripe customers within Stripe's 24h idempotency window.
+        idempotencyKey: `customer-create:${env}:${user.id}`,
       });
       customerId = created.id;
     }

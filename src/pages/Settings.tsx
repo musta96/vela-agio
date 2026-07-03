@@ -202,12 +202,36 @@ function BrokersTab() {
 
 function NotificationsTab() {
   const { user } = useAuth();
-  const [prefs, setPrefs] = useState({ email_enabled: true, daily_digest_enabled: true, immediate_only_critical: true, digest_hour_utc: 7 });
+  const browserTz = typeof Intl !== "undefined"
+    ? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC")
+    : "UTC";
+  const [prefs, setPrefs] = useState({
+    email_enabled: true,
+    daily_digest_enabled: true,
+    immediate_only_critical: true,
+    digest_hour_utc: 7,
+    daily_brief_enabled: true,
+    daily_brief_push: true,
+    daily_brief_email: true,
+    daily_brief_hour_local: 8,
+    daily_brief_timezone: browserTz,
+  });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!user) return;
     supabase.from("alert_preferences").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data) setPrefs({ email_enabled: data.email_enabled, daily_digest_enabled: data.daily_digest_enabled, immediate_only_critical: data.immediate_only_critical, digest_hour_utc: data.digest_hour_utc });
+      if (data) setPrefs((prev) => ({
+        ...prev,
+        email_enabled: data.email_enabled,
+        daily_digest_enabled: data.daily_digest_enabled,
+        immediate_only_critical: data.immediate_only_critical,
+        digest_hour_utc: data.digest_hour_utc,
+        daily_brief_enabled: data.daily_brief_enabled ?? true,
+        daily_brief_push: data.daily_brief_push ?? true,
+        daily_brief_email: data.daily_brief_email ?? true,
+        daily_brief_hour_local: data.daily_brief_hour_local ?? 8,
+        daily_brief_timezone: data.daily_brief_timezone || browserTz,
+      }));
       setLoading(false);
     });
   }, [user?.id]);
@@ -224,6 +248,38 @@ function NotificationsTab() {
       <p className="text-sm text-muted-foreground mb-5">Control how Vela contacts you about alerts and digests.</p>
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
         <div className="space-y-4">
+          <div className="rounded-xl border border-border/60 p-4 space-y-3 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Daily market brief</Label>
+                <p className="text-xs text-muted-foreground">A one-line morning brief on your portfolio and biggest mover. Free on every plan.</p>
+              </div>
+              <Switch checked={prefs.daily_brief_enabled} onCheckedChange={(v) => update({ daily_brief_enabled: v })} />
+            </div>
+            {prefs.daily_brief_enabled && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2">
+                  <Label className="text-xs">Push</Label>
+                  <Switch checked={prefs.daily_brief_push} onCheckedChange={(v) => update({ daily_brief_push: v })} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2">
+                  <Label className="text-xs">Email</Label>
+                  <Switch checked={prefs.daily_brief_email} onCheckedChange={(v) => update({ daily_brief_email: v })} />
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 col-span-2">
+                  <div>
+                    <Label className="text-xs">Delivery hour (local)</Label>
+                    <p className="text-[11px] text-muted-foreground">{prefs.daily_brief_timezone}</p>
+                  </div>
+                  <Input
+                    type="number" min={0} max={23} className="w-20"
+                    value={prefs.daily_brief_hour_local}
+                    onChange={(e) => update({ daily_brief_hour_local: Math.max(0, Math.min(23, parseInt(e.target.value || "0", 10))) })}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex items-center justify-between">
             <div><Label>Email notifications</Label><p className="text-xs text-muted-foreground">Send triggered alerts to your inbox.</p></div>
             <Switch checked={prefs.email_enabled} onCheckedChange={(v) => update({ email_enabled: v })} />

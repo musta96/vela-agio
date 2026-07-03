@@ -944,7 +944,7 @@ function relTime(iso: string) {
   return `${d}d`;
 }
 
-function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; onKill: () => void }) {
+function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, newEnterpriseLeads, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; newEnterpriseLeads: number; onKill: () => void }) {
   const navigate = useNavigate();
   const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number; href?: string }[] }[] = [
     { label: "Overview", items: [
@@ -963,6 +963,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
       { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
+      { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
     ]},
     { label: "Platform", items: [
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },

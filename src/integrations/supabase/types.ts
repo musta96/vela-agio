@@ -2076,6 +2076,8 @@ export type Database = {
           billing_cycle: Database["public"]["Enums"]["billing_cycle"] | null
           bio: string | null
           briefing_focus: string | null
+          cancel_at_period_end: boolean
+          cancellation_scheduled_at: string | null
           country_residence: string | null
           country_tax_residence: string | null
           created_at: string
@@ -2120,6 +2122,8 @@ export type Database = {
           billing_cycle?: Database["public"]["Enums"]["billing_cycle"] | null
           bio?: string | null
           briefing_focus?: string | null
+          cancel_at_period_end?: boolean
+          cancellation_scheduled_at?: string | null
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string
@@ -2164,6 +2168,8 @@ export type Database = {
           billing_cycle?: Database["public"]["Enums"]["billing_cycle"] | null
           bio?: string | null
           briefing_focus?: string | null
+          cancel_at_period_end?: boolean
+          cancellation_scheduled_at?: string | null
           country_residence?: string | null
           country_tax_residence?: string | null
           created_at?: string

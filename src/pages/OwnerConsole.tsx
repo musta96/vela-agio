@@ -139,6 +139,7 @@ export default function OwnerConsole() {
   const [detailData, setDetailData] = useState<any>(null);
   const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
   const [openTickets, setOpenTickets] = useState<number>(0);
+  const [newEnterpriseLeads, setNewEnterpriseLeads] = useState<number>(0);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -165,6 +166,22 @@ export default function OwnerConsole() {
     fetchCount();
     const id = setInterval(fetchCount, 60_000);
     return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // Enterprise leads with status "new" — drives the sidebar badge.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLeadCount = async () => {
+      const { data } = await supabase.rpc("admin_new_enterprise_leads_count");
+      if (!cancelled) setNewEnterpriseLeads(typeof data === "number" ? data : 0);
+    };
+    fetchLeadCount();
+    const id = setInterval(fetchLeadCount, 60_000);
+    const ch = supabase
+      .channel("owner-enterprise-leads")
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "enterprise_leads" }, fetchLeadCount)
+      .subscribe();
+    return () => { cancelled = true; clearInterval(id); supabase.removeChannel(ch); };
   }, []);
 
   const load = useCallback(async () => {

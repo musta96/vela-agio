@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Check, ArrowUpRight, Info, RefreshCw } from "lucide-react";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { toast } from "sonner";
+import { PromoCodeField, type PromoValidation } from "@/components/billing/PromoCodeField";
+import { CreditCard } from "lucide-react";
 
 type Cycle = "monthly" | "annual";
 
@@ -59,6 +61,10 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   const [showCheckout, setShowCheckout] = useState(false);
   const [switchingCycle, setSwitchingCycle] = useState(false);
   const [switchStatus, setSwitchStatus] = useState<null | { ok: boolean; msg: string }>(null);
+  const [history, setHistory] = useState<{ hasHistory: boolean; card: { brand: string; last4: string; exp_month: number; exp_year: number } | null; hasDefaultPaymentMethod: boolean } | null>(null);
+  const [promo, setPromo] = useState<PromoValidation | null>(null);
+  const [reactivating, setReactivating] = useState(false);
+  const [useExistingCard, setUseExistingCard] = useState(true);
 
   // Load Pro plan pricing + Stripe lookup keys.
   useEffect(() => {
@@ -90,7 +96,21 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     })();
   }, [user?.id]);
 
+  // Load prior Stripe history so we can switch upgrade copy → reactivation
+  // and offer the saved card. Runs only for currently-free users.
+  useEffect(() => {
+    if (!user || ent.tier !== "free") { setHistory(null); return; }
+    (async () => {
+      const { data } = await supabase.functions.invoke("check-billing-history", {
+        body: { environment: getStripeEnvironment() },
+      });
+      if (data && !(data as any).error) setHistory(data as any);
+    })();
+  }, [user?.id, ent.tier]);
+
   const isProLike = ent.tier === "pro" || ent.tier === "elite" || ent.tier === "plus";
+  const isReactivation = !isProLike && !!history?.hasHistory;
+  const canUseSavedCard = isReactivation && !!history?.hasDefaultPaymentMethod && !!history?.card;
   const activeCycleForSub: Cycle | null = useMemo(() => {
     // Match sub price_id against monthly/yearly lookups later; for now derive from profile
     return null;
@@ -124,14 +144,21 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   const returnUrl = (() => {
     const back = returnPath ?? (typeof window !== "undefined" ? window.location.pathname : "/dashboard");
     const abs = typeof window !== "undefined" ? window.location.origin : "";
-    return `${abs}${back.startsWith("/") ? back : `/${back}`}?upgraded=1`;
+    const flag = isReactivation ? "reactivated=1" : "upgraded=1";
+    return `${abs}${back.startsWith("/") ? back : `/${back}`}?${flag}`;
   })();
 
-  // If mounted after a successful upgrade redirect, show toast + refresh.
+  // If mounted after a successful upgrade/reactivation redirect, show toast + refresh.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("upgraded") === "1") {
+    if (params.get("reactivated") === "1") {
+      toast.success("Welcome back to Vela Pro — every Pro feature is unlocked again.");
+      ent.refresh();
+      params.delete("reactivated");
+      const qs = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    } else if (params.get("upgraded") === "1") {
       toast.success("Welcome to Vela Pro — every Pro feature is now unlocked.");
       ent.refresh();
       params.delete("upgraded");
@@ -146,6 +173,34 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     if (!lookupForCycle) { toast.error("Plan not configured yet"); return; }
     setShowCheckout(true);
     onCheckoutMounted?.();
+  };
+
+  // Reactivation via saved card — charges immediately using existing default PM.
+  const reactivateWithSavedCard = async () => {
+    if (!lookupForCycle) { toast.error("Plan not configured yet"); return; }
+    setReactivating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reactivate-subscription", {
+        body: { priceLookupKey: lookupForCycle, promoCode: promo?.code, environment: getStripeEnvironment() },
+      });
+      if (error) throw new Error(error.message);
+      const d = data as any;
+      if (d?.needsCheckout) { setUseExistingCard(false); startCheckout(); return; }
+      if (d?.error) throw new Error(d.error);
+      if (d?.ok) {
+        toast.success("Welcome back to Vela Pro.");
+        // Small delay so the webhook has time to promote the profile to pro.
+        setTimeout(() => {
+          ent.refresh();
+          const back = returnPath ?? "/dashboard";
+          navigate(`${back}${back.includes("?") ? "&" : "?"}reactivated=1`);
+        }, 1200);
+      }
+    } catch (e) {
+      toast.error((e as Error).message ?? "Could not reactivate");
+    } finally {
+      setReactivating(false);
+    }
   };
 
   const switchCycle = async (target: Cycle) => {
@@ -176,18 +231,22 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="text-sm">
-            <div className="font-semibold">Pro · {cycle === "annual" ? "Annual" : "Monthly"}</div>
+            <div className="font-semibold">{isReactivation ? "Reactivate Pro" : "Pro"} · {cycle === "annual" ? "Annual" : "Monthly"}</div>
             <div className="text-xs text-muted-foreground">
               Charged {cycle === "annual" ? `€${(annual/100).toFixed(0)} today` : `€${(monthly/100).toFixed(0)} today`}, then renews {cycle === "annual" ? "yearly" : "monthly"}.
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setShowCheckout(false)}>Change plan</Button>
         </div>
+        {lookupForCycle && (
+          <PromoCodeField priceLookupKey={lookupForCycle} onChange={setPromo} />
+        )}
         <StripeEmbeddedCheckout
           priceId={lookupForCycle!}
           userId={user?.id}
           customerEmail={user?.email}
           returnUrl={returnUrl}
+          promoCode={promo?.code}
         />
       </div>
     );
@@ -199,7 +258,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
           <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
           <div className="text-sm">
-            <div className="font-semibold">Unlock {contextFeatureName} with Pro</div>
+            <div className="font-semibold">{isReactivation ? `Reactivate Pro to unlock ${contextFeatureName} again` : `Unlock ${contextFeatureName} with Pro`}</div>
             <div className="text-xs text-muted-foreground mt-0.5">Plus every other Pro feature listed below.</div>
           </div>
         </div>
@@ -225,7 +284,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
       {!isProLike && (
         <Card className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="font-semibold text-base">Vela Pro</div>
+            <div className="font-semibold text-base">{isReactivation ? "Reactivate Vela Pro" : "Vela Pro"}</div>
             <div className="inline-flex rounded-full border p-1 bg-muted/40 text-sm">
               <button
                 type="button"
@@ -244,6 +303,13 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
               </button>
             </div>
           </div>
+
+          {isReactivation && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Your Vela account, portfolios and settings are all still here.{" "}
+              {history?.card ? "Reactivate now to restore Pro access." : "Enter a card to restore Pro access."}
+            </p>
+          )}
 
           <div className="mt-4 flex items-baseline gap-2 flex-wrap">
             <span className="text-4xl font-bold">€{Math.round((cycle === "annual" ? annualPerMonth : monthly) / 100)}</span>
@@ -267,12 +333,61 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
             ))}
           </ul>
 
-          <Button size="lg" className="mt-5 w-full gap-2" onClick={startCheckout}>
-            <ArrowUpRight className="h-4 w-4" />
-            Upgrade to Pro · €{Math.round(priceForCycle / 100)} today
-          </Button>
+          {/* Promo code field — visible on the pricing card so users see the
+              discount preview before they click through to checkout. */}
+          {lookupForCycle && (
+            <div className="mt-4">
+              <PromoCodeField priceLookupKey={lookupForCycle} onChange={setPromo} />
+            </div>
+          )}
+
+          {/* Reactivation with saved card path */}
+          {canUseSavedCard && useExistingCard ? (
+            <>
+              <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 flex items-start gap-2.5">
+                <CreditCard className="h-4 w-4 text-primary mt-0.5" />
+                <div className="flex-1 text-sm">
+                  <div className="font-semibold capitalize">
+                    Use {history!.card!.brand} ending in {history!.card!.last4}?
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Expires {String(history!.card!.exp_month).padStart(2, "0")}/{String(history!.card!.exp_year).slice(-2)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline whitespace-nowrap"
+                  onClick={() => setUseExistingCard(false)}
+                >
+                  Use a different card
+                </button>
+              </div>
+              <Button size="lg" className="mt-3 w-full gap-2" disabled={reactivating} onClick={reactivateWithSavedCard}>
+                {reactivating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
+                Reactivate Pro · {promo?.final?.formatted ?? `€${Math.round(priceForCycle / 100)}`} today
+              </Button>
+            </>
+          ) : (
+            <>
+              {canUseSavedCard && (
+                <button
+                  type="button"
+                  className="mt-3 text-xs text-primary hover:underline"
+                  onClick={() => setUseExistingCard(true)}
+                >
+                  ← Use saved {history!.card!.brand} ending in {history!.card!.last4} instead
+                </button>
+              )}
+              <Button size="lg" className="mt-3 w-full gap-2" onClick={startCheckout}>
+                <ArrowUpRight className="h-4 w-4" />
+                {isReactivation ? "Reactivate Pro" : "Upgrade to Pro"} · {promo?.final?.formatted ?? `€${Math.round(priceForCycle / 100)}`} today
+              </Button>
+            </>
+          )}
           <p className="text-[11px] text-muted-foreground mt-2 text-center">
-            Charged in full now. No trial — direct upgrade with immediate access.
+            {isReactivation
+              ? "Charged in full now. No new trial — Pro access is restored immediately."
+              : "Charged in full now. No trial — direct upgrade with immediate access."}
           </p>
         </Card>
       )}

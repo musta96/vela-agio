@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, ArrowUpRight, Sparkles, AlertTriangle, Zap, Calendar, ExternalLink, Loader2, FileText, Download, RefreshCw, History, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
@@ -130,8 +131,9 @@ export default function PlansBilling() {
   const credits = useAiCredits();
   const ent = useEntitlements();
   const { openCheckout, checkoutElement } = useStripeCheckout();
-  // Default frequency for the plan grid; we don't need a toggle here yet.
-  const billingFrequency: "monthly" | "yearly" = "monthly";
+  // Toggle for the "Available plans" grid so users can compare and switch
+  // between monthly and annual pricing before checkout.
+  const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
   // Beta access only *adds* features on top of a paid sub — never replaces it.
   // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
   // `betaBonus`  = user has a real paid sub AND beta_tester role.

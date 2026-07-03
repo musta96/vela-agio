@@ -20,6 +20,8 @@ import { AIAccessCard } from "@/components/settings/AIAccessCard";
 import { AdvisorTogglesCard } from "@/components/settings/AdvisorTogglesCard";
 import { BrokerSyncCard } from "@/components/BrokerSyncCard";
 import { SupportCard } from "@/components/settings/SupportCard";
+import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { computeSuitability } from "@/lib/suitability";
@@ -401,9 +403,12 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
   };
 
   return (
-    <Card className="p-6 rounded-2xl">
+    <div className="space-y-4">
+      <PastDueBanner />
+      <PaymentMethodCard />
+      <Card className="p-6 rounded-2xl">
       <h2 className="text-base font-semibold mb-2">Subscription & billing</h2>
-      <p className="text-sm text-muted-foreground mb-5">Update your payment method, download invoices, or cancel your plan in the secure billing portal.</p>
+      <p className="text-sm text-muted-foreground mb-5">Manage your plan, download invoices, or cancel in the secure billing portal.</p>
       {trial?.ends_at && (
         <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
           <div className="font-semibold text-foreground text-base">Pro trial active</div>
@@ -448,7 +453,8 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
         <Button variant="outline" size="sm" onClick={() => navigate("/pricing")}>View plans</Button>
       </div>
       <p className="text-xs text-muted-foreground mt-4">Opens in a new tab. Changes sync back to your account within seconds.</p>
-    </Card>
+      </Card>
+    </div>
   );
 }
 

@@ -2038,15 +2038,18 @@ export type Database = {
           dashboard_tour_completed_at: string | null
           date_of_birth: string | null
           display_name: string | null
+          dunning_email_sent_at: string | null
           first_run_completed_at: string | null
           first_run_symbol: string | null
           first_run_time_to_signal_ms: number | null
           id: string
           onboarding_dismissed: boolean
+          past_due_since: string | null
           phone: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
           preferred_market: string | null
           recommendation_verdicts_override: string
+          reverted_to_free_at: string | null
           secondary_tax_residences: string[] | null
           subscription_status: Database["public"]["Enums"]["sub_status"] | null
           trial_canceled_at: string | null
@@ -2077,15 +2080,18 @@ export type Database = {
           dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
+          dunning_email_sent_at?: string | null
           first_run_completed_at?: string | null
           first_run_symbol?: string | null
           first_run_time_to_signal_ms?: number | null
           id?: string
           onboarding_dismissed?: boolean
+          past_due_since?: string | null
           phone?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           preferred_market?: string | null
           recommendation_verdicts_override?: string
+          reverted_to_free_at?: string | null
           secondary_tax_residences?: string[] | null
           subscription_status?: Database["public"]["Enums"]["sub_status"] | null
           trial_canceled_at?: string | null
@@ -2116,15 +2122,18 @@ export type Database = {
           dashboard_tour_completed_at?: string | null
           date_of_birth?: string | null
           display_name?: string | null
+          dunning_email_sent_at?: string | null
           first_run_completed_at?: string | null
           first_run_symbol?: string | null
           first_run_time_to_signal_ms?: number | null
           id?: string
           onboarding_dismissed?: boolean
+          past_due_since?: string | null
           phone?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           preferred_market?: string | null
           recommendation_verdicts_override?: string
+          reverted_to_free_at?: string | null
           secondary_tax_residences?: string[] | null
           subscription_status?: Database["public"]["Enums"]["sub_status"] | null
           trial_canceled_at?: string | null

@@ -358,10 +358,39 @@ function PrivacyTab() {
 }
 
 function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+  const { user } = useAuth();
+  const [trial, setTrial] = useState<{ ends_at: string | null; status: string | null; cycle: string | null } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("plan, trial_ends_at, subscription_status, billing_cycle")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const p: any = data;
+        if (p?.plan === "pro_trial" || p?.subscription_status === "trialing") {
+          setTrial({ ends_at: p.trial_ends_at ?? null, status: p.subscription_status ?? null, cycle: p.billing_cycle ?? null });
+        }
+      });
+  }, [user?.id]);
+
   return (
     <Card className="p-6 rounded-2xl">
       <h2 className="text-base font-semibold mb-2">Subscription & billing</h2>
       <p className="text-sm text-muted-foreground mb-5">Update your payment method, download invoices, or cancel your plan in the secure billing portal.</p>
+      {trial?.ends_at && (
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+          <div className="font-semibold text-foreground">Pro trial active</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            First charge on <strong>{new Date(trial.ends_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</strong>
+            {trial.cycle ? ` · ${trial.cycle === "annual" ? "€290/year" : "€29/month"}` : ""}. Cancel any time before then to avoid being charged.
+          </div>
+          <div className="mt-2">
+            <ManageSubscriptionButton size="sm" label="Manage or cancel trial" />
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <ManageSubscriptionButton size="sm" />
         <Button variant="outline" size="sm" onClick={() => navigate("/pricing")}>View plans</Button>

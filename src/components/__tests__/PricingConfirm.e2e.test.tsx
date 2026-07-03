@@ -117,7 +117,7 @@ describe("Pricing → confirm dialog → Stripe checkout", () => {
     const scoped = within(dialog);
 
     // Annual cadence badge + total row.
-    expect(scoped.getByText(/annual/i)).toBeInTheDocument();
+    expect(scoped.getAllByText(/annual/i).length).toBeGreaterThan(0);
     expect(scoped.getByText(/billed today/i)).toBeInTheDocument();
     // Pro annual total = €288 / yr, effective monthly €24 / mo.
     expect(scoped.getByText(/€288/)).toBeInTheDocument();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -119,6 +119,7 @@ function StatusBadge({ status, cancel }: { status: string; cancel?: boolean | nu
 
 export default function PlansBilling() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const pricingEnabled = useFlag("pricing", false);
   const [loading, setLoading] = useState(true);
   const [subError, setSubError] = useState<string | null>(null);
@@ -628,12 +629,13 @@ export default function PlansBilling() {
                         userId: user?.id,
                         environment: getStripeEnvironment(),
                       });
-                      openCheckout({
-                        priceId,
-                        userId: user?.id,
-                        customerEmail: user?.email ?? undefined,
-                        returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-                      });
+                      // Route through the unified /upgrade flow so users see
+                      // the stepper + current-plan context and land in the
+                      // Stripe form with clear framing (instead of the form
+                      // mounting silently at the bottom of this page).
+                      const slug = p.slug || p.tier || p.id;
+                      const cycle = billingFrequency === "yearly" ? "annual" : "monthly";
+                      navigate(`/upgrade?plan=${encodeURIComponent(slug)}&cycle=${cycle}`);
                     }}
                   />
                 );

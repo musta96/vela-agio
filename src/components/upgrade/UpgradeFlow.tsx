@@ -90,7 +90,8 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   }>(null);
   const [retryTotalCents, setRetryTotalCents] = useState<number | null>(null);
 
-  const requestedPlanSlug = (initialPlanSlug ?? "pro").toLowerCase();
+  const rawPlanSlug = (initialPlanSlug ?? "pro").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  const requestedPlanSlug = rawPlanSlug || "pro";
 
   // Load selected plan pricing + Stripe lookup keys.
   useEffect(() => {

@@ -454,7 +454,7 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
       )}
       <div className="flex flex-wrap gap-2">
         <ManageSubscriptionButton size="sm" />
-        <Button size="sm" onClick={() => navigate("/pricing")} className="gap-1.5">
+        <Button size="sm" onClick={() => navigate("/upgrade")} className="gap-1.5">
           <Sparkles className="h-3.5 w-3.5" /> Upgrade or change plan
         </Button>
       </div>

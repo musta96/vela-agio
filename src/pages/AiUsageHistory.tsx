@@ -90,12 +90,12 @@ export default function AiUsageHistory() {
                 </p>
                 {credits.exhausted && (
                   <p className="text-xs text-destructive">
-                    AI is paused until reset. <Link to="/pricing" className="underline">Upgrade</Link> or <Link to="/settings?tab=Connections" className="underline">add a BYO key</Link> to keep using the AI now.
+                    AI is paused until reset. <Link to="/upgrade" className="underline">Upgrade</Link> or <Link to="/settings?tab=Connections" className="underline">add a BYO key</Link> to keep using the AI now.
                   </p>
                 )}
               </>
             ) : (
-              <p className="text-sm">Your plan doesn't include Lovable AI credits. <Link to="/pricing" className="underline">See pricing</Link>.</p>
+              <p className="text-sm">Your plan doesn't include Lovable AI credits. <Link to="/upgrade" className="underline">See pricing</Link>.</p>
             )}
           </CardContent>
         </Card>

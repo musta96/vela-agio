@@ -26,7 +26,7 @@ export function LimitReachedCTA({
         <div className="text-xs text-muted-foreground">{description}</div>
       </div>
       <Button asChild size="sm" className="gap-2 shrink-0">
-        <Link to={`/pricing?plan=${encodeURIComponent(planSlug)}${source ? `&source=${encodeURIComponent(source)}` : ""}`}>
+        <Link to={`/upgrade?plan=${encodeURIComponent(planSlug)}${source ? `&source=${encodeURIComponent(source)}` : ""}`}>
           <Sparkles className="h-4 w-4" /> Upgrade to {unlocksOn}
         </Link>
       </Button>

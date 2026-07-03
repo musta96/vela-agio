@@ -194,8 +194,8 @@ export function AIBriefing() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   onClick={() => {
-                    trackAIEvent("ai_upgrade_cta_clicked", { url: denied.upgrade_url || "/pricing", tier: denied.tier, correlationId: (denied as any).correlationId });
-                    navigate(denied.upgrade_url || "/pricing");
+                    trackAIEvent("ai_upgrade_cta_clicked", { url: denied.upgrade_url || "/upgrade", tier: denied.tier, correlationId: (denied as any).correlationId });
+                    navigate(denied.upgrade_url || "/upgrade");
                   }}
                   className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90"
                 >Upgrade plan</button>

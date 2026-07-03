@@ -15,12 +15,16 @@ import { toast } from "sonner";
 import { PromoCodeField, type PromoValidation } from "@/components/billing/PromoCodeField";
 import { CreditCard } from "lucide-react";
 import { UpgradeStepper, type UpgradeStepId } from "@/components/upgrade/UpgradeStepper";
+import { PLAN_ORDER, normalizePlanSlug } from "@/lib/planFeatures";
 
 type Cycle = "monthly" | "annual";
 
 type StepId = UpgradeStepId;
 
-type ProPlan = {
+type UpgradePlan = {
+  slug: string;
+  name: string;
+  tier: string | null;
   monthly_cents: number;
   annual_cents: number;
   monthly_lookup: string;
@@ -52,15 +56,17 @@ interface Props {
   onCheckoutMounted?: () => void;
   /** Preselect the billing cycle (from ?cycle= query param). */
   initialCycle?: Cycle;
+  /** Preselect the target plan (from ?plan= query param). */
+  initialPlanSlug?: string;
 }
 
-export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath, compact, onCheckoutMounted, initialCycle }: Props) {
+export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath, compact, onCheckoutMounted, initialCycle, initialPlanSlug }: Props) {
   const { user } = useAuth();
   const ent = useEntitlements();
   const credits = useAiCredits();
   const navigate = useNavigate();
   const [cycle, setCycle] = useState<Cycle>(initialCycle ?? "annual");
-  const [plan, setPlan] = useState<ProPlan | null>(null);
+  const [plan, setPlan] = useState<UpgradePlan | null>(null);
   const [portfolioCount, setPortfolioCount] = useState<number | null>(null);
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -84,22 +90,30 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   }>(null);
   const [retryTotalCents, setRetryTotalCents] = useState<number | null>(null);
 
-  // Load Pro plan pricing + Stripe lookup keys.
+  const requestedPlanSlug = (initialPlanSlug ?? "pro").toLowerCase();
+
+  // Load selected plan pricing + Stripe lookup keys.
   useEffect(() => {
     supabase.from("subscription_plans")
-      .select("monthly_price_cents, yearly_price_cents, stripe_monthly_price_id, stripe_yearly_price_id, ai_monthly_quota")
-      .eq("tier", "pro").eq("is_active", true).limit(1).maybeSingle()
+      .select("slug, name, tier, monthly_price_cents, yearly_price_cents, stripe_monthly_price_id, stripe_yearly_price_id, ai_monthly_quota")
+      .eq("is_active", true)
+      .or(`slug.eq.${requestedPlanSlug},tier.eq.${requestedPlanSlug}`)
+      .limit(1)
+      .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setPlan({
+          slug: (data as any).slug ?? requestedPlanSlug,
+          name: (data as any).name ?? requestedPlanSlug,
+          tier: (data as any).tier ?? null,
           monthly_cents: (data as any).monthly_price_cents ?? 2900,
           annual_cents: (data as any).yearly_price_cents ?? 29000,
-          monthly_lookup: (data as any).stripe_monthly_price_id ?? "pro_monthly",
-          annual_lookup: (data as any).stripe_yearly_price_id ?? "pro_annual",
+          monthly_lookup: (data as any).stripe_monthly_price_id ?? `${requestedPlanSlug}_monthly`,
+          annual_lookup: (data as any).stripe_yearly_price_id ?? `${requestedPlanSlug}_annual`,
           ai_quota: (data as any).ai_monthly_quota ?? null,
         });
       });
-  }, []);
+  }, [requestedPlanSlug]);
 
   // Load usage counts to render "4/5 used".
   useEffect(() => {
@@ -126,8 +140,13 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     })();
   }, [user?.id, ent.tier]);
 
-  const isProLike = ent.tier === "pro" || ent.tier === "elite" || ent.tier === "plus";
-  const isReactivation = !isProLike && !!history?.hasHistory;
+  const targetPlanSlug = normalizePlanSlug(plan?.slug ?? plan?.tier ?? requestedPlanSlug);
+  const currentPlanSlug = normalizePlanSlug(ent.planSlug ?? ent.tier);
+  const currentPlanRank = PLAN_ORDER.indexOf(currentPlanSlug);
+  const targetPlanRank = PLAN_ORDER.indexOf(targetPlanSlug);
+  const hasTargetPlanOrHigher = currentPlanRank >= targetPlanRank && currentPlanSlug !== "explorer";
+  const planName = plan?.name ?? (requestedPlanSlug === "plus" ? "Plus" : requestedPlanSlug === "enterprise" ? "Enterprise" : "Pro");
+  const isReactivation = !hasTargetPlanOrHigher && !!history?.hasHistory;
   const canUseSavedCard = isReactivation && !!history?.hasDefaultPaymentMethod && !!history?.card;
   const activeCycleForSub: Cycle | null = useMemo(() => {
     // Match sub price_id against monthly/yearly lookups later; for now derive from profile
@@ -171,13 +190,13 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("reactivated") === "1") {
-      toast.success("Welcome back to Vela Pro — every Pro feature is unlocked again.");
+        toast.success(`Welcome back to Vela ${planName} — your features are unlocked again.`);
       ent.refresh();
       params.delete("reactivated");
       const qs = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
     } else if (params.get("upgraded") === "1") {
-      toast.success("Welcome to Vela Pro — every Pro feature is now unlocked.");
+      toast.success(`Welcome to Vela ${planName} — your features are now unlocked.`);
       ent.refresh();
       params.delete("upgraded");
       const qs = params.toString();
@@ -217,7 +236,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
       if (d?.needsCheckout) { setUseExistingCard(false); startCheckout(); return; }
       if (d?.error) throw new Error(d.error);
       if (d?.ok) {
-        toast.success("Welcome back to Vela Pro.");
+        toast.success(`Welcome back to Vela ${planName}.`);
         // Small delay so the webhook has time to promote the profile to pro.
         setTimeout(() => {
           ent.refresh();
@@ -275,7 +294,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
             <div className="min-w-0">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">You're subscribing to</div>
               <div className="font-semibold text-base mt-0.5">
-                Vela Pro · {cycle === "annual" ? "Annual" : "Monthly"}
+                Vela {planName} · {cycle === "annual" ? "Annual" : "Monthly"}
                 {isReactivation && <span className="text-muted-foreground font-normal"> (reactivation)</span>}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
@@ -380,8 +399,8 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
           <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
           <div className="text-sm">
-            <div className="font-semibold">{isReactivation ? `Reactivate Pro to unlock ${contextFeatureName} again` : `Unlock ${contextFeatureName} with Pro`}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Plus every other Pro feature listed below.</div>
+            <div className="font-semibold">{isReactivation ? `Reactivate ${planName} to unlock ${contextFeatureName} again` : `Unlock ${contextFeatureName} with ${planName}`}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Plus every other {planName} feature listed below.</div>
           </div>
         </div>
       )}
@@ -403,10 +422,10 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
       </Card>
 
       {/* Pricing toggle + upgrade CTA (only for non-pro) */}
-      {!isProLike && (
+      {!hasTargetPlanOrHigher && (
         <Card className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="font-semibold text-base">{isReactivation ? "Reactivate Vela Pro" : "Vela Pro"}</div>
+            <div className="font-semibold text-base">{isReactivation ? `Reactivate Vela ${planName}` : `Vela ${planName}`}</div>
             <div className="inline-flex rounded-full border p-1 bg-muted/40 text-sm">
               <button
                 type="button"
@@ -486,7 +505,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
               </div>
               <Button size="lg" className="mt-3 w-full gap-2" disabled={reactivating} onClick={reactivateWithSavedCard}>
                 {reactivating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
-                Reactivate Pro · {promo?.final?.formatted ?? `€${Math.round(priceForCycle / 100)}`} today
+                Reactivate {planName} · {promo?.final?.formatted ?? `€${Math.round(priceForCycle / 100)}`} today
               </Button>
             </>
           ) : (
@@ -502,7 +521,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
               )}
               <Button size="lg" className="mt-3 w-full gap-2" onClick={startCheckout}>
                 <ArrowUpRight className="h-4 w-4" />
-                {isReactivation ? "Reactivate Pro" : "Upgrade to Pro"} · {promo?.final?.formatted ?? `€${Math.round(priceForCycle / 100)}`} today
+                {isReactivation ? `Reactivate ${planName}` : `Upgrade to ${planName}`} · {promo?.final?.formatted ?? `€${Math.round(priceForCycle / 100)}`} today
               </Button>
             </>
           )}
@@ -515,11 +534,11 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
       )}
 
       {/* Existing paid user: cycle switching */}
-      {isProLike && (
+      {hasTargetPlanOrHigher && (
         <Card className="p-4 sm:p-5">
           <div className="font-semibold text-base">Change billing cycle</div>
           <p className="text-xs text-muted-foreground mt-1">
-            You're on the Pro plan. You can switch cycles at any time.
+            You're on the {planName} plan or higher. You can switch cycles at any time.
           </p>
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <div className="rounded-lg border p-3">

@@ -56,19 +56,82 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
+  // Read the previous cancel_at_period_end so we can detect scheduled-cancel
+  // and undo-cancel transitions coming from the Stripe portal (or any other
+  // out-of-band source) and mirror them to the app UI + audit trail.
+  const { data: previous } = await getSupabase()
+    .from("subscriptions")
+    .select("cancel_at_period_end, status")
+    .eq("stripe_subscription_id", subscription.id)
+    .eq("environment", env)
+    .maybeSingle();
+  const wasCancelScheduled = Boolean((previous as any)?.cancel_at_period_end);
+  const isCancelScheduled = Boolean(subscription.cancel_at_period_end);
+
   await getSupabase().from("subscriptions").update({
     status: subscription.status,
     product_id: productId,
     price_id: priceId,
     current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
     current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-    cancel_at_period_end: subscription.cancel_at_period_end || false,
+    cancel_at_period_end: isCancelScheduled,
     updated_at: new Date().toISOString(),
   }).eq("stripe_subscription_id", subscription.id).eq("environment", env);
 
   // Mirror trial → active transition onto profiles so app UI updates without a Stripe call.
   const userId = subscription.metadata?.userId;
   if (userId) {
+    // Mirror the cancel-at-period-end flag onto profiles so pages that
+    // only read the profile row (banners, plan label) also update.
+    await getSupabase().from("profiles").update({
+      cancel_at_period_end: isCancelScheduled,
+      cancellation_scheduled_at: isCancelScheduled ? new Date().toISOString() : null,
+      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    }).eq("user_id", userId);
+
+    // Audit + email for out-of-band transitions (e.g. Stripe portal). Our
+    // in-app cancel-subscription/undo-cancellation functions insert their
+    // own audit rows synchronously, so we dedupe by looking for a matching
+    // audit row written in the last 60 seconds before inserting one here.
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    if (isCancelScheduled && !wasCancelScheduled) {
+      const { data: recent } = await getSupabase()
+        .from("cancellation_feedback")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("event_type", "cancellation")
+        .gte("created_at", cutoff)
+        .limit(1)
+        .maybeSingle();
+      if (!recent) {
+        await getSupabase().from("cancellation_feedback").insert({
+          user_id: userId,
+          stripe_subscription_id: subscription.id,
+          event_type: "cancellation",
+          accepted_offer: false,
+          metadata: { source: "stripe_portal", environment: env, current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null },
+        });
+      }
+    } else if (!isCancelScheduled && wasCancelScheduled) {
+      const { data: recent } = await getSupabase()
+        .from("cancellation_feedback")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("event_type", "cancellation_undone")
+        .gte("created_at", cutoff)
+        .limit(1)
+        .maybeSingle();
+      if (!recent) {
+        await getSupabase().from("cancellation_feedback").insert({
+          user_id: userId,
+          stripe_subscription_id: subscription.id,
+          event_type: "cancellation_undone",
+          accepted_offer: false,
+          metadata: { source: "stripe_portal", environment: env },
+        });
+      }
+    }
+
     const activePlan = planFromPriceLookup(priceId);
     if (subscription.status === "active") {
       await getSupabase().from("profiles").update({

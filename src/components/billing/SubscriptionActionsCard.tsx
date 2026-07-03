@@ -33,6 +33,28 @@ export function SubscriptionActionsCard() {
   };
   useEffect(() => { load(); }, [user?.id]);
 
+  // Keep the card in sync with Stripe webhook writes: cancel_at_period_end
+  // and status can change from the Stripe portal (or the payments-webhook
+  // after any subscription.updated event) without the user leaving this page.
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`sub-actions-${user.id}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "UPDATE", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
+        () => { void load(); },
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
+        () => { void load(); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   if (loading) return null;
   const isActivePro = sub && ["active", "trialing", "past_due"].includes(sub.status);
   if (!isActivePro) return null;

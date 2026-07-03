@@ -949,11 +949,14 @@ export type Database = {
           company: string | null
           created_at: string
           email: string
+          firm_name: string | null
           first_name: string
           id: string
+          internal_notes: string | null
           ip: unknown
           last_name: string
           message: string | null
+          num_clients: number | null
           role: string
           source: string | null
           status: string
@@ -966,11 +969,14 @@ export type Database = {
           company?: string | null
           created_at?: string
           email: string
+          firm_name?: string | null
           first_name: string
           id?: string
+          internal_notes?: string | null
           ip?: unknown
           last_name: string
           message?: string | null
+          num_clients?: number | null
           role: string
           source?: string | null
           status?: string
@@ -983,11 +989,14 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string
+          firm_name?: string | null
           first_name?: string
           id?: string
+          internal_notes?: string | null
           ip?: unknown
           last_name?: string
           message?: string | null
+          num_clients?: number | null
           role?: string
           source?: string | null
           status?: string
@@ -2951,6 +2960,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      admin_new_enterprise_leads_count: { Args: never; Returns: number }
       admin_referral_analytics: {
         Args: never
         Returns: {

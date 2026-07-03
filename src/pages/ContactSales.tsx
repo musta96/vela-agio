@@ -24,6 +24,16 @@ const schema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
   role: z.string().trim().min(1, "Role is required").max(120),
   company: z.string().trim().max(200).optional().or(z.literal("")),
+  firm_name: z.string().trim().max(200).optional().or(z.literal("")),
+  num_clients: z
+    .string()
+    .trim()
+    .max(10)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || (/^\d+$/.test(v) && Number(v) >= 0 && Number(v) <= 1_000_000), {
+      message: "Enter a whole number of clients",
+    }),
   team_size: z.string().trim().max(50).optional().or(z.literal("")),
   message: z.string().trim().max(2000).optional().or(z.literal("")),
 });
@@ -44,6 +54,8 @@ export default function ContactSales() {
     email: user?.email ?? "",
     role: "",
     company: "",
+    firm_name: "",
+    num_clients: "",
     team_size: "",
     message: "",
   });
@@ -77,23 +89,31 @@ export default function ContactSales() {
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("enterprise_leads").insert({
+      const { data: inserted, error } = await supabase.from("enterprise_leads").insert({
         first_name: parsed.data.first_name,
         last_name: parsed.data.last_name,
         email: parsed.data.email,
         role: parsed.data.role,
         company: parsed.data.company || null,
+        firm_name: parsed.data.firm_name || parsed.data.company || null,
+        num_clients: parsed.data.num_clients ? Number(parsed.data.num_clients) : null,
         team_size: parsed.data.team_size || null,
         message: parsed.data.message || null,
         source,
         user_id: user?.id ?? null,
         user_agent: navigator.userAgent.slice(0, 500),
-      });
+      }).select("id").maybeSingle();
       if (error) throw error;
       setSubmitted(true);
+      // Fire-and-forget: notify admins in-app + attempt email.
+      if (inserted?.id) {
+        supabase.functions
+          .invoke("notify-enterprise-lead", { body: { lead_id: inserted.id } })
+          .catch((e) => console.warn("[contact-sales] notify skipped", e?.message));
+      }
       toast({
         title: "Request sent",
-        description: "Our team will reach out within one business day.",
+        description: "Thanks — we'll be in touch within one business day.",
       });
     } catch (err) {
       console.error("[contact-sales] submit failed", err);
@@ -213,7 +233,7 @@ export default function ContactSales() {
                     aria-invalid={!!errors.role}
                   />
                 </Field>
-                <Field label="Company" error={errors.company} htmlFor="company">
+                <Field label="Firm / company name" error={errors.company} htmlFor="company">
                   <Input
                     id="company"
                     autoComplete="organization"
@@ -222,17 +242,20 @@ export default function ContactSales() {
                     onChange={(e) => update("company", e.target.value)}
                   />
                 </Field>
-                <Field label="Team size" error={errors.team_size} htmlFor="team_size">
-                  <Select value={form.team_size} onValueChange={(v) => update("team_size", v)}>
-                    <SelectTrigger id="team_size">
-                      <SelectValue placeholder="Select team size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEAM_SIZES.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field
+                  label="Approx. number of clients"
+                  error={errors.num_clients}
+                  htmlFor="num_clients"
+                >
+                  <Input
+                    id="num_clients"
+                    inputMode="numeric"
+                    placeholder="e.g. 25"
+                    value={form.num_clients}
+                    maxLength={10}
+                    onChange={(e) => update("num_clients", e.target.value.replace(/[^\d]/g, ""))}
+                    aria-invalid={!!errors.num_clients}
+                  />
                 </Field>
               </div>
 

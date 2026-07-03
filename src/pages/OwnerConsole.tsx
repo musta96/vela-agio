@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
+import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
@@ -93,6 +94,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/legal": "legal",
   "/owner/security": "security",
   "/owner/onboarding-funnel": "onboarding-funnel",
+  "/owner/enterprise-leads": "enterprise-leads",
 };
 
 // Canonical route per section (reverse of OWNER_ROUTE_SECTIONS, first wins).
@@ -123,6 +125,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 // Extra sections registered after the initial map:
 (OWNER_SECTION_ROUTES as any).security = "/owner/security";
 (OWNER_SECTION_ROUTES as any)["onboarding-funnel"] = "/owner/onboarding-funnel";
+(OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
@@ -136,6 +139,7 @@ export default function OwnerConsole() {
   const [detailData, setDetailData] = useState<any>(null);
   const [liveEvents, setLiveEvents] = useState<AuditEntry[]>([]);
   const [openTickets, setOpenTickets] = useState<number>(0);
+  const [newEnterpriseLeads, setNewEnterpriseLeads] = useState<number>(0);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -162,6 +166,22 @@ export default function OwnerConsole() {
     fetchCount();
     const id = setInterval(fetchCount, 60_000);
     return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // Enterprise leads with status "new" — drives the sidebar badge.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLeadCount = async () => {
+      const { data } = await supabase.rpc("admin_new_enterprise_leads_count");
+      if (!cancelled) setNewEnterpriseLeads(typeof data === "number" ? data : 0);
+    };
+    fetchLeadCount();
+    const id = setInterval(fetchLeadCount, 60_000);
+    const ch = supabase
+      .channel("owner-enterprise-leads")
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "enterprise_leads" }, fetchLeadCount)
+      .subscribe();
+    return () => { cancelled = true; clearInterval(id); supabase.removeChannel(ch); };
   }, []);
 
   const load = useCallback(async () => {
@@ -834,6 +854,7 @@ export default function OwnerConsole() {
     apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
     "billing-settings": <BillingSettingsPanel />,
+    "enterprise-leads": <EnterpriseLeadsPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,
     revenue: billingSection,
@@ -865,6 +886,7 @@ export default function OwnerConsole() {
         signalAlerts={flaggedSignals}
         gdprPending={pendingGdpr}
         openTickets={openTickets}
+        newEnterpriseLeads={newEnterpriseLeads}
         onKill={() => setOwnerSection("kill")}
       />
       <div className="flex-1 min-w-0 flex flex-col">
@@ -922,7 +944,7 @@ function relTime(iso: string) {
   return `${d}d`;
 }
 
-function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; onKill: () => void }) {
+function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending, openTickets, newEnterpriseLeads, onKill }: { section: string; setSection: (s: any) => void; flagsOff: number; signalAlerts: number; gdprPending: number; openTickets: number; newEnterpriseLeads: number; onKill: () => void }) {
   const navigate = useNavigate();
   const groups: { label: string; items: { key: string; label: string; icon: React.ReactNode; badge?: string | number; href?: string }[] }[] = [
     { label: "Overview", items: [
@@ -941,6 +963,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
       { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
+      { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
     ]},
     { label: "Platform", items: [
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },

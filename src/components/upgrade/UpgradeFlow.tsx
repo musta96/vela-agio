@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Check, ArrowUpRight, Info, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Check, ArrowUpRight, Info, RefreshCw, AlertTriangle } from "lucide-react";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { toast } from "sonner";
 import { PromoCodeField, type PromoValidation } from "@/components/billing/PromoCodeField";
@@ -65,6 +65,19 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   const [promo, setPromo] = useState<PromoValidation | null>(null);
   const [reactivating, setReactivating] = useState(false);
   const [useExistingCard, setUseExistingCard] = useState(true);
+  /**
+   * Set when `create-checkout` returns 409 `price_mismatch`. We drop out of
+   * the embedded checkout view, show a banner explaining that the total
+   * changed, and let the user retry — the retry uses the server-computed
+   * total so the second attempt cannot mismatch again.
+   */
+  const [priceMismatch, setPriceMismatch] = useState<null | {
+    serverTotalCents: number;
+    expectedTotalCents: number;
+    currency?: string;
+    message?: string;
+  }>(null);
+  const [retryTotalCents, setRetryTotalCents] = useState<number | null>(null);
 
   // Load Pro plan pricing + Stripe lookup keys.
   useEffect(() => {
@@ -171,6 +184,17 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   const startCheckout = () => {
     if (!user) { navigate("/auth"); return; }
     if (!lookupForCycle) { toast.error("Plan not configured yet"); return; }
+    // Fresh attempt — clear any prior mismatch so the banner disappears.
+    setPriceMismatch(null);
+    setShowCheckout(true);
+    onCheckoutMounted?.();
+  };
+
+  /** Retry after a 409 price_mismatch, using the server-computed total. */
+  const retryAfterPriceMismatch = () => {
+    if (!priceMismatch) return;
+    setRetryTotalCents(priceMismatch.serverTotalCents);
+    setPriceMismatch(null);
     setShowCheckout(true);
     onCheckoutMounted?.();
   };
@@ -228,7 +252,10 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   // ── Checkout view ──
   if (showCheckout) {
     const originalFormatted = `€${(priceForCycle / 100).toFixed(2)}`;
-    const finalFormatted = promo?.final?.formatted ?? originalFormatted;
+    const effectiveCents = retryTotalCents ?? promo?.final?.cents ?? priceForCycle;
+    const finalFormatted = retryTotalCents != null
+      ? `€${(retryTotalCents / 100).toFixed(2)}`
+      : (promo?.final?.formatted ?? originalFormatted);
     const hasDiscount = !!promo && promo.discount?.cents > 0;
     const renewalCadence = cycle === "annual" ? "yearly" : "monthly";
     const renewalAmount = `€${(priceForCycle / 100).toFixed(2)}`;
@@ -269,7 +296,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
             )}
             <div className="flex items-center justify-between text-base font-semibold pt-1 border-t border-primary/10">
               <span>Due today</span>
-              <span data-testid="due-today-amount" data-cents={promo?.final?.cents ?? priceForCycle}>{finalFormatted}</span>
+              <span data-testid="due-today-amount" data-cents={effectiveCents}>{finalFormatted}</span>
             </div>
             {hasDiscount && promo?.durationLabel && (
               <div className="text-[11px] text-muted-foreground text-right">
@@ -288,8 +315,13 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
           customerEmail={user?.email}
           returnUrl={returnUrl}
           promoCode={promo?.code}
-          expectedTotalCents={promo?.final?.cents ?? priceForCycle}
+          expectedTotalCents={effectiveCents}
           expectedCurrency={promo?.final?.currency ?? "eur"}
+          onPriceMismatch={(info) => {
+            setShowCheckout(false);
+            setRetryTotalCents(null);
+            setPriceMismatch(info);
+          }}
         />
       </div>
     );
@@ -297,6 +329,46 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
+      {priceMismatch && (
+        <div
+          role="alert"
+          data-testid="price-mismatch-banner"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3"
+        >
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 text-sm">
+            <div className="font-semibold text-amber-900 dark:text-amber-200">
+              The total changed before checkout could start
+            </div>
+            <div className="text-xs text-amber-800/90 dark:text-amber-200/80 mt-1">
+              We showed you{" "}
+              <strong>€{(priceMismatch.expectedTotalCents / 100).toFixed(2)}</strong> but
+              the current price is{" "}
+              <strong>€{(priceMismatch.serverTotalCents / 100).toFixed(2)}</strong>.
+              Nothing was charged. Review the new amount and continue when you're ready.
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                data-testid="price-mismatch-retry"
+                onClick={retryAfterPriceMismatch}
+                className="gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Continue at €{(priceMismatch.serverTotalCents / 100).toFixed(2)}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setPriceMismatch(null)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {contextFeatureName && (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
           <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />

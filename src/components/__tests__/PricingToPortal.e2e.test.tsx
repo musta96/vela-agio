@@ -35,6 +35,16 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: currentUser, loading: false }),
 }));
 
+vi.mock("@/hooks/useEntitlements", () => ({
+  useEntitlements: () => ({
+    tier: "explorer", planSlug: "explorer", planName: "Explorer",
+    featureKeys: new Set<string>(), betaActive: false, source: "free" as const,
+    limits: { maxPortfolios: 1, maxPositionsPerPortfolio: 10, maxWatchlist: 5, maxAiQuestionsPerMonth: 5 },
+    loading: false, refresh: async () => {}, has: () => false,
+  }),
+}));
+
+
 import { PricingSection } from "@/components/landing/pricing-section";
 
 const openSpy = vi.fn();
@@ -51,7 +61,7 @@ describe("Pricing → Checkout → Portal end-to-end (mocked)", () => {
     currentUser = null;
     const { unmount } = render(
       <MemoryRouter initialEntries={["/pricing"]}>
-        <PricingSection />
+        <PricingSection confirmBeforeCheckout={false} />
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByTestId("pricing-cta-pro"));
@@ -66,7 +76,7 @@ describe("Pricing → Checkout → Portal end-to-end (mocked)", () => {
 
     render(
       <MemoryRouter initialEntries={["/pricing"]}>
-        <PricingSection />
+        <PricingSection confirmBeforeCheckout={false} />
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByTestId("pricing-cta-pro"));

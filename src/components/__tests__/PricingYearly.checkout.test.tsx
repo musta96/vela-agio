@@ -35,6 +35,16 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "u_yearly", email: "y@vela.ai" }, loading: false }),
 }));
 
+vi.mock("@/hooks/useEntitlements", () => ({
+  useEntitlements: () => ({
+    tier: "explorer", planSlug: "explorer", planName: "Explorer",
+    featureKeys: new Set<string>(), betaActive: false, source: "free" as const,
+    limits: { maxPortfolios: 1, maxPositionsPerPortfolio: 10, maxWatchlist: 5, maxAiQuestionsPerMonth: 5 },
+    loading: false, refresh: async () => {}, has: () => false,
+  }),
+}));
+
+
 import { PricingSection } from "@/components/landing/pricing-section";
 
 beforeEach(() => {
@@ -47,7 +57,7 @@ describe("Pricing → yearly checkout", () => {
   it("clicking Upgrade after toggling yearly calls create-checkout with stripe_yearly_price_id", async () => {
     render(
       <MemoryRouter initialEntries={["/pricing"]}>
-        <PricingSection />
+        <PricingSection confirmBeforeCheckout={false} />
       </MemoryRouter>,
     );
 

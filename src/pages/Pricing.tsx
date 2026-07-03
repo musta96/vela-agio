@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { PricingSection } from "@/components/landing/pricing-section";
+import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 import { ArrowRight, ChevronDown, Check, X } from "lucide-react";
 import { PLAN_LIST } from "@/lib/planFeatures";
 
@@ -93,6 +94,11 @@ export default function Pricing() {
 
       {/* PRICING TIERS (shared with landing) */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 pb-16">
+          {user && (
+            <div className="max-w-4xl mx-auto mb-8">
+              <CurrentPlanBanner />
+            </div>
+          )}
           <PricingSection />
         </section>
 

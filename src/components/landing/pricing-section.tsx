@@ -11,16 +11,36 @@ import { useAuth } from "@/hooks/useAuth";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { PLAN_LIST, type PlanDefinition } from "@/lib/planFeatures";
+import { PlanConfirmDialog, type PendingSelection } from "@/components/pricing/PlanConfirmDialog";
 
 /** Plans rendered on the pricing section (single source of truth in planFeatures.ts). */
 const plans: PlanDefinition[] = PLAN_LIST;
 
-export function PricingSection() {
+export function PricingSection({ confirmBeforeCheckout = true }: { confirmBeforeCheckout?: boolean } = {}) {
   const [frequency, setFrequency] = React.useState<FREQUENCY>("monthly");
   const { openCheckout, checkoutElement } = useStripeCheckout();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [pending, setPending] = React.useState<PendingSelection | null>(null);
+
+  /** Actually open Stripe Embedded Checkout for a confirmed selection. */
+  const beginCheckout = React.useCallback((selection: PendingSelection) => {
+    if (!user) return;
+    logPaymentEvent("open_checkout", {
+      plan: selection.plan.slug,
+      frequency,
+      lookupKey: selection.priceId,
+      userId: user.id,
+      environment: getStripeEnvironment(),
+    });
+    openCheckout({
+      priceId: selection.priceId,
+      userId: user.id,
+      customerEmail: user.email ?? undefined,
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+  }, [user, frequency, openCheckout]);
 
   /** Single entry point used by every PricingCard CTA. */
   const onChoose = React.useCallback((plan: PlanDefinition) => {
@@ -35,21 +55,15 @@ export function PricingSection() {
       navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.slug}&freq=${frequency}`)}`);
       return;
     }
-    const lookupKey = plan.lookupKey[frequency === "yearly" ? "annual" : "monthly"];
-    logPaymentEvent("open_checkout", {
-      plan: plan.slug,
-      frequency,
-      lookupKey,
-      userId: user.id,
-      environment: getStripeEnvironment(),
-    });
-    openCheckout({
-      priceId: lookupKey,
-      userId: user.id,
-      customerEmail: user.email ?? undefined,
-      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-    });
-  }, [user, frequency, navigate, openCheckout]);
+    const cadence = frequency === "yearly" ? "annual" : "monthly";
+    const lookupKey = plan.lookupKey[cadence];
+    const selection: PendingSelection = { plan, cadence, priceId: lookupKey };
+    if (confirmBeforeCheckout) {
+      setPending(selection);
+    } else {
+      beginCheckout(selection);
+    }
+  }, [user, frequency, navigate, confirmBeforeCheckout, beginCheckout]);
 
   // Auto-resume checkout after auth: if we land here with ?plan=pro&freq=yearly
   // and the user is logged in, open the Stripe form immediately so the journey
@@ -104,6 +118,12 @@ export function PricingSection() {
 
       {/* Stripe Embedded Checkout mounts inline when the hook opens it. */}
       {checkoutElement}
+
+      <PlanConfirmDialog
+        selection={pending}
+        onCancel={() => setPending(null)}
+        onConfirm={(sel) => { setPending(null); beginCheckout(sel); }}
+      />
     </div>
   );
 }

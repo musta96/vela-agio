@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, ArrowUpRight, Sparkles, AlertTriangle, Zap, Calendar, ExternalLink, Loader2, FileText, Download, RefreshCw, History, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
@@ -130,8 +131,9 @@ export default function PlansBilling() {
   const credits = useAiCredits();
   const ent = useEntitlements();
   const { openCheckout, checkoutElement } = useStripeCheckout();
-  // Default frequency for the plan grid; we don't need a toggle here yet.
-  const billingFrequency: "monthly" | "yearly" = "monthly";
+  // Toggle for the "Available plans" grid so users can compare and switch
+  // between monthly and annual pricing before checkout.
+  const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
   // Beta access only *adds* features on top of a paid sub — never replaces it.
   // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
   // `betaBonus`  = user has a real paid sub AND beta_tester role.
@@ -593,10 +595,20 @@ export default function PlansBilling() {
       {pricingEnabled && plans.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Available plans</CardTitle>
-            <CardDescription>
-              Pick the tier that matches how you invest. You'll be redirected to checkout where any active price experiments apply.
-            </CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Available plans</CardTitle>
+                <CardDescription>
+                  Pick the tier that matches how you invest. Switch between monthly and annual pricing — annual saves ~20% on most tiers.
+                </CardDescription>
+              </div>
+              <Tabs value={billingFrequency} onValueChange={(v) => setBillingFrequency(v as "monthly" | "yearly")}>
+                <TabsList className="h-9">
+                  <TabsTrigger value="monthly" className="text-xs">Monthly</TabsTrigger>
+                  <TabsTrigger value="yearly" className="text-xs">Annual · save ~20%</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -669,9 +681,21 @@ function PlanCard({
           ? <Badge className="text-[10px]">Current</Badge>
           : p.highlighted ? <Badge variant="outline" className="text-[10px]">Popular</Badge> : null}
       </div>
-      <div className="text-2xl font-bold">{formatPrice(monthly, "mo")}</div>
-      {yearly != null && yearly > 0 && (
-        <div className="text-xs text-muted-foreground">or {formatPrice(yearly, "yr")}</div>
+      {frequency === "yearly" && yearly != null && yearly > 0 ? (
+        <>
+          <div className="text-2xl font-bold">
+            {formatPrice(Math.round(yearly / 12), "mo")}
+            <span className="text-xs text-muted-foreground font-normal ml-1">effective</span>
+          </div>
+          <div className="text-xs text-muted-foreground">Billed {formatPrice(yearly, "yr")}</div>
+        </>
+      ) : (
+        <>
+          <div className="text-2xl font-bold">{formatPrice(monthly, "mo")}</div>
+          {yearly != null && yearly > 0 && (
+            <div className="text-xs text-muted-foreground">or {formatPrice(yearly, "yr")} annually</div>
+          )}
+        </>
       )}
       <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
         {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (

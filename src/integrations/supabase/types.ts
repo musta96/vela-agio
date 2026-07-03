@@ -830,6 +830,60 @@ export type Database = {
         }
         Relationships: []
       }
+      enterprise_leads: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          ip: unknown
+          last_name: string
+          message: string | null
+          role: string
+          source: string | null
+          status: string
+          team_size: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          ip?: unknown
+          last_name: string
+          message?: string | null
+          role: string
+          source?: string | null
+          status?: string
+          team_size?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          ip?: unknown
+          last_name?: string
+          message?: string | null
+          role?: string
+          source?: string | null
+          status?: string
+          team_size?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       feature_catalog: {
         Row: {
           category: string

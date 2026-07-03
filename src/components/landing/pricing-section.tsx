@@ -65,7 +65,7 @@ const plans: Plan[] = [
       "SSO & audit logs",
       "Dedicated success manager",
     ],
-    btn: { text: "Contact sales", href: "/auth" },
+    btn: { text: "Contact sales", href: "/contact-sales?source=pricing_enterprise" },
     contact: true,
   },
 ];

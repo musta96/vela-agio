@@ -401,7 +401,7 @@ export default function PlansBilling() {
 
       {/* Invoices / Payments summary -------------------------------------- */}
       {hasStripeCustomer && (
-        <Card id="available-plans">
+        <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -592,7 +592,7 @@ export default function PlansBilling() {
 
       {/* Upgrade options (shows tiers when pricing flag enabled) ------------ */}
       {pricingEnabled && plans.length > 0 && (
-        <Card>
+        <Card id="available-plans">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>

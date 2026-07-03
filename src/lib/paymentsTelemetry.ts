@@ -13,6 +13,7 @@ export type PaymentEvent =
   | "checkout_invoke_start"
   | "checkout_invoke_success"
   | "checkout_invoke_error"
+  | "checkout_price_mismatch"
   | "portal_invoke_start"
   | "portal_invoke_success"
   | "portal_invoke_error"

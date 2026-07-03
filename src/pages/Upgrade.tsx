@@ -3,6 +3,7 @@ import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Sparkles } from "lucide-react";
 import { UpgradeFlow } from "@/components/upgrade/UpgradeFlow";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
 
 export default function Upgrade() {
   const [params] = useSearchParams();
@@ -18,6 +19,7 @@ export default function Upgrade() {
         title="Upgrade to Pro"
         description="Everything you're missing, side-by-side with what you're using today."
       />
+      <PastDueBanner />
       <UpgradeFlow
         contextFeatureKey={feature}
         contextFeatureName={featureName}

@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpgradeFlow } from "./UpgradeFlow";
+import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 
 interface Props {
   open: boolean;
@@ -22,6 +23,9 @@ export function UpgradeModal({ open, onOpenChange, featureKey, featureName, retu
         <DialogHeader>
           <DialogTitle>Upgrade to Vela Pro</DialogTitle>
         </DialogHeader>
+        <div className="mb-3">
+          <CurrentPlanBanner compact />
+        </div>
         <UpgradeFlow
           contextFeatureKey={featureKey}
           contextFeatureName={featureName}

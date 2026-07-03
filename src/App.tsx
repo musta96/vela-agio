@@ -182,7 +182,7 @@ const App = () => (
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/plans-billing" element={<PlansBilling />} />
-            <Route path="/upgrade" element={<Upgrade />} />
+            <Route path="/upgrade" element={<Navigate to="/pricing" replace />} />
             <Route path="/legal/:kind" element={<LegalDoc />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />
             <Route path="/dealflow" element={<DealFlow />} />

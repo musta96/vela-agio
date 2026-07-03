@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
+import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
@@ -75,6 +76,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/roles": "roles",
   "/owner/api-keys": "apikeys",
   "/owner/plans": "plans",
+  "/owner/billing-settings": "billing-settings",
   "/owner/feature-catalog": "feature-catalog",
   "/owner/referrals": "referrals",
   "/owner/revenue": "revenue",
@@ -101,6 +103,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
   roles: "/owner/roles",
   apikeys: "/owner/api-keys",
   plans: "/owner/plans",
+  "billing-settings": "/owner/billing-settings",
   "feature-catalog": "/owner/feature-catalog",
   referrals: "/owner/referrals",
   revenue: "/owner/revenue",
@@ -830,6 +833,7 @@ export default function OwnerConsole() {
     roles: rolesSection,
     apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
+    "billing-settings": <BillingSettingsPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,
     revenue: billingSection,
@@ -936,6 +940,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "referrals", label: "Referrals & beta", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
+      { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
     ]},
     { label: "Platform", items: [
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },

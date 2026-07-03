@@ -51,6 +51,12 @@ export default function Upgrade() {
     setParams(next, { replace: true });
   };
 
+  const switchCycle = (cycle: "monthly" | "annual") => {
+    const next = new URLSearchParams(params);
+    next.set("cycle", cycle);
+    setParams(next, { replace: true });
+  };
+
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0 max-w-3xl mx-auto">
       <SEO title={`${title} | Vela`} description="Compare plans and pick monthly or annual billing." path="/upgrade" />
@@ -72,11 +78,12 @@ export default function Upgrade() {
       </div>
       {planLabel && (
         <Card className="p-3" data-testid="upgrade-plan-switcher">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-xs text-muted-foreground">
-              Change tier without leaving this page:
-            </div>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-xs text-muted-foreground">
+                Change tier without leaving this page:
+              </div>
+              <div className="flex flex-wrap gap-2">
               {SWITCHABLE_PLANS.map((p) => {
                 const isActive = p.slug === planParam;
                 if (p.slug === "enterprise") {
@@ -107,6 +114,30 @@ export default function Upgrade() {
                   </Button>
                 );
               })}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border pt-3">
+              <div className="text-xs text-muted-foreground">Billing cycle:</div>
+              <div className="flex flex-wrap gap-2" data-testid="upgrade-cycle-switcher">
+                {(["monthly", "annual"] as const).map((c) => {
+                  const isActive = initialCycle === c;
+                  return (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant={isActive ? "default" : "outline"}
+                      onClick={() => switchCycle(c)}
+                      data-testid={`switch-cycle-${c}`}
+                      aria-pressed={isActive}
+                      className="gap-1 capitalize"
+                    >
+                      {isActive && <Check className="h-3.5 w-3.5" />}
+                      {c === "annual" ? "Annual · save ~20%" : "Monthly"}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </Card>

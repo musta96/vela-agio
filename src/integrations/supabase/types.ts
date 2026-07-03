@@ -393,6 +393,12 @@ export type Database = {
       }
       alert_preferences: {
         Row: {
+          daily_brief_email: boolean
+          daily_brief_enabled: boolean
+          daily_brief_hour_local: number
+          daily_brief_last_sent_on: string | null
+          daily_brief_push: boolean
+          daily_brief_timezone: string
           daily_digest_enabled: boolean
           digest_hour_utc: number
           email_enabled: boolean
@@ -401,6 +407,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          daily_brief_email?: boolean
+          daily_brief_enabled?: boolean
+          daily_brief_hour_local?: number
+          daily_brief_last_sent_on?: string | null
+          daily_brief_push?: boolean
+          daily_brief_timezone?: string
           daily_digest_enabled?: boolean
           digest_hour_utc?: number
           email_enabled?: boolean
@@ -409,6 +421,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          daily_brief_email?: boolean
+          daily_brief_enabled?: boolean
+          daily_brief_hour_local?: number
+          daily_brief_last_sent_on?: string | null
+          daily_brief_push?: boolean
+          daily_brief_timezone?: string
           daily_digest_enabled?: boolean
           digest_hour_utc?: number
           email_enabled?: boolean
@@ -800,6 +818,33 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      daily_brief_insights: {
+        Row: {
+          as_of_date: string
+          change_pct: number | null
+          created_at: string
+          id: string
+          insight: string
+          symbol: string
+        }
+        Insert: {
+          as_of_date: string
+          change_pct?: number | null
+          created_at?: string
+          id?: string
+          insight: string
+          symbol: string
+        }
+        Update: {
+          as_of_date?: string
+          change_pct?: number | null
+          created_at?: string
+          id?: string
+          insight?: string
+          symbol?: string
         }
         Relationships: []
       }

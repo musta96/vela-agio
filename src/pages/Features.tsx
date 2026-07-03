@@ -176,26 +176,18 @@ export default function Features() {
   // byte identical, which meant only 2 rows ever disappeared and the toggle
   // looked broken.
   const rowDiffers = (row: { values: Record<PlanKey, Cell> }) => {
-    // Treat any truthy value (true or a variant label like "Real-time") as
-    // "included". A row is a difference when at least one tier is NOT
-    // included and at least one IS, OR when the variant labels differ AND
-    // that variant materially changes access (i.e. any tier is fully
-    // excluded). Rows where every tier is included in some form — even with
-    // different variant labels like "Delayed / Real-time / Real-time" —
-    // are collapsed, because the toggle is meant to answer "what am I
-    // actually giving up on the cheaper plan?".
-    const included = (v: Cell) => v !== false;
-    const states = PLAN_COLUMNS.map((p) => included(row.values[p.key]));
-    const anyIn = states.some(Boolean);
-    const anyOut = states.some((s) => !s);
-    if (anyIn && anyOut) return true;
-    // All included: only show if the variant labels themselves differ in
-    // both directions (e.g. one tier is a hard-capped variant).
-    const labels = PLAN_COLUMNS.map((p) => {
-      const v = row.values[p.key];
-      return v === true ? "__full__" : String(v).trim().toLowerCase();
-    });
-    return new Set(labels).size > 1;
+    // A row is a "difference" when the tiers do not evaluate to the same
+    // access. We compare on the normalised value so:
+    //   - Included / Included / Included               → hidden (same)
+    //   - Real-time / Real-time / Real-time            → hidden (same)
+    //   - Delayed / Real-time / Real-time              → shown (variant differs)
+    //   - Not included / Included / Included           → shown (hard split)
+    const norm = (v: Cell) =>
+      v === true ? "__included__"
+      : v === false ? "__not_included__"
+      : String(v).trim().toLowerCase();
+    const vals = PLAN_COLUMNS.map((p) => norm(row.values[p.key]));
+    return new Set(vals).size > 1;
   };
   const FILTERED = onlyDiffs
     ? COMPARISON.map((g) => ({ ...g, rows: g.rows.filter(rowDiffers) })).filter((g) => g.rows.length > 0)

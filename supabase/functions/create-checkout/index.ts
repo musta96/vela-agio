@@ -39,7 +39,11 @@ Deno.serve(async (req) => {
   let logCtx: Record<string, unknown> = {};
   try {
     const body = await req.json();
-    const { priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment, referralCode, promoCode, correlationId } = body ?? {};
+    const {
+      priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment,
+      referralCode, promoCode, correlationId,
+      expectedTotalCents, expectedCurrency,
+    } = body ?? {};
 
     // Derive userId from the caller's JWT — never trust the client-supplied value.
     // Guest checkouts (no auth header) may still proceed but cannot bind to any account.
@@ -81,6 +85,8 @@ Deno.serve(async (req) => {
     }
     const stripePrice = prices.data[0];
     const isRecurring = stripePrice.type === "recurring";
+    const unitAmount = stripePrice.unit_amount ?? 0;
+    const priceCurrency = (stripePrice.currency ?? "eur").toLowerCase();
 
     const customerId = (customerEmail || userId)
       ? await resolveOrCreateCustomer(stripe, { email: customerEmail, userId })
@@ -95,6 +101,7 @@ Deno.serve(async (req) => {
 
     // Resolve optional referral code -> Stripe discount
     let discounts: { coupon: string }[] | undefined;
+    let referralCoupon: any | null = null;
     if (referralCode && typeof referralCode === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(referralCode)) {
       try {
         const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -102,6 +109,7 @@ Deno.serve(async (req) => {
         const r = data as any;
         if (r?.found && r.active && !r.expired && !r.exhausted && r.kind === "discount" && r.stripe_coupon_id) {
           discounts = [{ coupon: String(r.stripe_coupon_id) }];
+          try { referralCoupon = await stripe.coupons.retrieve(String(r.stripe_coupon_id)); } catch { /* keep null */ }
         }
       } catch (e) { console.warn("referral lookup failed", e); }
     }
@@ -110,17 +118,61 @@ Deno.serve(async (req) => {
     // If both a referralCode-derived coupon and a promo are present, the referral
     // wins (referral code took the explicit action of being applied first).
     let promoDiscounts: { promotion_code?: string; coupon?: string }[] | undefined;
+    let promoCoupon: any | null = null;
     if (!discounts && promoCode && typeof promoCode === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(promoCode)) {
       try {
         const promos = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 });
-        if (promos.data.length) promoDiscounts = [{ promotion_code: promos.data[0].id }];
-        else {
+        if (promos.data.length) {
+          promoDiscounts = [{ promotion_code: promos.data[0].id }];
+          promoCoupon = promos.data[0].coupon;
+        } else {
           const c = await stripe.coupons.retrieve(promoCode);
-          if (c?.valid) promoDiscounts = [{ coupon: c.id }];
+          if (c?.valid) { promoDiscounts = [{ coupon: c.id }]; promoCoupon = c; }
         }
       } catch (e) { console.warn("promo lookup failed", (e as Error).message); }
     }
     const finalDiscounts = discounts ?? promoDiscounts;
+    const activeCoupon = referralCoupon ?? promoCoupon;
+
+    // Server-side price integrity check. If the client told us what it
+    // rendered under "Due today", recompute the same discount here and
+    // refuse to open a session on mismatch — otherwise a tampered client
+    // or a stale promo could authorise a charge different from what the
+    // user saw. Off-by-one rounding is tolerated (Stripe rounds percent
+    // discounts to the nearest cent).
+    if (typeof expectedTotalCents === "number" && Number.isFinite(expectedTotalCents)) {
+      let discountCents = 0;
+      if (activeCoupon?.percent_off) {
+        discountCents = Math.round(unitAmount * (Number(activeCoupon.percent_off) / 100));
+      } else if (activeCoupon?.amount_off) {
+        discountCents = Math.min(unitAmount, Number(activeCoupon.amount_off));
+      }
+      const serverFinal = Math.max(0, unitAmount - discountCents);
+      const drift = Math.abs(serverFinal - Math.round(expectedTotalCents));
+      const currencyMismatch = expectedCurrency
+        ? String(expectedCurrency).toLowerCase() !== priceCurrency
+        : false;
+      if (drift > 1 || currencyMismatch) {
+        console.warn("[payments]", {
+          event: "create-checkout:price_mismatch",
+          lookupKey: priceId,
+          userId, environment: env, correlationId,
+          expectedTotalCents, serverFinal, unitAmount,
+          discountCents, priceCurrency, expectedCurrency,
+          hasPromo: !!activeCoupon, promoCode: promoCode ?? null, referralCode: referralCode ?? null,
+        });
+        return new Response(JSON.stringify({
+          error: "price_mismatch",
+          message: "The price shown to you has changed. Please refresh and try again.",
+          serverTotalCents: serverFinal,
+          expectedTotalCents,
+          currency: priceCurrency,
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const session = await stripe.checkout.sessions.create({
       line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],

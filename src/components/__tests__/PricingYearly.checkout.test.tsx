@@ -47,7 +47,7 @@ describe("Pricing → yearly checkout", () => {
   it("clicking Upgrade after toggling yearly calls create-checkout with stripe_yearly_price_id", async () => {
     render(
       <MemoryRouter initialEntries={["/pricing"]}>
-        <PricingSection />
+        <PricingSection confirmBeforeCheckout={false} />
       </MemoryRouter>,
     );
 

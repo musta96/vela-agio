@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, Calendar, CreditCard, XCircle } from "lucide-react";
 import VelaLogo from "@/components/VelaLogo";
 import { SEO } from "@/components/SEO";
+import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { trackSignupEvent } from "@/lib/signupAnalytics";
@@ -135,7 +136,7 @@ export default function SignupTrialReturn() {
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button className="flex-1" onClick={() => navigate("/onboarding?flow=trial")}>Start onboarding</Button>
-                <Button variant="outline" onClick={() => navigate("/settings?tab=billing")}>Manage or cancel trial</Button>
+                <ManageSubscriptionButton variant="outline" label="Manage or cancel trial" trialFallback />
               </div>
             </div>
           )}

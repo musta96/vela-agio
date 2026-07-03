@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Upload, ShieldCheck, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -74,14 +73,6 @@ export default function Profile() {
           <h1 className="text-2xl font-semibold">Profile</h1>
           <p className="text-sm text-muted-foreground">Your personal information across Vela.</p>
         </div>
-
-        <section id="getting-started" className="scroll-mt-24 space-y-2">
-          <div>
-            <h2 className="text-lg font-semibold">Getting started</h2>
-            <p className="text-xs text-muted-foreground">Finish these steps to get the most out of Vela.</p>
-          </div>
-          <OnboardingChecklist pinned />
-        </section>
 
         <Card>
           <CardHeader>

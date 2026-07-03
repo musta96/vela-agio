@@ -31,6 +31,7 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { PortfolioSimulator } from "@/components/PortfolioSimulator";
 import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
+import { ProgressiveHint } from "@/components/onboarding/ProgressiveHint";
 
 interface PortfolioStock {
   symbol: string;
@@ -564,6 +565,15 @@ const Portfolio = () => {
       {/* Portfolio Header */}
       <section className="p-6 sm:p-8">
         <div className="mb-6"><BrokerSyncCard /></div>
+        <div className="mb-4">
+          <ProgressiveHint
+            hintKey="portfolio-first-stress-test"
+            when={portfolio.length >= 1 && portfolio.length <= 3}
+            title="You've added your first positions — stress-test them."
+            body="See how your portfolio would hold up in a 2020-style shock or a rate spike."
+            cta={{ to: "/risk", label: "Open Risk Engine" }}
+          />
+        </div>
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
           <div className="min-w-0 flex items-start gap-4">
             <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">

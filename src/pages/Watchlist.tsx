@@ -15,6 +15,7 @@ import { useAlertMonitor } from "@/hooks/useAlertMonitor";
 import { TickerSearch } from "@/components/TickerSearch";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { LimitReachedCTA } from "@/components/gating/LimitReachedCTA";
+import { ProgressiveHint } from "@/components/onboarding/ProgressiveHint";
 
 const Watchlist = () => {
   const { items, remove, add, isWatched } = useWatchlist();
@@ -72,6 +73,14 @@ const Watchlist = () => {
             </Button>
           </>
         }
+      />
+
+      <ProgressiveHint
+        hintKey="watchlist-to-portfolio"
+        when={items.length >= 1 && items.length <= 5}
+        title="Own some of these? Turn them into a portfolio."
+        body="See live P/L, sector exposure and Vela signals against real positions."
+        cta={{ to: "/portfolio", label: "Open Portfolio" }}
       />
 
       <div className="rounded-2xl border border-border bg-card px-5 py-4">

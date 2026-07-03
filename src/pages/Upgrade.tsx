@@ -26,11 +26,23 @@ export default function Upgrade() {
   const description = planLabel
     ? `Everything you're missing on ${planLabel}, side-by-side with what you're using today.`
     : "Compare plans side-by-side with what you're using today, then pick the right fit.";
+  // Fallback shown in the summary line when no explicit ?plan= is present.
+  // Mirrors UpgradeFlow's own default so what the user sees matches what
+  // will be charged if they proceed straight to checkout.
+  const selectedLabel = planLabel ?? "Pro";
 
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0 max-w-3xl mx-auto">
       <SEO title={`${title} | Vela`} description="Compare plans and pick monthly or annual billing." path="/upgrade" />
       <PageHeader icon={Sparkles} title={title} description={description} />
+      <div
+        role="status"
+        aria-live="polite"
+        data-testid="upgrade-selected-summary"
+        className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm"
+      >
+        You selected: <span className="font-semibold text-primary">{selectedLabel}</span>
+      </div>
       <PastDueBanner />
       <CurrentPlanBanner />
       <UpgradeFlow

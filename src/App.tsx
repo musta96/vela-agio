@@ -106,6 +106,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
+          <Route path="/signup/trial" element={<SignupTrial />} />
+          <Route path="/signup/trial/return" element={<SignupTrialReturn />} />
           <Route path="/r/:code" element={<RedeemReferral />} />
           <Route path="/redeem" element={<RedeemReferral />} />
           <Route path="/privacy" element={<Privacy />} />

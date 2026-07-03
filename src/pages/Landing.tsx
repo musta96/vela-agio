@@ -13,6 +13,7 @@ import { PricingSection } from "@/components/landing/pricing-section";
 import { ProductDemoCarousel } from "@/components/landing/ProductDemoCarousel";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { trackLandingEvent } from "@/lib/landingAnalytics";
+import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
 import type { BlogPostRow } from "@/lib/blog";
 
 

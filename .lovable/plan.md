@@ -1,99 +1,112 @@
-# First-Run Onboarding: One Path to First Value
 
 ## The core action
 
-Vela's strongest, most demoable capability is **AI-driven stock research** — the AI Radar / "Ask Vela about a stock" flow. It's:
-- Instant (no portfolio connection required)
-- Universally understandable ("type a ticker → get an AI signal")
-- The same primitive that powers Idea Lab, Signals, Sentiment, and Portfolio Coach later
+Vela's strongest, most immediate capability is **AI stock signals** — no data entry required, works in one tap, returns a real analysis. Everything else (portfolio, watchlist, backtest, alerts) is more valuable *after* a user has seen a signal.
 
-So the single onboarding journey is: **"Get your first AI research signal on a stock you care about."**
+So the journey is: **land → see a real signal in ≤30s → convert that moment into a personalised next step.**
 
-Everything else (watchlist, backtesting, portfolio, net worth, goals) becomes a *next step* offered only after this first signal renders.
+Good news: `FirstRunJourney` + `NextStepsStrip` already scaffold this. The plan tightens it into one clear path, removes friction points, and controls what shows up second.
 
 ---
 
 ## Screen-by-screen flow
 
-### Screen 1 — Welcome hero (0-5s)
-Full-width takeover on `/dashboard` for users with `dashboard_tour_completed_at IS NULL`. Replaces (does not add to) the current dashboard grid until the user acts or dismisses.
+### Screen 1 — Welcome + auto-signal (0-5s)
+
+Replaces the current "welcome / signal" two-step with a single card that starts working the moment it mounts.
 
 ```text
-+------------------------------------------------------+
-|                                                      |
-|   Welcome to Vela.                                   |
-|   Get an AI research signal on any stock in 10s.    |
-|                                                      |
-|   [ AAPL  |  TSLA  |  NVDA  |  Try your own ▸  ]    |
-|                                                      |
-|   Skip intro                                         |
-+------------------------------------------------------+
+┌──────────────────────────────────────────────────────────┐
+│  Welcome to Vela, Ana.                                   │
+│  Let's start with what Vela does best — an AI signal.    │
+│                                                          │
+│  🔍  Analysing AAPL…  ●●●                                │
+│                                                          │
+│  Or try another:  [NVDA] [TSLA] [MSFT] [+ type a ticker] │
+│                                                          │
+│                                        Skip intro (Esc)  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-- One sentence value prop. One row of 3 hot-start tickers + a search input.
-- No nav distractions; sidebar stays but is visually dimmed.
-- "Skip intro" writes `dashboard_tour_completed_at = now()` and reveals the full dashboard.
+- One card, one focus. Auto-starts on today's top hot ticker (already wired).
+- Three hot chips + a ticker input for anyone who wants their own stock.
+- Skippable with ESC or link — never trapping.
 
-### Screen 2 — Signal reveal (5-20s)
-The moment a ticker is picked/typed, we transition in-place to a focused single-card view (no route change, so it feels instant) showing the AI signal for that ticker:
+### Screen 2 — The signal (5-15s)
+
+Same card morphs into the actual result. This IS the "aha" moment — a real analysis, not a demo.
 
 ```text
-+------------------------------------------------------+
-|  NVDA · NVIDIA Corp                    $ ---.--      |
-|  ────────────────────────────────────────────────    |
-|  Vela's take:  ● BULLISH  (confidence 72%)           |
-|                                                      |
-|  Why: 3 bullet reasons streamed from the AI          |
-|   • ...                                              |
-|   • ...                                              |
-|   • ...                                              |
-|                                                      |
-|  [ Add to watchlist ]   [ Ask a follow-up ]          |
-+------------------------------------------------------+
+┌──────────────────────────────────────────────────────────┐
+│  AAPL  ·  Apple Inc.                                     │
+│                                                          │
+│  ┌──────┐   Vela Signal: BULLISH  ▲ 72                   │
+│  │  72  │   Strong momentum, above 50-DMA, positive      │
+│  └──────┘   earnings revisions this week.                │
+│                                                          │
+│  Drivers                                                 │
+│   ▲ Q4 revenue beat                                      │
+│   ▲ Services margin expansion                            │
+│   ▼ China smartphone demand softening                    │
+│                                                          │
+│  [ See full research on AAPL → ]                         │
+│  Try another ticker · Skip                               │
+└──────────────────────────────────────────────────────────┘
 ```
 
-- Uses the existing signal/sentiment edge function; streams so first tokens appear <2s.
-- The two CTAs are the *only* next steps offered here — chosen because each opens exactly one secondary feature (Watchlist, Assistant) without leaving the flow.
+- Primary CTA opens `/stock/AAPL` (full research).
+- Secondary link "Try another ticker" cycles them back to Screen 1 input, so nothing feels one-shot.
+- Marks first-run complete in `profiles.first_run_completed_at` on the primary CTA click (already wired).
 
-### Screen 3 — "You're set" handoff (20-30s)
-After the user clicks either CTA (or dismisses the card), we mark the tour complete and reveal the full dashboard with a single subtle toast + a persistent, dismissible "Next steps" strip at the top of the dashboard:
+### Screen 3 — Contextual next steps (post-first-signal)
+
+Once the user comes back to `/dashboard`, replace the current generic strip with a **single Vela-voice recommendation** tuned to what they just did, plus 3 quiet secondary chips.
 
 ```text
-Toast:  ✓ First signal saved. Explore more anytime from Research → AI Radar.
+Next for AAPL:
+   You've seen the signal. Here's what usually comes next.
 
-Strip (dismissible, one row, muted):
-  Next: [Track a portfolio]  [Set an alert]  [Run a backtest]  ✕
+   ┌─ Primary suggestion ─────────────────────────────────┐
+   │  📈 Add AAPL to a watchlist so Vela pings you        │
+   │      when the signal flips.        [ Add & watch → ] │
+   └──────────────────────────────────────────────────────┘
+
+   Also: [ Compare AAPL vs peers ]  [ Backtest AAPL ]  [ Get another signal ]
+                                                          × dismiss
 ```
 
-- The strip is the *only* place secondary features are surfaced upfront. It disappears on dismiss and never returns.
-- All deeper features (backtesting, net worth, tax, goals, etc.) remain discoverable via the sidebar but are never pushed.
+Dismissible; auto-hides after any chip is clicked or after 7 days.
+
+### Screen 4 — Quiet secondary discovery (ongoing)
+
+After the user has (a) completed first run AND (b) either clicked one next-step OR dismissed the strip, we surface features in-context, never as a wall:
+
+- After the 2nd signal → small inline card on the signal result: *"You've run 2 signals. Save your favourites to a watchlist so they're one tap away."*
+- After the first watchlist item → subtle banner on `/watchlist`: *"Turn this into a portfolio to see live P/L."*
+- After first portfolio holding → subtle banner on `/portfolio`: *"Run a stress test on this position."*
+
+These are individual `ProgressiveHint` cards keyed to a single trigger + dismissed-once state. No global checklist, no modal, no wizard.
 
 ---
 
-## Success criteria (the 30-second test)
+## What changes in code
 
-A brand-new user lands on `/dashboard`, sees one sentence + 3 tickers, clicks one, and reads their first AI signal — all within 30 seconds, zero navigation, zero forms.
+1. **`FirstRunJourney`** — collapse `welcome` + `signal` into one always-active step; the ticker input becomes an inline "Or try another" strip inside the same card instead of a separate screen. Remove the `Step` state.
+2. **`NextStepsStrip`** → **`ContextualNextStep`** — same file, redesigned per Screen 3: one primary suggestion + secondary chips, Vela-voice copy, symbol-aware.
+3. **New `ProgressiveHint` component** — small inline card, keyed by `hintKey`, dismissed via localStorage, used at 3 trigger points (StockDetails after 2 signals, Watchlist first item, Portfolio first holding).
+4. **New tiny hook `useUsageMilestones`** — counts events from `ai_event_log` (already logged) so hints trigger reliably: `signals_run`, `watchlist_count`, `portfolio_count`.
+5. **`Index.tsx`** — swap `NextStepsStrip` for `ContextualNextStep`, keep the rest of the dashboard hidden during `isFirstRun` (already the behaviour).
+6. **Remove the old `OnboardingChecklist`** from wherever it still mounts — it competes with this journey. (Confirm before deleting the file.)
 
----
+## Success test
 
-## Technical notes
+- New account → land on `/dashboard` → Screen 1 renders and starts fetching AAPL within 300ms → Screen 2 result visible within ~5-10s (edge fn budget) → user can click "See full research" for their first meaningful action **inside 15-30s**, no typing required.
+- Analytics events already in place (`onboarding_start`, `onboarding_auto_default`, `onboarding_complete`, plus new `onboarding_next_step_click`) let us measure the 30s target.
 
-- **Trigger:** reuse the existing `profiles.dashboard_tour_completed_at` flag. If null → render `<FirstRunJourney />` instead of the dashboard grid. The existing `DashboardTour` (3-step highlight walkthrough) is retired in favor of this focused flow.
-- **New component:** `src/components/onboarding/FirstRunJourney.tsx` — controls the 3 in-place screens via a local `step` state ("welcome" | "signal" | "done"). No new routes.
-- **Signal fetch:** call the existing AI signal / sentiment edge function with the chosen ticker; stream via the same hook Idea Lab uses. No new backend.
-- **Persistence:** on either CTA click or "Skip intro", update `profiles.dashboard_tour_completed_at` via Supabase (already wired) and set `localStorage.vela.firstRun.done = "1"` for instant re-render across tabs.
-- **Next-steps strip:** new `src/components/dashboard/NextStepsStrip.tsx`, rendered on `/dashboard` only when `dashboard_tour_completed_at` is within the last 24h AND `localStorage.vela.nextSteps.dismissed !== "1"`. Three links: `/portfolio`, `/alerts`, `/backtest`.
-- **Files removed/edited:**
-  - Edit `src/pages/Index.tsx` — gate on the flag, render `<FirstRunJourney />` or dashboard grid.
-  - Retire `src/components/dashboard/DashboardTour.tsx` (keep file but stop mounting it).
-  - Keep `FirstRunHero.tsx` only if the user wants it as a fallback empty state; otherwise delete.
-- **Accessibility:** focus trap on the welcome screen, autofocus the ticker input, ESC = "Skip intro", `aria-live="polite"` on the streaming signal reasons.
-- **Analytics:** emit `onboarding_start`, `onboarding_ticker_chosen`, `onboarding_signal_rendered`, `onboarding_cta_watchlist|assistant`, `onboarding_skipped`, `onboarding_complete` via the existing telemetry helper.
+## Not in scope
 
----
+- No product tour overlay (Shepherd/Intro.js style) — those explain UI instead of delivering value.
+- No connect-broker or portfolio-import step in first run — too much friction; kept as a secondary suggestion.
+- No paywall or upgrade prompt anywhere in the first-run flow (matches the "generous by default" stance from prior work).
 
-## Open questions before I build
-
-1. Confirm the core action is **AI signal on a stock** (vs. "Connect a portfolio" or "Ask the Assistant a question"). If you'd rather lead with the Assistant chat, screen 2 becomes a chat bubble instead of a signal card.
-2. For the 3 hot-start tickers, OK with `AAPL / TSLA / NVDA`, or prefer a rotating "today's most-scanned" list?
-3. Should "Skip intro" also mark `dashboard_tour_completed_at`, or only dismiss for this session so it reappears next login?
+Approve and I'll implement in one pass: journey refactor, next-step redesign, progressive hints, and the milestones hook.

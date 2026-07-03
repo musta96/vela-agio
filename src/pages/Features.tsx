@@ -153,13 +153,22 @@ export default function Features() {
     return `${included}/${rows.length} capabilities`;
   };
 
-  const renderCell = (v: Cell, compact = false) => {
+  // Consistent tint per plan column so users can visually track ownership
+  // top-to-bottom on both desktop and mobile.
+  const PLAN_TINT: Record<PlanKey, { bg: string; strong: string; accent: string }> = {
+    explorer:   { bg: "rgba(4,44,83,0.035)",  strong: "rgba(24,95,165,0.10)",  accent: "#185FA5" },
+    pro:        { bg: "rgba(29,158,117,0.06)", strong: "rgba(29,158,117,0.18)", accent: "#1D9E75" },
+    enterprise: { bg: "rgba(55,138,221,0.05)", strong: "rgba(55,138,221,0.16)", accent: "#378ADD" },
+  };
+
+  const renderCell = (v: Cell, plan: PlanKey, compact = false) => {
+    const tint = PLAN_TINT[plan];
     if (v === true) {
       return (
         <span
           className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold ${compact ? "h-7 w-7" : "px-2.5 py-1 text-xs"}`}
-          style={{ background: "rgba(29,158,117,0.12)", color: "#1D9E75" }}
-          aria-label="Included"
+          style={{ background: tint.strong, color: tint.accent }}
+          aria-label={`Included in ${plan}`}
         >
           <Check className="h-3.5 w-3.5" />
           {!compact && <span>Included</span>}
@@ -169,9 +178,9 @@ export default function Features() {
     if (v === false) {
       return (
         <span
-          className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold ${compact ? "h-7 w-7" : "px-2.5 py-1 text-xs"}`}
-          style={{ background: "rgba(4,44,83,0.05)", color: "#8a98aa" }}
-          aria-label="Not included"
+          className={`inline-flex items-center justify-center gap-1.5 rounded-full font-medium ${compact ? "h-7 w-7" : "px-2.5 py-1 text-xs"}`}
+          style={{ background: "rgba(4,44,83,0.04)", color: "#a6b0bd" }}
+          aria-label={`Not included in ${plan}`}
         >
           <Minus className="h-3.5 w-3.5" />
           {!compact && <span>Not included</span>}
@@ -180,8 +189,9 @@ export default function Features() {
     }
     return (
       <span
-        className={`inline-flex items-center rounded-full font-semibold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
-        style={{ background: "rgba(24,95,165,0.08)", color: "#042C53" }}
+        className={`inline-flex items-center rounded-full font-bold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
+        style={{ background: tint.strong, color: tint.accent }}
+        aria-label={`${plan}: ${v}`}
       >
         {v}
       </span>

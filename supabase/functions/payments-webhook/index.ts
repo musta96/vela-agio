@@ -55,18 +55,22 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
   // Mirror trial → active transition onto profiles so app UI updates without a Stripe call.
   const userId = subscription.metadata?.userId;
   if (userId) {
-    const wasTrialing = subscription.status === "active" && !subscription.trial_end;
     if (subscription.status === "active") {
       await getSupabase().from("profiles").update({
         plan: "pro",
         subscription_status: "active",
         trial_ends_at: null,
+        past_due_since: null,
+        dunning_email_sent_at: null,
         current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       }).eq("user_id", userId);
     } else if (subscription.status === "past_due") {
-      await getSupabase().from("profiles").update({
-        subscription_status: "past_due",
-      }).eq("user_id", userId);
+      // Only stamp past_due_since the first time — the grace period is measured
+      // from the initial failure, not from every subsequent retry event.
+      const { data: prof } = await getSupabase().from("profiles").select("past_due_since").eq("user_id", userId).maybeSingle();
+      const patch: Record<string, unknown> = { subscription_status: "past_due" };
+      if (!(prof as any)?.past_due_since) patch.past_due_since = new Date().toISOString();
+      await getSupabase().from("profiles").update(patch).eq("user_id", userId);
     } else if (subscription.status === "trialing") {
       await getSupabase().from("profiles").update({
         plan: "pro_trial",
@@ -109,8 +113,44 @@ async function handleInvoicePaid(invoice: any, env: StripeEnv) {
     plan: "pro",
     subscription_status: "active",
     trial_ends_at: null,
+    past_due_since: null,
+    dunning_email_sent_at: null,
     trial_welcome_shown_at: null, // triggers welcome banner on next login
   }).eq("user_id", userId);
+}
+
+async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
+  const subId = invoice.subscription;
+  if (!subId) return;
+  const { data: sub } = await getSupabase()
+    .from("subscriptions").select("user_id").eq("stripe_subscription_id", subId).eq("environment", env).maybeSingle();
+  const userId = (sub as any)?.user_id;
+  if (!userId) return;
+  const { data: prof } = await getSupabase().from("profiles").select("past_due_since, dunning_email_sent_at").eq("user_id", userId).maybeSingle();
+  const patch: Record<string, unknown> = { subscription_status: "past_due" };
+  if (!(prof as any)?.past_due_since) patch.past_due_since = new Date().toISOString();
+  await getSupabase().from("profiles").update(patch).eq("user_id", userId);
+
+  // Best-effort initial dunning email; idempotent via dunning_email_sent_at.
+  if (!(prof as any)?.dunning_email_sent_at) {
+    try {
+      const { data: authUser } = await getSupabase().auth.admin.getUserById(userId);
+      const email = (authUser as any)?.user?.email;
+      if (email) {
+        await getSupabase().functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "payment-failed",
+            recipientEmail: email,
+            idempotencyKey: `dunning-${userId}-${invoice.id}`,
+            templateData: {
+              updateUrl: "https://vela-agio.lovable.app/settings?tab=Billing&update_pm=1",
+            },
+          },
+        });
+        await getSupabase().from("profiles").update({ dunning_email_sent_at: new Date().toISOString() }).eq("user_id", userId);
+      }
+    } catch (e) { console.warn("initial dunning email failed", (e as Error).message); }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -134,6 +174,8 @@ Deno.serve(async (req) => {
       case "invoice.paid":
       case "invoice.payment_succeeded":
         await handleInvoicePaid(event.data.object, env); break;
+      case "invoice.payment_failed":
+        await handleInvoicePaymentFailed(event.data.object, env); break;
       default:
         console.log("Unhandled event:", event.type);
     }

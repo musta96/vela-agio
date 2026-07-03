@@ -7,29 +7,31 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { ArrowRight, ChevronDown, Check, X } from "lucide-react";
-import { useFlag } from "@/hooks/useFeatureFlags";
+import { PLAN_LIST } from "@/lib/planFeatures";
 
 const COMPARISON: { label: string; values: (string | boolean)[] }[] = [
-  { label: "AI Research Queries", values: ["25 / month", "Unlimited", "Unlimited"] },
-  { label: "Market data latency", values: ["End-of-day", "Real-time", "Real-time + raw feed"] },
-  { label: "Portfolio syncs", values: ["1 account", "Unlimited", "Unlimited + multi-seat"] },
-  { label: "Alpha Guard alerts", values: ["Basic only", "Full suite", "Custom logic"] },
-  { label: "API access", values: [false, false, true] },
-  { label: "Support", values: ["Community", "Priority", "24/7 Concierge"] },
-  { label: "Advisor / MiFID II tooling", values: [false, false, true] },
+  { label: "AI research", values: ["5 questions / day", "100 questions / day", "Unlimited, priority model", "Unlimited, priority model"] },
+  { label: "Market data", values: ["Delayed", "Live EU and US", "Live EU and US", "Live EU and US"] },
+  { label: "Portfolio sync (Plaid / SnapTrade)", values: [false, true, true, true] },
+  { label: "Smart alerts", values: [false, true, true, true] },
+  { label: "Backtesting and optimizer", values: [false, false, true, true] },
+  { label: "MiFID II suitability and KIDs", values: [false, false, true, true] },
+  { label: "Report generation and PDF export", values: [false, false, true, true] },
+  { label: "Multi-client advisor seats", values: [false, false, false, "3 included, add more"] },
+  { label: "API access", values: [false, false, false, true] },
+  { label: "Support", values: ["Community", "Standard", "Priority", "Priority + success manager"] },
 ];
 
 const PRICING_FAQ = [
-  { q: "Can I upgrade or downgrade anytime?", a: "Yes. You can change your subscription tier at any time from your account settings. Prorated adjustments will be reflected in your next billing cycle." },
-  { q: "How does the 7-day free trial work?", a: "You get full access to all Pro features for 7 days. No credit card is required. At the end of the trial, your account will simply revert to the Free tier unless you choose to subscribe." },
-  { q: "Do you offer annual discounts?", a: "Yes, annual plans are billed once per year and offer roughly 20% off compared to monthly billing." },
-  { q: "Where is my data stored?", a: "All Vela.ai data is hosted in the EU (Frankfurt) and encrypted at rest and in transit. You can export or delete it at any time under GDPR Art. 17 & 20." },
+  { q: "Can I upgrade or downgrade at any time?", a: "Yes. You can change plan from the billing page. Upgrades are pro-rated so you only pay the difference for the rest of the current period. Downgrades take effect at the end of the paid period, and your account moves to Explorer after that." },
+  { q: "How does annual billing work?", a: "Annual plans are charged once per year. The card on the pricing page shows the effective monthly price. Plus is €108 per year, Pro is €288 per year, Enterprise is €1,500 per year." },
+  { q: "What happens if I cancel?", a: "You keep access to all paid features until the end of the current period, then your account moves to Explorer. No further charges are taken." },
+  { q: "Where is my data stored?", a: "Vela.ai data is hosted in the EU and encrypted at rest and in transit. You can export or delete it at any time under GDPR Article 17 and Article 20." },
 ];
 
 export default function Pricing() {
   const { user } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const pricingEnabled = useFlag("pricing", false);
   return (
     <div className="vela-landing min-h-screen relative">
       <style>{`
@@ -78,28 +80,26 @@ export default function Pricing() {
       {/* HERO */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 pt-20 pb-12 text-center">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[0.2em] uppercase ticker" style={{ color: "#185FA5" }}>
-          Flexible Tiers
+          Four plans
         </span>
         <h1 className="mt-8 text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[0.95]">
           <span className="block" style={{ color: "#042C53" }}>Simple, transparent</span>
           <span className="block hero-gradient-text">pricing.</span>
         </h1>
         <p className="mt-8 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed" style={{ color: "#3d4f66" }}>
-          Institutional-grade intelligence scaled for your growth. Start for free, upgrade when you're ready for alpha.
+          Start on Explorer for free. Move up as you need live data, portfolio sync, backtesting, compliance tooling or advisor seats. Prices in euros.
         </p>
       </section>
 
       {/* PRICING TIERS (shared with landing) */}
-      {pricingEnabled ? (
-        <>
-        <section className="relative z-10 max-w-6xl mx-auto px-6 pb-16">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-16">
           <PricingSection />
         </section>
 
         {/* COMPARISON TABLE */}
-        <section className="relative z-10 max-w-6xl mx-auto px-6 py-20">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Compare Features</div>
+          <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>Compare features</div>
           <h2 className="mt-3 text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
             Every capability, side by side
           </h2>
@@ -110,8 +110,8 @@ export default function Pricing() {
               <thead>
                 <tr style={{ background: "linear-gradient(135deg,rgba(24,95,165,0.08),rgba(29,158,117,0.08))" }}>
                   <th className="text-left px-6 py-4 font-bold uppercase tracking-wider text-xs" style={{ color: "#042C53" }}>Capabilities</th>
-                  {["Explorer", "Pro", "Enterprise"].map((n) => (
-                    <th key={n} className="text-center px-6 py-4 font-bold uppercase tracking-wider text-xs" style={{ color: "#042C53" }}>{n}</th>
+                  {PLAN_LIST.map((p) => (
+                    <th key={p.slug} className="text-center px-6 py-4 font-bold uppercase tracking-wider text-xs" style={{ color: "#042C53" }}>{p.name}</th>
                   ))}
                 </tr>
               </thead>
@@ -132,24 +132,7 @@ export default function Pricing() {
             </table>
           </div>
         </div>
-        </section>
-        </>
-      ) : (
-        <section className="relative z-10 max-w-4xl mx-auto px-6 pb-16">
-          <div className="rounded-3xl p-10 md:p-12 text-white relative overflow-hidden shadow-2xl text-center" style={{ background: "linear-gradient(135deg,#042C53 0%,#185FA5 50%,#1D9E75 100%)" }}>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.22em] uppercase bg-white/15 backdrop-blur">
-              Launch Offer · Free Access
-            </span>
-            <h3 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Vela.ai is completely free during launch.</h3>
-            <p className="mt-3 text-white/85 max-w-2xl mx-auto">Full access to institutional-grade intelligence - no credit card, no plans, no limits. Founding members keep preferred pricing forever when paid tiers launch.</p>
-            <div className="mt-7 flex justify-center">
-              <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold bg-white text-[#042C53] hover:scale-105 transition">
-                Get Started Free <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
+      </section>
 
       {/* FAQ */}
       <section className="relative z-10 max-w-3xl mx-auto px-6 py-20">
@@ -181,14 +164,14 @@ export default function Pricing() {
       <section className="relative z-10 max-w-5xl mx-auto px-6 py-24 text-center">
         <div className="glass-card rounded-[2rem] p-12 md:p-16">
           <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
-            Ready for professional edge?
+            Ready to get started?
           </h2>
           <p className="mt-4 text-lg max-w-xl mx-auto" style={{ color: "#3d4f66" }}>
-            Join thousands of investors using Vela.ai to navigate the noise and find true alpha.
+            Create a free Explorer account in under a minute. Move to Plus or Pro whenever you need more.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link to="/auth" className="button-gradient inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold shadow-xl">
-              Start 7-day free trial <ArrowRight className="h-4 w-4" />
+              Start free on Explorer <ArrowRight className="h-4 w-4" />
             </Link>
             {user && <ManageSubscriptionButton variant="outline" size="default" />}
           </div>

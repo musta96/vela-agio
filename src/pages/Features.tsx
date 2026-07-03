@@ -97,10 +97,10 @@ export default function Features() {
   //   false → not included
   //   string → tier-specific note (e.g. "25 / mo")
   type PlanKey = "explorer" | "pro" | "enterprise";
-  const PLAN_COLUMNS: Array<{ key: PlanKey; name: string; price: string; highlight?: boolean }> = [
-    { key: "explorer", name: "Explorer", price: "Free" },
-    { key: "pro", name: "Pro", price: "€29 /mo", highlight: true },
-    { key: "enterprise", name: "Enterprise", price: "€149 /mo" },
+  const PLAN_COLUMNS: Array<{ key: PlanKey; name: string; price: string; bestFor: string; highlight?: boolean }> = [
+    { key: "explorer", name: "Explorer", price: "Free", bestFor: "Try AI signals and track a small watchlist" },
+    { key: "pro", name: "Pro", price: "€29 /mo", bestFor: "Daily research, backtesting and portfolio analytics", highlight: true },
+    { key: "enterprise", name: "Enterprise", price: "€149 /mo", bestFor: "Teams, advisors, compliance and API access" },
   ];
   type Cell = boolean | string;
 
@@ -147,22 +147,45 @@ export default function Features() {
     },
   ];
 
-  const renderCell = (v: Cell) => {
+  const planCoverage = (plan: PlanKey) => {
+    const rows = COMPARISON.flatMap((group) => group.rows);
+    const included = rows.filter((row) => row.values[plan] !== false).length;
+    return `${included}/${rows.length} capabilities`;
+  };
+
+  const renderCell = (v: Cell, compact = false) => {
     if (v === true) {
       return (
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(29,158,117,0.12)" }} aria-label="Included">
-          <Check className="h-4 w-4" style={{ color: "#1D9E75" }} />
+        <span
+          className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold ${compact ? "h-7 w-7" : "px-2.5 py-1 text-xs"}`}
+          style={{ background: "rgba(29,158,117,0.12)", color: "#1D9E75" }}
+          aria-label="Included"
+        >
+          <Check className="h-3.5 w-3.5" />
+          {!compact && <span>Included</span>}
         </span>
       );
     }
     if (v === false) {
       return (
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(4,44,83,0.05)" }} aria-label="Not included">
-          <Minus className="h-4 w-4" style={{ color: "#9aa8b8" }} />
+        <span
+          className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold ${compact ? "h-7 w-7" : "px-2.5 py-1 text-xs"}`}
+          style={{ background: "rgba(4,44,83,0.05)", color: "#8a98aa" }}
+          aria-label="Not included"
+        >
+          <Minus className="h-3.5 w-3.5" />
+          {!compact && <span>Not included</span>}
         </span>
       );
     }
-    return <span className="text-sm font-medium" style={{ color: "#042C53" }}>{v}</span>;
+    return (
+      <span
+        className={`inline-flex items-center rounded-full font-semibold ${compact ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-xs"}`}
+        style={{ background: "rgba(24,95,165,0.08)", color: "#042C53" }}
+      >
+        {v}
+      </span>
+    );
   };
 
   return (
@@ -270,89 +293,144 @@ export default function Features() {
             </p>
           </div>
 
-          {/* Desktop / tablet: sticky-header matrix table. */}
-          <div className="hidden md:block glass-card rounded-3xl overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr style={{ background: "linear-gradient(135deg,rgba(4,44,83,0.04),rgba(29,158,117,0.04))" }}>
-                  <th className="py-4 px-6 text-xs font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>
-                    Feature
-                  </th>
-                  {PLAN_COLUMNS.map((p) => (
-                    <th key={p.key} className="py-4 px-4 text-center" style={{ color: "#042C53" }}>
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className={`text-sm font-bold ${p.highlight ? "" : ""}`}>{p.name}</span>
-                        <span className="text-xs font-medium" style={{ color: p.highlight ? "#1D9E75" : "#6b7a8c" }}>
-                          {p.price}
-                        </span>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARISON.map((group) => (
-                  <React.Fragment key={group.category}>
-                    <tr>
-                      <td
-                        colSpan={1 + PLAN_COLUMNS.length}
-                        className="py-3 px-6 text-[11px] font-bold tracking-[0.2em] uppercase"
-                        style={{ background: "rgba(4,44,83,0.03)", color: "#185FA5", borderTop: "1px solid rgba(4,44,83,0.06)" }}
-                      >
-                        {group.category}
-                      </td>
-                    </tr>
-                    {group.rows.map((row) => (
-                      <tr key={`${group.category}-${row.label}`} className="border-t" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
-                        <td className="py-3 px-6 text-sm" style={{ color: "#1f3147" }}>{row.label}</td>
-                        {PLAN_COLUMNS.map((p) => (
-                          <td
-                            key={p.key}
-                            className="py-3 px-4 text-center"
-                            style={p.highlight ? { background: "rgba(29,158,117,0.04)" } : undefined}
-                          >
-                            {renderCell(row.values[p.key])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile: one card per plan, grouped by category. */}
-          <div className="md:hidden space-y-5">
+          <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
             {PLAN_COLUMNS.map((p) => (
               <div
                 key={p.key}
-                className="glass-card rounded-3xl p-5"
-                style={p.highlight ? { border: "1px solid rgba(29,158,117,0.35)" } : undefined}
+                className="rounded-2xl border p-4"
+                style={{
+                  borderColor: p.highlight ? "rgba(29,158,117,0.35)" : "rgba(4,44,83,0.1)",
+                  background: p.highlight ? "linear-gradient(135deg,rgba(29,158,117,0.1),rgba(24,95,165,0.06))" : "rgba(255,255,255,0.72)",
+                }}
               >
-                <div className="flex items-baseline justify-between mb-3">
-                  <div className="text-lg font-bold" style={{ color: "#042C53" }}>{p.name}</div>
-                  <div className="text-sm font-semibold" style={{ color: p.highlight ? "#1D9E75" : "#6b7a8c" }}>{p.price}</div>
-                </div>
-                {COMPARISON.map((group) => (
-                  <div key={group.category} className="mt-4">
-                    <div className="text-[10px] font-bold tracking-[0.2em] uppercase mb-2" style={{ color: "#185FA5" }}>
-                      {group.category}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-extrabold" style={{ color: "#042C53" }}>{p.name}</h3>
+                      {p.highlight && (
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: "rgba(29,158,117,0.14)", color: "#1D9E75" }}>
+                          Best value
+                        </span>
+                      )}
                     </div>
-                    <ul className="space-y-1.5">
-                      {group.rows.map((row) => {
-                        const v = row.values[p.key];
-                        return (
-                          <li key={row.label} className="flex items-center justify-between gap-3 text-sm">
-                            <span style={{ color: v === false ? "#9aa8b8" : "#1f3147" }}>{row.label}</span>
-                            <span className="shrink-0">{renderCell(v)}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: p.highlight ? "#1D9E75" : "#185FA5" }}>{p.price}</p>
                   </div>
-                ))}
+                  <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "rgba(4,44,83,0.06)", color: "#3d4f66" }}>
+                    {planCoverage(p.key)}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "#3d4f66" }}>{p.bestFor}</p>
               </div>
+            ))}
+          </div>
+
+          {/* Desktop / tablet: feature-first matrix table for direct tier comparison. */}
+          <div className="hidden md:block glass-card rounded-3xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] table-fixed text-left border-collapse">
+                <caption className="sr-only">Feature availability comparison across Explorer, Pro and Enterprise plans</caption>
+                <colgroup>
+                  <col className="w-[34%]" />
+                  {PLAN_COLUMNS.map((p) => (
+                    <col key={p.key} className="w-[22%]" />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr style={{ background: "linear-gradient(135deg,rgba(4,44,83,0.04),rgba(29,158,117,0.04))" }}>
+                    <th scope="col" className="py-5 px-6 align-bottom text-xs font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>
+                      Capability
+                    </th>
+                    {PLAN_COLUMNS.map((p) => (
+                      <th
+                        key={p.key}
+                        scope="col"
+                        className="py-5 px-5 text-center align-bottom"
+                        style={p.highlight ? { background: "rgba(29,158,117,0.06)", color: "#042C53" } : { color: "#042C53" }}
+                      >
+                        <div className="flex min-h-[92px] flex-col items-center justify-end gap-1">
+                          {p.highlight && (
+                            <span className="mb-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: "rgba(29,158,117,0.14)", color: "#1D9E75" }}>
+                              Most popular
+                            </span>
+                          )}
+                          <span className="text-base font-extrabold">{p.name}</span>
+                          <span className="text-sm font-bold" style={{ color: p.highlight ? "#1D9E75" : "#185FA5" }}>{p.price}</span>
+                          <span className="max-w-[180px] text-xs leading-snug" style={{ color: "#6b7a8c" }}>{p.bestFor}</span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {COMPARISON.map((group) => (
+                    <React.Fragment key={group.category}>
+                      <tr>
+                        <th
+                          scope="rowgroup"
+                          colSpan={1 + PLAN_COLUMNS.length}
+                          className="py-3 px-6 text-[11px] font-bold tracking-[0.2em] uppercase"
+                          style={{ background: "rgba(4,44,83,0.04)", color: "#185FA5", borderTop: "1px solid rgba(4,44,83,0.08)" }}
+                        >
+                          {group.category}
+                        </th>
+                      </tr>
+                      {group.rows.map((row) => (
+                        <tr key={`${group.category}-${row.label}`} className="border-t" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
+                          <th scope="row" className="py-4 px-6 text-sm font-semibold" style={{ color: "#1f3147" }}>
+                            <span className="block">{row.label}</span>
+                            {row.hint && <span className="mt-1 block text-xs font-normal" style={{ color: "#6b7a8c" }}>{row.hint}</span>}
+                          </th>
+                          {PLAN_COLUMNS.map((p) => (
+                            <td
+                              key={p.key}
+                              className="py-4 px-5 text-center align-middle"
+                              style={p.highlight ? { background: "rgba(29,158,117,0.04)" } : undefined}
+                            >
+                              {renderCell(row.values[p.key])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile: feature-first cards with all three tiers visible on every row. */}
+          <div className="md:hidden space-y-5">
+            <div className="grid grid-cols-[1fr_repeat(3,minmax(58px,72px))] items-end gap-2 rounded-2xl border px-3 py-3" style={{ borderColor: "rgba(4,44,83,0.08)", background: "rgba(255,255,255,0.76)" }}>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#6b7a8c" }}>Feature</span>
+              {PLAN_COLUMNS.map((p) => (
+                <span key={p.key} className="text-center text-[11px] font-extrabold leading-tight" style={{ color: p.highlight ? "#1D9E75" : "#042C53" }}>
+                  {p.name}
+                  <span className="mt-0.5 block font-semibold" style={{ color: "#6b7a8c" }}>{p.price.replace(" /mo", "")}</span>
+                </span>
+              ))}
+            </div>
+
+            {COMPARISON.map((group) => (
+              <section key={group.category} className="glass-card rounded-3xl overflow-hidden">
+                <div className="px-4 py-3 text-[10px] font-bold tracking-[0.2em] uppercase" style={{ background: "rgba(4,44,83,0.04)", color: "#185FA5" }}>
+                  {group.category}
+                </div>
+                <div className="divide-y" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
+                  {group.rows.map((row) => (
+                    <div key={row.label} className="grid grid-cols-[1fr_repeat(3,minmax(58px,72px))] items-center gap-2 px-3 py-3">
+                      <div className="min-w-0 pr-1">
+                        <div className="text-sm font-semibold leading-snug" style={{ color: "#1f3147" }}>{row.label}</div>
+                        {row.hint && <div className="mt-0.5 text-xs leading-snug" style={{ color: "#6b7a8c" }}>{row.hint}</div>}
+                      </div>
+                      {PLAN_COLUMNS.map((p) => (
+                        <div key={p.key} className="flex justify-center">
+                          {renderCell(row.values[p.key], true)}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         </div>

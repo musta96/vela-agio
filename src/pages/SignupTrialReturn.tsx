@@ -7,6 +7,7 @@ import VelaLogo from "@/components/VelaLogo";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { trackSignupEvent } from "@/lib/signupAnalytics";
 
 type Draft = {
   email: string;
@@ -27,6 +28,8 @@ export default function SignupTrialReturn() {
   const sessionId = params.get("session_id");
   const [status, setStatus] = useState<"working" | "success" | "error">("working");
   const [error, setError] = useState<string>("");
+  const [canRetryCard, setCanRetryCard] = useState(false);
+  const [declineCode, setDeclineCode] = useState<string | null>(null);
   const [result, setResult] = useState<{ trialEndsAt: string | null; amount: string; billingCycle: string } | null>(null);
 
   useEffect(() => {
@@ -48,6 +51,24 @@ export default function SignupTrialReturn() {
             consent: draft.consent,
           },
         });
+        // Handle 402/decline responses distinctly so we can surface the
+        // specific reason and keep the user on the flow (no account was
+        // created — they can retry with a different card).
+        const respData: any = data ?? {};
+        if (respData?.canRetryWithNewCard || respData?.declineCode) {
+          const reason: string = respData.declineReason || respData.error || "Card was declined.";
+          if (!cancelled) {
+            setDeclineCode(respData.declineCode ?? null);
+            setCanRetryCard(true);
+            setError(reason);
+            setStatus("error");
+            trackSignupEvent("trial_signup_failed", {
+              reason: "card_declined",
+              decline_code: respData.declineCode ?? null,
+            });
+          }
+          return;
+        }
         if (error) throw new Error(error.message);
         if (!data?.ok) throw new Error(data?.error ?? "Signup failed");
 
@@ -56,6 +77,9 @@ export default function SignupTrialReturn() {
         if (signInErr) throw new Error(signInErr.message);
 
         sessionStorage.removeItem("vela.trialSignup");
+        void trackSignupEvent("trial_signup_completed", {
+          billing_cycle: data.billingCycle,
+        });
         if (cancelled) return;
         setResult({ trialEndsAt: data.trialEndsAt, amount: data.amount, billingCycle: data.billingCycle });
         setStatus("success");
@@ -63,6 +87,7 @@ export default function SignupTrialReturn() {
         if (cancelled) return;
         setError((e as Error).message);
         setStatus("error");
+        void trackSignupEvent("trial_signup_failed", { reason: "unknown", message: (e as Error).message });
       }
     })();
     return () => { cancelled = true; };
@@ -119,12 +144,25 @@ export default function SignupTrialReturn() {
               <div className="flex items-center gap-3">
                 <XCircle className="h-8 w-8 text-destructive" />
                 <div>
-                  <h1 className="text-xl font-bold">We couldn't finish your signup</h1>
+                  <h1 className="text-xl font-bold">
+                    {canRetryCard ? "Your card couldn't be validated" : "We couldn't finish your signup"}
+                  </h1>
                   <p className="text-sm text-muted-foreground">{error}</p>
+                  {canRetryCard && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      No account was created and no charge was made. You can try again with a different card
+                      {declineCode ? ` (reason: ${declineCode})` : ""}.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => navigate("/signup/trial")}>Try again</Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => navigate(canRetryCard ? "/signup/trial?resume=1" : "/signup/trial")}
+                >
+                  {canRetryCard ? "Try a different card" : "Try again"}
+                </Button>
                 <Button variant="outline" onClick={() => navigate("/auth")}>Sign in instead</Button>
               </div>
             </div>

@@ -56,6 +56,7 @@ import DealFlow from "./pages/DealFlow";
 import PrivacySettings from "./pages/PrivacySettings";
 import Home from "./pages/Home";
 import Features from "./pages/Features";
+import ContactSales from "./pages/ContactSales";
 import NetWorth from "./pages/NetWorth";
 import NetWorthCategory from "./pages/NetWorthCategory";
 import Explore from "./pages/Explore";

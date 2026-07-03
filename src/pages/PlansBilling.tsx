@@ -18,7 +18,6 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
-import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 
 type SubRow = {
@@ -131,7 +130,6 @@ export default function PlansBilling() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const credits = useAiCredits();
   const ent = useEntitlements();
-  const { openCheckout, checkoutElement } = useStripeCheckout();
   // Toggle for the "Available plans" grid so users can compare and switch
   // between monthly and annual pricing before checkout.
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
@@ -267,7 +265,7 @@ export default function PlansBilling() {
         description="Your current plan, credit usage, and upgrade options."
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/upgrade"><Sparkles className="h-4 w-4" /> See all plans</Link>
+            <a href="#available-plans"><Sparkles className="h-4 w-4" /> See all plans</a>
           </Button>
         }
       />
@@ -326,9 +324,9 @@ export default function PlansBilling() {
               )}
                 {pricingEnabled && !isBeta && (
                 <Button asChild size="sm" className="gap-2">
-                  <Link to="/upgrade">
+                  <a href="#available-plans">
                     <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
-                  </Link>
+                  </a>
                 </Button>
               )}
             </div>
@@ -403,7 +401,7 @@ export default function PlansBilling() {
 
       {/* Invoices / Payments summary -------------------------------------- */}
       {hasStripeCustomer && (
-        <Card>
+        <Card id="available-plans">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -567,7 +565,7 @@ export default function PlansBilling() {
                   <div>
                     You've used all your AI credits this month. Paper trading and non-AI features keep working.
                     {pricingEnabled && (
-                      <> <Link to="/upgrade" className="underline font-medium">Upgrade your plan</Link> for more capacity.</>
+                      <> <a href="#available-plans" className="underline font-medium">Upgrade your plan</a> for more capacity.</>
                     )}
                   </div>
                 </div>
@@ -577,7 +575,7 @@ export default function PlansBilling() {
             <div className="text-sm text-muted-foreground">
               AI is not currently available on your plan.{" "}
               {pricingEnabled && (
-                <Link to="/upgrade" className="underline text-foreground">Upgrade to enable AI features →</Link>
+                <a href="#available-plans" className="underline text-foreground">Upgrade to enable AI features →</a>
               )}
             </div>
           )}
@@ -614,7 +612,8 @@ export default function PlansBilling() {
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((p) => {
-                const isCurrent = matchedPlan?.id === p.id;
+                const isFreePlan = (p.monthly_price_cents ?? 0) === 0 && (p.yearly_price_cents ?? 0) === 0;
+                const isCurrent = matchedPlan?.id === p.id || (onFree && isFreePlan);
                 return (
                   <PlanCard
                     key={p.id}
@@ -644,7 +643,6 @@ export default function PlansBilling() {
           </CardContent>
         </Card>
       )}
-      {checkoutElement}
     </div>
   );
 }

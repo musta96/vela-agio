@@ -16,6 +16,7 @@ import SectorHeatmap from "./pages/SectorHeatmap";
 import Auth from "./pages/Auth";
 import SignupTrial from "./pages/SignupTrial";
 import SignupTrialReturn from "./pages/SignupTrialReturn";
+import Reactivate from "./pages/Reactivate";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import AdminAuditLog from "./pages/AdminAuditLog";
@@ -112,6 +113,7 @@ const App = () => (
           <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
           <Route path="/signup/trial" element={<SignupTrial />} />
           <Route path="/signup/trial/return" element={<SignupTrialReturn />} />
+          <Route path="/reactivate" element={<Reactivate />} />
           <Route path="/r/:code" element={<RedeemReferral />} />
           <Route path="/redeem" element={<RedeemReferral />} />
           <Route path="/privacy" element={<Privacy />} />

@@ -193,6 +193,22 @@ export default function PlansBilling() {
 
   useEffect(() => { loadSubscription(); /* eslint-disable-next-line */ }, [user]);
 
+  // Realtime sync: reload the subscription whenever the webhook writes a
+  // change (cancel_at_period_end flips, status changes, period rollover).
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`plans-billing-${user.id}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
+        () => { void loadSubscription(); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Only call Stripe once we know there is an active customer.
   useEffect(() => {
     if (sub?.stripe_customer_id) loadStripeData();

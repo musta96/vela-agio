@@ -2245,6 +2245,10 @@ export type Database = {
           highlighted: boolean
           id: string
           is_active: boolean
+          max_ai_questions_per_month: number | null
+          max_portfolios: number | null
+          max_positions_per_portfolio: number | null
+          max_watchlist: number | null
           monthly_credit_cap: number
           monthly_price_cents: number | null
           name: string
@@ -2275,6 +2279,10 @@ export type Database = {
           highlighted?: boolean
           id?: string
           is_active?: boolean
+          max_ai_questions_per_month?: number | null
+          max_portfolios?: number | null
+          max_positions_per_portfolio?: number | null
+          max_watchlist?: number | null
           monthly_credit_cap?: number
           monthly_price_cents?: number | null
           name: string
@@ -2305,6 +2313,10 @@ export type Database = {
           highlighted?: boolean
           id?: string
           is_active?: boolean
+          max_ai_questions_per_month?: number | null
+          max_portfolios?: number | null
+          max_positions_per_portfolio?: number | null
+          max_watchlist?: number | null
           monthly_credit_cap?: number
           monthly_price_cents?: number | null
           name?: string
@@ -2905,6 +2917,10 @@ export type Database = {
         Returns: {
           beta_active: boolean
           feature_keys: string[]
+          max_ai_questions_per_month: number
+          max_portfolios: number
+          max_positions_per_portfolio: number
+          max_watchlist: number
           plan_name: string
           plan_slug: string
           source: string

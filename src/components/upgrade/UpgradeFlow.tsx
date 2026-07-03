@@ -97,7 +97,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   // Load selected plan pricing + Stripe lookup keys.
   useEffect(() => {
     supabase.from("subscription_plans")
-      .select("slug, name, tier, monthly_price_cents, yearly_price_cents, stripe_monthly_price_id, stripe_yearly_price_id, ai_monthly_quota")
+      .select("slug, name, tier, features, monthly_price_cents, yearly_price_cents, stripe_monthly_price_id, stripe_yearly_price_id, ai_monthly_quota")
       .eq("is_active", true)
       .or(`slug.eq.${requestedPlanSlug},tier.eq.${requestedPlanSlug}`)
       .limit(1)

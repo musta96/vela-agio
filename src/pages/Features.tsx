@@ -11,6 +11,7 @@ import { trackLandingEvent } from "@/lib/landingAnalytics";
 import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { PLAN_LIST, PLAN_ORDER, type PlanSlug } from "@/lib/planFeatures";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -46,7 +47,9 @@ const GRADS = [
 
 export default function Features() {
   const [sections, setSections] = useState(mergeWithDefaults([]));
-  const [selectedPlan, setSelectedPlan] = useState<"explorer" | "plus" | "pro" | "enterprise">("pro");
+  const [selectedPlan, setSelectedPlan] = useState<PlanSlug>(
+    (PLAN_LIST.find((p) => p.highlighted)?.slug ?? PLAN_ORDER[0]) as PlanSlug,
+  );
   const [onlyDiffs, setOnlyDiffs] = useState(false);
 
   useEffect(() => {
@@ -96,22 +99,29 @@ export default function Features() {
   const items: any[] = features.items || [];
 
   // -------- Plan comparison matrix ---------------------------------------
-  // Kept in sync with src/components/landing/pricing-section.tsx. Values:
-  //   true  → included
-  //   false → not included
-  //   string → tier-specific note (e.g. "25 / mo")
-  type PlanKey = "explorer" | "plus" | "pro" | "enterprise";
-  const PLAN_COLUMNS: Array<{ key: PlanKey; name: string; price: string; bestFor: string; highlight?: boolean }> = [
-    { key: "explorer", name: "Explorer", price: "Free", bestFor: "Try AI signals and track a small watchlist" },
-    { key: "plus", name: "Plus", price: "€12 /mo", bestFor: "Live data, portfolio sync and generous AI research" },
-    { key: "pro", name: "Pro", price: "€29 /mo", bestFor: "Daily research, backtesting and portfolio analytics", highlight: true },
-    { key: "enterprise", name: "Enterprise", price: "€149 /mo", bestFor: "Teams, advisors, compliance and API access" },
-  ];
+  // Columns are generated from PLAN_FEATURES (single source of truth) so
+  // adding/removing a tier there automatically reflects here — no local
+  // duplication of the plan catalog.
+  type PlanKey = PlanSlug;
+  const PLAN_COLUMNS: Array<{ key: PlanKey; name: string; price: string; bestFor: string; highlight?: boolean }> =
+    PLAN_LIST.map((p) => ({
+      key: p.slug,
+      name: p.name,
+      price: p.contactSales
+        ? "Custom"
+        : p.priceMonthly === 0
+          ? "Free"
+          : `€${p.priceMonthly} /mo`,
+      bestFor: p.audience,
+      highlight: p.highlighted,
+    }));
   type Cell = boolean | string;
 
-  const COMPARISON: Array<{
+  // Rows use a partial map so that if a new plan is added to PLAN_FEATURES,
+  // unknown columns default to "not included" instead of crashing the type.
+  const COMPARISON_RAW: Array<{
     category: string;
-    rows: Array<{ label: string; hint?: string; values: Record<PlanKey, Cell> }>;
+    rows: Array<{ label: string; hint?: string; values: Partial<Record<PlanKey, Cell>> }>;
   }> = [
     {
       category: "Market data & research",
@@ -152,6 +162,21 @@ export default function Features() {
       ],
     },
   ];
+
+  // Fill any missing plan cells so every configured tier has a value.
+  const COMPARISON: Array<{
+    category: string;
+    rows: Array<{ label: string; hint?: string; values: Record<PlanKey, Cell> }>;
+  }> = COMPARISON_RAW.map((group) => ({
+    category: group.category,
+    rows: group.rows.map((row) => {
+      const values = {} as Record<PlanKey, Cell>;
+      for (const p of PLAN_COLUMNS) {
+        values[p.key] = row.values[p.key] ?? false;
+      }
+      return { label: row.label, hint: row.hint, values };
+    }),
+  }));
 
   const planCoverage = (plan: PlanKey) => {
     const rows = COMPARISON.flatMap((group) => group.rows);
@@ -197,12 +222,14 @@ export default function Features() {
 
   // Consistent tint per plan column so users can visually track ownership
   // top-to-bottom on both desktop and mobile.
+  const DEFAULT_TINT = { bg: "rgba(4,44,83,0.035)", strong: "rgba(4,44,83,0.10)", accent: "#042C53" };
   const PLAN_TINT: Record<PlanKey, { bg: string; strong: string; accent: string }> = {
     explorer:   { bg: "rgba(4,44,83,0.035)",  strong: "rgba(24,95,165,0.10)",  accent: "#185FA5" },
     plus:       { bg: "rgba(124,58,237,0.05)", strong: "rgba(124,58,237,0.16)", accent: "#7C3AED" },
     pro:        { bg: "rgba(29,158,117,0.06)", strong: "rgba(29,158,117,0.18)", accent: "#1D9E75" },
     enterprise: { bg: "rgba(55,138,221,0.05)", strong: "rgba(55,138,221,0.16)", accent: "#378ADD" },
   };
+  const tintOf = (key: PlanKey) => PLAN_TINT[key] ?? DEFAULT_TINT;
   // Amber for tier-specific limits/variants so "Limited" reads distinct from "Included".
   const LIMITED_STYLE = { background: "rgba(234,160,32,0.14)", color: "#8a5a00" };
 

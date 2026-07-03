@@ -3,6 +3,7 @@ import { SEO } from "@/components/SEO";
 import { TopNav } from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
+import { UpgradeStepper } from "@/components/upgrade/UpgradeStepper";
 
 export default function CheckoutReturn() {
   const [searchParams] = useSearchParams();
@@ -12,6 +13,9 @@ export default function CheckoutReturn() {
       <SEO title="Checkout complete" description="Your subscription is being activated." path="/checkout/return" />
       <TopNav />
       <main className="container mx-auto px-6 py-20 max-w-xl text-center">
+        <div className="flex justify-center mb-8">
+          <UpgradeStepper current="confirm" />
+        </div>
         {sessionId ? (
           <>
             <CheckCircle2 className="h-14 w-14 mx-auto text-success mb-4" />

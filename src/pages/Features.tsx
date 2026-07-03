@@ -230,6 +230,7 @@ export default function Features() {
       </section>
 
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20 md:pb-24">
+        {/* Overview cards — quick scan of what each capability does. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {items.map((f: any, i: number) => (
             <article
@@ -253,6 +254,107 @@ export default function Features() {
               </div>
             </article>
           ))}
+        </div>
+
+        {/* Plan comparison matrix — the "which tier gets what" answer. */}
+        <div className="mt-16 sm:mt-24">
+          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+            <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>
+              Compare plans
+            </div>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>
+              Exactly what's in each tier
+            </h2>
+            <p className="mt-3 text-sm sm:text-base" style={{ color: "#3d4f66" }}>
+              Every capability, mapped to Explorer, Pro and Enterprise. No fine print.
+            </p>
+          </div>
+
+          {/* Desktop / tablet: sticky-header matrix table. */}
+          <div className="hidden md:block glass-card rounded-3xl overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr style={{ background: "linear-gradient(135deg,rgba(4,44,83,0.04),rgba(29,158,117,0.04))" }}>
+                  <th className="py-4 px-6 text-xs font-bold tracking-wider uppercase" style={{ color: "#6b7a8c" }}>
+                    Feature
+                  </th>
+                  {PLAN_COLUMNS.map((p) => (
+                    <th key={p.key} className="py-4 px-4 text-center" style={{ color: "#042C53" }}>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className={`text-sm font-bold ${p.highlight ? "" : ""}`}>{p.name}</span>
+                        <span className="text-xs font-medium" style={{ color: p.highlight ? "#1D9E75" : "#6b7a8c" }}>
+                          {p.price}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON.map((group) => (
+                  <>
+                    <tr key={`${group.category}-h`}>
+                      <td
+                        colSpan={1 + PLAN_COLUMNS.length}
+                        className="py-3 px-6 text-[11px] font-bold tracking-[0.2em] uppercase"
+                        style={{ background: "rgba(4,44,83,0.03)", color: "#185FA5", borderTop: "1px solid rgba(4,44,83,0.06)" }}
+                      >
+                        {group.category}
+                      </td>
+                    </tr>
+                    {group.rows.map((row) => (
+                      <tr key={`${group.category}-${row.label}`} className="border-t" style={{ borderColor: "rgba(4,44,83,0.06)" }}>
+                        <td className="py-3 px-6 text-sm" style={{ color: "#1f3147" }}>{row.label}</td>
+                        {PLAN_COLUMNS.map((p) => (
+                          <td
+                            key={p.key}
+                            className="py-3 px-4 text-center"
+                            style={p.highlight ? { background: "rgba(29,158,117,0.04)" } : undefined}
+                          >
+                            {renderCell(row.values[p.key])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: one card per plan, grouped by category. */}
+          <div className="md:hidden space-y-5">
+            {PLAN_COLUMNS.map((p) => (
+              <div
+                key={p.key}
+                className="glass-card rounded-3xl p-5"
+                style={p.highlight ? { border: "1px solid rgba(29,158,117,0.35)" } : undefined}
+              >
+                <div className="flex items-baseline justify-between mb-3">
+                  <div className="text-lg font-bold" style={{ color: "#042C53" }}>{p.name}</div>
+                  <div className="text-sm font-semibold" style={{ color: p.highlight ? "#1D9E75" : "#6b7a8c" }}>{p.price}</div>
+                </div>
+                {COMPARISON.map((group) => (
+                  <div key={group.category} className="mt-4">
+                    <div className="text-[10px] font-bold tracking-[0.2em] uppercase mb-2" style={{ color: "#185FA5" }}>
+                      {group.category}
+                    </div>
+                    <ul className="space-y-1.5">
+                      {group.rows.map((row) => {
+                        const v = row.values[p.key];
+                        return (
+                          <li key={row.label} className="flex items-center justify-between gap-3 text-sm">
+                            <span style={{ color: v === false ? "#9aa8b8" : "#1f3147" }}>{row.label}</span>
+                            <span className="shrink-0">{renderCell(v)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row items-center justify-center gap-3">

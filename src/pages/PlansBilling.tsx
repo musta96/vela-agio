@@ -266,7 +266,7 @@ export default function PlansBilling() {
         description="Your current plan, credit usage, and upgrade options."
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/pricing"><Sparkles className="h-4 w-4" /> See all plans</Link>
+            <Link to="/upgrade"><Sparkles className="h-4 w-4" /> See all plans</Link>
           </Button>
         }
       />
@@ -325,7 +325,7 @@ export default function PlansBilling() {
               )}
                 {pricingEnabled && !isBeta && (
                 <Button asChild size="sm" className="gap-2">
-                  <Link to="/pricing">
+                  <Link to="/upgrade">
                     <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
                   </Link>
                 </Button>
@@ -566,7 +566,7 @@ export default function PlansBilling() {
                   <div>
                     You've used all your AI credits this month. Paper trading and non-AI features keep working.
                     {pricingEnabled && (
-                      <> <Link to="/pricing" className="underline font-medium">Upgrade your plan</Link> for more capacity.</>
+                      <> <Link to="/upgrade" className="underline font-medium">Upgrade your plan</Link> for more capacity.</>
                     )}
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export default function PlansBilling() {
             <div className="text-sm text-muted-foreground">
               AI is not currently available on your plan.{" "}
               {pricingEnabled && (
-                <Link to="/pricing" className="underline text-foreground">Upgrade to enable AI features →</Link>
+                <Link to="/upgrade" className="underline text-foreground">Upgrade to enable AI features →</Link>
               )}
             </div>
           )}

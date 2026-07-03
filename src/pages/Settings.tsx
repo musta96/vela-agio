@@ -360,6 +360,9 @@ function PrivacyTab() {
 function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
   const { user } = useAuth();
   const [trial, setTrial] = useState<{ ends_at: string | null; status: string | null; cycle: string | null } | null>(null);
+  const location = useLocation();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   useEffect(() => {
     if (!user) return;
     supabase
@@ -375,20 +378,66 @@ function BillingTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) 
       });
   }, [user?.id]);
 
+  // Auto-open cancel dialog when user arrives from a "Cancel trial" link
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("cancel") === "1" && trial?.ends_at) setConfirmOpen(true);
+  }, [location.search, trial?.ends_at]);
+
+  const handleCancel = async () => {
+    setCanceling(true);
+    try {
+      const { error } = await supabase.functions.invoke("cancel-trial");
+      if (error) throw error;
+      toast.success("Trial canceled. You're back on the Free plan — no charge was made.");
+      setTrial(null);
+      setConfirmOpen(false);
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not cancel trial");
+    } finally {
+      setCanceling(false);
+    }
+  };
+
   return (
     <Card className="p-6 rounded-2xl">
       <h2 className="text-base font-semibold mb-2">Subscription & billing</h2>
       <p className="text-sm text-muted-foreground mb-5">Update your payment method, download invoices, or cancel your plan in the secure billing portal.</p>
       {trial?.ends_at && (
-        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-          <div className="font-semibold text-foreground">Pro trial active</div>
-          <div className="text-xs text-muted-foreground mt-0.5">
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+          <div className="font-semibold text-foreground text-base">Pro trial active</div>
+          <div className="text-xs text-muted-foreground mt-1">
             First charge on <strong>{new Date(trial.ends_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</strong>
             {trial.cycle ? ` · ${trial.cycle === "annual" ? "€290/year" : "€29/month"}` : ""}. Cancel any time before then to avoid being charged.
           </div>
-          <div className="mt-2">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmOpen(true)}
+              disabled={canceling}
+            >
+              {canceling ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Canceling…</> : "Cancel trial"}
+            </Button>
             <ManageSubscriptionButton size="sm" label="Manage or cancel trial" />
           </div>
+          {confirmOpen && (
+            <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+              <div className="text-sm font-semibold text-foreground">Cancel your trial now?</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your Pro access will end immediately and no charge will be made. You can restart the trial anytime from the pricing page.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="destructive" onClick={handleCancel} disabled={canceling}>
+                  {canceling ? "Canceling…" : "Yes, cancel now"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmOpen(false)} disabled={canceling}>
+                  Keep my trial
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div className="flex flex-wrap gap-2">

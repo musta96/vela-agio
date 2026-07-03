@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from "react-router-dom";
+import { TrialStatusBanner } from "@/components/trial/TrialStatusBanner";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Search } from "lucide-react";
@@ -173,6 +174,7 @@ export default function AppShell() {
           <main
             className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-0"
           >
+            <TrialStatusBanner />
             <ErrorBoundary label="route" resetKey={location.pathname + location.search}>
               <Outlet />
             </ErrorBoundary>

@@ -51,6 +51,30 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
     cancel_at_period_end: subscription.cancel_at_period_end || false,
     updated_at: new Date().toISOString(),
   }).eq("stripe_subscription_id", subscription.id).eq("environment", env);
+
+  // Mirror trial → active transition onto profiles so app UI updates without a Stripe call.
+  const userId = subscription.metadata?.userId;
+  if (userId) {
+    const wasTrialing = subscription.status === "active" && !subscription.trial_end;
+    if (subscription.status === "active") {
+      await getSupabase().from("profiles").update({
+        plan: "pro",
+        subscription_status: "active",
+        trial_ends_at: null,
+        current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      }).eq("user_id", userId);
+    } else if (subscription.status === "past_due") {
+      await getSupabase().from("profiles").update({
+        subscription_status: "past_due",
+      }).eq("user_id", userId);
+    } else if (subscription.status === "trialing") {
+      await getSupabase().from("profiles").update({
+        plan: "pro_trial",
+        subscription_status: "trialing",
+        trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+      }).eq("user_id", userId);
+    }
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
@@ -58,6 +82,35 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     status: "canceled",
     updated_at: new Date().toISOString(),
   }).eq("stripe_subscription_id", subscription.id).eq("environment", env);
+
+  // Revert profile to free immediately when Stripe confirms cancellation.
+  const userId = subscription.metadata?.userId;
+  if (userId) {
+    await getSupabase().from("profiles").update({
+      plan: "free",
+      subscription_status: "canceled",
+      trial_ends_at: null,
+      current_period_end: null,
+      billing_cycle: null,
+    }).eq("user_id", userId);
+  }
+}
+
+async function handleInvoicePaid(invoice: any, env: StripeEnv) {
+  // First real charge after trial → welcome-to-pro path.
+  if (invoice.billing_reason !== "subscription_cycle" && invoice.billing_reason !== "subscription_create") return;
+  const subId = invoice.subscription;
+  if (!subId) return;
+  const { data: sub } = await getSupabase()
+    .from("subscriptions").select("user_id").eq("stripe_subscription_id", subId).eq("environment", env).maybeSingle();
+  const userId = (sub as any)?.user_id;
+  if (!userId) return;
+  await getSupabase().from("profiles").update({
+    plan: "pro",
+    subscription_status: "active",
+    trial_ends_at: null,
+    trial_welcome_shown_at: null, // triggers welcome banner on next login
+  }).eq("user_id", userId);
 }
 
 Deno.serve(async (req) => {
@@ -78,6 +131,9 @@ Deno.serve(async (req) => {
         await handleSubscriptionUpdated(event.data.object, env); break;
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event.data.object, env); break;
+      case "invoice.paid":
+      case "invoice.payment_succeeded":
+        await handleInvoicePaid(event.data.object, env); break;
       default:
         console.log("Unhandled event:", event.type);
     }

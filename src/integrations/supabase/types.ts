@@ -2049,7 +2049,11 @@ export type Database = {
           recommendation_verdicts_override: string
           secondary_tax_residences: string[] | null
           subscription_status: Database["public"]["Enums"]["sub_status"] | null
+          trial_canceled_at: string | null
           trial_ends_at: string | null
+          trial_reminder_1d_sent_at: string | null
+          trial_reminder_2d_sent_at: string | null
+          trial_welcome_shown_at: string | null
           unrestricted_advice: boolean
           updated_at: string
           user_id: string
@@ -2084,7 +2088,11 @@ export type Database = {
           recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
           subscription_status?: Database["public"]["Enums"]["sub_status"] | null
+          trial_canceled_at?: string | null
           trial_ends_at?: string | null
+          trial_reminder_1d_sent_at?: string | null
+          trial_reminder_2d_sent_at?: string | null
+          trial_welcome_shown_at?: string | null
           unrestricted_advice?: boolean
           updated_at?: string
           user_id: string
@@ -2119,7 +2127,11 @@ export type Database = {
           recommendation_verdicts_override?: string
           secondary_tax_residences?: string[] | null
           subscription_status?: Database["public"]["Enums"]["sub_status"] | null
+          trial_canceled_at?: string | null
           trial_ends_at?: string | null
+          trial_reminder_1d_sent_at?: string | null
+          trial_reminder_2d_sent_at?: string | null
+          trial_welcome_shown_at?: string | null
           unrestricted_advice?: boolean
           updated_at?: string
           user_id?: string

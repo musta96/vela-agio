@@ -128,6 +128,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 // Extra sections registered after the initial map:
 (OWNER_SECTION_ROUTES as any).security = "/owner/security";
 (OWNER_SECTION_ROUTES as any)["onboarding-funnel"] = "/owner/onboarding-funnel";
+(OWNER_SECTION_ROUTES as any)["signup-conversion"] = "/owner/signup-conversion";
 (OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 (OWNER_SECTION_ROUTES as any)["retention-audit"] = "/owner/retention-audit";
 

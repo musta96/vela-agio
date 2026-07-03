@@ -109,14 +109,43 @@ async function handleInvoicePaid(invoice: any, env: StripeEnv) {
     .from("subscriptions").select("user_id").eq("stripe_subscription_id", subId).eq("environment", env).maybeSingle();
   const userId = (sub as any)?.user_id;
   if (!userId) return;
+
+  // Reactivation path: the profile was marked `reactivated_at` when the user
+  // resubscribed after cancellation. Suppress the standard "Welcome to Pro"
+  // banner and send the "Welcome back" email instead.
+  const { data: prof } = await getSupabase()
+    .from("profiles").select("reactivated_at").eq("user_id", userId).maybeSingle();
+  const isReactivation = !!(prof as any)?.reactivated_at;
+
   await getSupabase().from("profiles").update({
     plan: "pro",
     subscription_status: "active",
     trial_ends_at: null,
     past_due_since: null,
     dunning_email_sent_at: null,
-    trial_welcome_shown_at: null, // triggers welcome banner on next login
+    // Suppress the welcome banner for reactivations; leave null (=> show it)
+    // for first-time Pro activations after trial.
+    trial_welcome_shown_at: isReactivation ? new Date().toISOString() : null,
   }).eq("user_id", userId);
+
+  if (isReactivation) {
+    try {
+      const { data: authUser } = await getSupabase().auth.admin.getUserById(userId);
+      const email = (authUser as any)?.user?.email;
+      if (email) {
+        await getSupabase().functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "welcome-back",
+            recipientEmail: email,
+            idempotencyKey: `reactivated-${userId}-${invoice.id}`,
+            templateData: {
+              dashboardUrl: "https://vela-agio.lovable.app/dashboard",
+            },
+          },
+        });
+      }
+    } catch (e) { console.warn("welcome-back email failed", (e as Error).message); }
+  }
 }
 
 async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {

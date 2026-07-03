@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
+import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
 import { ApiKeysAdmin } from "@/components/owner/ApiKeysAdmin";
@@ -93,6 +94,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/legal": "legal",
   "/owner/security": "security",
   "/owner/onboarding-funnel": "onboarding-funnel",
+  "/owner/enterprise-leads": "enterprise-leads",
 };
 
 // Canonical route per section (reverse of OWNER_ROUTE_SECTIONS, first wins).
@@ -123,6 +125,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 // Extra sections registered after the initial map:
 (OWNER_SECTION_ROUTES as any).security = "/owner/security";
 (OWNER_SECTION_ROUTES as any)["onboarding-funnel"] = "/owner/onboarding-funnel";
+(OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);

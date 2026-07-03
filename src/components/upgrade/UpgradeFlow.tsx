@@ -25,6 +25,7 @@ type UpgradePlan = {
   slug: string;
   name: string;
   tier: string | null;
+  features: unknown;
   monthly_cents: number;
   annual_cents: number;
   monthly_lookup: string;
@@ -107,6 +108,7 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
           slug: (data as any).slug ?? requestedPlanSlug,
           name: (data as any).name ?? requestedPlanSlug,
           tier: (data as any).tier ?? null,
+          features: (data as any).features,
           monthly_cents: (data as any).monthly_price_cents ?? 2900,
           annual_cents: (data as any).yearly_price_cents ?? 29000,
           monthly_lookup: (data as any).stripe_monthly_price_id ?? `${requestedPlanSlug}_monthly`,
@@ -165,16 +167,25 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
   const lookupForCycle = cycle === "annual" ? plan?.annual_lookup : plan?.monthly_lookup;
 
   // Reorder benefits so the context feature is first.
+  const planBenefits = useMemo(() => {
+    if (!Array.isArray(plan?.features) || plan.features.length === 0) return PRO_BENEFITS;
+    return plan.features.slice(0, 8).map((feature, index) => ({
+      key: `${targetPlanSlug}_${index}`,
+      label: String(feature),
+      freeGap: `Included with ${planName}`,
+    }));
+  }, [plan?.features, planName, targetPlanSlug]);
+
   const orderedBenefits = useMemo(() => {
-    if (!contextFeatureKey) return PRO_BENEFITS;
+    if (!contextFeatureKey) return planBenefits;
     // naive: put ai first if context involves ai, portfolios first if portfolios, etc.
     const key = contextFeatureKey.toLowerCase();
-    return [...PRO_BENEFITS].sort((a, b) => {
+    return [...planBenefits].sort((a, b) => {
       const aMatch = key.includes(a.key.split("_")[0]) ? -1 : 0;
       const bMatch = key.includes(b.key.split("_")[0]) ? -1 : 0;
       return aMatch - bMatch;
     });
-  }, [contextFeatureKey]);
+  }, [contextFeatureKey, planBenefits]);
 
   const aiUsed = credits?.used ?? 0;
   const aiLimit = credits?.hasCap ? credits.limit : (ent.limits.maxAiQuestionsPerMonth ?? null);

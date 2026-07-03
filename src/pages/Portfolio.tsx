@@ -31,6 +31,7 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { PortfolioSimulator } from "@/components/PortfolioSimulator";
 import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
+import { ProgressiveHint } from "@/components/onboarding/ProgressiveHint";
 
 interface PortfolioStock {
   symbol: string;

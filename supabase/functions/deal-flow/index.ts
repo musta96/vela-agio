@@ -42,24 +42,75 @@ async function fetchIpos(authHeader: string | null, from: string, to: string) {
           symbol: d.symbol, name: d.name, date: d.date, exchange: d.exchange,
           priceRange: d.price, shares: d.numberOfShares, value: d.totalSharesValue,
           source: 'Finnhub',
-        }));
+          status: new Date(d.date) >= new Date() ? 'upcoming' : 'priced',
+        })).sort(sortIposFutureFirst);
       }
     } catch (e) { console.warn('finnhub ipo failed', e); }
   }
-  // Fallback: Nasdaq priced IPOs RSS (no key)
-  try {
-    const r = await fetch('https://api.nasdaq.com/api/ipo/calendar?date=' + from.slice(0, 7), { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (r.ok) {
+  // Fallback: Nasdaq IPO calendar (no key). Pull the current month plus the
+  // next 2 months and include upcoming/filed rows (not just already-priced),
+  // then sort so future deals appear first — that's what users actually care
+  // about (e.g. Bending Spoons filing is only visible via `filed`/`upcoming`).
+  const out: any[] = [];
+  const months = nextNMonths(3);
+  await Promise.all(months.map(async (ym) => {
+    try {
+      const r = await fetch(`https://api.nasdaq.com/api/ipo/calendar?date=${ym}`, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!r.ok) return;
       const j = await r.json();
-      const priced = j?.data?.priced?.rows ?? [];
-      return priced.map((d: any) => ({
-        symbol: d.proposedTickerSymbol, name: d.companyName, date: d.pricedDate,
-        exchange: d.proposedExchange, priceRange: d.proposedSharePrice, shares: d.sharesOffered, value: d.dollarValueOfSharesOffered,
-        source: 'Nasdaq',
-      }));
-    }
-  } catch (e) { console.warn('nasdaq ipo failed', e); }
-  return [];
+      const buckets: Array<[any[], string, string]> = [
+        [j?.data?.upcoming?.upcomingTable?.rows ?? [], 'upcoming', 'expectedPriceDate'],
+        [j?.data?.filed?.rows ?? [], 'filed', 'filedDate'],
+        [j?.data?.priced?.rows ?? [], 'priced', 'pricedDate'],
+      ];
+      for (const [rows, status, dateKey] of buckets) {
+        for (const d of rows) {
+          out.push({
+            symbol: d.proposedTickerSymbol || d.symbol || null,
+            name: d.companyName || d.name,
+            date: d[dateKey] || d.expectedPriceDate || d.pricedDate || d.filedDate,
+            exchange: d.proposedExchange,
+            priceRange: d.proposedSharePrice,
+            shares: d.sharesOffered,
+            value: d.dollarValueOfSharesOffered,
+            source: 'Nasdaq',
+            status,
+          });
+        }
+      }
+    } catch (e) { console.warn('nasdaq ipo failed', ym, e); }
+  }));
+  // Dedup by company+date
+  const seen = new Set<string>();
+  const unique = out.filter((d) => {
+    const k = `${(d.name ?? '').toLowerCase()}|${d.date ?? ''}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return unique.sort(sortIposFutureFirst);
+}
+
+function nextNMonths(n: number): string[] {
+  const out: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return out;
+}
+
+function sortIposFutureFirst(a: any, b: any): number {
+  const now = Date.now();
+  const ta = a.date ? new Date(a.date).getTime() : 0;
+  const tb = b.date ? new Date(b.date).getTime() : 0;
+  const aFuture = ta >= now;
+  const bFuture = tb >= now;
+  if (aFuture && !bFuture) return -1;
+  if (!aFuture && bFuture) return 1;
+  // Both future: soonest first. Both past: most recent first.
+  return aFuture ? ta - tb : tb - ta;
 }
 
 async function fetchDeals(authHeader: string | null, query: string, label: 'ma' | 'lbo') {
@@ -122,21 +173,22 @@ Deno.serve(async (req) => {
   if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     const auth = req.headers.get('Authorization');
-    const { kind = 'all', summarize = false, days = 14 } = await req.json().catch(() => ({}));
+    const { kind = 'all', summarize = false, days = 7 } = await req.json().catch(() => ({}));
     const today = new Date();
     const from = new Date(today.getTime() - days * 86400_000).toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 30 * 86400_000).toISOString().slice(0, 10);
-    const cacheKey = `${kind}:${days}`;
+    const to = new Date(today.getTime() + 90 * 86400_000).toISOString().slice(0, 10);
+    // v2 = new "future-first" IPO logic + 90d lookahead; invalidates old cache.
+    const cacheKey = `v2:${kind}:${days}`;
 
     const result: any = {};
     if (kind === 'ipo' || kind === 'all') {
-      result.ipos = await cached('ipo', cacheKey, 30, () => fetchIpos(auth, from, to));
+      result.ipos = await cached('ipo', cacheKey, 15, () => fetchIpos(auth, from, to));
     }
     if (kind === 'ma' || kind === 'all') {
-      result.ma = await cached('ma', cacheKey, 30, () => fetchDeals(auth, '(merger OR acquisition OR "to acquire") AND (deal OR announced)', 'ma'));
+      result.ma = await cached('ma', cacheKey, 15, () => fetchDeals(auth, '(merger OR acquisition OR "to acquire") AND (deal OR announced)', 'ma'));
     }
     if (kind === 'lbo' || kind === 'all') {
-      result.lbo = await cached('lbo', cacheKey, 30, () => fetchDeals(auth, '(leveraged buyout OR LBO OR "take private" OR "private equity buyout")', 'lbo'));
+      result.lbo = await cached('lbo', cacheKey, 15, () => fetchDeals(auth, '(leveraged buyout OR LBO OR "take private" OR "private equity buyout")', 'lbo'));
     }
     if (summarize && auth) {
       const all = [...(result.ipos ?? []), ...(result.ma ?? []), ...(result.lbo ?? [])];

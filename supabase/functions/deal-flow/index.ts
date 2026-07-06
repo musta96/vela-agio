@@ -249,8 +249,8 @@ Deno.serve(async (req) => {
     const today = new Date();
     const from = new Date(today.getTime() - days * 86400_000).toISOString().slice(0, 10);
     const to = new Date(today.getTime() + 90 * 86400_000).toISOString().slice(0, 10);
-    // v2 = new "future-first" IPO logic + 90d lookahead; invalidates old cache.
-    const cacheKey = `v2:${kind}:${days}`;
+    // v3 = adds SEC EDGAR fallback for known-missing issuers.
+    const cacheKey = `v3:${kind}:${days}`;
 
     const result: any = {};
     if (kind === 'ipo' || kind === 'all') {

@@ -173,21 +173,22 @@ Deno.serve(async (req) => {
   if (!__aiAccess.allowed) return aiDeniedResponse(__aiAccess, corsHeaders);
   try {
     const auth = req.headers.get('Authorization');
-    const { kind = 'all', summarize = false, days = 14 } = await req.json().catch(() => ({}));
+    const { kind = 'all', summarize = false, days = 7 } = await req.json().catch(() => ({}));
     const today = new Date();
     const from = new Date(today.getTime() - days * 86400_000).toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 30 * 86400_000).toISOString().slice(0, 10);
-    const cacheKey = `${kind}:${days}`;
+    const to = new Date(today.getTime() + 90 * 86400_000).toISOString().slice(0, 10);
+    // v2 = new "future-first" IPO logic + 90d lookahead; invalidates old cache.
+    const cacheKey = `v2:${kind}:${days}`;
 
     const result: any = {};
     if (kind === 'ipo' || kind === 'all') {
-      result.ipos = await cached('ipo', cacheKey, 30, () => fetchIpos(auth, from, to));
+      result.ipos = await cached('ipo', cacheKey, 15, () => fetchIpos(auth, from, to));
     }
     if (kind === 'ma' || kind === 'all') {
-      result.ma = await cached('ma', cacheKey, 30, () => fetchDeals(auth, '(merger OR acquisition OR "to acquire") AND (deal OR announced)', 'ma'));
+      result.ma = await cached('ma', cacheKey, 15, () => fetchDeals(auth, '(merger OR acquisition OR "to acquire") AND (deal OR announced)', 'ma'));
     }
     if (kind === 'lbo' || kind === 'all') {
-      result.lbo = await cached('lbo', cacheKey, 30, () => fetchDeals(auth, '(leveraged buyout OR LBO OR "take private" OR "private equity buyout")', 'lbo'));
+      result.lbo = await cached('lbo', cacheKey, 15, () => fetchDeals(auth, '(leveraged buyout OR LBO OR "take private" OR "private equity buyout")', 'lbo'));
     }
     if (summarize && auth) {
       const all = [...(result.ipos ?? []), ...(result.ma ?? []), ...(result.lbo ?? [])];

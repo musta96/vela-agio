@@ -12,7 +12,7 @@ import ReactMarkdown from "react-markdown";
 import { FeedFallback } from "@/components/FeedFallback";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type Ipo = { symbol?: string; name?: string; date?: string; exchange?: string; priceRange?: string; shares?: number; value?: number; source?: string };
+type Ipo = { symbol?: string; name?: string; date?: string; exchange?: string; priceRange?: string; shares?: number; value?: number; source?: string; status?: 'upcoming' | 'filed' | 'priced' };
 type Deal = { title?: string; source?: string; url?: string; date?: string; description?: string };
 
 export default function DealFlow() {
@@ -79,7 +79,17 @@ export default function DealFlow() {
                       <Card className="p-3 flex items-center gap-3 hover:bg-accent/40 transition-colors">
                         <div className="font-mono text-sm font-bold w-16 shrink-0">{i.symbol ?? "-"}</div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{i.name}</div>
+                          <div className="text-sm font-medium truncate flex items-center gap-2">
+                            <span className="truncate">{i.name}</span>
+                            {i.status && (
+                              <Badge
+                                variant={i.status === 'upcoming' ? 'default' : i.status === 'filed' ? 'secondary' : 'outline'}
+                                className="shrink-0 capitalize text-[10px] px-1.5 py-0"
+                              >
+                                {i.status}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground truncate">{i.exchange} · {i.date} {i.priceRange && `· $${i.priceRange}`}</div>
                         </div>
                         {i.value && <Badge variant="outline" className="shrink-0">${(Number(i.value) / 1e6).toFixed(1)}M</Badge>}

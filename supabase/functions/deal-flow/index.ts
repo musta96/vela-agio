@@ -31,27 +31,47 @@ async function cached<T>(kind: 'ma' | 'ipo' | 'lbo', key: string, ttlMin: number
   return payload;
 }
 
+// Well-known issuers with active/rumored IPO filings that the Nasdaq +
+// Finnhub calendars sometimes miss (e.g. confidential DRS filings or
+// non-US-listed prospects). If any of these names are absent from the
+// primary pull we escalate to SEC EDGAR full-text search below.
+const KNOWN_UPCOMING_ISSUERS = [
+  'Bending Spoons',
+  'Klarna',
+  'Stripe',
+  'Databricks',
+  'Discord',
+  'Shein',
+  'Canva',
+  'Revolut',
+  'Ramp',
+  'Cerebras',
+];
+
 async function fetchIpos(authHeader: string | null, from: string, to: string) {
+  const out: any[] = [];
+
+  // Primary #1: Finnhub calendar (BYO key)
   const fh = await getUserDataKey(authHeader, 'FINNHUB_API_KEY');
   if (fh) {
     try {
       const r = await fetch(`https://finnhub.io/api/v1/calendar/ipo?from=${from}&to=${to}&token=${fh}`);
       if (r.ok) {
         const j = await r.json();
-        return (j?.ipoCalendar ?? []).map((d: any) => ({
-          symbol: d.symbol, name: d.name, date: d.date, exchange: d.exchange,
-          priceRange: d.price, shares: d.numberOfShares, value: d.totalSharesValue,
-          source: 'Finnhub',
-          status: new Date(d.date) >= new Date() ? 'upcoming' : 'priced',
-        })).sort(sortIposFutureFirst);
+        for (const d of j?.ipoCalendar ?? []) {
+          out.push({
+            symbol: d.symbol, name: d.name, date: d.date, exchange: d.exchange,
+            priceRange: d.price, shares: d.numberOfShares, value: d.totalSharesValue,
+            source: 'Finnhub',
+            status: d.date && new Date(d.date) >= new Date() ? 'upcoming' : 'priced',
+          });
+        }
       }
     } catch (e) { console.warn('finnhub ipo failed', e); }
   }
-  // Fallback: Nasdaq IPO calendar (no key). Pull the current month plus the
-  // next 2 months and include upcoming/filed rows (not just already-priced),
-  // then sort so future deals appear first — that's what users actually care
-  // about (e.g. Bending Spoons filing is only visible via `filed`/`upcoming`).
-  const out: any[] = [];
+
+  // Primary #2: Nasdaq IPO calendar (no key). Current month + next 2, all
+  // buckets (upcoming/filed/priced) so future deals surface.
   const months = nextNMonths(3);
   await Promise.all(months.map(async (ym) => {
     try {
@@ -80,15 +100,67 @@ async function fetchIpos(authHeader: string | null, from: string, to: string) {
       }
     } catch (e) { console.warn('nasdaq ipo failed', ym, e); }
   }));
-  // Dedup by company+date
-  const seen = new Set<string>();
-  const unique = out.filter((d) => {
-    const k = `${(d.name ?? '').toLowerCase()}|${d.date ?? ''}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  return unique.sort(sortIposFutureFirst);
+
+  // Escalation: for any well-known upcoming issuer missing from the primary
+  // pull, hit SEC EDGAR full-text search for their most recent S-1 / F-1 /
+  // DRS filing so we still surface a "Filed" entry.
+  const names = new Set(out.map((d) => normalizeIssuer(d.name)));
+  const missing = KNOWN_UPCOMING_ISSUERS.filter((n) => !names.has(normalizeIssuer(n)));
+  if (missing.length) {
+    const edgar = await Promise.all(missing.map(fetchEdgarIpoFiling));
+    for (const hit of edgar) if (hit) out.push(hit);
+  }
+
+  // Dedup by (issuer, date). Prefer richer sources (Nasdaq/Finnhub over EDGAR).
+  const rank = (s?: string) => (s === 'Finnhub' ? 3 : s === 'Nasdaq' ? 2 : 1);
+  const byKey = new Map<string, any>();
+  for (const d of out) {
+    const k = `${normalizeIssuer(d.name)}|${d.date ?? ''}`;
+    const prev = byKey.get(k);
+    if (!prev || rank(d.source) > rank(prev.source)) byKey.set(k, d);
+  }
+  return [...byKey.values()].sort(sortIposFutureFirst);
+}
+
+function normalizeIssuer(name?: string | null): string {
+  return (name ?? '')
+    .toLowerCase()
+    .replace(/\b(inc|incorporated|corp|corporation|ltd|limited|plc|holdings?|group|sa|nv|ag|llc|co)\b\.?/g, '')
+    .replace(/[.,]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// SEC EDGAR full-text search for the issuer's most recent IPO-registration
+// filing (S-1 = US domestic, F-1 = foreign private issuer, DRS = confidential
+// draft submission). No key required. EDGAR requires a descriptive UA.
+async function fetchEdgarIpoFiling(issuer: string): Promise<any | null> {
+  try {
+    const url = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(`"${issuer}"`)}&forms=S-1,F-1,DRS,DRS/A,S-1/A,F-1/A`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Vela deal-flow (support@vela.ai)', Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const hit = j?.hits?.hits?.[0];
+    if (!hit) return null;
+    const src = hit._source ?? {};
+    const form = (src.form ?? '').toString();
+    const date = (src.file_date ?? '').toString().slice(0, 10) || null;
+    const displayName: string = src.display_names?.[0] ?? issuer;
+    // Skip stale filings older than ~18 months — likely not an active IPO.
+    if (date && Date.now() - new Date(date).getTime() > 550 * 86400_000) return null;
+    return {
+      symbol: null,
+      name: displayName.replace(/\s*\(CIK.*$/i, '').trim(),
+      date,
+      exchange: null,
+      priceRange: null,
+      shares: null,
+      value: null,
+      source: 'SEC EDGAR',
+      status: 'filed',
+      formType: form,
+    };
+  } catch (e) { console.warn('edgar ipo lookup failed', issuer, e); return null; }
 }
 
 function nextNMonths(n: number): string[] {
@@ -177,8 +249,8 @@ Deno.serve(async (req) => {
     const today = new Date();
     const from = new Date(today.getTime() - days * 86400_000).toISOString().slice(0, 10);
     const to = new Date(today.getTime() + 90 * 86400_000).toISOString().slice(0, 10);
-    // v2 = new "future-first" IPO logic + 90d lookahead; invalidates old cache.
-    const cacheKey = `v2:${kind}:${days}`;
+    // v3 = adds SEC EDGAR fallback for known-missing issuers.
+    const cacheKey = `v3:${kind}:${days}`;
 
     const result: any = {};
     if (kind === 'ipo' || kind === 'all') {

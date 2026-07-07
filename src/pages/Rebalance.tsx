@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { CorrelationMatrix } from "@/components/CorrelationMatrix";
+import ImpactPanel from "@/components/rebalance/ImpactPanel";
 import { RefreshCw } from "lucide-react";
 
 const LOOKBACKS = [
@@ -86,6 +87,7 @@ export default function Rebalance() {
             <span className="text-sm text-muted-foreground">% from target triggers a trade</span>
           </CardContent>
         </Card>
+        <ImpactPanel />
         <Card>
           <CardHeader><CardTitle>Drift vs target weights</CardTitle></CardHeader>
           <CardContent>

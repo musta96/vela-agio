@@ -86,6 +86,13 @@ const TOOLS = [
         query: { type: 'string', description: 'The user\u2019s natural-language screening criteria.' },
         universe: { type: 'string', enum: ['us_large', 'us_growth', 'eu_large', 'ftse_mib', 'global_mix'], description: 'Which universe to scan. Defaults to global_mix.' },
       }, required: ['query'] } } },
+  { type: 'function', function: { name: 'run_thematic_deepdive', description: 'Map a megatrend/theme (e.g. "AI infrastructure", "GLP-1 drugs", "defence electronics", "grid & transmission", "small caps in nuclear") to its full value chain across raw materials, components, manufacturers, distributors and end users, then return a ranked list of listed companies — deliberately including small/micro caps. Use when the user asks "who benefits from X", "value chain of X", "hidden names in X", "small caps riding X". Output is information, not a recommendation.',
+      parameters: { type: 'object', properties: {
+        theme: { type: 'string', description: 'Free-text theme, as specific as possible.' },
+        region: { type: 'string', enum: ['all', 'na', 'eu', 'asia'], description: 'Geographic filter. Defaults to all.' },
+        size: { type: 'string', enum: ['all', 'large', 'mid', 'small'], description: 'Market-cap band. Defaults to all.' },
+        discoveryMode: { type: 'boolean', description: 'When true, the ranker lifts small/micro caps above mega caps at equal fundamentals. Use when the user asks for "hidden", "unknown", "small cap" names.' },
+      }, required: ['theme'] } } },
   { type: 'function', function: { name: 'generate_research_brief', description: 'Produce a structured educational research brief on one or more tickers the USER has already named (max 4). Each brief includes fundamentals, DCF/DDM intrinsic value range, bull case, bear case, key risks, sentiment, and suitability fit. NOT a buy/sell recommendation \u2014 it is research material the user can read and decide on themselves. Use this when the user asks for a "report", "deep dive", "compare X vs Y", or "document on these stocks".',
       parameters: { type: 'object', properties: {
         symbols: { type: 'array', items: { type: 'string' }, description: 'Ticker symbols (Yahoo format) to brief. Max 4.' },
@@ -220,6 +227,33 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
           pe: r.pe, divYield: r.divYield, revGrowth: r.revGrowth, roe: r.roe, beta: r.beta,
         })),
         disclaimer: 'Screening output is information, not a recommendation.',
+      };
+    }
+    case 'run_thematic_deepdive': {
+      const theme = String(args.theme ?? '').trim();
+      if (!theme) return { error: 'theme is required' };
+      const res = await callEdge(ctx.authHeader, 'thematic-deepdive', {
+        theme,
+        region: args.region ?? 'all',
+        size: args.size ?? 'all',
+        discoveryMode: Boolean(args.discoveryMode),
+      });
+      return {
+        theme: res.theme,
+        region: res.region,
+        size: res.size,
+        discoveryMode: res.discoveryMode,
+        chain: (res.chain ?? []).map((s: any) => ({
+          segment: s.segment,
+          label: s.label,
+          tickers: (s.companies ?? []).map((c: any) => c.symbol),
+        })),
+        top_results: (res.results ?? []).slice(0, 15).map((r: any) => ({
+          symbol: r.symbol, name: r.name, segment: r.segment, exposure: r.exposure,
+          region: r.region, marketCap: r.marketCap, pe: r.pe, revGrowth: r.revGrowth,
+          sentiment: r.sentiment, score: r.score,
+        })),
+        disclaimer: 'Value chain + candidates are information, not a recommendation. Small caps carry higher risk.',
       };
     }
     case 'generate_research_brief': {

@@ -1210,16 +1210,61 @@ function portfolioRiskSection(input: MemoInput): string {
 
 function correlationDriversSection(input: MemoInput): string {
   const d = input.correlation_drivers;
-  if (!d || (!d.diversifying?.length && !d.concentrating?.length)) return "";
+  const heatmap = input.correlation ? correlationHeatmap(input.correlation) : "";
+  if (!heatmap && (!d || (!d.diversifying?.length && !d.concentrating?.length))) return "";
   const rows = (pairs?: Array<{ a: string; b: string; v: number }>) =>
     (pairs ?? []).map((p) => `<tr><td>${esc(p.a)}</td><td>${esc(p.b)}</td><td class="num">${p.v.toFixed(2)}</td></tr>`).join("");
-  const div = d.diversifying?.length
+  const div = d?.diversifying?.length
     ? `<h2 class="sub">Top diversifying pairs (lowest correlation)</h2><table class="data"><thead><tr><th>A</th><th>B</th><th class="num">ρ</th></tr></thead><tbody>${rows(d.diversifying)}</tbody></table>`
     : "";
-  const con = d.concentrating?.length
+  const con = d?.concentrating?.length
     ? `<h2 class="sub">Most concentrating pairs (highest correlation)</h2><table class="data"><thead><tr><th>A</th><th>B</th><th class="num">ρ</th></tr></thead><tbody>${rows(d.concentrating)}</tbody></table>`
     : "";
-  return `<section>${div}${con}</section>`;
+  return `<section>${heatmap}${div}${con}</section>`;
+}
+
+/**
+ * Render the correlation matrix as an embedded SVG heatmap image
+ * (data-URL <img>) so it appears as a rasterized image inside the PDF
+ * alongside the key-driver tables.
+ */
+function correlationHeatmap(c: Correlation): string {
+  const n = c.labels.length;
+  if (n < 2 || c.matrix.length !== n) return "";
+  const cellPx = 26;
+  const labelPx = 60;
+  const w = labelPx + n * cellPx;
+  const h = labelPx + n * cellPx;
+  const cScale = (v: number) => {
+    // Diverging red (positive) ↔ green (negative) around zero, gray at 0.
+    const t = Math.max(-1, Math.min(1, v));
+    const r = t >= 0 ? Math.round(220 - (1 - t) * 40) : Math.round(220 - (1 + t) * 80 + 80);
+    const g = t >= 0 ? Math.round(210 - t * 130) : Math.round(210 - Math.abs(t) * 40);
+    const b = t >= 0 ? Math.round(200 - t * 130) : Math.round(160 + t * 40);
+    return `rgb(${r},${g},${b})`;
+  };
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" font-family="Helvetica,Arial,sans-serif" font-size="9">`;
+  // column labels
+  c.labels.forEach((lbl, j) => {
+    const x = labelPx + j * cellPx + cellPx / 2;
+    svg += `<text x="${x}" y="${labelPx - 6}" text-anchor="end" transform="rotate(-45 ${x} ${labelPx - 6})" fill="#0B2447">${esc(lbl)}</text>`;
+  });
+  // rows
+  c.matrix.forEach((row, i) => {
+    const y = labelPx + i * cellPx;
+    svg += `<text x="${labelPx - 6}" y="${y + cellPx / 2 + 3}" text-anchor="end" fill="#0B2447">${esc(c.labels[i])}</text>`;
+    row.forEach((v, j) => {
+      const x = labelPx + j * cellPx;
+      const fill = cScale(v);
+      const txt = Math.abs(v) >= 0.995 ? v.toFixed(0) : v.toFixed(2).replace(/^0/, "").replace(/^-0/, "-");
+      svg += `<rect x="${x}" y="${y}" width="${cellPx}" height="${cellPx}" fill="${fill}" stroke="#EAEEF3"/>`;
+      svg += `<text x="${x + cellPx / 2}" y="${y + cellPx / 2 + 3}" text-anchor="middle" fill="#0A0E14">${txt}</text>`;
+    });
+  });
+  svg += `</svg>`;
+  const b64 = btoa(unescape(encodeURIComponent(svg)));
+  return `<h2 class="sub">Correlation heatmap</h2>
+<figure style="margin:0;text-align:center;"><img src="data:image/svg+xml;base64,${b64}" alt="Correlation heatmap" style="max-width:100%;height:auto;" /></figure>`;
 }
 
 function assumptionsSection(input: MemoInput): string {

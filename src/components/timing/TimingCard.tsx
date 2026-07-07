@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, Minus, CalendarClock, ExternalLink, Info } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Minus, CalendarClock, ExternalLink, Info, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { fetchTimingSignals } from "@/lib/timing/client";
 import type { TimingResult } from "@/lib/timing/schema";
+import { DriversDialog } from "./DriversDialog";
+import { AlertSettings } from "./AlertSettings";
+import {
+  readPrefs,
+  readLastVerdict,
+  writeLastVerdict,
+  shouldFireAlert,
+  fireBrowserNotification,
+} from "@/lib/timing/alerts";
+import { toast } from "sonner";
 
 interface Props { symbol: string; }
 
@@ -28,12 +38,29 @@ const verdictStyle: Record<TimingResult["verdict"], { bg: string; text: string; 
 export function TimingCard({ symbol }: Props) {
   const [state, setState] = useState<{ loading: boolean; error?: string; data?: TimingResult }>({ loading: true });
   const [lookahead, setLookahead] = useState<Lookahead>(() => readStoredLookahead());
+  const [driversOpen, setDriversOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setState({ loading: true });
     fetchTimingSignals(symbol, { lookaheadDays: lookahead })
-      .then((data) => { if (!cancelled) setState({ loading: false, data }); })
+      .then((data) => {
+        if (cancelled) return;
+        setState({ loading: false, data });
+        // Alert evaluation on fresh result
+        const prefs = readPrefs(symbol);
+        const prev = readLastVerdict(symbol, lookahead);
+        const decision = shouldFireAlert(prev, data, prefs);
+        if (decision.fire) {
+          const isBuy = data.verdict === "buy";
+          toast[isBuy ? "success" : "warning"](
+            `${symbol} verdict → ${data.verdict.toUpperCase()}`,
+            { description: `${data.headline} · ${decision.reason}` },
+          );
+          if (prefs.browserNotify) fireBrowserNotification(symbol, data.verdict, data.headline);
+        }
+        writeLastVerdict(symbol, lookahead, data.verdict);
+      })
       .catch((err: unknown) => { if (!cancelled) setState({ loading: false, error: err instanceof Error ? err.message : String(err) }); });
     return () => { cancelled = true; };
   }, [symbol, lookahead]);
@@ -110,7 +137,16 @@ export function TimingCard({ symbol }: Props) {
 
       {topDrivers.length > 0 && (
         <div className="mt-3 rounded-md border border-border bg-background/40 p-2.5">
-          <p className="text-[11px] font-medium uppercase text-muted-foreground mb-1.5">Top drivers</p>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">Top drivers</p>
+            <button
+              type="button"
+              onClick={() => setDriversOpen(true)}
+              className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5"
+            >
+              See all {d.signals.length} <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {topDrivers.map((s) => {
               const positive = s.contribution > 0;
@@ -118,10 +154,18 @@ export function TimingCard({ symbol }: Props) {
                 ? "border-success/40 text-success bg-success/5"
                 : "border-destructive/40 text-destructive bg-destructive/5";
               return (
-                <Badge key={s.key} variant="outline" className={`font-normal text-[11px] ${cls}`}>
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setDriversOpen(true)}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+                  aria-label={`Open full breakdown starting at ${s.label}`}
+                >
+                  <Badge variant="outline" className={`font-normal text-[11px] cursor-pointer hover:brightness-110 ${cls}`}>
                   <span className="font-mono mr-1">{positive ? "+" : "−"}{Math.abs(s.contribution)}</span>
                   {s.label}
-                </Badge>
+                  </Badge>
+                </button>
               );
             })}
           </div>
@@ -133,6 +177,7 @@ export function TimingCard({ symbol }: Props) {
           <CalendarClock className="h-3.5 w-3.5" /> Upcoming catalysts (next {lookahead}d)
         </p>
         <div className="flex items-center gap-2">
+          <AlertSettings symbol={symbol} lookaheadDays={lookahead} />
           <span className="text-[11px] text-muted-foreground">Lookahead</span>
           <ToggleGroup
             type="single"
@@ -234,6 +279,8 @@ export function TimingCard({ symbol }: Props) {
           Sources: {d.sources.map((s, i) => (s.url ? <a key={i} href={s.url} className="underline mr-2" target="_blank" rel="noreferrer">{s.label}</a> : <span key={i} className="mr-2">{s.label}</span>))}
         </p>
       )}
+
+      <DriversDialog open={driversOpen} onOpenChange={setDriversOpen} symbol={symbol} result={d} />
     </Card>
   );
 }

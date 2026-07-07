@@ -199,6 +199,12 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       const res = await callEdge(ctx.authHeader, 'deep-analysis', { symbol: args.symbol, name: args.name });
       return { fundamentals: res.fundamentals, valuation: res.valuation, recommendation: res.analysis?.recommendation, thesis: res.analysis?.thesis };
     }
+    case 'get_timing_signals': {
+      const sym = String(args.symbol ?? '').toUpperCase();
+      if (!sym) return { error: 'symbol is required' };
+      const res = await callEdge(ctx.authHeader, 'timing-signals', { symbol: sym });
+      return res;
+    }
     case 'run_screener': {
       const universeKey = (typeof args.universe === 'string' && UNIVERSES[args.universe]) ? args.universe : 'global_mix';
       const symbols = UNIVERSES[universeKey];

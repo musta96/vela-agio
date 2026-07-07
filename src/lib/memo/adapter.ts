@@ -104,7 +104,7 @@ function fmtNum(v: unknown, digits = 2): string | undefined {
   return n.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
-function buildInstrumentSection(
+export function buildInstrumentSection(
   symbol: string,
   weightPct: number,
   ccy: string,

@@ -50,6 +50,21 @@ Gated behind the existing AI-access resolver (same pattern as `nl-screener`).
 
 **Open questions:** margin model for shorts on the paper engine, IV surface data source (Yahoo has gaps), regulatory copy for EU users.
 
+---
+
+# Backlog — Should-have: Portfolio impact comparison
+
+**Why it matters:** capital-allocation decisions are currently made in isolation. Investors need to see how a proposed strategy (memo, thematic deep-dive, screener output) interacts with what they already hold — overlap, risk shift, diversification delta, and how to rebalance around it.
+
+**Scope:**
+1. **Shared engine `src/lib/portfolio/impact.ts`** — pure functions that take `{ existing: Holding[], proposed: Allocation[] }` and compute: sector & geography overlap matrix, combined weights, combined β / vol / VaR (reuse `src/lib/quant/*`), Herfindahl-based diversification score before/after, and a rebalance suggestion that trims duplicated names to a target max weight.
+2. **New edge function `portfolio-impact`** — wraps the engine, pulls existing holdings from `portfolio_holdings` for `auth.uid()`, accepts a proposed allocation payload, returns the full impact JSON (+ cache in `ai_output_cache` keyed on holdings hash + proposal hash).
+3. **UI surface on `/rebalance`** — new "Impact vs current portfolio" panel: overlap heatmap (sector × source), before/after risk cards, diversification delta bar, and a rebalancing table with one-click "Apply suggestion".
+4. **Memo integration** — extend `generate-memo-pdf` with an `include_existing_portfolio_comparison: true` flag that appends a "Portfolio fit" section (overlap chart, risk deltas, rebalance table) to the PDF and to the in-app memo preview.
+5. **Copilot tool** — register `compare_portfolio_impact({ proposed })` returning the same JSON, and let the memo builder auto-invoke it when the user has holdings.
+
+**Open questions:** how to represent proposed allocation (weights vs cash amounts vs share counts), whether to include broker-connected `broker_positions` alongside `portfolio_holdings`, and treatment of ETFs (look-through vs surface-level overlap).
+
 ## Files to add / edit
 
 Add:

@@ -181,6 +181,7 @@ const App = () => (
             <Route path="/ai-scanner" element={<AIScanner />} />
             <Route path="/related" element={<RelatedInstruments />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/documents" element={<Documents />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<PricingRedirect />} />
             <Route path="/plans-billing" element={<PlansBilling />} />

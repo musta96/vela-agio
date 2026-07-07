@@ -287,7 +287,7 @@ export async function saveAndDownloadImpactMemo(opts: BuildImpactMemoOptions & {
       pdf_bytes: bytes,
       tickers,
       fingerprints: { kind: "portfolio_impact" },
-      input_snapshot: {
+      input_snapshot: JSON.parse(JSON.stringify({
         currency: opts.currency,
         currentNav: opts.impact.base.currentNav,
         proposedCapital: opts.impact.base.proposedCapital,
@@ -296,7 +296,7 @@ export async function saveAndDownloadImpactMemo(opts: BuildImpactMemoOptions & {
         sectorOverlap: opts.impact.sectorOverlap,
         geoOverlap: opts.impact.geoOverlap,
         risk: opts.risk ?? null,
-      },
+      })),
     }).select("id").single();
     if (insertErr) throw insertErr;
     return { storagePath, memoId: row?.id };

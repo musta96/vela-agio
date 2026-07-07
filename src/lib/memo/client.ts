@@ -6,6 +6,11 @@ export interface MemoResponse {
   html?: string;
   omitted?: string[];
   warning?: string;
+  memo_id?: string;
+  storage_path?: string;
+  version?: number;
+  persisted?: boolean;
+  persist_error?: string;
 }
 
 /**

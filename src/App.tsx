@@ -50,6 +50,7 @@ import Security from "./pages/Security";
 import AIScanner from "./pages/AIScanner";
 import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
+import Documents from "./pages/Documents";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
 import PlansBilling from "./pages/PlansBilling";
@@ -180,6 +181,7 @@ const App = () => (
             <Route path="/ai-scanner" element={<AIScanner />} />
             <Route path="/related" element={<RelatedInstruments />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/documents" element={<Documents />} />
             <Route path="/suitability" element={<Suitability />} />
             <Route path="/pricing" element={<PricingRedirect />} />
             <Route path="/plans-billing" element={<PlansBilling />} />

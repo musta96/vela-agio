@@ -5,6 +5,7 @@
  */
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 export const tokens = {
   color: {
     ink: "#0A0E14",
@@ -127,6 +128,19 @@ export function esc(input: string | number | null | undefined): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }/**
+
+/**
+ * Escape prose and turn `[N]` citation markers into `<sup>N</sup>`. N must
+ * match a reference id present in `input.references`; unmatched markers are
+ * still rendered as superscripts so proofing catches the mismatch visually.
+ */
+export function escWithCitations(input: string | null | undefined): string {
+  if (input == null) return "";
+  const escaped = esc(input);
+  return escaped.replace(/\[(\d{1,2})\]/g, (_m, n) => `<sup class="cite">${n}</sup>`);
+}
+
+/**
  * Writing-style sanitizer enforcing the Vela memo prose rules:
  *  - no em dashes anywhere
  *  - no en dashes as sentence punctuation (preserved in numeric ranges)
@@ -341,6 +355,60 @@ export const InstrumentSchema = z.object({
   diversification: z.string().optional(),
 });
 
+/** ---------- references, macro, portfolio-risk, assumptions ---------- */
+export const ReferenceSchema = z.object({
+  n: z.number().int().positive(),
+  label: z.string().min(1),
+  url: z.string().optional(),
+  retrieved_at: z.string().optional(),
+});
+
+export const MacroSchema = z.object({
+  headline: z.string().optional(),
+  base: z.string().optional(),
+  bull: z.string().optional(),
+  bear: z.string().optional(),
+  regime: z.string().optional(),
+});
+
+export const PortfolioRiskSchema = z.object({
+  currency: z.string().optional(),
+  ann_return: z.number().optional(),
+  ann_vol: z.number().optional(),
+  var95: z.number().optional(),
+  cvar95: z.number().optional(),
+  var99: z.number().optional(),
+  cvar99: z.number().optional(),
+  observations: z.number().optional(),
+  mc_percentiles: z
+    .object({
+      p5: z.number().optional(),
+      p25: z.number().optional(),
+      p50: z.number().optional(),
+      p75: z.number().optional(),
+      p95: z.number().optional(),
+    })
+    .optional(),
+  scenarios: z
+    .array(z.object({
+      name: z.string(),
+      pl_pct: z.number(),
+      pl_amount: z.number().optional(),
+    }))
+    .optional(),
+});
+
+export const CorrelationDriversSchema = z.object({
+  diversifying: z.array(z.object({ a: z.string(), b: z.string(), v: z.number() })).optional(),
+  concentrating: z.array(z.object({ a: z.string(), b: z.string(), v: z.number() })).optional(),
+});
+
+export const AssumptionsSchema = z.object({
+  bullets: z.array(z.string()).optional(),
+  data_gaps: z.array(z.string()).optional(),
+  models: z.array(z.string()).optional(),
+});
+
 /** ---------- root contract ---------- */
 export const MemoInputSchema = z.object({
   memo_type: z.enum(["portfolio", "strategy"]),
@@ -356,12 +424,21 @@ export const MemoInputSchema = z.object({
   diversification: DiversificationSchema.optional(),
   macro_stress: z.array(MacroStressSchema).optional(),
   correlation: CorrelationSchema.optional(),
+  correlation_drivers: CorrelationDriversSchema.optional(),
+  macro: MacroSchema.optional(),
+  portfolio_risk: PortfolioRiskSchema.optional(),
+  assumptions: AssumptionsSchema.optional(),
+  references: z.array(ReferenceSchema).optional(),
   implementation: z.array(ImplementationSchema).optional(),
   instruments: z.array(InstrumentSchema).optional(),
   rebalance_triggers: z.array(z.string()).optional(),
   methodology: z.array(z.string()).optional(),
   sources: z.array(z.string()).optional(),
   disclosures: z.string().optional(),
+  // Optional persistence hints for the Documents library: when set, the new
+  // memo row will be stored as a version-bumped child of `parent_id`.
+  parent_id: z.string().uuid().optional(),
+  version: z.number().int().positive().optional(),
 });
 
 export type MemoInput = z.infer<typeof MemoInputSchema>;
@@ -564,6 +641,12 @@ export function pickInstrumentMetric(
 /** Render the full HTML doc for a memo. Input must already be fallback-cleaned. */
 export function renderMemoHtml(input: MemoInput): string {
   const body = input.memo_type === "portfolio" ? portfolioBody(input) : strategyBody(input);
+  const toc = tableOfContents(input);
+  const macro = macroSection(input);
+  const risk = portfolioRiskSection(input);
+  const corrDrivers = correlationDriversSection(input);
+  const references = referencesSection(input);
+  const assumptions = assumptionsSection(input);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -574,8 +657,14 @@ export function renderMemoHtml(input: MemoInput): string {
 <body>
 ${cover(input)}
 <main class="doc">
+${toc}
+${macro}
 ${body}
+${risk}
+${corrDrivers}
+${assumptions}
 ${methodologyAndDisclosures(input)}
+${references}
 </main>
 ${runningChrome(input)}
 </body>
@@ -666,6 +755,27 @@ table.corr tbody th { background: ${t.headerFill}; color: ${t.headerText}; font-
 /* keep-together helper */
 .keep { break-inside: avoid; }
 .page-break { break-after: page; }
+
+/* citations + TOC + macro grid + KPI strip + references */
+sup.cite { color: ${c.ocean}; font-family: ${tokens.font.mono}; font-size: ${s.label}pt; padding-left: 1pt; }
+.toc { border: ${tokens.rule.hairline}pt solid ${c.line}; border-radius: ${tokens.radius.sm}pt; padding: ${sp.lg}pt ${sp.xl}pt; margin-top: ${sp.md}pt; }
+.toc ol { margin: 0; padding-left: ${sp.xl}pt; color: ${c.ink}; }
+.toc li { padding: 2pt 0; font-size: ${s.body}pt; }
+.macro { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: ${sp.md}pt; margin-top: ${sp.md}pt; }
+.macro .card { border: ${tokens.rule.hairline}pt solid ${c.line}; border-radius: ${tokens.radius.sm}pt; padding: ${sp.md}pt ${sp.lg}pt; }
+.macro .card .label { font-family: ${tokens.font.mono}; font-size: ${s.label}pt; letter-spacing: ${tokens.tracking.label}pt; text-transform: uppercase; color: ${c.steel}; }
+.macro .card.base .label { color: ${c.ocean}; }
+.macro .card.bull .label { color: ${c.positive}; }
+.macro .card.bear .label { color: ${c.negative}; }
+.macro .card p { margin: ${sp.xs}pt 0 0; font-size: ${s.body}pt; }
+.kpi { display: grid; gap: 0; border: ${tokens.rule.hairline}pt solid ${c.line}; border-radius: ${tokens.radius.sm}pt; background: ${c.panel}; }
+.kpi .cell { padding: ${sp.sm}pt ${sp.md}pt; border-right: ${tokens.rule.hairline}pt solid ${c.line}; }
+.kpi .cell:last-child { border-right: none; }
+.kpi .cell .label { font-family: ${tokens.font.mono}; font-size: ${s.label}pt; letter-spacing: ${tokens.tracking.label}pt; text-transform: uppercase; color: ${c.steel}; }
+.kpi .cell .value { font-size: ${s.sec}pt; font-weight: 700; color: ${c.navy}; margin-top: 2pt; font-family: ${tokens.font.mono}; }
+.refs ol { padding-left: ${sp.xl}pt; margin: 0; }
+.refs li { padding: 2pt 0; font-size: ${s.small}pt; color: ${c.muted}; }
+.refs li a { color: ${c.ocean}; text-decoration: none; word-break: break-all; }
 `;
 }
 
@@ -962,15 +1072,15 @@ function instrumentBlock(i: Instrument): string {
   const tag = i.tag ? `<span class="kicker">${esc(i.tag)}</span> ` : "";
 
   const sections: string[] = [];
-  if (i.overview) sections.push(`<h3>Overview</h3><p>${esc(i.overview)}</p>`);
-  if (i.rationale) sections.push(`<h3>Investment rationale</h3><p>${esc(i.rationale)}</p>`);
-  if (i.suitability) sections.push(`<h3>Suitability fit</h3><p>${esc(i.suitability)}</p>`);
+  if (i.overview) sections.push(`<h3>Overview</h3><p>${escWithCitations(i.overview)}</p>`);
+  if (i.rationale) sections.push(`<h3>Investment rationale</h3><p>${escWithCitations(i.rationale)}</p>`);
+  if (i.suitability) sections.push(`<h3>Suitability fit</h3><p>${escWithCitations(i.suitability)}</p>`);
 
   const riskRows = (i.risks ?? []).map(
-    (r) => `<tr><td><strong>${esc(r.name)}</strong></td><td>${esc(r.desc)}</td></tr>`,
+    (r) => `<tr><td><strong>${esc(r.name)}</strong></td><td>${escWithCitations(r.desc)}</td></tr>`,
   );
   if (i.diversification) {
-    riskRows.push(`<tr><td><strong>Diversification</strong></td><td>${esc(i.diversification)}</td></tr>`);
+    riskRows.push(`<tr><td><strong>Diversification</strong></td><td>${escWithCitations(i.diversification)}</td></tr>`);
   }
   const riskTable = riskRows.length
     ? `<table class="data" style="margin-top:${tokens.space.sm}pt;"><thead><tr><th>Key risks</th><th>Notes</th></tr></thead><tbody>${riskRows.join("")}</tbody></table>`
@@ -1028,6 +1138,113 @@ function methodologyAndDisclosures(input: MemoInput): string {
   return `<section><h1 class="section">Methodology, sources and disclosures</h1>${mBlock}${sBlock}${dBlock}</section>`;
 }
 
+/* ============================== new v2 sections ============================== */
+
+function tableOfContents(input: MemoInput): string {
+  const rows: string[] = [];
+  if (input.summary) rows.push(input.memo_type === "portfolio" ? "Investment committee summary" : "Strategy summary");
+  if (input.macro && (input.macro.base || input.macro.bull || input.macro.bear || input.macro.headline)) rows.push("Macro outlook (base, bull, bear)");
+  if (input.allocation?.length || input.holdings?.length || input.summary?.allocation_summary?.length) rows.push("Allocation");
+  if (input.correlation) rows.push("Cross-asset correlation");
+  if (input.correlation_drivers && (input.correlation_drivers.diversifying?.length || input.correlation_drivers.concentrating?.length)) rows.push("Correlation key drivers");
+  if (input.portfolio_risk) rows.push("Portfolio risk (VaR / CVaR / scenarios)");
+  if (input.instruments?.length) rows.push(`Instrument deep-dives (${input.instruments.length})`);
+  if (input.implementation?.length || input.rebalance_triggers?.length) rows.push("Implementation");
+  if (input.assumptions && (input.assumptions.bullets?.length || input.assumptions.data_gaps?.length || input.assumptions.models?.length)) rows.push("Assumptions & data sources");
+  if (input.methodology?.length || input.sources?.length || input.disclosures) rows.push("Methodology, sources and disclosures");
+  if (input.references?.length) rows.push("References");
+  if (rows.length < 3) return "";
+  return `<section class="toc"><h2>Contents</h2><ol>${rows.map((r) => `<li>${esc(r)}</li>`).join("")}</ol></section>`;
+}
+
+function macroSection(input: MemoInput): string {
+  const m = input.macro;
+  if (!m) return "";
+  const cards: string[] = [];
+  if (m.base) cards.push(`<div class="card base"><div class="label">Base case</div><p>${escWithCitations(m.base)}</p></div>`);
+  if (m.bull) cards.push(`<div class="card bull"><div class="label">Bull case</div><p>${escWithCitations(m.bull)}</p></div>`);
+  if (m.bear) cards.push(`<div class="card bear"><div class="label">Bear case</div><p>${escWithCitations(m.bear)}</p></div>`);
+  if (!cards.length && !m.headline && !m.regime) return "";
+  const headline = m.headline ? `<p>${escWithCitations(m.headline)}</p>` : "";
+  const regime = m.regime ? `<p><strong>Regime:</strong> ${escWithCitations(m.regime)}</p>` : "";
+  return `<section><h1 class="section">Macro outlook</h1>${headline}${regime}${cards.length ? `<div class="macro">${cards.join("")}</div>` : ""}</section>`;
+}
+
+function portfolioRiskSection(input: MemoInput): string {
+  const r = input.portfolio_risk;
+  if (!r) return "";
+  const cur = r.currency ?? input.meta.base_currency ?? "";
+  const kpis: Array<{ label: string; value: string }> = [];
+  const fmtPct = (v?: number, dp = 2) => (v == null || !Number.isFinite(v) ? null : `${(v * 100).toFixed(dp)}%`);
+  if (r.ann_return != null) kpis.push({ label: "Ann. return", value: fmtPct(r.ann_return) ?? "" });
+  if (r.ann_vol != null) kpis.push({ label: "Ann. vol", value: fmtPct(r.ann_vol) ?? "" });
+  if (r.var95 != null) kpis.push({ label: "VaR 95%", value: fmtPct(r.var95) ?? "" });
+  if (r.cvar95 != null) kpis.push({ label: "CVaR 95%", value: fmtPct(r.cvar95) ?? "" });
+  if (r.var99 != null) kpis.push({ label: "VaR 99%", value: fmtPct(r.var99) ?? "" });
+  if (r.cvar99 != null) kpis.push({ label: "CVaR 99%", value: fmtPct(r.cvar99) ?? "" });
+  const kpiBlock = kpis.length
+    ? `<div class="kpi" style="grid-template-columns: repeat(${kpis.length}, 1fr);">${kpis
+        .map((k) => `<div class="cell"><div class="label">${esc(k.label)}</div><div class="value">${esc(k.value)}</div></div>`)
+        .join("")}</div>`
+    : "";
+
+  const mc = r.mc_percentiles;
+  const mcRows: Array<[string, number | undefined]> = [
+    ["P5", mc?.p5], ["P25", mc?.p25], ["P50", mc?.p50], ["P75", mc?.p75], ["P95", mc?.p95],
+  ];
+  const mcBlock = mc && mcRows.some(([, v]) => v != null)
+    ? `<h2 class="sub">Monte Carlo terminal value percentiles</h2><table class="data"><thead><tr>${mcRows.map(([lbl]) => `<th class="num">${esc(lbl)}</th>`).join("")}</tr></thead><tbody><tr>${mcRows
+        .map(([, v]) => `<td class="num">${v == null ? "" : money(v, cur)}</td>`)
+        .join("")}</tr></tbody></table>`
+    : "";
+
+  const sc = r.scenarios ?? [];
+  const scBlock = sc.length
+    ? `<h2 class="sub">Scenario outcomes</h2><table class="data"><thead><tr><th>Scenario</th><th class="num">P/L %</th><th class="num">P/L (${esc(cur)})</th></tr></thead><tbody>${sc
+        .map((s) => `<tr><td>${esc(s.name)}</td><td class="num ${s.pl_pct >= 0 ? "pos" : "neg"}">${pct(s.pl_pct * 100) ?? ""}</td><td class="num">${s.pl_amount == null ? "" : money(s.pl_amount, cur)}</td></tr>`)
+        .join("")}</tbody></table>`
+    : "";
+
+  return `<section><h1 class="section">Portfolio risk</h1>${kpiBlock}${mcBlock}${scBlock}</section>`;
+}
+
+function correlationDriversSection(input: MemoInput): string {
+  const d = input.correlation_drivers;
+  if (!d || (!d.diversifying?.length && !d.concentrating?.length)) return "";
+  const rows = (pairs?: Array<{ a: string; b: string; v: number }>) =>
+    (pairs ?? []).map((p) => `<tr><td>${esc(p.a)}</td><td>${esc(p.b)}</td><td class="num">${p.v.toFixed(2)}</td></tr>`).join("");
+  const div = d.diversifying?.length
+    ? `<h2 class="sub">Top diversifying pairs (lowest correlation)</h2><table class="data"><thead><tr><th>A</th><th>B</th><th class="num">ρ</th></tr></thead><tbody>${rows(d.diversifying)}</tbody></table>`
+    : "";
+  const con = d.concentrating?.length
+    ? `<h2 class="sub">Most concentrating pairs (highest correlation)</h2><table class="data"><thead><tr><th>A</th><th>B</th><th class="num">ρ</th></tr></thead><tbody>${rows(d.concentrating)}</tbody></table>`
+    : "";
+  return `<section>${div}${con}</section>`;
+}
+
+function assumptionsSection(input: MemoInput): string {
+  const a = input.assumptions;
+  if (!a) return "";
+  const bul = a.bullets?.length ? `<h2 class="sub">Assumptions</h2><ul>${a.bullets.map((x) => `<li>${escWithCitations(x)}</li>`).join("")}</ul>` : "";
+  const mod = a.models?.length ? `<h2 class="sub">Models</h2><ul>${a.models.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  const gap = a.data_gaps?.length ? `<h2 class="sub">Data gaps</h2><ul>${a.data_gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  if (!bul && !mod && !gap) return "";
+  return `<section><h1 class="section">Assumptions &amp; data sources</h1>${bul}${mod}${gap}</section>`;
+}
+
+function referencesSection(input: MemoInput): string {
+  const refs = input.references ?? [];
+  if (!refs.length) return "";
+  const sorted = [...refs].sort((a, b) => a.n - b.n);
+  return `<section class="refs"><h1 class="section">References</h1><ol>${sorted
+    .map((r) => {
+      const link = r.url ? `<a href="${esc(r.url)}">${esc(r.url)}</a>` : "";
+      const date = r.retrieved_at ? ` · retrieved ${esc(formatDate(r.retrieved_at))}` : "";
+      return `<li value="${r.n}"><strong>[${r.n}]</strong> ${esc(r.label)}${link ? ` — ${link}` : ""}${date}</li>`;
+    })
+    .join("")}</ol></section>`;
+}
+
 /* =============================================================== */
 /* HTTP entry                                                      */
 /* =============================================================== */
@@ -1050,6 +1267,8 @@ Deno.serve(async (req) => {
 
   const browserless = Deno.env.get("BROWSERLESS_URL");
   const browserlessKey = Deno.env.get("BROWSERLESS_API_KEY");
+  let pdfBase64: string | undefined;
+  let pdfBytes = 0;
   if (browserless && browserlessKey) {
     try {
       const r = await fetch(`${browserless}/pdf?token=${browserlessKey}`, {
@@ -1062,17 +1281,124 @@ Deno.serve(async (req) => {
         return json({ html, omitted, warning: "pdf_render_failed_returning_html" }, 200);
       }
       const buf = new Uint8Array(await r.arrayBuffer());
+      pdfBytes = buf.length;
       let s = "";
       for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i]);
-      return json({ pdf_base64: btoa(s), omitted }, 200);
+      pdfBase64 = btoa(s);
     } catch (err) {
       console.error("[generate-memo-pdf] browserless exception", err);
       return json({ html, omitted, warning: "pdf_render_failed_returning_html" }, 200);
     }
   }
 
+  // Persist to the "memos" library when the caller is an authenticated user
+  // AND we successfully produced a PDF. Non-fatal on any error — we still
+  // return the PDF so the client can download it.
+  const persisted = pdfBase64
+    ? await tryPersistMemo(req, input, pdfBase64, pdfBytes)
+    : null;
+
+  if (pdfBase64) {
+    return json({
+      pdf_base64: pdfBase64,
+      omitted,
+      memo_id: persisted?.memo_id,
+      storage_path: persisted?.storage_path,
+      version: persisted?.version,
+      persisted: Boolean(persisted),
+      persist_error: persisted === null ? undefined : persisted.error,
+    }, 200);
+  }
   return json({ html, omitted }, 200);
 });
+
+/**
+ * Upload the rendered PDF to the private `memos` bucket and insert a manifest
+ * row into `public.generated_memos`. Best-effort — any failure returns null
+ * and the PDF still ships back to the client.
+ */
+async function tryPersistMemo(
+  req: Request,
+  input: MemoInput,
+  pdfBase64: string,
+  pdfBytes: number,
+): Promise<{ memo_id: string; storage_path: string; version: number; error?: string } | null> {
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  const url = Deno.env.get("SUPABASE_URL");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY");
+  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !anon || !service) return null;
+
+  try {
+    const asUser = createClient(url, anon, {
+      global: { headers: { Authorization: auth } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userRes } = await asUser.auth.getUser();
+    const userId = userRes?.user?.id;
+    if (!userId) return null;
+
+    const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
+    const memoId = crypto.randomUUID();
+    // Sniff a parent_id from the incoming meta so incremental regens link to
+    // the previous version. Same for the version counter.
+    const parentId = (input as { parent_id?: string }).parent_id ?? null;
+    const inheritedVersion = Number((input as { version?: number }).version ?? 0);
+    const version = Number.isFinite(inheritedVersion) && inheritedVersion > 0
+      ? Math.max(1, Math.floor(inheritedVersion))
+      : 1;
+    const storagePath = `${userId}/${memoId}_v${version}.pdf`;
+
+    const pdfBytesArr = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+    const up = await admin.storage.from("memos").upload(storagePath, pdfBytesArr, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+    if (up.error) {
+      console.warn("[generate-memo-pdf] storage upload failed", up.error);
+      return { memo_id: memoId, storage_path: storagePath, version, error: up.error.message };
+    }
+
+    const tickers = (input.instruments ?? []).map((i) => i.ticker);
+    const fingerprints = (input.instruments ?? []).reduce<Record<string, string>>((acc, i) => {
+      // Fingerprint the metric+risks payload as a cheap change-detection key.
+      const key = JSON.stringify({ m: i.metric, r: i.risks?.map((x) => x.desc) });
+      acc[i.ticker] = simpleHash(key);
+      return acc;
+    }, {});
+
+    const { error: insertError } = await admin.from("generated_memos").insert({
+      id: memoId,
+      user_id: userId,
+      title: input.meta.title,
+      base_currency: input.meta.base_currency ?? null,
+      storage_path: storagePath,
+      pdf_bytes: pdfBytes,
+      tickers,
+      fingerprints,
+      input_snapshot: input as unknown as Record<string, unknown>,
+      parent_id: parentId,
+      version,
+    });
+    if (insertError) {
+      console.warn("[generate-memo-pdf] manifest insert failed", insertError.message);
+      return { memo_id: memoId, storage_path: storagePath, version, error: insertError.message };
+    }
+
+    return { memo_id: memoId, storage_path: storagePath, version };
+  } catch (err) {
+    console.warn("[generate-memo-pdf] persist exception", err);
+    return null;
+  }
+}
+
+/** Fast non-cryptographic fingerprint (djb2). Good enough to detect drift. */
+function simpleHash(input: string): string {
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) h = ((h << 5) + h + input.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
+}
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {

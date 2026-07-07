@@ -17,7 +17,10 @@ import {
 } from "@/lib/generatePortfolioMemo";
 import { requestMemoPdf } from "@/lib/memo/client";
 import { legacyPortfolioToMemoInput, type InstrumentDeepDive } from "@/lib/memo/adapter";
+import type { MemoExtras } from "@/lib/memo/adapter";
 import { supabase } from "@/integrations/supabase/client";
+import { withRetry } from "@/lib/memo/withRetry";
+import { MemoGenerationProgress, type MemoTickerProgress } from "@/components/memo/MemoGenerationProgress";
 import {
   listThesisVersions,
   saveThesisVersion,
@@ -63,6 +66,8 @@ export function PortfolioMemoBuilder({
   const [strictAllocation, setStrictAllocation] = useState(false);
   const [exportData, setExportData] = useState(false);
   const [includeDeepDive, setIncludeDeepDive] = useState(false);
+  const [selectedDeepDive, setSelectedDeepDive] = useState<Record<string, boolean>>({});
+  const [progress, setProgress] = useState<MemoTickerProgress[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (open) setVersions(listThesisVersions()); }, [open]);
@@ -195,28 +200,71 @@ export function PortfolioMemoBuilder({
       // AI thesis for every ticker in parallel, then embed them in the same PDF.
       let deepDives: Record<string, InstrumentDeepDive> | undefined;
       if (includeDeepDive) {
-        const symbols = Object.keys(parsedAllocation);
+        const allSymbols = Object.keys(parsedAllocation);
+        const symbols = allSymbols.filter((s) => selectedDeepDive[s]);
+        if (!symbols.length) {
+          toast({ title: "No tickers selected", description: "Tick at least one ticker for the deep-dive appendix, or turn the option off.", variant: "destructive" });
+          setBusy(false);
+          return;
+        }
         toast({
           title: "Fetching instrument analysis",
           description: `Pulling deep-dive for ${symbols.length} ticker${symbols.length === 1 ? "" : "s"}…`,
         });
-        const settled = await Promise.allSettled(
-          symbols.map((sym) =>
-            supabase.functions
-              .invoke<InstrumentDeepDive>("deep-analysis", { body: { symbol: sym } })
-              .then((r) => {
-                if (r.error) throw r.error;
-                return { sym, data: r.data as InstrumentDeepDive | null };
-              }),
-          ),
-        );
+        setProgress(symbols.map((symbol) => ({ symbol, status: "queued" as const })));
         deepDives = {};
-        for (const s of settled) {
-          if (s.status === "fulfilled" && s.value.data) {
-            deepDives[s.value.sym] = s.value.data;
+        const updateRow = (symbol: string, patch: Partial<MemoTickerProgress>) =>
+          setProgress((prev) => prev.map((r) => (r.symbol === symbol ? { ...r, ...patch } : r)));
+        await Promise.all(symbols.map(async (sym) => {
+          updateRow(sym, { status: "fetching", attempt: 0 });
+          try {
+            const data = await withRetry<InstrumentDeepDive>(async () => {
+              const r = await supabase.functions.invoke<InstrumentDeepDive>("deep-analysis", { body: { symbol: sym } });
+              if (r.error) throw r.error;
+              return r.data as InstrumentDeepDive;
+            }, {
+              attempts: 3,
+              onAttempt: (i) => updateRow(sym, i === 0 ? { status: "fetching", attempt: 0 } : { status: "retrying", attempt: i }),
+            });
+            if (data) deepDives![sym] = data;
+            updateRow(sym, { status: (data as { cached?: boolean } | undefined)?.cached ? "cached" : "done" });
+          } catch (err) {
+            updateRow(sym, { status: "failed", error: err instanceof Error ? err.message : String(err) });
           }
-        }
+        }));
       }
+
+      // Assemble optional extras: correlation matrix (from generated memo) and
+      // portfolio-level risk from Monte Carlo percentiles + scenario impacts.
+      const startVal = 100_000; // proxy notional for scenario currency amounts
+      const extras: MemoExtras = {
+        correlation: res.data.correlation && res.data.correlation.symbols.length >= 2
+          ? { method: "pearson", labels: res.data.correlation.symbols, matrix: res.data.correlation.matrix }
+          : undefined,
+        portfolio_risk: {
+          currency,
+          mc_percentiles: res.data.percentiles
+            ? Object.fromEntries(
+                res.data.percentiles
+                  .filter((p) => [5, 25, 50, 75, 95].includes(Math.round(p.p * 100)))
+                  .map((p) => [`p${Math.round(p.p * 100)}`, p.terminal]),
+              ) as MemoExtras["portfolio_risk"]["mc_percentiles"]
+            : undefined,
+          scenarios: res.data.scenarios?.length
+            ? res.data.scenarios.map((s) => ({ name: s.scenario, pl_pct: s.pnlPct, pl_amount: s.pnl }))
+            : undefined,
+        },
+        assumptions: {
+          bullets: [
+            `Fundamentals cited to same-day pull of the primary data provider (per instrument).`,
+            `Correlation computed as Pearson on aligned daily returns for the selected basket.`,
+            simulation ? `Monte Carlo horizon: ${simulation.mcConfig?.horizonDays ?? 252} trading days, ${simulation.mcConfig?.paths ?? 5000} paths.` : `No simulation supplied — portfolio risk is qualitative only.`,
+          ],
+          data_gaps: progress.filter((r) => r.status === "failed").map((r) => `${r.symbol}: ${r.error ?? "fetch failed"}`),
+          models: ["DCF (perpetuity growth)", "DDM (Gordon growth)", "Pearson correlation"],
+        },
+        onlyDeepDiveTickers: includeDeepDive,
+      };
 
       // Render the polished PDF server-side from the structured analysis object.
       await requestMemoPdf(
@@ -232,8 +280,10 @@ export function PortfolioMemoBuilder({
             riskAssessment: customRisk || undefined,
             catalystsAndRisks: customCatalysts || undefined,
           },
-        }, deepDives),
+        }, deepDives, extras),
       );
+      // startVal referenced above to silence unused-var lint if lint enforces it.
+      void startVal;
       if (exportData) downloadMemoCsvBundle(res.data);
       toast({
         title: "Portfolio memo generated",
@@ -430,6 +480,26 @@ export function PortfolioMemoBuilder({
             <FileText className="h-3.5 w-3.5" />
             Advanced: append per-instrument deep-dive appendix (off by default — the memo is a single holistic strategy document)
           </label>
+          {includeDeepDive && Object.keys(parsedAllocation).length > 0 && (
+            <div className="rounded border border-border p-2 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Tickers to include in appendix</span>
+                <div className="flex gap-2">
+                  <button type="button" className="underline text-muted-foreground" onClick={() => setSelectedDeepDive(Object.fromEntries(Object.keys(parsedAllocation).map((s) => [s, true])))}>All</button>
+                  <button type="button" className="underline text-muted-foreground" onClick={() => setSelectedDeepDive({})}>None</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1 max-h-40 overflow-y-auto">
+                {Object.keys(parsedAllocation).map((sym) => (
+                  <label key={sym} className="flex items-center gap-1.5 cursor-pointer">
+                    <Checkbox checked={!!selectedDeepDive[sym]} onCheckedChange={(v) => setSelectedDeepDive((prev) => ({ ...prev, [sym]: Boolean(v) }))} />
+                    <span className="font-mono truncate">{sym}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <MemoGenerationProgress rows={progress} />
         </div>
 
         <DialogFooter>

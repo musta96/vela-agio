@@ -1232,6 +1232,59 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_memos: {
+        Row: {
+          base_currency: string | null
+          created_at: string
+          fingerprints: Json
+          id: string
+          input_snapshot: Json | null
+          parent_id: string | null
+          pdf_bytes: number | null
+          storage_path: string
+          tickers: string[]
+          title: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          base_currency?: string | null
+          created_at?: string
+          fingerprints?: Json
+          id?: string
+          input_snapshot?: Json | null
+          parent_id?: string | null
+          pdf_bytes?: number | null
+          storage_path: string
+          tickers?: string[]
+          title: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          base_currency?: string | null
+          created_at?: string
+          fingerprints?: Json
+          id?: string
+          input_snapshot?: Json | null
+          parent_id?: string | null
+          pdf_bytes?: number | null
+          storage_path?: string
+          tickers?: string[]
+          title?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_memos_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "generated_memos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       health_checks: {
         Row: {
           detail: string | null

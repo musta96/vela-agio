@@ -133,6 +133,60 @@ export const InstrumentSchema = z.object({
   diversification: z.string().optional(),
 });
 
+/** ---------- v2: references, macro, portfolio-risk, assumptions ---------- */
+export const ReferenceSchema = z.object({
+  n: z.number().int().positive(),
+  label: z.string().min(1),
+  url: z.string().optional(),
+  retrieved_at: z.string().optional(),
+});
+
+export const MacroSchema = z.object({
+  headline: z.string().optional(),
+  base: z.string().optional(),
+  bull: z.string().optional(),
+  bear: z.string().optional(),
+  regime: z.string().optional(),
+});
+
+export const PortfolioRiskSchema = z.object({
+  currency: z.string().optional(),
+  ann_return: z.number().optional(),
+  ann_vol: z.number().optional(),
+  var95: z.number().optional(),
+  cvar95: z.number().optional(),
+  var99: z.number().optional(),
+  cvar99: z.number().optional(),
+  observations: z.number().optional(),
+  mc_percentiles: z
+    .object({
+      p5: z.number().optional(),
+      p25: z.number().optional(),
+      p50: z.number().optional(),
+      p75: z.number().optional(),
+      p95: z.number().optional(),
+    })
+    .optional(),
+  scenarios: z
+    .array(z.object({
+      name: z.string(),
+      pl_pct: z.number(),
+      pl_amount: z.number().optional(),
+    }))
+    .optional(),
+});
+
+export const CorrelationDriversSchema = z.object({
+  diversifying: z.array(z.object({ a: z.string(), b: z.string(), v: z.number() })).optional(),
+  concentrating: z.array(z.object({ a: z.string(), b: z.string(), v: z.number() })).optional(),
+});
+
+export const AssumptionsSchema = z.object({
+  bullets: z.array(z.string()).optional(),
+  data_gaps: z.array(z.string()).optional(),
+  models: z.array(z.string()).optional(),
+});
+
 /** ---------- root contract ---------- */
 export const MemoInputSchema = z.object({
   memo_type: z.enum(["portfolio", "strategy"]),
@@ -148,12 +202,19 @@ export const MemoInputSchema = z.object({
   diversification: DiversificationSchema.optional(),
   macro_stress: z.array(MacroStressSchema).optional(),
   correlation: CorrelationSchema.optional(),
+  correlation_drivers: CorrelationDriversSchema.optional(),
+  macro: MacroSchema.optional(),
+  portfolio_risk: PortfolioRiskSchema.optional(),
+  assumptions: AssumptionsSchema.optional(),
+  references: ReferenceSchema.array().optional(),
   implementation: z.array(ImplementationSchema).optional(),
   instruments: z.array(InstrumentSchema).optional(),
   rebalance_triggers: z.array(z.string()).optional(),
   methodology: z.array(z.string()).optional(),
   sources: z.array(z.string()).optional(),
   disclosures: z.string().optional(),
+  parent_id: z.string().uuid().optional(),
+  version: z.number().int().positive().optional(),
 });
 
 export type MemoInput = z.infer<typeof MemoInputSchema>;
@@ -161,3 +222,7 @@ export type Holding = z.infer<typeof HoldingSchema>;
 export type Instrument = z.infer<typeof InstrumentSchema>;
 export type Correlation = z.infer<typeof CorrelationSchema>;
 export type Diversification = z.infer<typeof DiversificationSchema>;
+export type MemoReference = z.infer<typeof ReferenceSchema>;
+export type MemoMacro = z.infer<typeof MacroSchema>;
+export type MemoPortfolioRisk = z.infer<typeof PortfolioRiskSchema>;
+export type MemoAssumptions = z.infer<typeof AssumptionsSchema>;

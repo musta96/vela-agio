@@ -623,6 +623,135 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         disclaimer: 'Educational research only — not investment advice.',
       };
     }
+    case 'compare_portfolio_impact': {
+      // Compute the impact server-side using pure math (no OHLC fetches here —
+      // the /rebalance page loads risk metrics client-side to keep this tool fast).
+      const allocRaw = (args && typeof args.allocation === 'object' && args.allocation !== null)
+        ? args.allocation as Record<string, unknown> : {};
+      const proposedRaw: { symbol: string; weight: number }[] = [];
+      for (const [k, v] of Object.entries(allocRaw)) {
+        const w = Number(v); const sym = String(k).trim().toUpperCase();
+        if (sym && Number.isFinite(w) && w > 0) proposedRaw.push({ symbol: sym, weight: w });
+      }
+      if (!proposedRaw.length) return { error: 'allocation must contain at least one symbol with positive weight' };
+      const totalW = proposedRaw.reduce((s, x) => s + x.weight, 0);
+      const proposedWeights: Record<string, number> = {};
+      for (const p of proposedRaw) proposedWeights[p.symbol] = p.weight / totalW;
+
+      // Pull user's current holdings + latest quotes for a rough NAV.
+      const { data: rows } = await sb.from('portfolio_holdings').select('symbol,shares,avg_price').eq('user_id', user.id);
+      const holdings = (rows ?? []) as { symbol: string; shares: number; avg_price: number }[];
+      const symbolsForQuote = holdings.map((h) => h.symbol);
+      const quotes: Record<string, number> = {};
+      await Promise.all(symbolsForQuote.map(async (s) => {
+        try {
+          const q = await fetchQuoteWithFallback(s);
+          if (q?.price) quotes[s] = q.price;
+        } catch { /* ignore */ }
+      }));
+      const currentHoldings = holdings.map((h) => ({
+        symbol: h.symbol,
+        value: h.shares * (quotes[h.symbol] ?? h.avg_price ?? 0),
+      })).filter((h) => h.value > 0);
+      const currentNav = currentHoldings.reduce((s, h) => s + h.value, 0);
+      const currency = String(args.currency ?? 'USD').toUpperCase().slice(0, 4);
+      const proposedCapital = Math.max(0, Number(args.proposed_capital) || currentNav || 100000);
+
+      // Minimal in-function classifier + HHI so we don't need a shared lib.
+      const SECTOR_MAP: Record<string, { sector: string; geo: string }> = {
+        AAPL: { sector: 'Technology', geo: 'US' }, MSFT: { sector: 'Technology', geo: 'US' },
+        NVDA: { sector: 'Technology', geo: 'US' }, GOOGL: { sector: 'Communication', geo: 'US' },
+        META: { sector: 'Communication', geo: 'US' }, AMZN: { sector: 'Consumer Discretionary', geo: 'US' },
+        TSLA: { sector: 'Consumer Discretionary', geo: 'US' }, JPM: { sector: 'Financials', geo: 'US' },
+        XOM: { sector: 'Energy', geo: 'US' }, JNJ: { sector: 'Healthcare', geo: 'US' },
+        SPY: { sector: 'Broad Market', geo: 'US' }, QQQ: { sector: 'Technology', geo: 'US' },
+        VWCE: { sector: 'Broad Market', geo: 'Global' },
+      };
+      const classify = (sym: string) => {
+        const base = sym.split('.')[0];
+        if (SECTOR_MAP[base]) return SECTOR_MAP[base];
+        if (/-USD$|USDT?$/.test(sym)) return { sector: 'Crypto', geo: 'Global' };
+        if (/=X$/.test(sym)) return { sector: 'FX', geo: 'Global' };
+        const dot = sym.lastIndexOf('.');
+        if (dot > 0) {
+          const suf = sym.slice(dot + 1);
+          const geoMap: Record<string, string> = { MI: 'Italy', DE: 'Germany', PA: 'France', L: 'UK', AS: 'Netherlands', SW: 'Switzerland', T: 'Japan', HK: 'Hong Kong', SS: 'China', TO: 'Canada' };
+          return { sector: 'Unclassified', geo: geoMap[suf] ?? 'International' };
+        }
+        return { sector: 'Unclassified', geo: 'US' };
+      };
+
+      const combinedNav = currentNav + proposedCapital;
+      const allSymbols = Array.from(new Set([...currentHoldings.map((h) => h.symbol), ...Object.keys(proposedWeights)]));
+      const combined = allSymbols.map((sym) => {
+        const cur = currentHoldings.find((h) => h.symbol === sym);
+        const currentValue = cur?.value ?? 0;
+        const proposedValue = (proposedWeights[sym] ?? 0) * proposedCapital;
+        const meta = classify(sym);
+        return {
+          symbol: sym,
+          sector: meta.sector, geography: meta.geo,
+          currentPct: currentNav > 0 ? +(currentValue / currentNav * 100).toFixed(2) : 0,
+          proposedPct: proposedCapital > 0 ? +(proposedValue / proposedCapital * 100).toFixed(2) : 0,
+          combinedPct: combinedNav > 0 ? +((currentValue + proposedValue) / combinedNav * 100).toFixed(2) : 0,
+          duplicate: currentValue > 0 && proposedValue > 0,
+        };
+      }).sort((a, b) => b.combinedPct - a.combinedPct);
+
+      function group(getter: (r: typeof combined[number]) => string) {
+        const m = new Map<string, { cur: number; prop: number; comb: number }>();
+        for (const r of combined) {
+          const k = getter(r);
+          const c = m.get(k) ?? { cur: 0, prop: 0, comb: 0 };
+          c.cur += r.currentPct; c.prop += r.proposedPct; c.comb += r.combinedPct;
+          m.set(k, c);
+        }
+        return Array.from(m.entries()).map(([key, v]) => ({
+          key, currentPct: +v.cur.toFixed(2), proposedPct: +v.prop.toFixed(2), combinedPct: +v.comb.toFixed(2),
+          duplication: +Math.min(v.cur, v.prop).toFixed(2),
+        })).sort((a, b) => b.combinedPct - a.combinedPct);
+      }
+      const sectorOverlap = group((r) => r.sector);
+      const geoOverlap = group((r) => r.geography);
+
+      const hhi = (ws: number[]) => ws.reduce((s, w) => s + w * w, 0);
+      const toScore = (h: number) => Math.round(((1 - Math.max(0.05, Math.min(1, h))) / (1 - 0.05)) * 100);
+      const curW = currentHoldings.map((h) => h.value / (currentNav || 1));
+      const combW = combined.map((r) => r.combinedPct / 100);
+      const curScore = curW.length ? toScore(hhi(curW)) : 0;
+      const combScore = combW.length ? toScore(hhi(combW)) : 0;
+      const delta = combScore - curScore;
+      const verdict = delta >= 3 ? 'improves' : delta <= -3 ? 'worsens' : 'neutral';
+
+      const flagged = sectorOverlap.filter((s) => s.duplication >= 15);
+      const dupSyms = combined.filter((r) => r.duplicate && r.currentPct >= 4 && r.proposedPct >= 4);
+
+      const params = new URLSearchParams({
+        allocation: JSON.stringify(proposedWeights),
+        proposed_capital: String(proposedCapital),
+        thesis: String(args.strategy_thesis ?? '').slice(0, 240),
+      });
+      return {
+        ok: true,
+        artifact: 'portfolio_impact',
+        summary: {
+          currency,
+          currentNav: +currentNav.toFixed(2),
+          proposedCapital: +proposedCapital.toFixed(2),
+          diversification: { currentScore: curScore, combinedScore: combScore, delta, verdict },
+          sectorDuplication: flagged.map((f) => ({ sector: f.key, combinedPct: f.combinedPct, duplicationPct: f.duplication })),
+          duplicateSymbols: dupSyms.map((d) => d.symbol),
+          topCombined: combined.slice(0, 5),
+          sectorOverlap, geoOverlap,
+        },
+        ui: {
+          kind: 'portfolio_impact',
+          message: `Impact analysed: diversification ${curScore} → ${combScore} (${verdict}), ${flagged.length} sector duplication(s), ${dupSyms.length} overlapping symbol(s). Open in /rebalance to generate the unified PDF memo.`,
+          href: `/rebalance?${params.toString()}`,
+        },
+        disclaimer: 'Educational research only — not investment advice.',
+      };
+    }
     case 'add_watchlist': {
       const { error } = await sb.from('watchlist_items').insert({ user_id: user.id, symbol: String(args.symbol).toUpperCase(), name: args.name });
       return error ? { error: error.message } : { ok: true };

@@ -62,12 +62,20 @@ const TOOLS = [
       }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'remove_holding', description: 'Remove a position from the portfolio.',
       parameters: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] } } },
-  { type: 'function', function: { name: 'place_paper_order', description: 'Place a PAPER trading order on Alpaca. Requires the user to have ALPACA_API_KEY + ALPACA_API_SECRET configured. Always paper endpoint — never live. Confirm with user before calling.',
+  { type: 'function', function: { name: 'place_paper_order', description: 'Place a PAPER trading order on Alpaca. Requires the user to have ALPACA_API_KEY + ALPACA_API_SECRET configured. Always paper endpoint — never live. Supports BUY, SELL (close long) and SHORT SELL (open a short on a non-owned marginable US equity). Confirm with user before calling and, for shorts, explicitly restate the unlimited-loss risk.',
       parameters: { type: 'object', properties: {
         symbol: { type: 'string' }, side: { type: 'string', enum: ['buy', 'sell'] },
         qty: { type: 'number' }, type: { type: 'string', enum: ['market', 'limit'] },
         limit_price: { type: 'number' }, time_in_force: { type: 'string', enum: ['day', 'gtc'], description: 'defaults to day' },
+        short_sell: { type: 'boolean', description: 'Set true to open a SHORT SELL (sell shares you do not own). Only valid with side="sell". Alpaca paper accepts this on marginable US equities.' },
       }, required: ['symbol', 'side', 'qty', 'type'] } } },
+  { type: 'function', function: { name: 'suggest_hedge', description: 'Propose one or more hedge overlays for a long position or a whole portfolio. Returns candidate short-equity, put-option and short-future overlays with a rough cost/protection estimate. Educational — not a recommendation. Combine with place_paper_order (short_sell=true) to actually execute in the paper account after user confirmation.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string', description: 'Ticker whose exposure the user wants to hedge. Optional if scope=portfolio.' },
+        exposure_usd: { type: 'number', description: 'Notional exposure to hedge, in USD.' },
+        scope: { type: 'string', enum: ['single', 'portfolio'], description: 'Hedge a single position or the entire portfolio beta.' },
+        style: { type: 'string', enum: ['short_stock', 'put_option', 'short_future', 'auto'], description: 'Preferred hedge instrument. Defaults to auto (returns all three).' },
+      }, required: [] } } },
   // NOTE: `propose_live_order` removed — Vela.ai is not yet authorised as an
   // investment firm, so the Copilot must never route real-money orders. The
   // server-side live-trade edge function additionally enforces the

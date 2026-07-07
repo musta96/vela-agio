@@ -480,6 +480,26 @@ export function PortfolioMemoBuilder({
             <FileText className="h-3.5 w-3.5" />
             Advanced: append per-instrument deep-dive appendix (off by default — the memo is a single holistic strategy document)
           </label>
+          {includeDeepDive && Object.keys(parsedAllocation).length > 0 && (
+            <div className="rounded border border-border p-2 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Tickers to include in appendix</span>
+                <div className="flex gap-2">
+                  <button type="button" className="underline text-muted-foreground" onClick={() => setSelectedDeepDive(Object.fromEntries(Object.keys(parsedAllocation).map((s) => [s, true])))}>All</button>
+                  <button type="button" className="underline text-muted-foreground" onClick={() => setSelectedDeepDive({})}>None</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1 max-h-40 overflow-y-auto">
+                {Object.keys(parsedAllocation).map((sym) => (
+                  <label key={sym} className="flex items-center gap-1.5 cursor-pointer">
+                    <Checkbox checked={!!selectedDeepDive[sym]} onCheckedChange={(v) => setSelectedDeepDive((prev) => ({ ...prev, [sym]: Boolean(v) }))} />
+                    <span className="font-mono truncate">{sym}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <MemoGenerationProgress rows={progress} />
         </div>
 
         <DialogFooter>

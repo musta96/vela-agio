@@ -50,6 +50,7 @@ import Security from "./pages/Security";
 import AIScanner from "./pages/AIScanner";
 import RelatedInstruments from "./pages/RelatedInstruments";
 import Notes from "./pages/Notes";
+import Documents from "./pages/Documents";
 import Suitability from "./pages/Suitability";
 import Pricing from "./pages/Pricing";
 import PlansBilling from "./pages/PlansBilling";

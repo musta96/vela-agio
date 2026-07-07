@@ -74,6 +74,7 @@ import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import AIStocksToWatch from "./pages/AIStocksToWatch";
 import PaperTrading from "./pages/PaperTrading";
+import ShortSelling from "./pages/ShortSelling";
 import OwnerConsole from "./pages/OwnerConsole";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
@@ -147,6 +148,7 @@ const App = () => (
             <Route path="/explore/themes/company/:symbol" element={<ThematicCompanyDrilldown />} />
             <Route path="/movers" element={<Movers />} />
             <Route path="/paper-trading" element={<PaperTrading />} />
+            <Route path="/short-selling" element={<ShortSelling />} />
             <Route path="/options" element={<OptionsChain />} />
             <Route path="/options/:symbol" element={<OptionsChain />} />
             <Route path="/futures" element={<Futures />} />

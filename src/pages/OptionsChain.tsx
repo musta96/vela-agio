@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sigma, TrendingDown, TrendingUp, Search, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { blackScholes, impliedVol, yearsBetween } from "@/lib/options/blackScholes";
+import { SpreadBuilder, type ChainRow } from "@/components/options/SpreadBuilder";
 
 interface ContractRow {
   strike: number;
@@ -101,6 +102,23 @@ export default function OptionsChain() {
     });
   }, [rows, data?.spot, T, side]);
 
+  // Enrich both sides for the spread builder (independent of the displayed side).
+  const bothEnriched = useMemo(() => {
+    if (!data?.spot || !T) return { calls: [] as ChainRow[], puts: [] as ChainRow[] };
+    const enrich = (kind: "call" | "put", src: ContractRow[]): ChainRow[] => src.map((r) => {
+      let iv = r.impliedVolatility;
+      const mid = r.bid && r.ask ? (r.bid + r.ask) / 2 : r.lastPrice;
+      if ((!iv || !Number.isFinite(iv)) && mid && mid > 0) {
+        iv = impliedVol(kind, mid, data.spot!, r.strike, T, RISK_FREE, DIV_YIELD) ?? undefined;
+      }
+      const greeks = iv && iv > 0
+        ? blackScholes(kind, data.spot!, r.strike, T, RISK_FREE, DIV_YIELD, iv)
+        : null;
+      return { strike: r.strike, bid: r.bid, ask: r.ask, lastPrice: r.lastPrice, iv, greeks };
+    });
+    return { calls: enrich("call", data.calls), puts: enrich("put", data.puts) };
+  }, [data, T]);
+
   const selected = enriched.find((r) => r.strike === selectedStrike) ?? null;
 
   return (
@@ -182,6 +200,17 @@ export default function OptionsChain() {
               </div>
             </Card>
           )}
+
+          <SpreadBuilder
+            symbol={data.symbol}
+            expiration={expiration}
+            spot={data.spot}
+            T={T}
+            riskFree={RISK_FREE}
+            divYield={DIV_YIELD}
+            calls={bothEnriched.calls}
+            puts={bothEnriched.puts}
+          />
 
           <Card className="p-0 overflow-hidden">
             <div className="max-h-[520px] overflow-auto">

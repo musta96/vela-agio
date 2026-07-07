@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, LineChart, Sparkles, Info } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ExternalLink, LineChart, Sparkles, Info, GitCompare, X } from "lucide-react";
 import { SEGMENT_LABELS, type RankedCompany } from "@/lib/thematic/schema";
+import { ThematicCompareDialog } from "./ThematicCompareDialog";
 
 interface Props { rows: RankedCompany[]; discoveryMode: boolean; theme?: string; pageSize?: number; }
 
@@ -27,18 +29,52 @@ const exposureStyle: Record<string, string> = {
 
 export function ThemedResultsTable({ rows, discoveryMode, theme, pageSize = 15 }: Props) {
   const [visible, setVisible] = useState(pageSize);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [compareOpen, setCompareOpen] = useState(false);
   const paged = useMemo(() => rows.slice(0, visible), [rows, visible]);
   if (!rows.length) {
     return <p className="text-sm text-muted-foreground">No candidates match those filters. Try widening the region or size band.</p>;
   }
   const drillHref = (sym: string) =>
     `/explore/themes/company/${encodeURIComponent(sym)}${theme ? `?theme=${encodeURIComponent(theme)}` : ""}`;
+
+  const toggle = (sym: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(sym)) next.delete(sym);
+      else if (next.size < 6) next.add(sym);
+      return next;
+    });
+  };
+  const selectedRows = rows.filter((r) => selected.has(r.symbol));
+
   return (
     <div className="space-y-2">
+    {selected.size > 0 && (
+      <div className="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium">{selected.size} selected</span>
+          {selectedRows.map((r) => (
+            <Badge key={r.symbol} variant="outline" className="text-[10px] font-mono gap-1">
+              {r.symbol}
+              <button onClick={() => toggle(r.symbol)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+            </Badge>
+          ))}
+          <span className="text-muted-foreground">(max 6)</span>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+          <Button size="sm" onClick={() => setCompareOpen(true)} disabled={selected.size < 2}>
+            <GitCompare className="h-3.5 w-3.5 mr-1.5" /> Compare
+          </Button>
+        </div>
+      </div>
+    )}
     <div className="rounded-md border border-border overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-[11px] uppercase text-muted-foreground">
           <tr>
+            <th className="text-left px-2 py-2 w-8"></th>
             <th className="text-left px-3 py-2">Ticker</th>
             <th className="text-left px-3 py-2 hidden md:table-cell">Segment</th>
             <th className="text-left px-3 py-2">Exposure</th>
@@ -52,6 +88,13 @@ export function ThemedResultsTable({ rows, discoveryMode, theme, pageSize = 15 }
         <tbody>
           {paged.map((r) => (
             <tr key={r.symbol} className="border-t border-border hover:bg-muted/20">
+              <td className="px-2 py-2">
+                <Checkbox
+                  checked={selected.has(r.symbol)}
+                  onCheckedChange={() => toggle(r.symbol)}
+                  aria-label={`Select ${r.symbol} for compare`}
+                />
+              </td>
               <td className="px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Link to={drillHref(r.symbol)} className="font-mono font-semibold hover:underline">
@@ -107,6 +150,12 @@ export function ThemedResultsTable({ rows, discoveryMode, theme, pageSize = 15 }
         </div>
       </div>
     )}
+    <ThematicCompareDialog
+      open={compareOpen}
+      onOpenChange={setCompareOpen}
+      theme={theme ?? ""}
+      companies={selectedRows}
+    />
     </div>
   );
 }

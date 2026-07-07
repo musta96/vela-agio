@@ -429,6 +429,18 @@ export const TimingRowSchema = z.object({
   score: z.number(),
   headline: z.string(),
   signals: z.array(TimingSignalSchema).optional(),
+  events: z
+    .array(
+      z.object({
+        kind: z.enum(["earnings", "policy", "cpi", "dividend", "other"]),
+        label: z.string(),
+        date: z.string(),
+        daysUntil: z.number(),
+        scope: z.enum(["ticker", "macro"]).optional(),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /** ---------- root contract ---------- */
@@ -1205,7 +1217,15 @@ function timingSection(input: MemoInput): string {
       : v === "avoid"
         ? `<span class="neg" style="font-weight:700;">AVOID</span>`
         : `<span style="color:#7d7d7d;font-weight:700;">WAIT</span>`;
-  const body = rows
+  const dirBadge = (d: "buy" | "wait" | "avoid") =>
+    d === "buy" ? `<span class="pos">▲ buy</span>` : d === "avoid" ? `<span class="neg">▼ avoid</span>` : `<span style="color:#7d7d7d;">◆ wait</span>`;
+  const familyLabel: Record<"tech" | "fund" | "macro", string> = {
+    tech: "Technicals (RSI / MACD / DMA)",
+    fund: "Fundamentals",
+    macro: "Macro & event proximity",
+  };
+
+  const summaryBody = rows
     .map((r) => {
       const top = (r.signals ?? [])
         .slice()
@@ -1221,9 +1241,69 @@ function timingSection(input: MemoInput): string {
 </tr>`;
     })
     .join("");
+
+  const drilldowns = rows
+    .map((r) => {
+      const signals = (r.signals ?? []).slice().sort((a, b) => b.weight - a.weight);
+      const groups = (["tech", "fund", "macro"] as const)
+        .map((fam) => {
+          const items = signals.filter((s) => s.family === fam);
+          if (!items.length) return "";
+          const rowsHtml = items
+            .map((s) => {
+              const contrib =
+                s.direction === "buy"
+                  ? `+${s.weight}`
+                  : s.direction === "avoid"
+                    ? `-${s.weight}`
+                    : `0`;
+              return `<tr>
+  <td>${dirBadge(s.direction)}</td>
+  <td>${esc(s.label)}${s.note ? `<div style="color:#7d7d7d;font-size:9pt;">${esc(s.note)}</div>` : ""}</td>
+  <td class="num">${contrib}</td>
+</tr>`;
+            })
+            .join("");
+          return `<tr><td colspan="3" style="background:#f2f2f2;font-weight:700;padding:4pt 6pt;">${esc(familyLabel[fam])}</td></tr>${rowsHtml}`;
+        })
+        .join("");
+
+      const events = (r.events ?? []).slice().sort((a, b) => a.daysUntil - b.daysUntil);
+      const evTable = events.length
+        ? `<table class="data" style="margin-top:6pt;"><thead><tr><th>Date</th><th>In</th><th>Catalyst</th><th>Scope</th></tr></thead><tbody>${events
+            .map(
+              (e) => `<tr>
+  <td>${esc(e.date)}</td>
+  <td class="num">${e.daysUntil}d</td>
+  <td>${esc(e.label)}${e.note ? `<div style="color:#7d7d7d;font-size:9pt;">${esc(e.note)}</div>` : ""}</td>
+  <td>${esc(e.scope ?? "macro")}</td>
+</tr>`,
+            )
+            .join("")}</tbody></table>`
+        : `<p style="color:#7d7d7d;font-size:9pt;margin-top:4pt;">No material catalysts in the next 30 days.</p>`;
+
+      const drillTable = groups
+        ? `<table class="data" style="margin-top:6pt;"><thead><tr><th style="width:60pt;">Direction</th><th>Trigger that fired</th><th class="num" style="width:60pt;">Contribution</th></tr></thead><tbody>${groups}</tbody></table>`
+        : `<p style="color:#7d7d7d;font-size:9pt;margin-top:4pt;">No triggers fired — insufficient data for a verdict.</p>`;
+
+      return `<div style="margin-top:10pt;page-break-inside:avoid;">
+  <h3 style="margin:0 0 4pt 0;">${esc(r.symbol)} · ${verdictBadge(r.verdict)} <span style="color:#7d7d7d;font-weight:400;">(score ${(r.score > 0 ? "+" : "") + r.score})</span></h3>
+  <p style="margin:2pt 0;">${esc(r.headline)}</p>
+  <div style="margin-top:6pt;font-weight:700;font-size:10pt;">Upcoming catalysts</div>
+  ${evTable}
+  <div style="margin-top:6pt;font-weight:700;font-size:10pt;">Why this verdict — triggers that fired</div>
+  ${drillTable}
+</div>`;
+    })
+    .join("");
+
   return `<section><h1 class="section">Entry timing</h1>
-<p>Per-ticker entry-window verdicts combining technicals (RSI, MACD, moving averages), fundamentals (P/E vs history, post-earnings dips) and macro proximity (earnings, policy, CPI windows). This is a same-day snapshot, not a forecast.</p>
-<table class="data"><thead><tr><th>Ticker</th><th>Verdict</th><th class="num">Score</th><th>Rationale</th></tr></thead><tbody>${body}</tbody></table></section>`;
+<p>Per-ticker entry-window verdicts combining technicals (RSI, MACD, moving averages), fundamentals (P/E vs history, post-earnings dips) and macro proximity (earnings, policy, CPI windows). Each row is a same-day snapshot, not a forecast.</p>
+<table class="data"><thead><tr><th>Ticker</th><th>Verdict</th><th class="num">Score</th><th>Rationale</th></tr></thead><tbody>${summaryBody}</tbody></table>
+<h2 style="margin-top:14pt;">Per-ticker catalyst calendar &amp; verdict drilldown</h2>
+<p style="color:#7d7d7d;font-size:9pt;">Contribution column shows the signed weight each trigger added to the composite score (buy adds, avoid subtracts, wait is neutral). Catalyst dates are the next material events within 30 days.</p>
+${drilldowns}
+</section>`;
 }
 
 function portfolioRiskSection(input: MemoInput): string {

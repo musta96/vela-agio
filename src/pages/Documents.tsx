@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Loader2, Trash2 } from "lucide-react";
+import { Download, FileText, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { requestMemoPdf } from "@/lib/memo/client";
+import {
+  buildInstrumentSection,
+  fingerprintInstrument,
+  RefRegistry,
+  type InstrumentDeepDive,
+} from "@/lib/memo/adapter";
+import type { MemoInput } from "@/lib/memo/schema";
+import { withRetry } from "@/lib/memo/withRetry";
 
 interface MemoRow {
   id: string;
@@ -34,6 +43,90 @@ export default function Documents() {
       return;
     }
     setRows((data ?? []) as MemoRow[]);
+  }
+
+  async function refreshChanged(row: MemoRow) {
+    setBusy(row.id);
+    try {
+      // Load the persisted snapshot + fingerprints for this memo version.
+      const { data: full, error } = await supabase
+        .from("generated_memos")
+        .select("id,version,fingerprints,input_snapshot,base_currency")
+        .eq("id", row.id)
+        .maybeSingle();
+      if (error) throw error;
+      const snapshot = full?.input_snapshot as MemoInput | null;
+      const oldPrints = (full?.fingerprints ?? {}) as Record<string, string>;
+      if (!snapshot?.instruments?.length) {
+        toast({ title: "Nothing to refresh", description: "This memo has no instrument sections.", variant: "destructive" });
+        return;
+      }
+
+      const ccy = full?.base_currency ?? snapshot.meta?.base_currency ?? "EUR";
+      const refs = new RefRegistry();
+      refs.seed(snapshot.references);
+
+      // Fetch fresh deep-dives in parallel, tolerating individual failures.
+      const results = await Promise.all(
+        snapshot.instruments.map(async (inst) => {
+          try {
+            const data = await withRetry<InstrumentDeepDive>(async () => {
+              const r = await supabase.functions.invoke<InstrumentDeepDive>("deep-analysis", { body: { symbol: inst.ticker } });
+              if (r.error) throw r.error;
+              return r.data as InstrumentDeepDive;
+            }, { attempts: 2 });
+            const weightPct = parseFloat((inst.allocation ?? "").replace(/[^\d.]/g, "")) || 0;
+            const rebuilt = buildInstrumentSection(inst.ticker, weightPct, ccy, data, refs);
+            const nextPrint = fingerprintInstrument(rebuilt);
+            const changed = oldPrints[inst.ticker] !== nextPrint;
+            return { rebuilt, changed, ticker: inst.ticker };
+          } catch (err) {
+            console.warn(`[Documents] refresh ${inst.ticker} failed:`, err);
+            return { rebuilt: inst, changed: false, ticker: inst.ticker };
+          }
+        }),
+      );
+
+      const changed = results.filter((r) => r.changed);
+      if (!changed.length) {
+        toast({ title: "No changes detected", description: "All instrument fingerprints match the persisted memo." });
+        return;
+      }
+
+      // Merge rebuilt instruments into the snapshot; unchanged ones stay verbatim.
+      const nextInstruments = snapshot.instruments.map((inst) => {
+        const hit = results.find((r) => r.ticker === inst.ticker);
+        return hit?.rebuilt ?? inst;
+      });
+
+      const nextInput: MemoInput = {
+        ...snapshot,
+        instruments: nextInstruments,
+        references: refs.all(),
+        meta: {
+          ...snapshot.meta,
+          title: snapshot.meta.title,
+          generated_at: new Date().toISOString(),
+        },
+        parent_id: row.id,
+        version: (full?.version ?? row.version) + 1,
+      };
+
+      const out = await requestMemoPdf(nextInput);
+      toast({
+        title: "Refreshed changed instruments",
+        description: `${changed.length} of ${results.length} section${changed.length === 1 ? "" : "s"} updated${out.version ? ` · v${out.version}` : ""}.`,
+      });
+      await refresh();
+    } catch (err) {
+      toast({
+        title: "Refresh failed",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function download(row: MemoRow) {
@@ -94,6 +187,9 @@ export default function Documents() {
               </div>
               <Button size="sm" variant="outline" onClick={() => download(r)} disabled={busy === r.id} className="gap-1.5">
                 <Download className="h-3.5 w-3.5" /> Download
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => refreshChanged(r)} disabled={busy === r.id} className="gap-1.5" title="Regenerate only instrument sections whose fingerprints changed">
+                {busy === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh changed
               </Button>
               <Button size="icon" variant="ghost" onClick={() => remove(r)} disabled={busy === r.id} aria-label="Delete">
                 <Trash2 className="h-4 w-4 text-destructive" />

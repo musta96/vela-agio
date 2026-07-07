@@ -237,7 +237,33 @@ export function PortfolioMemoBuilder({
       // Assemble optional extras: correlation matrix (from generated memo) and
       // portfolio-level risk from Monte Carlo percentiles + scenario impacts.
       const startVal = 100_000; // proxy notional for scenario currency amounts
+
+      // Auto-fetch macro base/bull/bear so callers don't need to hand-author it.
+      let macroExtra: MemoExtras["macro"] | undefined;
+      let macroSources: Array<{ label: string; url?: string; retrieved_at?: string }> = [];
+      try {
+        const m = await supabase.functions.invoke<{
+          macro?: { headline: string; regime: string; base: string; bull: string; bear: string };
+          sources?: Array<{ label: string; url?: string; retrieved_at?: string }>;
+        }>("macro-outlook", {
+          body: {
+            risk_profile: riskProfile,
+            base_currency: currency,
+            allocation: parsedAllocation,
+            thesis,
+          },
+        });
+        if (m.data?.macro) {
+          macroExtra = m.data.macro;
+          macroSources = m.data.sources ?? [];
+        }
+      } catch (err) {
+        console.warn("[PortfolioMemoBuilder] macro-outlook unavailable:", err);
+      }
+
       const extras: MemoExtras = {
+        macro: macroExtra,
+        extra_references: macroSources.map((s) => ({ n: 1, label: s.label, url: s.url, retrieved_at: s.retrieved_at })),
         correlation: res.data.correlation && res.data.correlation.symbols.length >= 2
           ? { method: "pearson", labels: res.data.correlation.symbols, matrix: res.data.correlation.matrix }
           : undefined,

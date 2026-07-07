@@ -72,6 +72,30 @@ class RefRegistry {
     return n;
   }
   all(): MemoReference[] { return this.list.slice(); }
+  /** Seed the registry from a pre-existing numbered reference list. */
+  seed(refs: MemoReference[] | undefined): void {
+    for (const r of refs ?? []) {
+      const key = `${r.label}|${r.url ?? ""}`;
+      if (!this.index.has(key)) {
+        this.index.set(key, r.n);
+        this.list.push({ ...r });
+      }
+    }
+  }
+}
+
+export { RefRegistry };
+
+/**
+ * Djb2 hash — mirrors the server-side `simpleHash` in generate-memo-pdf so
+ * client-side fingerprints of updated instrument sections match what the
+ * server persisted, letting us detect drift for incremental refreshes.
+ */
+export function fingerprintInstrument(instrument: NonNullable<MemoInput["instruments"]>[number]): string {
+  const key = JSON.stringify({ m: instrument.metric, r: instrument.risks?.map((x) => x.desc) });
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
 }
 
 function fmtNum(v: unknown, digits = 2): string | undefined {
@@ -80,7 +104,7 @@ function fmtNum(v: unknown, digits = 2): string | undefined {
   return n.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
-function buildInstrumentSection(
+export function buildInstrumentSection(
   symbol: string,
   weightPct: number,
   ccy: string,

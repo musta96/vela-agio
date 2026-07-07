@@ -401,6 +401,12 @@ export const PortfolioRiskSchema = z.object({
 export const CorrelationDriversSchema = z.object({
   diversifying: z.array(z.object({ a: z.string(), b: z.string(), v: z.number() })).optional(),
   concentrating: z.array(z.object({ a: z.string(), b: z.string(), v: z.number() })).optional(),
+  sensitivity: z
+    .object({
+      paragraphs: z.array(z.string()).optional(),
+      regime_deltas: z.array(z.object({ regime: z.string(), note: z.string() })).optional(),
+    })
+    .optional(),
 });
 
 export const AssumptionsSchema = z.object({

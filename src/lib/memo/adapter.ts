@@ -98,6 +98,61 @@ export function fingerprintInstrument(instrument: NonNullable<MemoInput["instrum
   return (h >>> 0).toString(16);
 }
 
+type CorrelationDrivers = NonNullable<MemoInput["correlation_drivers"]>;
+
+/**
+ * Build a deterministic correlation-sensitivity narrative from the scenario
+ * assumptions (risk profile + macro regime), and merge it into any
+ * caller-supplied `correlation_drivers` payload. Existing pairs/sensitivity
+ * fields on the caller payload always win.
+ */
+export function withCorrelationSensitivity(
+  base: CorrelationDrivers | undefined,
+  ctx: { riskProfile?: string; regime?: string; hasCorrelation: boolean },
+): CorrelationDrivers | undefined {
+  if (!ctx.hasCorrelation && !base?.diversifying?.length && !base?.concentrating?.length) {
+    return base;
+  }
+  if (base?.sensitivity) return base; // caller-supplied wins
+
+  const rp = (ctx.riskProfile ?? "balanced").toLowerCase();
+  const regime = ctx.regime?.trim();
+  const riskLine =
+    rp === "conservative" || rp === "moderate"
+      ? `Because the mandate leans ${rp}, the sizing of risk-off pairs (duration, quality income) dominates the diversification benefit; correlations that spike toward 1 in stress episodes shrink the effective breadth of the book far more than in a growthier profile.`
+      : rp === "growth" || rp === "aggressive"
+        ? `Because the mandate leans ${rp}, the sizing of risk-on pairs (equity beta, credit, cyclicals) dominates; pairwise correlations that already sit above 0.6 tend to converge further in risk-off tape, so the marginal diversification benefit is smaller than the matrix suggests.`
+        : `A balanced sizing keeps the effective number of bets close to the raw count today, but that convergence is not stable across regimes and the drivers should be re-read at each rebalance.`;
+
+  const paragraphs = [
+    "The correlation drivers above are conditional on the current sample window and the strategy inputs. Different scenario assumptions rewrite both which pairs diversify and by how much.",
+    riskLine,
+    regime
+      ? `Under the assumed macro regime (${regime}), stock-bond correlation runs closer to the base case; the diversifying pairs above are largely intact. A regime shift toward risk-off or a re-acceleration of inflation would compress those pairs toward the concentrating cluster and cut the realised diversification benefit.`
+      : `Absent a stated regime, treat the matrix as a same-window snapshot: any regime shift (disinflation stalling, growth shock, liquidity event) can flip diversifying pairs into concentrating ones within weeks.`,
+  ];
+
+  const regime_deltas = [
+    {
+      regime: "Risk-off / recession",
+      note: "Equity–credit and cross-region equity pairs converge toward 1; duration and gold typically decorrelate, so the diversifying block above widens and dominates portfolio behaviour.",
+    },
+    {
+      regime: "Inflation re-acceleration",
+      note: "Stock-bond correlation flips positive; duration stops hedging equities, and real assets / commodities become the effective diversifier instead of Treasuries.",
+    },
+    {
+      regime: "Liquidity shock",
+      note: "Historically low-correlation pairs correlate on the way down; the matrix understates tail co-movement and the concentrating cluster is what actually drives short-horizon drawdowns.",
+    },
+  ];
+
+  return {
+    ...base,
+    sensitivity: { paragraphs, regime_deltas },
+  };
+}
+
 function fmtNum(v: unknown, digits = 2): string | undefined {
   const n = typeof v === "number" ? v : Number(v);
   if (!Number.isFinite(n)) return undefined;

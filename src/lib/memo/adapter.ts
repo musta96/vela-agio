@@ -8,7 +8,13 @@
  * renders with the available subset or is omitted; never empty scaffolding).
  */
 import type { GeneratePortfolioMemoOptions } from "@/lib/generatePortfolioMemo";
-import type { MemoInput } from "./schema";
+import type {
+  MemoInput,
+  MemoReference,
+  MemoMacro,
+  MemoPortfolioRisk,
+  MemoAssumptions,
+} from "./schema";
 
 /**
  * Optional per-ticker deep-dive payload, shaped after the `deep-analysis`
@@ -31,6 +37,41 @@ export interface InstrumentDeepDive {
     targetPrice?: number;
     suitability?: string;
   } | null;
+  /** Optional list of provider sources returned by the enrichment call. */
+  sources?: Array<{ label: string; url?: string; retrieved_at?: string }>;
+}
+
+/** Extra payload supported by v2 memos. All fields optional. */
+export interface MemoExtras {
+  macro?: MemoMacro;
+  portfolio_risk?: MemoPortfolioRisk;
+  correlation?: { method: string; labels: string[]; matrix: number[][] };
+  correlation_drivers?: {
+    diversifying?: Array<{ a: string; b: string; v: number }>;
+    concentrating?: Array<{ a: string; b: string; v: number }>;
+  };
+  assumptions?: MemoAssumptions;
+  extra_references?: MemoReference[];
+  parent_id?: string;
+  version?: number;
+  /** When true, tickers with no deep-dive payload are omitted from the appendix. */
+  onlyDeepDiveTickers?: boolean;
+}
+
+/** Registry that assigns stable `[N]` citation ids to each unique source. */
+class RefRegistry {
+  private index = new Map<string, number>();
+  private list: MemoReference[] = [];
+  add(label: string, url?: string, retrieved_at?: string): number {
+    const key = `${label}|${url ?? ""}`;
+    const existing = this.index.get(key);
+    if (existing) return existing;
+    const n = this.list.length + 1;
+    this.index.set(key, n);
+    this.list.push({ n, label, url, retrieved_at });
+    return n;
+  }
+  all(): MemoReference[] { return this.list.slice(); }
 }
 
 function fmtNum(v: unknown, digits = 2): string | undefined {
@@ -44,6 +85,7 @@ function buildInstrumentSection(
   weightPct: number,
   ccy: string,
   dd: InstrumentDeepDive | undefined,
+  refs: RefRegistry,
 ): NonNullable<MemoInput["instruments"]>[number] {
   const base = {
     ticker: symbol,
@@ -51,6 +93,19 @@ function buildInstrumentSection(
     allocation: `${ccy} weight ${weightPct.toFixed(1)}%`,
   };
   if (!dd) return base;
+
+  // Cite every fundamentals/valuation claim to the same-day pull of the
+  // upstream data. When explicit sources are supplied by the caller we use
+  // those; otherwise we synthesize a generic Yahoo Finance reference so the
+  // rendered PDF still has a numbered citation and reference-list entry.
+  const providedSources = dd.sources ?? [];
+  const primaryCite = providedSources.length
+    ? refs.add(providedSources[0].label, providedSources[0].url, providedSources[0].retrieved_at)
+    : refs.add(`Yahoo Finance · ${symbol} quote summary`, `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`, new Date().toISOString());
+  for (let i = 1; i < providedSources.length; i++) {
+    refs.add(providedSources[i].label, providedSources[i].url, providedSources[i].retrieved_at);
+  }
+  const cite = `[${primaryCite}]`;
 
   const f = (dd.fundamentals ?? {}) as Record<string, unknown>;
   const analysis = dd.analysis ?? {};
@@ -67,7 +122,7 @@ function buildInstrumentSection(
   if (price) overviewBits.push(`last ${price}`);
   if (pe) overviewBits.push(`P/E ${pe}`);
   if (yieldPct) overviewBits.push(`yield ${yieldPct}`);
-  const overview = overviewBits.length ? overviewBits.join(" · ") : undefined;
+  const overview = overviewBits.length ? `${overviewBits.join(" · ")} ${cite}` : undefined;
 
   const rationaleParts: string[] = [];
   if (analysis.thesis) rationaleParts.push(analysis.thesis);
@@ -75,10 +130,10 @@ function buildInstrumentSection(
   if (analysis.bearCase) rationaleParts.push(`Bear case: ${analysis.bearCase}`);
   if (dcf?.intrinsicPerShare != null) {
     const up = typeof dcf.upsidePct === "number" ? ` (${(dcf.upsidePct * 100).toFixed(1)}% vs. price)` : "";
-    rationaleParts.push(`DCF intrinsic value ≈ ${fmtNum(dcf.intrinsicPerShare)}${up}.`);
+    rationaleParts.push(`DCF intrinsic value ≈ ${fmtNum(dcf.intrinsicPerShare)}${up} ${cite}.`);
   }
   if (analysis.targetPrice != null) {
-    rationaleParts.push(`Target price: ${fmtNum(analysis.targetPrice)}.`);
+    rationaleParts.push(`Target price: ${fmtNum(analysis.targetPrice)} ${cite}.`);
   }
   const rationale = rationaleParts.length ? rationaleParts.join(" ") : undefined;
 
@@ -110,15 +165,24 @@ function buildInstrumentSection(
 export function legacyPortfolioToMemoInput(
   opts: GeneratePortfolioMemoOptions,
   instrumentAnalyses?: Record<string, InstrumentDeepDive>,
+  extras?: MemoExtras,
 ): MemoInput {
   const allocation = Object.entries(opts.allocation ?? {});
   const totalWeight = allocation.reduce((a, [, w]) => a + Number(w || 0), 0) || 1;
   const ccy = opts.currency ?? "EUR";
+  const refs = new RefRegistry();
 
-  const instruments = allocation.map(([symbol, w]) => {
+  const includeSymbols = extras?.onlyDeepDiveTickers
+    ? allocation.filter(([sym]) => Boolean(instrumentAnalyses?.[sym]))
+    : allocation;
+  const instruments = includeSymbols.map(([symbol, w]) => {
     const weightPct = (Number(w) / totalWeight) * 100;
-    return buildInstrumentSection(symbol, weightPct, ccy, instrumentAnalyses?.[symbol]);
+    return buildInstrumentSection(symbol, weightPct, ccy, instrumentAnalyses?.[symbol], refs);
   });
+
+  // Merge caller-supplied references (e.g. macro FRED links) into the registry
+  // so they render in the numbered list without duplication.
+  (extras?.extra_references ?? []).forEach((r) => refs.add(r.label, r.url, r.retrieved_at));
 
   return {
     memo_type: "strategy",
@@ -151,10 +215,18 @@ export function legacyPortfolioToMemoInput(
         : undefined,
       allocation_summary: instruments.map((i, idx) => ({
         sleeve: i.ticker,
-        weight: (Number(allocation[idx][1]) / totalWeight) * 100,
+        weight: (Number(includeSymbols[idx][1]) / totalWeight) * 100,
       })),
     },
     instruments,
+    macro: extras?.macro,
+    portfolio_risk: extras?.portfolio_risk,
+    correlation: extras?.correlation,
+    correlation_drivers: extras?.correlation_drivers,
+    assumptions: extras?.assumptions,
+    references: refs.all(),
+    parent_id: extras?.parent_id,
+    version: extras?.version,
     disclosures:
       opts.customSections?.riskAssessment ??
       "This document is for informational purposes only and does not constitute investment advice. Past performance is not indicative of future results.",

@@ -2709,6 +2709,48 @@ export type Database = {
         }
         Relationships: []
       }
+      thematic_watchlists: {
+        Row: {
+          created_at: string
+          discovery_mode: boolean
+          id: string
+          name: string
+          notes: string | null
+          region: string
+          size: string
+          snapshot: Json
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discovery_mode?: boolean
+          id?: string
+          name: string
+          notes?: string | null
+          region?: string
+          size?: string
+          snapshot: Json
+          theme: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discovery_mode?: boolean
+          id?: string
+          name?: string
+          notes?: string | null
+          region?: string
+          size?: string
+          snapshot?: Json
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           ciphertext: string

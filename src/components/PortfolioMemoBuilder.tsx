@@ -557,6 +557,14 @@ export function PortfolioMemoBuilder({
             />
             Include correlation sensitivity subsection (explains how risk profile and macro regime reshape the matrix)
           </label>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <Checkbox
+              checked={includeTimingSignals}
+              onCheckedChange={(v) => setIncludeTimingSignals(Boolean(v))}
+            />
+            Include per-ticker entry-timing verdicts (RSI, MACD, moving averages, valuation, macro proximity)
+          </label>
           {includeDeepDive && Object.keys(parsedAllocation).length > 0 && (
             <div className="rounded border border-border p-2 space-y-1 text-xs">
               <div className="flex items-center justify-between">

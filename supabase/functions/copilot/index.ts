@@ -37,6 +37,8 @@ const TOOLS = [
       parameters: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'get_fundamentals', description: 'Fundamental snapshot + DCF/DDM intrinsic value via deep-analysis.',
       parameters: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol'] } } },
+  { type: 'function', function: { name: 'get_timing_signals', description: 'Entry-timing verdict for one ticker. Combines technicals (RSI, MACD, 50/200-DMA), fundamentals (P/E vs 5y median, post-earnings dip) and macro proximity (earnings, policy, CPI windows) into a buy / wait / avoid verdict with a composite score (-100..+100) and a contributing-signal list. Use when the user asks "when should I buy X", "is now a good entry for X", "any timing signal on X". Purely informational — not investment advice.',
+      parameters: { type: 'object', properties: { symbol: { type: 'string', description: 'Yahoo-format ticker.' } }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'add_watchlist', description: 'Add a ticker to the user watchlist.',
       parameters: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol', 'name'] } } },
   { type: 'function', function: { name: 'remove_watchlist', description: 'Remove a ticker from the user watchlist.',

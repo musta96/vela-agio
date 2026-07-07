@@ -294,21 +294,27 @@ export function PortfolioMemoBuilder({
       };
 
       // Render the polished PDF server-side from the structured analysis object.
-      await requestMemoPdf(
-        legacyPortfolioToMemoInput({
-          allocation: parsedAllocation,
-          strategyThesis: thesis,
-          goals,
-          riskProfile,
-          portfolioName,
-          currency,
-          customSections: {
-            executiveSummary: customExec || undefined,
-            riskAssessment: customRisk || undefined,
-            catalystsAndRisks: customCatalysts || undefined,
-          },
-        }, deepDives, extras),
-      );
+      const memoInput = legacyPortfolioToMemoInput({
+        allocation: parsedAllocation,
+        strategyThesis: thesis,
+        goals,
+        riskProfile,
+        portfolioName,
+        currency,
+        customSections: {
+          executiveSummary: customExec || undefined,
+          riskAssessment: customRisk || undefined,
+          catalystsAndRisks: customCatalysts || undefined,
+        },
+      }, deepDives, extras);
+
+      // Respect the user's toggle for the correlation sensitivity subsection.
+      if (!includeCorrelationSensitivity && memoInput.correlation_drivers?.sensitivity) {
+        const { sensitivity: _drop, ...rest } = memoInput.correlation_drivers;
+        memoInput.correlation_drivers = rest;
+      }
+
+      await requestMemoPdf(memoInput);
       // startVal referenced above to silence unused-var lint if lint enforces it.
       void startVal;
       if (exportData) downloadMemoCsvBundle(res.data);

@@ -443,6 +443,8 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                         memo={tl.result.memo as GeneratePortfolioMemoOptions}
                         normalisationNote={tl.result.normalisationNote}
                       />
+                    ) : tl.name === "compare_portfolio_impact" && tl.done && tl.result?.summary ? (
+                      <PortfolioImpactArtifactCard key={tl.id} result={tl.result} />
                     ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">

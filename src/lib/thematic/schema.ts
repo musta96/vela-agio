@@ -32,6 +32,8 @@ export const RankedCompany = z.object({
   segment: ChainSegmentKey,
   exposure: ExposureTier,
   thesis: z.string().optional(),
+  evidence: z.array(z.string()).optional(),
+  exposurePct: z.number().nullable().optional(),
   region: z.enum(["na", "eu", "asia", "other"]).optional(),
   marketCap: z.number().nullable().optional(),
   price: z.number().nullable().optional(),
@@ -59,6 +61,8 @@ export const ThematicResultSchema = z.object({
           name: z.string().optional(),
           exposure: ExposureTier,
           thesis: z.string().optional(),
+          evidence: z.array(z.string()).optional(),
+          exposurePct: z.number().nullable().optional(),
         }),
       ),
     }),
@@ -68,6 +72,7 @@ export const ThematicResultSchema = z.object({
     .array(z.object({ label: z.string(), url: z.string().optional() }))
     .optional(),
   cached: z.boolean().optional(),
+  chainCached: z.boolean().optional(),
   generated_at: z.string(),
 });
 export type ThematicResult = z.infer<typeof ThematicResultSchema>;

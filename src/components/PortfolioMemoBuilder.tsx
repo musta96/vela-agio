@@ -294,7 +294,7 @@ export function PortfolioMemoBuilder({
             return null;
           }
         }));
-        timingRows = timing.filter((x): x is TimingRow => x != null);
+        timingRows = timing.filter((x) => x != null) as TimingRow[];
       }
 
       const extras: MemoExtras = {

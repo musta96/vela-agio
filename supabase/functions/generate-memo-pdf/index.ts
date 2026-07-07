@@ -1226,7 +1226,25 @@ function correlationDriversSection(input: MemoInput): string {
   const con = d?.concentrating?.length
     ? `<h2 class="sub">Most concentrating pairs (highest correlation)</h2><table class="data"><thead><tr><th>A</th><th>B</th><th class="num">ρ</th></tr></thead><tbody>${rows(d.concentrating)}</tbody></table>`
     : "";
-  return `<section>${heatmap}${div}${con}</section>`;
+  const sens = correlationSensitivityBlock(d?.sensitivity);
+  return `<section>${heatmap}${div}${con}${sens}</section>`;
+}
+
+function correlationSensitivityBlock(
+  s: { paragraphs?: string[]; regime_deltas?: Array<{ regime: string; note: string }> } | undefined,
+): string {
+  if (!s || (!s.paragraphs?.length && !s.regime_deltas?.length)) return "";
+  const paras = (s.paragraphs ?? [])
+    .map((p) => sanitizeProse(p))
+    .filter((p) => p.length > 0)
+    .map((p) => `<p>${escWithCitations(p)}</p>`)
+    .join("");
+  const table = s.regime_deltas?.length
+    ? `<table class="data"><thead><tr><th>Regime / assumption</th><th>Effect on correlation drivers</th></tr></thead><tbody>${s.regime_deltas
+        .map((r) => `<tr><td>${esc(r.regime)}</td><td>${escWithCitations(sanitizeProse(r.note))}</td></tr>`)
+        .join("")}</tbody></table>`
+    : "";
+  return `<h2 class="sub">Correlation sensitivity</h2>${paras}${table}`;
 }
 
 /**

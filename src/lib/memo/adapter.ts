@@ -14,6 +14,7 @@ import type {
   MemoMacro,
   MemoPortfolioRisk,
   MemoAssumptions,
+  TimingRow,
 } from "./schema";
 
 /**
@@ -56,6 +57,8 @@ export interface MemoExtras {
   version?: number;
   /** When true, tickers with no deep-dive payload are omitted from the appendix. */
   onlyDeepDiveTickers?: boolean;
+  /** Optional per-ticker entry-timing rows to render before the deep-dive appendix. */
+  timing_signals?: TimingRow[];
 }
 
 /** Registry that assigns stable `[N]` citation ids to each unique source. */
@@ -312,6 +315,7 @@ export function legacyPortfolioToMemoInput(
     correlation_drivers,
     assumptions: extras?.assumptions,
     references: refs.all(),
+    timing_signals: extras?.timing_signals,
     parent_id: extras?.parent_id,
     version: extras?.version,
     disclosures:

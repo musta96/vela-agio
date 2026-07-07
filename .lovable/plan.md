@@ -36,6 +36,20 @@ Register a `run_thematic_deepdive` tool: `{ theme: string, region?: string, size
 
 Gated behind the existing AI-access resolver (same pattern as `nl-screener`).
 
+---
+
+# Backlog — Should-have: Short selling & hedging
+
+**Why it matters:** aggressive/professional investors need to express negative views and hedge long exposure. Without shorts, options and futures the platform can't cover pro-grade strategies.
+
+**Phased rollout:**
+1. **Short paper orders** — extend Alpaca sandbox flow to accept `side: "sell"` on non-owned positions; track borrow/short P&L in `paper_trades` and margin in `paper_cash`. Surface a "Short" toggle in the ticket UI.
+2. **Options chain viewer** — new panel on `/technical` (and a card on `/explore`) fetching Yahoo/CBOE chain per ticker; show strikes, expiries, IV, and basic Greeks (delta, gamma, theta, vega) computed with a Black-Scholes helper in `src/lib/options/`.
+3. **Futures viewer** — contract table for major commodities (CL, GC, NG, HG, ZC) and indices (ES, NQ, YM, RTY, VX) via Yahoo continuous contracts; front-month + calendar spread quick view.
+4. **Copilot integration** — extend `place_paper_order` with `short_sell: true`; add `suggest_hedge(symbol, size)` tool returning a proposed put spread / short future overlay ranked by cost-to-hedge.
+
+**Open questions:** margin model for shorts on the paper engine, IV surface data source (Yahoo has gaps), regulatory copy for EU users.
+
 ## Files to add / edit
 
 Add:

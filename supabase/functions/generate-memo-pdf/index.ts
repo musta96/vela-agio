@@ -415,6 +415,22 @@ export const AssumptionsSchema = z.object({
   models: z.array(z.string()).optional(),
 });
 
+export const TimingSignalSchema = z.object({
+  family: z.enum(["tech", "fund", "macro"]),
+  key: z.string(),
+  label: z.string(),
+  direction: z.enum(["buy", "wait", "avoid"]),
+  weight: z.number(),
+  note: z.string().optional(),
+});
+export const TimingRowSchema = z.object({
+  symbol: z.string(),
+  verdict: z.enum(["buy", "wait", "avoid"]),
+  score: z.number(),
+  headline: z.string(),
+  signals: z.array(TimingSignalSchema).optional(),
+});
+
 /** ---------- root contract ---------- */
 export const MemoInputSchema = z.object({
   memo_type: z.enum(["portfolio", "strategy"]),
@@ -445,6 +461,7 @@ export const MemoInputSchema = z.object({
   // memo row will be stored as a version-bumped child of `parent_id`.
   parent_id: z.string().uuid().optional(),
   version: z.number().int().positive().optional(),
+  timing_signals: z.array(TimingRowSchema).optional(),
 });
 
 export type MemoInput = z.infer<typeof MemoInputSchema>;

@@ -107,6 +107,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Goals", url: "/goals", icon: Target },
     { title: "Tax", url: "/tax-harvest", icon: Wallet },
     { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical, badge: "new" },
+    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine, badge: "new" },
     { title: "Backtesting", url: "/backtest", icon: Repeat },
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
   ],

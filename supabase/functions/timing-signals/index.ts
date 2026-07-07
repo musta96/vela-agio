@@ -26,6 +26,38 @@ interface Signal {
   family: Family; key: string; label: string;
   value?: string | number; direction: Direction; weight: number; note?: string;
 }
+interface TEvent {
+  kind: "earnings" | "policy" | "cpi" | "dividend" | "other";
+  label: string; date: string; daysUntil: number;
+  scope?: "ticker" | "macro"; note?: string;
+}
+
+/**
+ * Static macro-event calendar used for proximity signals + the per-ticker
+ * catalyst calendar. Kept intentionally small: the timing engine only needs
+ * "what's the next FOMC / ECB / CPI print within ~30 days". Update
+ * quarterly, or wire to a live provider later.
+ */
+const MACRO_CALENDAR: TEvent[] = [
+  { kind: "policy", label: "FOMC rate decision", date: "2026-07-29", daysUntil: 0, scope: "macro" },
+  { kind: "cpi",    label: "US CPI (June)",       date: "2026-07-15", daysUntil: 0, scope: "macro" },
+  { kind: "policy", label: "ECB rate decision",   date: "2026-07-23", daysUntil: 0, scope: "macro" },
+  { kind: "cpi",    label: "Euro area CPI flash", date: "2026-07-31", daysUntil: 0, scope: "macro" },
+  { kind: "policy", label: "FOMC rate decision",  date: "2026-09-16", daysUntil: 0, scope: "macro" },
+  { kind: "cpi",    label: "US CPI (July)",       date: "2026-08-12", daysUntil: 0, scope: "macro" },
+];
+
+function daysBetween(a: Date, b: Date): number {
+  const ms = b.getTime() - a.getTime();
+  return Math.round(ms / (24 * 60 * 60 * 1000));
+}
+
+function upcomingMacroEvents(now: Date, withinDays = 30): TEvent[] {
+  return MACRO_CALENDAR
+    .map((e) => ({ ...e, daysUntil: daysBetween(now, new Date(e.date)) }))
+    .filter((e) => e.daysUntil >= 0 && e.daysUntil <= withinDays)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+}
 
 function rsi(c: number[], p = 14): number {
   if (c.length < p + 1) return NaN;
@@ -109,6 +141,8 @@ Deno.serve(async (req) => {
   const sources = [
     { label: `Yahoo Finance · ${sym} daily bars`, url: `https://finance.yahoo.com/quote/${encodeURIComponent(sym)}`, retrieved_at: new Date().toISOString() },
   ];
+  const events: TEvent[] = [];
+  const now = new Date();
 
   if (closes.length >= 30) {
     const last = closes[closes.length - 1];
@@ -143,6 +177,37 @@ Deno.serve(async (req) => {
   if (Number.isFinite(nextEarn) && nextEarn <= 14 && nextEarn >= 0) {
     signals.push({ family: "macro", key: "earnings-soon", label: `Earnings in ${nextEarn.toFixed(0)}d — event risk window`, direction: "wait", weight: 10, note: "Consider staggering entry until after the print." });
   }
+  if (Number.isFinite(nextEarn) && nextEarn >= 0 && nextEarn <= 60) {
+    const d = new Date(now); d.setDate(d.getDate() + Math.round(nextEarn));
+    events.push({
+      kind: "earnings", scope: "ticker",
+      label: `${sym} earnings`, date: d.toISOString().slice(0, 10), daysUntil: Math.round(nextEarn),
+      note: nextEarn <= 14 ? "Elevated event risk — stagger entries around the print." : undefined,
+    });
+  }
+
+  // Macro proximity — policy + CPI windows within ~30 days. These affect every
+  // ticker, so we always emit them and let the drilldown show the same rows
+  // per ticker for transparency.
+  const macro = upcomingMacroEvents(now, 30);
+  for (const e of macro) events.push(e);
+  const nextPolicy = macro.find((e) => e.kind === "policy");
+  if (nextPolicy && nextPolicy.daysUntil <= 21) {
+    signals.push({
+      family: "macro", key: "policy-window",
+      label: `${nextPolicy.label} in ${nextPolicy.daysUntil}d`,
+      direction: "wait", weight: 6,
+      note: "Stagger entries around the decision to avoid vol expansion.",
+    });
+  }
+  const nextCpi = macro.find((e) => e.kind === "cpi");
+  if (nextCpi && nextCpi.daysUntil <= 10) {
+    signals.push({
+      family: "macro", key: "cpi-window",
+      label: `${nextCpi.label} in ${nextCpi.daysUntil}d`,
+      direction: "wait", weight: 4,
+    });
+  }
 
   const { score: sc, verdict } = score(signals);
   const top = [...signals].sort((a, b) => b.weight - a.weight).slice(0, 2).map((s) => s.label);
@@ -155,7 +220,7 @@ Deno.serve(async (req) => {
   const out = {
     symbol: sym,
     asOf: new Date().toISOString(),
-    verdict, score: sc, headline, signals, sources,
+    verdict, score: sc, headline, signals, sources, events,
   };
 
   return new Response(JSON.stringify(out), {

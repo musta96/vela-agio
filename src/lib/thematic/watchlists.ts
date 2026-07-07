@@ -53,7 +53,7 @@ export async function saveThematicWatchlist(params: {
       region: params.result.region,
       size: params.result.size,
       discovery_mode: params.result.discoveryMode,
-      snapshot: params.result as unknown as Record<string, unknown>,
+      snapshot: params.result as never,
       notes: params.notes ?? null,
     })
     .select()

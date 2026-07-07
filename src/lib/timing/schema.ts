@@ -14,6 +14,10 @@ export const TimingSignalSchema = z.object({
   direction: TimingDirection,
   weight: z.number(),
   note: z.string().optional(),
+  /** Optional human-readable formula that produced the weight, e.g. "RSI=28 < 30 ⇒ +2". */
+  formula: z.string().optional(),
+  /** Optional threshold/rule reference for the drilldown, e.g. "RSI < 30 (oversold)". */
+  rule: z.string().optional(),
 });
 export type TimingSignal = z.infer<typeof TimingSignalSchema>;
 

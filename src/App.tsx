@@ -49,6 +49,7 @@ import Profile from "./pages/Profile";
 import Security from "./pages/Security";
 import AIScanner from "./pages/AIScanner";
 import RelatedInstruments from "./pages/RelatedInstruments";
+import ExploreThemes from "./pages/ExploreThemes";
 import Notes from "./pages/Notes";
 import Documents from "./pages/Documents";
 import Suitability from "./pages/Suitability";
@@ -139,6 +140,7 @@ const App = () => (
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/explore" element={<Explore />} />
+            <Route path="/explore/themes" element={<ExploreThemes />} />
             <Route path="/movers" element={<Movers />} />
             <Route path="/paper-trading" element={<PaperTrading />} />
             <Route path="/picks" element={<SmartPicks />} />

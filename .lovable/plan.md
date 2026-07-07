@@ -1,77 +1,67 @@
-# Entry Timing Signal Engine
+# Thematic Deep-Dive
 
-Add a single source of truth for "when to buy" signals per ticker, then surface it consistently in the portfolio memo, the Technical Analysis page, and the Copilot tool catalog.
+Let users pick or type a theme (AI chips, GLP-1, defence electronics, uranium, grid infra…) and get:
+1. an AI-generated value-chain map (raw materials → components → manufacturers → distributors → end users),
+2. a ranked list of listed companies across the chain — including deliberately included micro/small caps,
+3. per-name fundamentals, sentiment, and a one-click path to the memo/timing engines already in the app.
 
-## 1. Signal engine (new edge function `timing-signals`)
+## User surface
 
-Input: `{ symbol: string, lookbackDays?: number }`. Output: a structured verdict per ticker.
+**New route `/explore/themes`** (added as a tab on the existing `/explore` hub, so it lives with the other discovery rails):
 
-Computed from existing `market-data` daily bars + the `deep-analysis` fundamentals payload we already fetch:
+- Theme picker: 12 curated preset chips (AI infra, GLP-1, defence, nuclear/uranium, grid & transmission, cybersecurity, cloud data, robotics, space, EV supply chain, biotech gene therapy, quantum) + free-text input.
+- Region + size filters: All / North America / Europe / Asia; and All / Large / Mid / Small & Micro (`marketCap < 2B`).
+- "Discovery mode" toggle — when on, the ranker down-weights mega-caps and lifts small/unknown names with theme exposure.
 
-- **Technicals** (self-contained math, no new deps):
-  - RSI(14) — flag `oversold ≤30`, `overbought ≥70`.
-  - MACD(12,26,9) — flag last-bar crossovers.
-  - Price vs 50-DMA and 200-DMA — trend + golden/death-cross detection on last N bars.
-  - 20-day realized volatility percentile vs 1y.
-- **Fundamentals** (from `deep-analysis`):
-  - Post-earnings dip: last earnings date within 10 sessions AND close < pre-print close.
-  - P/E vs 5y median (uses trailingPE and forwardPE if available; else omitted with a data_gap note).
-- **Macro proximity** (from existing `macro-series` + `earnings-calendar`):
-  - Days until next FOMC / ECB decision (if within 21 days flag "policy window").
-  - Days until next US CPI (if within 10 sessions flag "print window").
-  - Ticker-specific earnings within 14 sessions.
+Result page:
+- **Value-chain diagram** (5 columns: Raw materials, Components, Manufacturers, Distributors/Integrators, End users) with company chips per node.
+- **Ranked table**: symbol, name, chain segment, market cap, revenue growth, P/E, sentiment score, exposure tag ("pure-play" / "partial" / "adjacent").
+- Row actions: Add to watchlist, Open in `/technical`, Generate research brief, Add to a portfolio memo.
+- Sources footer (news / filings snippets used by the AI).
 
-Output shape:
-```ts
-{ symbol, asOf, verdict: "buy"|"wait"|"avoid",
-  score: -100..+100,
-  signals: [{ family: "tech"|"fund"|"macro", key, value, direction, weight, note }],
-  headline: string,   // one sentence
-  sources: [{ label, url, retrieved_at }] }
-```
+## Copilot integration
 
-Scoring: additive weights per signal; verdict thresholds `>+25`, `-25..+25`, `<-25`.
+Register a `run_thematic_deepdive` tool: `{ theme: string, region?: string, size?: 'all'|'large'|'mid'|'small', discoveryMode?: boolean }`. Returns the same JSON as the edge function (chain + ranked candidates). Copilot uses it when the user asks things like "who benefits from GLP-1", "small caps riding AI power demand", "hidden names in defence electronics". The existing `run_screener` stays for objective-metric queries.
 
-## 2. Portfolio memo: "Entry Timing" section
+## Backend
 
-- Adapter fans out `timing-signals` alongside `deep-analysis` for every allocation ticker (parallel, `withRetry`, same progress panel).
-- New PDF section `Entry timing` rendered before `Instrument deep-dive`, one row per ticker: ticker · verdict badge · score · headline · top 3 contributing signals.
-- New `MemoInputSchema.timing_signals?: TimingRow[]` with a small Zod addition mirrored client + server.
-- Toggle in `PortfolioMemoBuilder` (default on) mirrors the correlation-sensitivity toggle.
+**New edge function `thematic-deepdive`**:
 
-## 3. `/technical` page
+1. **AI value-chain expansion** (Lovable AI, `google/gemini-3-flash-preview`, JSON mode). Prompt: "Given theme X, produce a value chain with 5 segments and 6–15 publicly-listed tickers per segment (Yahoo format, mix of global exchanges, include small/micro caps where relevant). For each company: segment, exposure tier (pure-play/partial/adjacent), one-line thesis." Zod-validate.
+2. **Universe assembly**: dedupe tickers, cap at 60 per run to stay within fanout budget.
+3. **Fundamentals + sentiment fanout**: reuse existing `nl-screener`'s Yahoo `fetchFundamentals` (extracted into a shared helper) and `analyze-sentiment` for a light sentiment score. Concurrency 5.
+4. **Filters**: region (infer from exchange suffix), size band (`marketCap`), and drop tickers that fail to resolve.
+5. **Ranking**: composite score = `w1·revGrowth + w2·(1/pe if pe>0) + w3·sentiment + w4·exposureBonus`. In Discovery mode, add a `-log10(marketCap)` term so smaller names rise. Deterministic tie-break by ticker.
+6. **Return**: `{ theme, chain: Segment[], results: RankedCompany[], sources }`. Cache in `ai_output_cache` keyed on `(theme, region, size, discoveryMode)` for 24h to keep repeat requests cheap.
 
-- Add a "Entry timing" card at the top of the ticker view calling `timing-signals`.
-- Renders verdict + score gauge, signal chips grouped by family (tech / fund / macro), and the sources.
-- Reuses the same tokens as existing cards; no new design.
+Gated behind the existing AI-access resolver (same pattern as `nl-screener`).
 
-## 4. Copilot tool
+## Files to add / edit
 
-- Register `get_timing_signals` in the copilot tool catalog (edge function `copilot`), inputSchema `{ symbol }`, calls the same `timing-signals` function server-side, returns the JSON verdict for the model to summarise.
+Add:
+- `supabase/functions/thematic-deepdive/index.ts`
+- `supabase/functions/_shared/fundamentals.ts` (extract Yahoo `fetchFundamentals` + `getCrumb` for reuse; refactor `nl-screener` to import from it)
+- `src/lib/thematic/schema.ts` (Zod contract shared with the edge function response)
+- `src/lib/thematic/client.ts` (`fetchThematicDeepDive`)
+- `src/pages/ExploreThemes.tsx`
+- `src/components/thematic/ValueChainDiagram.tsx`
+- `src/components/thematic/ThemedResultsTable.tsx`
+- `src/lib/thematic/__tests__/scoring.test.ts` (rank composition + Discovery-mode small-cap lift)
 
-## Technical details
+Edit:
+- `src/App.tsx` — route `/explore/themes`
+- `src/pages/Explore.tsx` — add a "Themes" tab entry
+- `supabase/functions/copilot/index.ts` — register `run_thematic_deepdive` tool + executor
+- `supabase/functions/nl-screener/index.ts` — import from shared fundamentals helper
 
-**New files**
-- `supabase/functions/timing-signals/index.ts` (Deno serve, corsHeaders, Zod input, all math self-contained).
-- `src/lib/timing/schema.ts` (shared TS type + Zod).
-- `src/lib/timing/client.ts` (`fetchTimingSignals(symbol)`).
-- `src/components/timing/TimingCard.tsx` (used on `/technical`).
-- `src/lib/timing/__tests__/scoring.test.ts` (RSI, MACD cross, weight aggregation).
+## Out of scope
 
-**Edited files**
-- `supabase/functions/generate-memo-pdf/index.ts` — new `timingSection` renderer, TOC entry, Zod field.
-- `src/lib/memo/schema.ts` — mirror the Zod field.
-- `src/lib/memo/adapter.ts` — accept `timing_signals?` in `MemoExtras`, pass through.
-- `src/components/PortfolioMemoBuilder.tsx` — parallel fan-out for timing + progress rows + toggle.
-- `src/pages/TechnicalAnalysis.tsx` — mount `<TimingCard symbol=... />`.
-- `supabase/functions/copilot/index.ts` — register the tool + case handler that invokes `timing-signals`.
+- Live revenue-exposure percentages per theme (would need paid filings data). We rely on the AI's exposure tier + a disclaimer.
+- Auto-populated theme catalogue from news trends — v1 uses the curated 12 presets plus free-text.
+- Backtesting the discovery output.
 
-**Out of scope this pass**
-- Intraday signals (only daily bars).
-- Options-implied timing (IV skew, put/call). Can layer in later.
-- Backtesting of the verdict itself — the memo cites it as an entry-window signal, not a track record.
+## Technical notes
 
-## Verification
-- Vitest for `scoreSignals()` — deterministic fixtures for RSI 25 (buy), RSI 75 (avoid), post-earnings dip (buy), CPI-in-2-days (wait).
-- Deno test for the `timing-signals` function against a fixture bar series.
-- Manual: generate a memo with 3 tickers and confirm the new "Entry timing" section renders with distinct verdicts.
+- Reuse `resolveAiAccess` / `modelForCap` for gating and BYOK, same as `nl-screener`.
+- No new tables — cache uses existing `ai_output_cache`.
+- Value-chain diagram is a CSS grid of columns with badge cards — no external graph lib.

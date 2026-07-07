@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Search, ExternalLink, Info, X } from "lucide-react";
+import { Search, ExternalLink, Info, X, Compass, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { ASSET_CLASSES, REGIONS, type AssetClass, type RegionKey } from "@/data/marketTaxonomy";
 import { RAIL_GROUPS } from "@/data/curatedLists";
@@ -160,6 +161,27 @@ export default function Explore() {
               </p>
             </header>
             <SpotlightStrip />
+            <Link to="/explore/themes" className="block">
+              <Card className="glass-card p-4 sm:p-5 hover:border-primary/50 transition group">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-primary/10 p-2 shrink-0">
+                    <Compass className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base sm:text-lg font-semibold">Thematic deep-dive</h2>
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" /> New
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Pick a megatrend (AI infra, GLP-1, defence, uranium…) and map the whole value chain — including small and micro caps mainstream screeners miss.
+                    </p>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0" />
+                </div>
+              </Card>
+            </Link>
             <div className="space-y-10">
               {RAIL_GROUPS.map((g) => <RailGroup key={g.id} group={g} />)}
             </div>

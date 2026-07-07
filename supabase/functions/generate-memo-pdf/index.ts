@@ -1262,7 +1262,10 @@ function correlationHeatmap(c: Correlation): string {
     });
   });
   svg += `</svg>`;
-  const b64 = btoa(unescape(encodeURIComponent(svg)));
+  const bytes = new TextEncoder().encode(svg);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  const b64 = btoa(bin);
   return `<h2 class="sub">Correlation heatmap</h2>
 <figure style="margin:0;text-align:center;"><img src="data:image/svg+xml;base64,${b64}" alt="Correlation heatmap" style="max-width:100%;height:auto;" /></figure>`;
 }

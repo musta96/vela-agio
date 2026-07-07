@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sigma, TrendingDown, TrendingUp, Search, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { blackScholes, impliedVol, yearsBetween } from "@/lib/options/blackScholes";
-import { useToast } from "@/hooks/use-toast";
 
 interface ContractRow {
   strike: number;
@@ -42,7 +41,6 @@ const DIV_YIELD = 0.0;
 export default function OptionsChain() {
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const initial = (routeSymbol ?? "").toUpperCase();
   const [input, setInput] = useState(initial);
   const [symbol, setSymbol] = useState(initial);
@@ -242,7 +240,6 @@ export default function OptionsChain() {
         <Card className="p-8 text-center text-sm text-muted-foreground">
           Enter a ticker above to load its options chain (e.g. AAPL, MSFT, NVDA, SPY).
           <div className="mt-2 text-xs">Note: only tickers with listed US options are supported.</div>
-          {(() => { void toast; return null; })()}
         </Card>
       )}
     </div>

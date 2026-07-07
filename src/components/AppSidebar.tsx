@@ -10,7 +10,7 @@ import {
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
   ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
-  ClipboardCheck, Compass, Activity, FlaskConical,
+  ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -107,6 +107,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Goals", url: "/goals", icon: Target },
     { title: "Tax", url: "/tax-harvest", icon: Wallet },
     { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical, badge: "new" },
+    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine, badge: "new" },
     { title: "Backtesting", url: "/backtest", icon: Repeat },
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
   ],

@@ -16,7 +16,8 @@ import {
   type RiskProfile,
 } from "@/lib/generatePortfolioMemo";
 import { requestMemoPdf } from "@/lib/memo/client";
-import { legacyPortfolioToMemoInput } from "@/lib/memo/adapter";
+import { legacyPortfolioToMemoInput, type InstrumentDeepDive } from "@/lib/memo/adapter";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listThesisVersions,
   saveThesisVersion,
@@ -61,6 +62,7 @@ export function PortfolioMemoBuilder({
   const [versionName, setVersionName] = useState("");
   const [strictAllocation, setStrictAllocation] = useState(false);
   const [exportData, setExportData] = useState(false);
+  const [includeDeepDive, setIncludeDeepDive] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (open) setVersions(listThesisVersions()); }, [open]);
@@ -188,6 +190,34 @@ export function PortfolioMemoBuilder({
           : undefined,
         download: false,
       });
+
+      // Optional per-instrument deep-dive: fetch fundamentals + valuation +
+      // AI thesis for every ticker in parallel, then embed them in the same PDF.
+      let deepDives: Record<string, InstrumentDeepDive> | undefined;
+      if (includeDeepDive) {
+        const symbols = Object.keys(parsedAllocation);
+        toast({
+          title: "Fetching instrument analysis",
+          description: `Pulling deep-dive for ${symbols.length} ticker${symbols.length === 1 ? "" : "s"}…`,
+        });
+        const settled = await Promise.allSettled(
+          symbols.map((sym) =>
+            supabase.functions
+              .invoke<InstrumentDeepDive>("deep-analysis", { body: { symbol: sym } })
+              .then((r) => {
+                if (r.error) throw r.error;
+                return { sym, data: r.data as InstrumentDeepDive | null };
+              }),
+          ),
+        );
+        deepDives = {};
+        for (const s of settled) {
+          if (s.status === "fulfilled" && s.value.data) {
+            deepDives[s.value.sym] = s.value.data;
+          }
+        }
+      }
+
       // Render the polished PDF server-side from the structured analysis object.
       await requestMemoPdf(
         legacyPortfolioToMemoInput({
@@ -202,7 +232,7 @@ export function PortfolioMemoBuilder({
             riskAssessment: customRisk || undefined,
             catalystsAndRisks: customCatalysts || undefined,
           },
-        }),
+        }, deepDives),
       );
       if (exportData) downloadMemoCsvBundle(res.data);
       toast({
@@ -393,6 +423,12 @@ export function PortfolioMemoBuilder({
             <Checkbox checked={exportData} onCheckedChange={(v) => setExportData(Boolean(v))} />
             <FileDown className="h-3.5 w-3.5" />
             Also export underlying data as CSV (allocation, correlation matrix, simulation percentiles, scenarios)
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <Checkbox checked={includeDeepDive} onCheckedChange={(v) => setIncludeDeepDive(Boolean(v))} />
+            <FileText className="h-3.5 w-3.5" />
+            Include per-instrument deep-dive (fundamentals, valuation, thesis, bull/bear, risks) — one PDF, one document
           </label>
         </div>
 

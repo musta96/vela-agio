@@ -415,6 +415,22 @@ export const AssumptionsSchema = z.object({
   models: z.array(z.string()).optional(),
 });
 
+export const TimingSignalSchema = z.object({
+  family: z.enum(["tech", "fund", "macro"]),
+  key: z.string(),
+  label: z.string(),
+  direction: z.enum(["buy", "wait", "avoid"]),
+  weight: z.number(),
+  note: z.string().optional(),
+});
+export const TimingRowSchema = z.object({
+  symbol: z.string(),
+  verdict: z.enum(["buy", "wait", "avoid"]),
+  score: z.number(),
+  headline: z.string(),
+  signals: z.array(TimingSignalSchema).optional(),
+});
+
 /** ---------- root contract ---------- */
 export const MemoInputSchema = z.object({
   memo_type: z.enum(["portfolio", "strategy"]),
@@ -445,6 +461,7 @@ export const MemoInputSchema = z.object({
   // memo row will be stored as a version-bumped child of `parent_id`.
   parent_id: z.string().uuid().optional(),
   version: z.number().int().positive().optional(),
+  timing_signals: z.array(TimingRowSchema).optional(),
 });
 
 export type MemoInput = z.infer<typeof MemoInputSchema>;
@@ -653,6 +670,7 @@ export function renderMemoHtml(input: MemoInput): string {
   const corrDrivers = correlationDriversSection(input);
   const references = referencesSection(input);
   const assumptions = assumptionsSection(input);
+  const timing = timingSection(input);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -665,6 +683,7 @@ ${cover(input)}
 <main class="doc">
 ${toc}
 ${macro}
+${timing}
 ${body}
 ${risk}
 ${corrDrivers}
@@ -1150,6 +1169,7 @@ function tableOfContents(input: MemoInput): string {
   const rows: string[] = [];
   if (input.summary) rows.push(input.memo_type === "portfolio" ? "Investment committee summary" : "Strategy summary");
   if (input.macro && (input.macro.base || input.macro.bull || input.macro.bear || input.macro.headline)) rows.push("Macro outlook (base, bull, bear)");
+  if (input.timing_signals?.length) rows.push(`Entry timing (${input.timing_signals.length})`);
   if (input.allocation?.length || input.holdings?.length || input.summary?.allocation_summary?.length) rows.push("Allocation");
   if (input.correlation) rows.push("Cross-asset correlation");
   if (input.correlation_drivers && (input.correlation_drivers.diversifying?.length || input.correlation_drivers.concentrating?.length)) rows.push("Correlation key drivers");
@@ -1174,6 +1194,36 @@ function macroSection(input: MemoInput): string {
   const headline = m.headline ? `<p>${escWithCitations(m.headline)}</p>` : "";
   const regime = m.regime ? `<p><strong>Regime:</strong> ${escWithCitations(m.regime)}</p>` : "";
   return `<section><h1 class="section">Macro outlook</h1>${headline}${regime}${cards.length ? `<div class="macro">${cards.join("")}</div>` : ""}</section>`;
+}
+
+function timingSection(input: MemoInput): string {
+  const rows = input.timing_signals ?? [];
+  if (!rows.length) return "";
+  const verdictBadge = (v: "buy" | "wait" | "avoid") =>
+    v === "buy"
+      ? `<span class="pos" style="font-weight:700;">BUY WINDOW</span>`
+      : v === "avoid"
+        ? `<span class="neg" style="font-weight:700;">AVOID</span>`
+        : `<span style="color:#7d7d7d;font-weight:700;">WAIT</span>`;
+  const body = rows
+    .map((r) => {
+      const top = (r.signals ?? [])
+        .slice()
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 3)
+        .map((s) => `<li>${esc(s.label)}</li>`)
+        .join("");
+      return `<tr>
+  <td style="font-family:${tokens.font.mono};font-weight:700;">${esc(r.symbol)}</td>
+  <td>${verdictBadge(r.verdict)}</td>
+  <td class="num">${(r.score > 0 ? "+" : "") + r.score}</td>
+  <td>${esc(r.headline)}${top ? `<ul style="margin:4pt 0 0 14pt;padding:0;">${top}</ul>` : ""}</td>
+</tr>`;
+    })
+    .join("");
+  return `<section><h1 class="section">Entry timing</h1>
+<p>Per-ticker entry-window verdicts combining technicals (RSI, MACD, moving averages), fundamentals (P/E vs history, post-earnings dips) and macro proximity (earnings, policy, CPI windows). This is a same-day snapshot, not a forecast.</p>
+<table class="data"><thead><tr><th>Ticker</th><th>Verdict</th><th class="num">Score</th><th>Rationale</th></tr></thead><tbody>${body}</tbody></table></section>`;
 }
 
 function portfolioRiskSection(input: MemoInput): string {

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
+import { TimingCard } from "@/components/timing/TimingCard";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
 import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
 import {
@@ -216,6 +217,8 @@ const TechnicalAnalysis = () => {
 
         {!loading && bars.length > 0 && (
           <>
+            {/* Entry-timing verdict (technicals + fundamentals + macro proximity). */}
+            <TimingCard symbol={symbol} />
             {/* Summary */}
             {summary && (
               <Card className={`p-4 sm:p-6 mb-6 border ${signalBg[summary.overall]}`}>

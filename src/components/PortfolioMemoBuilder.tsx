@@ -21,6 +21,8 @@ import type { MemoExtras } from "@/lib/memo/adapter";
 import { supabase } from "@/integrations/supabase/client";
 import { withRetry } from "@/lib/memo/withRetry";
 import { MemoGenerationProgress, type MemoTickerProgress } from "@/components/memo/MemoGenerationProgress";
+import type { TimingResult } from "@/lib/timing/schema";
+import type { TimingRow } from "@/lib/memo/schema";
 import {
   listThesisVersions,
   saveThesisVersion,
@@ -67,6 +69,7 @@ export function PortfolioMemoBuilder({
   const [exportData, setExportData] = useState(false);
   const [includeDeepDive, setIncludeDeepDive] = useState(false);
   const [includeCorrelationSensitivity, setIncludeCorrelationSensitivity] = useState(true);
+  const [includeTimingSignals, setIncludeTimingSignals] = useState(true);
   const [selectedDeepDive, setSelectedDeepDive] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState<MemoTickerProgress[]>([]);
   const [busy, setBusy] = useState(false);
@@ -262,9 +265,42 @@ export function PortfolioMemoBuilder({
         console.warn("[PortfolioMemoBuilder] macro-outlook unavailable:", err);
       }
 
+      // Per-ticker entry-timing verdicts, parallel with retries. Best-effort:
+      // any ticker that fails is simply omitted from the memo section.
+      let timingRows: TimingRow[] | undefined;
+      if (includeTimingSignals) {
+        const timingSymbols = Object.keys(parsedAllocation);
+        const timing = await Promise.all(timingSymbols.map(async (sym) => {
+          try {
+            const r = await withRetry<TimingResult>(async () => {
+              const res = await supabase.functions.invoke<TimingResult>("timing-signals", { body: { symbol: sym } });
+              if (res.error) throw res.error;
+              return res.data as TimingResult;
+            }, { attempts: 2 });
+            return r
+              ? {
+                  symbol: r.symbol,
+                  verdict: r.verdict,
+                  score: r.score,
+                  headline: r.headline,
+                  signals: r.signals.map((s) => ({
+                    family: s.family, key: s.key, label: s.label,
+                    direction: s.direction, weight: s.weight, note: s.note,
+                  })),
+                }
+              : null;
+          } catch (err) {
+            console.warn(`[PortfolioMemoBuilder] timing-signals failed for ${sym}`, err);
+            return null;
+          }
+        }));
+        timingRows = timing.filter((x) => x != null) as TimingRow[];
+      }
+
       const extras: MemoExtras = {
         macro: macroExtra,
         extra_references: macroSources.map((s) => ({ n: 1, label: s.label, url: s.url, retrieved_at: s.retrieved_at })),
+        timing_signals: timingRows,
         correlation: res.data.correlation && res.data.correlation.symbols.length >= 2
           ? { method: "pearson", labels: res.data.correlation.symbols, matrix: res.data.correlation.matrix }
           : undefined,
@@ -520,6 +556,14 @@ export function PortfolioMemoBuilder({
               onCheckedChange={(v) => setIncludeCorrelationSensitivity(Boolean(v))}
             />
             Include correlation sensitivity subsection (explains how risk profile and macro regime reshape the matrix)
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <Checkbox
+              checked={includeTimingSignals}
+              onCheckedChange={(v) => setIncludeTimingSignals(Boolean(v))}
+            />
+            Include per-ticker entry-timing verdicts (RSI, MACD, moving averages, valuation, macro proximity)
           </label>
           {includeDeepDive && Object.keys(parsedAllocation).length > 0 && (
             <div className="rounded border border-border p-2 space-y-1 text-xs">

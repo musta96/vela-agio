@@ -155,6 +155,13 @@ const TOOLS = [
           catalysts_and_risks: { type: 'string' },
         } },
       }, required: ['allocation','strategy_thesis','risk_profile'] } } },
+  { type: 'function', function: { name: 'compare_portfolio_impact', description: 'Compare a PROPOSED allocation against the user\'s CURRENT holdings and return an integrated impact JSON: combined weights, sector & geography overlap with duplication flags, Herfindahl diversification score delta, and rebalance suggestions. Use whenever the user asks "how does this fit my portfolio", "impact vs my holdings", "overlap with what I own", "should I add this on top", or before generating an impact PDF memo. The frontend renders an artifact card with a link that opens /rebalance pre-filled and offers the unified PDF export.',
+      parameters: { type: 'object', properties: {
+        allocation: { type: 'object', description: 'Proposed allocation as { symbol: weight } — weights can be any positive number, they will be normalised.', additionalProperties: { type: 'number' } },
+        proposed_capital: { type: 'number', description: 'Dollar amount the user plans to deploy on the proposal. Defaults to current portfolio NAV.' },
+        currency: { type: 'string', description: 'Reporting currency. Defaults to "USD".' },
+        strategy_thesis: { type: 'string', description: 'Optional one-line thesis surfaced in the PDF and chat card.' },
+      }, required: ['allocation'] } } },
 ];
 
 // ---------- Tool executors ----------

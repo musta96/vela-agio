@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Layers, Plus, Trash2, Copy, Check } from "lucide-react";
+import { Layers, Plus, Trash2, Copy, Check, AlertTriangle, ShieldAlert, Info } from "lucide-react";
 import { blackScholes, type Greeks } from "@/lib/options/blackScholes";
+import { buildPayoffCurve, type LegPricing } from "@/lib/options/payoff";
+import { computeRegTMargin, validateLegs } from "@/lib/options/margin";
+import { PayoffChart } from "./PayoffChart";
 
 export interface ChainRow {
   strike: number;
@@ -108,6 +111,26 @@ export function SpreadBuilder({ symbol, expiration, spot, T, riskFree, divYield,
     const net = combined.cost >= 0 ? `net debit $${combined.cost.toFixed(2)}` : `net credit $${(-combined.cost).toFixed(2)}`;
     return [header, `# ${net}`, ...rows].join("\n");
   }, [legs, enriched, symbol, expiration, combined.cost]);
+
+  const pricedLegs = useMemo<LegPricing[]>(
+    () => enriched.map(({ leg, mid }) => ({ leg, mid })),
+    [enriched],
+  );
+
+  const payoff = useMemo(
+    () => (legs.length ? buildPayoffCurve(pricedLegs, spot) : null),
+    [pricedLegs, spot, legs.length],
+  );
+
+  const margin = useMemo(
+    () => (legs.length ? computeRegTMargin(pricedLegs, spot) : null),
+    [pricedLegs, spot, legs.length],
+  );
+
+  const structuralWarnings = useMemo(() => validateLegs(legs), [legs]);
+  const allWarnings = [...structuralWarnings, ...(margin?.warnings ?? [])];
+  const hasBlocking = allWarnings.some((w) => w.severity === "danger");
+  const strikes = useMemo(() => Array.from(new Set(legs.map((l) => l.strike))), [legs]);
 
   async function copyInstructions() {
     try {
@@ -220,12 +243,69 @@ export function SpreadBuilder({ symbol, expiration, spot, T, riskFree, divYield,
             <Metric label="Σ Vega/1%" value={fmt(combined.vega, 3)} />
           </div>
 
+          {payoff && (
+            <div className="p-3 rounded-md border border-border bg-background/40 space-y-2">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Expiration P/L across underlying
+              </div>
+              <PayoffChart
+                points={payoff.points}
+                breakevens={payoff.breakevens}
+                spot={spot}
+                strikes={strikes}
+                maxProfit={payoff.maxProfit}
+                maxLoss={payoff.maxLoss}
+              />
+            </div>
+          )}
+
+          {margin && (
+            <div className="p-3 rounded-md border border-border bg-muted/20 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Reg-T risk check · {margin.structure}
+                </div>
+                <div className="flex gap-3 text-xs font-mono">
+                  <span>
+                    Net {margin.net >= 0 ? "debit" : "credit"}:{" "}
+                    <b>${Math.abs(margin.net).toFixed(2)}</b>
+                  </span>
+                  <span>
+                    Initial margin: <b>${margin.requirement.toFixed(0)}</b>
+                  </span>
+                  <span>
+                    Max loss:{" "}
+                    <b className={margin.unbounded ? "text-red-600" : ""}>
+                      {Number.isFinite(margin.maxLoss) ? `$${margin.maxLoss.toFixed(0)}` : "unlimited"}
+                    </b>
+                  </span>
+                </div>
+              </div>
+              {allWarnings.map((w, i) => (
+                <Alert
+                  key={i}
+                  variant={w.severity === "danger" ? "destructive" : "default"}
+                  className="py-2"
+                >
+                  {w.severity === "danger" ? (
+                    <ShieldAlert className="h-4 w-4" />
+                  ) : w.severity === "warn" ? (
+                    <AlertTriangle className="h-4 w-4" />
+                  ) : (
+                    <Info className="h-4 w-4" />
+                  )}
+                  <AlertDescription className="text-[11px]">{w.message}</AlertDescription>
+                </Alert>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] uppercase text-muted-foreground">Paper-order instructions</Label>
-              <Button size="sm" variant="outline" onClick={copyInstructions}>
+              <Button size="sm" variant="outline" onClick={copyInstructions} disabled={hasBlocking}>
                 {copied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
-                {copied ? "Copied" : "Copy"}
+                {hasBlocking ? "Blocked" : copied ? "Copied" : "Copy"}
               </Button>
             </div>
             <pre className="text-[11px] font-mono bg-muted/40 rounded-md p-3 overflow-auto whitespace-pre-wrap">
@@ -233,7 +313,7 @@ export function SpreadBuilder({ symbol, expiration, spot, T, riskFree, divYield,
             </pre>
             <Alert>
               <AlertDescription className="text-[11px]">
-                Paste each line to the Copilot to execute via <code>place_paper_order</code>. Multi-leg option orders are simulated as independent legs; the paper engine does not enforce combo-level margin. Educational only.
+                Paste each line to the Copilot to execute via <code>place_paper_order</code>. Multi-leg option orders are simulated as independent legs; the Reg-T check above is an educational estimate and your live broker may require more. Educational only.
               </AlertDescription>
             </Alert>
           </div>

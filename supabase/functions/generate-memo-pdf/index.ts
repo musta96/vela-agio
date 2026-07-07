@@ -670,6 +670,7 @@ export function renderMemoHtml(input: MemoInput): string {
   const corrDrivers = correlationDriversSection(input);
   const references = referencesSection(input);
   const assumptions = assumptionsSection(input);
+  const timing = timingSection(input);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -682,6 +683,7 @@ ${cover(input)}
 <main class="doc">
 ${toc}
 ${macro}
+${timing}
 ${body}
 ${risk}
 ${corrDrivers}

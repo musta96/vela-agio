@@ -18,6 +18,7 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const BodySchema = z.object({
   symbol: z.string().min(1).max(24),
   lookbackDays: z.number().int().positive().max(1200).optional(),
+  lookaheadDays: z.number().int().positive().max(365).optional(),
 });
 
 type Direction = "buy" | "wait" | "avoid";
@@ -30,6 +31,9 @@ interface TEvent {
   kind: "earnings" | "policy" | "cpi" | "dividend" | "other";
   label: string; date: string; daysUntil: number;
   scope?: "ticker" | "macro"; note?: string;
+  sourceLabel?: string; sourceUrl?: string;
+  confidence?: "confirmed" | "estimated" | "scheduled";
+  confidenceNote?: string;
 }
 
 /**
@@ -39,12 +43,24 @@ interface TEvent {
  * quarterly, or wire to a live provider later.
  */
 const MACRO_CALENDAR: TEvent[] = [
-  { kind: "policy", label: "FOMC rate decision", date: "2026-07-29", daysUntil: 0, scope: "macro" },
-  { kind: "cpi",    label: "US CPI (June)",       date: "2026-07-15", daysUntil: 0, scope: "macro" },
-  { kind: "policy", label: "ECB rate decision",   date: "2026-07-23", daysUntil: 0, scope: "macro" },
-  { kind: "cpi",    label: "Euro area CPI flash", date: "2026-07-31", daysUntil: 0, scope: "macro" },
-  { kind: "policy", label: "FOMC rate decision",  date: "2026-09-16", daysUntil: 0, scope: "macro" },
-  { kind: "cpi",    label: "US CPI (July)",       date: "2026-08-12", daysUntil: 0, scope: "macro" },
+  { kind: "policy", label: "FOMC rate decision", date: "2026-07-29", daysUntil: 0, scope: "macro",
+    sourceLabel: "Federal Reserve calendar", sourceUrl: "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+    confidence: "scheduled", confidenceNote: "Date fixed on the FOMC calendar; time set for 2pm ET." },
+  { kind: "cpi",    label: "US CPI (June)",       date: "2026-07-15", daysUntil: 0, scope: "macro",
+    sourceLabel: "BLS release schedule", sourceUrl: "https://www.bls.gov/schedule/news_release/cpi.htm",
+    confidence: "scheduled", confidenceNote: "BLS release, 8:30am ET." },
+  { kind: "policy", label: "ECB rate decision",   date: "2026-07-23", daysUntil: 0, scope: "macro",
+    sourceLabel: "ECB Governing Council calendar", sourceUrl: "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+    confidence: "scheduled" },
+  { kind: "cpi",    label: "Euro area CPI flash", date: "2026-07-31", daysUntil: 0, scope: "macro",
+    sourceLabel: "Eurostat release calendar", sourceUrl: "https://ec.europa.eu/eurostat/news/release-calendar",
+    confidence: "scheduled" },
+  { kind: "policy", label: "FOMC rate decision",  date: "2026-09-16", daysUntil: 0, scope: "macro",
+    sourceLabel: "Federal Reserve calendar", sourceUrl: "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+    confidence: "scheduled" },
+  { kind: "cpi",    label: "US CPI (July)",       date: "2026-08-12", daysUntil: 0, scope: "macro",
+    sourceLabel: "BLS release schedule", sourceUrl: "https://www.bls.gov/schedule/news_release/cpi.htm",
+    confidence: "scheduled" },
 ];
 
 function daysBetween(a: Date, b: Date): number {
@@ -124,7 +140,8 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  const { symbol } = parsed.data;
+  const { symbol, lookaheadDays } = parsed.data;
+  const horizonDays = Math.max(1, Math.min(365, lookaheadDays ?? 30));
   const sym = symbol.toUpperCase();
   const auth = req.headers.get("Authorization") ?? `Bearer ${SUPABASE_ANON_KEY}`;
 
@@ -177,19 +194,25 @@ Deno.serve(async (req) => {
   if (Number.isFinite(nextEarn) && nextEarn <= 14 && nextEarn >= 0) {
     signals.push({ family: "macro", key: "earnings-soon", label: `Earnings in ${nextEarn.toFixed(0)}d — event risk window`, direction: "wait", weight: 10, note: "Consider staggering entry until after the print." });
   }
-  if (Number.isFinite(nextEarn) && nextEarn >= 0 && nextEarn <= 60) {
+  if (Number.isFinite(nextEarn) && nextEarn >= 0 && nextEarn <= horizonDays) {
     const d = new Date(now); d.setDate(d.getDate() + Math.round(nextEarn));
     events.push({
       kind: "earnings", scope: "ticker",
       label: `${sym} earnings`, date: d.toISOString().slice(0, 10), daysUntil: Math.round(nextEarn),
       note: nextEarn <= 14 ? "Elevated event risk — stagger entries around the print." : undefined,
+      sourceLabel: `Yahoo Finance · ${sym} earnings`,
+      sourceUrl: `https://finance.yahoo.com/calendar/earnings?symbol=${encodeURIComponent(sym)}`,
+      confidence: nextEarn <= 7 ? "confirmed" : "estimated",
+      confidenceNote: nextEarn <= 7
+        ? "Date confirmed by the issuer within the coming week."
+        : "Provider estimate — issuers occasionally shift the exact date; confirm on the IR page.",
     });
   }
 
   // Macro proximity — policy + CPI windows within ~30 days. These affect every
   // ticker, so we always emit them and let the drilldown show the same rows
   // per ticker for transparency.
-  const macro = upcomingMacroEvents(now, 30);
+  const macro = upcomingMacroEvents(now, horizonDays);
   for (const e of macro) events.push(e);
   const nextPolicy = macro.find((e) => e.kind === "policy");
   if (nextPolicy && nextPolicy.daysUntil <= 21) {

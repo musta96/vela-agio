@@ -405,6 +405,17 @@ export default function PaperTrading() {
                     </div>
                   );
                 })()}
+                {side === "short" && selected && quotes[selected.symbol]?.price && activeId && (
+                  <ShortRiskChecklist
+                    className="mb-3 rounded-md border border-border/60 p-2.5"
+                    symbol={selected.symbol}
+                    qty={Number(qty) || 0}
+                    price={quotes[selected.symbol].price}
+                    currentCash={cash?.cash || 0}
+                    stopPrice={loadShortPrefs(activeId, selected.symbol).stop}
+                    borrow={estimateBorrow(selected.symbol, quotes[selected.symbol].price)}
+                  />
+                )}
                 <Button
                   className={`w-full ${side === "short" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
                   onClick={placeOrder}

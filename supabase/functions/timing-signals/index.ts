@@ -79,7 +79,7 @@ async function callEdge<T>(auth: string, fn: string, body: unknown): Promise<T |
 function score(signals: Signal[]): { score: number; verdict: Direction } {
   const raw = signals.reduce((a, s) => a + (s.direction === "buy" ? s.weight : s.direction === "avoid" ? -s.weight : 0), 0);
   const clamped = Math.max(-100, Math.min(100, Math.round(raw)));
-  return { score: clamped, verdict: clamped > 25 ? "buy" : clamped < -25 ? "avoid" : "wait" };
+  return { score: clamped, verdict: clamped >= 20 ? "buy" : clamped <= -20 ? "avoid" : "wait" };
 }
 
 Deno.serve(async (req) => {
@@ -114,8 +114,8 @@ Deno.serve(async (req) => {
     const last = closes[closes.length - 1];
     const rV = rsi(closes, 14);
     if (Number.isFinite(rV)) {
-      if (rV <= 30) signals.push({ family: "tech", key: "rsi", label: `RSI(14) ${rV.toFixed(0)} — oversold`, value: rV, direction: "buy", weight: 20 });
-      else if (rV >= 70) signals.push({ family: "tech", key: "rsi", label: `RSI(14) ${rV.toFixed(0)} — overbought`, value: rV, direction: "avoid", weight: 20 });
+      if (rV <= 30) signals.push({ family: "tech", key: "rsi", label: `RSI(14) ${rV.toFixed(0)} — oversold`, value: rV, direction: "buy", weight: 30 });
+      else if (rV >= 70) signals.push({ family: "tech", key: "rsi", label: `RSI(14) ${rV.toFixed(0)} — overbought`, value: rV, direction: "avoid", weight: 30 });
       else signals.push({ family: "tech", key: "rsi", label: `RSI(14) ${rV.toFixed(0)} — neutral`, value: rV, direction: "wait", weight: 5 });
     }
     const mc = macd(closes);

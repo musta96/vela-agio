@@ -1,83 +1,11 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAiAccess, aiDeniedResponse, modelForCap } from '../_shared/ai-access.ts';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { fetchFundamentals } from '../_shared/fundamentals.ts';
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface Body { query: string; symbols: string[] }
-
-function n(v: any): number | null {
-  if (v == null) return null;
-  if (typeof v === 'number' && isFinite(v)) return v;
-  if (typeof v === 'object' && typeof v.raw === 'number') return v.raw;
-  return null;
-}
-
-let cachedCrumb: { crumb: string; cookie: string; at: number } | null = null;
-async function getCrumb() {
-  if (cachedCrumb && Date.now() - cachedCrumb.at < 30 * 60 * 1000) return cachedCrumb;
-  const r2 = await fetch('https://finance.yahoo.com/', { headers: { 'User-Agent': UA }, redirect: 'manual' });
-  const sc = r2.headers.get('set-cookie') ?? '';
-  const cookiePairs: string[] = [];
-  for (const p of sc.split(/,(?=\s*[A-Za-z0-9_-]+=)/)) {
-    const kv = p.split(';')[0].trim();
-    if (kv && kv.includes('=')) cookiePairs.push(kv);
-  }
-  const cookie = cookiePairs.join('; ');
-  const r3 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
-    headers: { 'User-Agent': UA, Cookie: cookie },
-  });
-  if (!r3.ok) throw new Error(`crumb ${r3.status}`);
-  const crumb = (await r3.text()).trim();
-  cachedCrumb = { crumb, cookie, at: Date.now() };
-  return cachedCrumb;
-}
-
-async function fetchFundamentals(symbol: string) {
-  const modules = ['summaryDetail', 'defaultKeyStatistics', 'financialData', 'price', 'assetProfile'].join(',');
-  const { crumb, cookie } = await getCrumb();
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
-  const r = await fetch(url, { headers: { 'User-Agent': UA, Cookie: cookie } });
-  if (!r.ok) return null;
-  const j = await r.json();
-  const q = j?.quoteSummary?.result?.[0];
-  if (!q) return null;
-  const sd = q.summaryDetail ?? {};
-  const ks = q.defaultKeyStatistics ?? {};
-  const fd = q.financialData ?? {};
-  const p = q.price ?? {};
-  const ap = q.assetProfile ?? {};
-  return {
-    symbol,
-    name: p.longName || p.shortName || symbol,
-    sector: ap.sector,
-    industry: ap.industry,
-    price: n(p.regularMarketPrice),
-    marketCap: n(p.marketCap),
-    pe: n(sd.trailingPE),
-    forwardPe: n(sd.forwardPE) ?? n(ks.forwardPE),
-    peg: n(ks.pegRatio),
-    pb: n(ks.priceToBook),
-    ps: n(sd.priceToSalesTrailing12Months),
-    evEbitda: n(ks.enterpriseToEbitda),
-    divYield: n(sd.dividendYield),
-    payout: n(sd.payoutRatio),
-    roe: n(fd.returnOnEquity),
-    roa: n(fd.returnOnAssets),
-    grossMargin: n(fd.grossMargins),
-    opMargin: n(fd.operatingMargins),
-    netMargin: n(fd.profitMargins),
-    revGrowth: n(fd.revenueGrowth),
-    earningsGrowth: n(fd.earningsGrowth),
-    debtEquity: n(fd.debtToEquity),
-    currentRatio: n(fd.currentRatio),
-    beta: n(sd.beta),
-    fcf: n(fd.freeCashflow),
-    targetMean: n(fd.targetMeanPrice),
-    recommendation: fd.recommendationKey,
-  };
-}
 
 /** Apply a single filter clause to a fundamentals object. */
 function applyFilter(f: any, clause: { metric: string; op: string; value: number }) {

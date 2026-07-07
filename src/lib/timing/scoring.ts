@@ -73,7 +73,7 @@ function contribution(sig: TimingSignal): number {
 export function scoreSignals(signals: TimingSignal[]): { score: number; verdict: TimingDirection } {
   const raw = signals.reduce((a, s) => a + contribution(s), 0);
   const score = Math.max(-100, Math.min(100, Math.round(raw)));
-  const verdict: TimingDirection = score > 25 ? "buy" : score < -25 ? "avoid" : "wait";
+  const verdict: TimingDirection = score >= 20 ? "buy" : score <= -20 ? "avoid" : "wait";
   return { score, verdict };
 }
 
@@ -102,8 +102,8 @@ export function buildSignals(input: BuildSignalsInput): TimingSignal[] {
   // --- technicals ---
   const rsiV = rsi(c, 14);
   if (Number.isFinite(rsiV)) {
-    if (rsiV <= 30) out.push({ family: "tech", key: "rsi", label: `RSI(14) ${rsiV.toFixed(0)} — oversold`, value: rsiV, direction: "buy", weight: 20 });
-    else if (rsiV >= 70) out.push({ family: "tech", key: "rsi", label: `RSI(14) ${rsiV.toFixed(0)} — overbought`, value: rsiV, direction: "avoid", weight: 20 });
+    if (rsiV <= 30) out.push({ family: "tech", key: "rsi", label: `RSI(14) ${rsiV.toFixed(0)} — oversold`, value: rsiV, direction: "buy", weight: 30 });
+    else if (rsiV >= 70) out.push({ family: "tech", key: "rsi", label: `RSI(14) ${rsiV.toFixed(0)} — overbought`, value: rsiV, direction: "avoid", weight: 30 });
     else out.push({ family: "tech", key: "rsi", label: `RSI(14) ${rsiV.toFixed(0)} — neutral`, value: rsiV, direction: "wait", weight: 5 });
   }
 

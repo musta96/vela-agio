@@ -66,6 +66,7 @@ export function PortfolioMemoBuilder({
   const [strictAllocation, setStrictAllocation] = useState(false);
   const [exportData, setExportData] = useState(false);
   const [includeDeepDive, setIncludeDeepDive] = useState(false);
+  const [includeCorrelationSensitivity, setIncludeCorrelationSensitivity] = useState(true);
   const [selectedDeepDive, setSelectedDeepDive] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState<MemoTickerProgress[]>([]);
   const [busy, setBusy] = useState(false);
@@ -505,6 +506,14 @@ export function PortfolioMemoBuilder({
             <Checkbox checked={includeDeepDive} onCheckedChange={(v) => setIncludeDeepDive(Boolean(v))} />
             <FileText className="h-3.5 w-3.5" />
             Advanced: append per-instrument deep-dive appendix (off by default — the memo is a single holistic strategy document)
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <Checkbox
+              checked={includeCorrelationSensitivity}
+              onCheckedChange={(v) => setIncludeCorrelationSensitivity(Boolean(v))}
+            />
+            Include correlation sensitivity subsection (explains how risk profile and macro regime reshape the matrix)
           </label>
           {includeDeepDive && Object.keys(parsedAllocation).length > 0 && (
             <div className="rounded border border-border p-2 space-y-1 text-xs">

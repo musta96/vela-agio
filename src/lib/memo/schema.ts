@@ -214,6 +214,19 @@ export const TimingRowSchema = z.object({
   score: z.number(),
   headline: z.string(),
   signals: z.array(TimingSignalSchema).optional(),
+  /** Upcoming catalysts (earnings, policy, CPI windows) for this ticker. */
+  events: z
+    .array(
+      z.object({
+        kind: z.enum(["earnings", "policy", "cpi", "dividend", "other"]),
+        label: z.string(),
+        date: z.string(),
+        daysUntil: z.number(),
+        scope: z.enum(["ticker", "macro"]).optional(),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 export type TimingRow = z.infer<typeof TimingRowSchema>;
 

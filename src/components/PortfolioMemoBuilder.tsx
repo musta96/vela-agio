@@ -287,6 +287,10 @@ export function PortfolioMemoBuilder({
                     family: s.family, key: s.key, label: s.label,
                     direction: s.direction, weight: s.weight, note: s.note,
                   })),
+                  events: r.events?.map((e) => ({
+                    kind: e.kind, label: e.label, date: e.date,
+                    daysUntil: e.daysUntil, scope: e.scope, note: e.note,
+                  })),
                 }
               : null;
           } catch (err) {

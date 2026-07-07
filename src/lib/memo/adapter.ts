@@ -208,6 +208,14 @@ export function legacyPortfolioToMemoInput(
   // so they render in the numbered list without duplication.
   (extras?.extra_references ?? []).forEach((r) => refs.add(r.label, r.url, r.retrieved_at));
 
+  // Auto-derive a correlation-sensitivity narrative from the risk profile and
+  // macro regime so every memo explains how the scenario assumptions reshape
+  // pairwise correlations, without requiring callers to hand-author it.
+  const correlation_drivers = withCorrelationSensitivity(
+    extras?.correlation_drivers,
+    { riskProfile: opts.riskProfile, regime: extras?.macro?.regime, hasCorrelation: Boolean(extras?.correlation) },
+  );
+
   return {
     memo_type: "strategy",
     meta: {
@@ -246,7 +254,7 @@ export function legacyPortfolioToMemoInput(
     macro: extras?.macro,
     portfolio_risk: extras?.portfolio_risk,
     correlation: extras?.correlation,
-    correlation_drivers: extras?.correlation_drivers,
+    correlation_drivers,
     assumptions: extras?.assumptions,
     references: refs.all(),
     parent_id: extras?.parent_id,

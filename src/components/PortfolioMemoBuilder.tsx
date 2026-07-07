@@ -62,7 +62,7 @@ export function PortfolioMemoBuilder({
   const [versionName, setVersionName] = useState("");
   const [strictAllocation, setStrictAllocation] = useState(false);
   const [exportData, setExportData] = useState(false);
-  const [includeDeepDive, setIncludeDeepDive] = useState(true);
+  const [includeDeepDive, setIncludeDeepDive] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (open) setVersions(listThesisVersions()); }, [open]);
@@ -428,7 +428,7 @@ export function PortfolioMemoBuilder({
           <label className="flex items-center gap-2 cursor-pointer text-xs">
             <Checkbox checked={includeDeepDive} onCheckedChange={(v) => setIncludeDeepDive(Boolean(v))} />
             <FileText className="h-3.5 w-3.5" />
-            Include per-instrument deep-dive (fundamentals, valuation, thesis, bull/bear, risks) — one PDF, one document
+            Advanced: append per-instrument deep-dive appendix (off by default — the memo is a single holistic strategy document)
           </label>
         </div>
 

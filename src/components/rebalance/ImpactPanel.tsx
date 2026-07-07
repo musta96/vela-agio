@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ function RiskCell({ label, value, hint }: { label: string; value: string; hint?:
 
 export default function ImpactPanel() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [holdings, setHoldings] = useState<{ symbol: string; shares: number; avg_price: number }[]>([]);
   const [proposed, setProposed] = useState<ProposedRow[]>([{ symbol: "", weight: "" }]);
   const [proposedCapital, setProposedCapital] = useState<string>("");
@@ -79,6 +81,23 @@ export default function ImpactPanel() {
   const [loadingRisk, setLoadingRisk] = useState(false);
   const [savingPdf, setSavingPdf] = useState(false);
   const [strategyThesis, setStrategyThesis] = useState("");
+
+  // Deep-link support: /rebalance?allocation=<json>&proposed_capital=<n>&thesis=<text>
+  useEffect(() => {
+    const alloc = searchParams.get("allocation");
+    const cap = searchParams.get("proposed_capital");
+    const thesis = searchParams.get("thesis");
+    if (alloc) {
+      try {
+        const parsed = JSON.parse(alloc) as Record<string, number>;
+        const rows = Object.entries(parsed).map(([symbol, w]) => ({ symbol, weight: String((Number(w) || 0) * 100) }));
+        if (rows.length) setProposed(rows);
+      } catch { /* ignore */ }
+    }
+    if (cap) setProposedCapital(cap);
+    if (thesis) setStrategyThesis(thesis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) return;

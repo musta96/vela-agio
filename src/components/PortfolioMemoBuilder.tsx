@@ -263,7 +263,7 @@ export function PortfolioMemoBuilder({
 
       const extras: MemoExtras = {
         macro: macroExtra,
-        extra_references: macroSources.map((s) => ({ n: 0, label: s.label, url: s.url, retrieved_at: s.retrieved_at })),
+        extra_references: macroSources.map((s) => ({ n: 1, label: s.label, url: s.url, retrieved_at: s.retrieved_at })),
         correlation: res.data.correlation && res.data.correlation.symbols.length >= 2
           ? { method: "pearson", labels: res.data.correlation.symbols, matrix: res.data.correlation.matrix }
           : undefined,

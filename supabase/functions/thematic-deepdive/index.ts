@@ -40,6 +40,8 @@ const ChainSegment = z.object({
       name: z.string().optional(),
       exposure: z.enum(["pure-play", "partial", "adjacent"]),
       thesis: z.string().optional(),
+      evidence: z.array(z.string()).optional(),
+      exposurePct: z.number().nullable().optional(),
     }),
   ),
 });
@@ -98,9 +100,9 @@ Given a THEME, produce the full value chain across 5 segments:
 
 For each segment, list 6-12 PUBLICLY LISTED companies with their Yahoo Finance ticker (correct exchange suffix — e.g. ASML.AS, SHEL.L, 6857.T). Include a mix of geographies AND deliberately include small/micro-cap names that mainstream screeners miss.
 
-For each company return: symbol, optional name, exposure ("pure-play" | "partial" | "adjacent"), one-line thesis.
+For each company return: symbol, optional name, exposure ("pure-play" | "partial" | "adjacent"), one-line thesis, exposurePct (0-100 estimated % of revenue tied to this theme, null if unknown), and evidence (1-3 short bullet strings that cite the specific product line, subsidiary, contract, or filing that ties this company to the theme).
 
-Return STRICT JSON: { "segments": [ { "segment": "raw_materials", "label": "Raw materials", "companies": [ {"symbol":"...","name":"...","exposure":"pure-play","thesis":"..."} ] } ] }`;
+Return STRICT JSON: { "segments": [ { "segment": "raw_materials", "label": "Raw materials", "companies": [ {"symbol":"...","name":"...","exposure":"pure-play","exposurePct":75,"thesis":"...","evidence":["...","..."]} ] } ] }`;
 
   const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -167,6 +169,7 @@ Deno.serve(async (req) => {
   // Cache check ---------------------------------------------------------
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const cacheKey = `thematic:${theme.toLowerCase()}|${region}|${size}|${discoveryMode ? 1 : 0}`;
+  const chainCacheKey = `thematic_chain:${theme.toLowerCase()}`;
   try {
     const { data: cached } = await admin
       .from("ai_output_cache")
@@ -183,24 +186,42 @@ Deno.serve(async (req) => {
     console.warn("thematic-deepdive cache read failed", e);
   }
 
-  // 1. Value-chain expansion via LLM ------------------------------------
+  // 1. Value-chain expansion via LLM (with theme-only cache reuse) ------
   let segments: z.infer<typeof ChainSegment>[];
+  let chainCached = false;
   try {
-    segments = await expandChain(theme, model);
+    const { data: chainRow } = await admin
+      .from("ai_output_cache")
+      .select("payload, created_at")
+      .eq("cache_key", chainCacheKey)
+      .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .maybeSingle();
+    if (chainRow?.payload && Array.isArray((chainRow.payload as { segments?: unknown }).segments)) {
+      const parsed = z.object({ segments: z.array(ChainSegment).min(1) }).safeParse(chainRow.payload);
+      if (parsed.success) { segments = parsed.data.segments; chainCached = true; }
+    }
+    if (!chainCached) {
+      const fresh = await expandChain(theme, model);
+      segments = fresh;
+      await admin
+        .from("ai_output_cache")
+        .upsert({ cache_key: chainCacheKey, payload: { segments: fresh }, created_at: new Date().toISOString() }, { onConflict: "cache_key" });
+    }
   } catch (e) {
     console.error("expandChain failed", e);
     return new Response(JSON.stringify({ error: "value-chain expansion failed", detail: String(e) }), {
       status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  segments = segments!;
 
   // 2. Build unique universe capped at 60 tickers -----------------------
-  const candidateMap = new Map<string, { segment: z.infer<typeof ChainSegment>["segment"]; exposure: Exposure; thesis?: string; name?: string }>();
+  const candidateMap = new Map<string, { segment: z.infer<typeof ChainSegment>["segment"]; exposure: Exposure; thesis?: string; name?: string; evidence?: string[]; exposurePct?: number | null }>();
   for (const seg of segments) {
     for (const c of seg.companies) {
       const sym = c.symbol.trim().toUpperCase();
       if (!sym || candidateMap.has(sym)) continue;
-      candidateMap.set(sym, { segment: seg.segment, exposure: c.exposure, thesis: c.thesis, name: c.name });
+      candidateMap.set(sym, { segment: seg.segment, exposure: c.exposure, thesis: c.thesis, name: c.name, evidence: c.evidence, exposurePct: c.exposurePct ?? null });
       if (candidateMap.size >= 60) break;
     }
     if (candidateMap.size >= 60) break;
@@ -217,7 +238,7 @@ Deno.serve(async (req) => {
         fetchSentiment(auth, sym).catch(() => null),
       ]);
       const meta = candidateMap.get(sym)!;
-      return { symbol: sym, name: meta.name, exposure: meta.exposure, thesis: meta.thesis, segment: meta.segment, fundamentals: f, sentiment: s };
+      return { symbol: sym, name: meta.name, exposure: meta.exposure, thesis: meta.thesis, evidence: meta.evidence, exposurePct: meta.exposurePct, segment: meta.segment, fundamentals: f, sentiment: s };
     }));
     for (const r of results) rows.push(r as typeof rows[number]);
   }
@@ -248,6 +269,8 @@ Deno.serve(async (req) => {
       segment: r.segment,
       exposure: r.exposure,
       thesis: r.thesis,
+      evidence: r.evidence,
+      exposurePct: r.exposurePct ?? null,
       region: regionFromSymbol(r.symbol),
       marketCap: r.fundamentals?.marketCap ?? null,
       price: r.fundamentals?.price ?? null,
@@ -271,6 +294,7 @@ Deno.serve(async (req) => {
       { label: "Yahoo Finance quoteSummary", url: "https://finance.yahoo.com" },
       { label: "Vela sentiment aggregator" },
     ],
+    chainCached,
     generated_at: new Date().toISOString(),
   };
 

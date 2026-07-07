@@ -32,6 +32,10 @@ export const TimingEventSchema = z.object({
   daysUntil: z.number(),
   scope: z.enum(["ticker", "macro"]).optional(),
   note: z.string().optional(),
+  sourceLabel: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  confidence: z.enum(["confirmed", "estimated", "scheduled"]).optional(),
+  confidenceNote: z.string().optional(),
 });
 export type TimingEvent = z.infer<typeof TimingEventSchema>;
 

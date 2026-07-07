@@ -1,11 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, Minus, CalendarClock } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Minus, CalendarClock, ExternalLink, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { fetchTimingSignals } from "@/lib/timing/client";
 import type { TimingResult } from "@/lib/timing/schema";
 
 interface Props { symbol: string; }
+
+const LOOKAHEAD_OPTIONS = [7, 30, 90] as const;
+type Lookahead = (typeof LOOKAHEAD_OPTIONS)[number];
+const LOOKAHEAD_STORAGE_KEY = "timing.lookaheadDays";
+
+function readStoredLookahead(): Lookahead {
+  if (typeof window === "undefined") return 30;
+  const raw = Number(window.localStorage.getItem(LOOKAHEAD_STORAGE_KEY));
+  return (LOOKAHEAD_OPTIONS as readonly number[]).includes(raw) ? (raw as Lookahead) : 30;
+}
 
 const verdictStyle: Record<TimingResult["verdict"], { bg: string; text: string; label: string; Icon: typeof TrendingUp }> = {
   buy:   { bg: "bg-success/10 border-success/30",     text: "text-success",     label: "Entry window open",  Icon: TrendingUp },
@@ -15,15 +27,24 @@ const verdictStyle: Record<TimingResult["verdict"], { bg: string; text: string; 
 
 export function TimingCard({ symbol }: Props) {
   const [state, setState] = useState<{ loading: boolean; error?: string; data?: TimingResult }>({ loading: true });
+  const [lookahead, setLookahead] = useState<Lookahead>(() => readStoredLookahead());
 
   useEffect(() => {
     let cancelled = false;
     setState({ loading: true });
-    fetchTimingSignals(symbol)
+    fetchTimingSignals(symbol, { lookaheadDays: lookahead })
       .then((data) => { if (!cancelled) setState({ loading: false, data }); })
       .catch((err: unknown) => { if (!cancelled) setState({ loading: false, error: err instanceof Error ? err.message : String(err) }); });
     return () => { cancelled = true; };
-  }, [symbol]);
+  }, [symbol, lookahead]);
+
+  function handleLookaheadChange(v: string) {
+    const n = Number(v);
+    if (!(LOOKAHEAD_OPTIONS as readonly number[]).includes(n)) return;
+    const next = n as Lookahead;
+    setLookahead(next);
+    if (typeof window !== "undefined") window.localStorage.setItem(LOOKAHEAD_STORAGE_KEY, String(next));
+  }
 
   if (state.loading) {
     return (
@@ -57,6 +78,17 @@ export function TimingCard({ symbol }: Props) {
     () => d.signals.slice().sort((a, b) => b.weight - a.weight),
     [d.signals],
   );
+  // Top drivers = highest signed contributions to the composite score.
+  const topDrivers = useMemo(() => {
+    return d.signals
+      .map((s) => ({
+        ...s,
+        contribution: s.direction === "buy" ? s.weight : s.direction === "avoid" ? -s.weight : 0,
+      }))
+      .filter((s) => s.contribution !== 0)
+      .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+      .slice(0, 3);
+  }, [d.signals]);
 
   return (
     <Card className={`p-4 sm:p-6 mb-6 border ${v.bg}`}>
@@ -76,21 +108,98 @@ export function TimingCard({ symbol }: Props) {
       </div>
       <p className="mt-3 text-sm">{d.headline}</p>
 
-      {events.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-medium uppercase text-muted-foreground mb-1.5 flex items-center gap-1.5">
-            <CalendarClock className="h-3.5 w-3.5" /> Upcoming catalysts (next 30d)
-          </p>
-          <ul className="divide-y divide-border rounded-md border border-border">
-            {events.map((e, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs">
-                <span className="font-mono text-muted-foreground w-16 shrink-0">{e.date}</span>
-                <span className="flex-1">{e.label}{e.note ? <span className="block text-[10px] text-muted-foreground">{e.note}</span> : null}</span>
-                <Badge variant="outline" className="text-[10px] shrink-0">in {e.daysUntil}d</Badge>
-              </li>
-            ))}
-          </ul>
+      {topDrivers.length > 0 && (
+        <div className="mt-3 rounded-md border border-border bg-background/40 p-2.5">
+          <p className="text-[11px] font-medium uppercase text-muted-foreground mb-1.5">Top drivers</p>
+          <div className="flex flex-wrap gap-1.5">
+            {topDrivers.map((s) => {
+              const positive = s.contribution > 0;
+              const cls = positive
+                ? "border-success/40 text-success bg-success/5"
+                : "border-destructive/40 text-destructive bg-destructive/5";
+              return (
+                <Badge key={s.key} variant="outline" className={`font-normal text-[11px] ${cls}`}>
+                  <span className="font-mono mr-1">{positive ? "+" : "−"}{Math.abs(s.contribution)}</span>
+                  {s.label}
+                </Badge>
+              );
+            })}
+          </div>
         </div>
+      )}
+
+      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1.5">
+          <CalendarClock className="h-3.5 w-3.5" /> Upcoming catalysts (next {lookahead}d)
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground">Lookahead</span>
+          <ToggleGroup
+            type="single"
+            size="sm"
+            value={String(lookahead)}
+            onValueChange={(v) => v && handleLookaheadChange(v)}
+            aria-label="Catalyst lookahead window"
+          >
+            {LOOKAHEAD_OPTIONS.map((n) => (
+              <ToggleGroupItem key={n} value={String(n)} className="h-7 px-2 text-[11px]">{n}d</ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+      </div>
+      {events.length > 0 && (
+        <TooltipProvider delayDuration={150}>
+          <ul className="mt-2 divide-y divide-border rounded-md border border-border">
+            {events.map((e, i) => {
+              const confCls = e.confidence === "confirmed"
+                ? "border-success/40 text-success"
+                : e.confidence === "estimated"
+                  ? "border-warning/40 text-warning"
+                  : "border-border text-muted-foreground";
+              return (
+                <li key={i} className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs">
+                  <span className="font-mono text-muted-foreground w-20 shrink-0">{e.date}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      {e.sourceUrl ? (
+                        <a
+                          href={e.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline underline-offset-2 hover:text-foreground inline-flex items-center gap-0.5"
+                          title={e.sourceLabel ?? "Source"}
+                        >
+                          {e.label}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span>{e.label}</span>
+                      )}
+                      {e.confidence && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className={`text-[10px] font-normal cursor-help ${confCls}`}>
+                              <Info className="h-2.5 w-2.5 mr-1" />{e.confidence}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs">
+                            {e.confidenceNote ?? `Confidence: ${e.confidence}.`}
+                            {e.sourceLabel && <div className="mt-1 text-muted-foreground">Source: {e.sourceLabel}</div>}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </span>
+                    {e.note && <span className="block text-[10px] text-muted-foreground mt-0.5">{e.note}</span>}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] shrink-0">in {e.daysUntil}d</Badge>
+                </li>
+              );
+            })}
+          </ul>
+        </TooltipProvider>
+      )}
+      {events.length === 0 && (
+        <p className="mt-2 text-xs text-muted-foreground italic">No scheduled catalysts within the next {lookahead} days.</p>
       )}
 
       <div className="mt-4">

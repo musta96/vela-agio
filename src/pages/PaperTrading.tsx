@@ -15,6 +15,8 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
+import { ShortRiskChecklist } from "@/components/shorts/ShortRiskChecklist";
+import { buildShortChecklist, estimateBorrow, loadShortPrefs, saveShortPrefs } from "@/lib/shorts";
 
 /**
  * Paper Trading Lab.
@@ -151,13 +153,19 @@ export default function PaperTrading() {
       return;
     }
     if (side === "short") {
-      const marginReq = notional * 0.5; // Reg-T style 50% initial margin
-      if (marginReq > currentCash) {
-        toast({ title: "Insufficient margin for short", description: `Short requires ~${fmt(marginReq)} initial margin, have ${fmt(currentCash)}.`, variant: "destructive" });
+      const borrow = estimateBorrow(selected.symbol, px);
+      const prefs = loadShortPrefs(activeId, selected.symbol);
+      const { blocking, items } = buildShortChecklist({ symbol: selected.symbol, qty: quantity, price: px, currentCash, stopPrice: prefs.stop, borrow });
+      if (blocking) {
+        const danger = items.find((i) => i.severity === "danger");
+        toast({ title: "Short blocked by risk check", description: danger?.detail || "Resolve highlighted risk to proceed.", variant: "destructive" });
         return;
       }
-      const ok = confirm(`Confirm SHORT SELL ${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}?\n\nLosses on a short are theoretically unlimited. Initial margin ~${fmt(marginReq)} will be reserved.`);
+      const marginReq = notional * 0.5;
+      const ok = confirm(`Confirm SHORT SELL ${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}?\n\nLosses on a short are theoretically unlimited. Initial margin ~${fmt(marginReq)} will be reserved. Est. borrow ~${(borrow.rate * 100).toFixed(2)}% APR (${borrow.difficulty}).`);
       if (!ok) return;
+      // Record entry for the position manager
+      saveShortPrefs(activeId, selected.symbol, { entryPrice: px, borrowRate: borrow.rate, openedAt: new Date().toISOString() });
     }
     // Persist: SHORT rows use side='sell' (DB CHECK constraint) but the note tags them so the
     // positions reducer already produces a negative qty (existing behaviour).

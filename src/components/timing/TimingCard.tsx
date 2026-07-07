@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Minus, CalendarClock } from "lucide-react";
 import { fetchTimingSignals } from "@/lib/timing/client";
 import type { TimingResult } from "@/lib/timing/schema";
 
@@ -45,10 +45,18 @@ export function TimingCard({ symbol }: Props) {
   const d = state.data;
   const v = verdictStyle[d.verdict];
   const families: Array<{ key: TimingResult["signals"][number]["family"]; title: string }> = [
-    { key: "tech", title: "Technicals" },
+    { key: "tech", title: "Technicals (RSI / MACD / DMA)" },
     { key: "fund", title: "Fundamentals" },
-    { key: "macro", title: "Macro context" },
+    { key: "macro", title: "Macro & event proximity" },
   ];
+  const events = useMemo(
+    () => (d.events ?? []).slice().sort((a, b) => a.daysUntil - b.daysUntil),
+    [d.events],
+  );
+  const drill = useMemo(
+    () => d.signals.slice().sort((a, b) => b.weight - a.weight),
+    [d.signals],
+  );
 
   return (
     <Card className={`p-4 sm:p-6 mb-6 border ${v.bg}`}>
@@ -67,24 +75,51 @@ export function TimingCard({ symbol }: Props) {
         </div>
       </div>
       <p className="mt-3 text-sm">{d.headline}</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {families.map(({ key, title }) => {
-          const items = d.signals.filter((s) => s.family === key);
-          if (!items.length) return null;
-          return (
-            <div key={key} className="space-y-1.5">
-              <p className="text-xs font-medium uppercase text-muted-foreground">{title}</p>
-              <div className="flex flex-wrap gap-1">
-                {items.map((s) => (
-                  <Badge key={s.key} variant="outline" className={`text-[11px] ${s.direction === "buy" ? "border-success/40 text-success" : s.direction === "avoid" ? "border-destructive/40 text-destructive" : ""}`}>
-                    {s.label}
-                  </Badge>
-                ))}
+
+      {events.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-medium uppercase text-muted-foreground mb-1.5 flex items-center gap-1.5">
+            <CalendarClock className="h-3.5 w-3.5" /> Upcoming catalysts (next 30d)
+          </p>
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {events.map((e, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs">
+                <span className="font-mono text-muted-foreground w-16 shrink-0">{e.date}</span>
+                <span className="flex-1">{e.label}{e.note ? <span className="block text-[10px] text-muted-foreground">{e.note}</span> : null}</span>
+                <Badge variant="outline" className="text-[10px] shrink-0">in {e.daysUntil}d</Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <p className="text-xs font-medium uppercase text-muted-foreground mb-1.5">Why this verdict — triggers that fired</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {families.map(({ key, title }) => {
+            const items = drill.filter((s) => s.family === key);
+            if (!items.length) return null;
+            return (
+              <div key={key} className="space-y-1.5">
+                <p className="text-[11px] font-medium text-muted-foreground">{title}</p>
+                <ul className="space-y-1">
+                  {items.map((s) => {
+                    const contrib = s.direction === "buy" ? `+${s.weight}` : s.direction === "avoid" ? `−${s.weight}` : `0`;
+                    const cls = s.direction === "buy" ? "border-success/40 text-success" : s.direction === "avoid" ? "border-destructive/40 text-destructive" : "";
+                    return (
+                      <li key={s.key} className="flex items-start justify-between gap-2 text-[11px]">
+                        <span className="flex-1">{s.label}{s.note ? <span className="block text-[10px] text-muted-foreground">{s.note}</span> : null}</span>
+                        <Badge variant="outline" className={`shrink-0 font-mono text-[10px] ${cls}`}>{contrib}</Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
+
       {d.sources.length > 0 && (
         <p className="mt-3 text-[11px] text-muted-foreground">
           Sources: {d.sources.map((s, i) => (s.url ? <a key={i} href={s.url} className="underline mr-2" target="_blank" rel="noreferrer">{s.label}</a> : <span key={i} className="mr-2">{s.label}</span>))}

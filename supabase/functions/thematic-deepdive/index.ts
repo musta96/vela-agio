@@ -200,11 +200,12 @@ Deno.serve(async (req) => {
       const parsed = z.object({ segments: z.array(ChainSegment).min(1) }).safeParse(chainRow.payload);
       if (parsed.success) { segments = parsed.data.segments; chainCached = true; }
     }
-    if (!chainCached!) {
-      segments = await expandChain(theme, model);
+    if (!chainCached) {
+      const fresh = await expandChain(theme, model);
+      segments = fresh;
       await admin
         .from("ai_output_cache")
-        .upsert({ cache_key: chainCacheKey, payload: { segments }, created_at: new Date().toISOString() }, { onConflict: "cache_key" });
+        .upsert({ cache_key: chainCacheKey, payload: { segments: fresh }, created_at: new Date().toISOString() }, { onConflict: "cache_key" });
     }
   } catch (e) {
     console.error("expandChain failed", e);
@@ -212,7 +213,6 @@ Deno.serve(async (req) => {
       status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  // Assertion for TS: segments is always assigned above (either from cache or expansion) or we've returned.
   segments = segments!;
 
   // 2. Build unique universe capped at 60 tickers -----------------------

@@ -51,6 +51,8 @@ import AIScanner from "./pages/AIScanner";
 import RelatedInstruments from "./pages/RelatedInstruments";
 import ExploreThemes from "./pages/ExploreThemes";
 import ThematicCompanyDrilldown from "./pages/ThematicCompanyDrilldown";
+import OptionsChain from "./pages/OptionsChain";
+import Futures from "./pages/Futures";
 import Notes from "./pages/Notes";
 import Documents from "./pages/Documents";
 import Suitability from "./pages/Suitability";
@@ -145,6 +147,9 @@ const App = () => (
             <Route path="/explore/themes/company/:symbol" element={<ThematicCompanyDrilldown />} />
             <Route path="/movers" element={<Movers />} />
             <Route path="/paper-trading" element={<PaperTrading />} />
+            <Route path="/options" element={<OptionsChain />} />
+            <Route path="/options/:symbol" element={<OptionsChain />} />
+            <Route path="/futures" element={<Futures />} />
             <Route path="/picks" element={<SmartPicks />} />
             <Route path="/technical" element={<TechnicalAnalysis />} />
             <Route path="/compare" element={<Compare />} />

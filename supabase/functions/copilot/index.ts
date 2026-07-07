@@ -62,12 +62,20 @@ const TOOLS = [
       }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'remove_holding', description: 'Remove a position from the portfolio.',
       parameters: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] } } },
-  { type: 'function', function: { name: 'place_paper_order', description: 'Place a PAPER trading order on Alpaca. Requires the user to have ALPACA_API_KEY + ALPACA_API_SECRET configured. Always paper endpoint — never live. Confirm with user before calling.',
+  { type: 'function', function: { name: 'place_paper_order', description: 'Place a PAPER trading order on Alpaca. Requires the user to have ALPACA_API_KEY + ALPACA_API_SECRET configured. Always paper endpoint — never live. Supports BUY, SELL (close long) and SHORT SELL (open a short on a non-owned marginable US equity). Confirm with user before calling and, for shorts, explicitly restate the unlimited-loss risk.',
       parameters: { type: 'object', properties: {
         symbol: { type: 'string' }, side: { type: 'string', enum: ['buy', 'sell'] },
         qty: { type: 'number' }, type: { type: 'string', enum: ['market', 'limit'] },
         limit_price: { type: 'number' }, time_in_force: { type: 'string', enum: ['day', 'gtc'], description: 'defaults to day' },
+        short_sell: { type: 'boolean', description: 'Set true to open a SHORT SELL (sell shares you do not own). Only valid with side="sell". Alpaca paper accepts this on marginable US equities.' },
       }, required: ['symbol', 'side', 'qty', 'type'] } } },
+  { type: 'function', function: { name: 'suggest_hedge', description: 'Propose one or more hedge overlays for a long position or a whole portfolio. Returns candidate short-equity, put-option and short-future overlays with a rough cost/protection estimate. Educational — not a recommendation. Combine with place_paper_order (short_sell=true) to actually execute in the paper account after user confirmation.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string', description: 'Ticker whose exposure the user wants to hedge. Optional if scope=portfolio.' },
+        exposure_usd: { type: 'number', description: 'Notional exposure to hedge, in USD.' },
+        scope: { type: 'string', enum: ['single', 'portfolio'], description: 'Hedge a single position or the entire portfolio beta.' },
+        style: { type: 'string', enum: ['short_stock', 'put_option', 'short_future', 'auto'], description: 'Preferred hedge instrument. Defaults to auto (returns all three).' },
+      }, required: [] } } },
   // NOTE: `propose_live_order` removed — Vela.ai is not yet authorised as an
   // investment firm, so the Copilot must never route real-money orders. The
   // server-side live-trade edge function additionally enforces the
@@ -650,6 +658,10 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       const apiKey = await getUserDataKey(ctx.authHeader, 'ALPACA_API_KEY');
       const apiSecret = await getUserDataKey(ctx.authHeader, 'ALPACA_API_SECRET');
       if (!apiKey || !apiSecret) return { error: 'Alpaca paper trading not configured. Add ALPACA_API_KEY and ALPACA_API_SECRET in Settings → Data Providers (use your PAPER keys).' };
+      // Short-sell path: enforce side=sell and surface a clear risk note back to the LLM.
+      if (args.short_sell === true && args.side !== 'sell') {
+        return { error: 'short_sell=true requires side="sell".' };
+      }
       const body: any = {
         symbol: String(args.symbol).toUpperCase(), qty: String(args.qty), side: args.side,
         type: args.type, time_in_force: args.time_in_force ?? 'day',
@@ -663,11 +675,71 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         });
         const j = await r.json();
         if (!r.ok) return { error: j?.message ?? `Alpaca ${r.status}`, detail: j };
-        return { ok: true, mode: 'PAPER', order_id: j.id, status: j.status, filled_qty: j.filled_qty, submitted_at: j.submitted_at };
+        return {
+          ok: true, mode: 'PAPER',
+          short_sell: args.short_sell === true,
+          risk_note: args.short_sell === true
+            ? 'SHORT SELL — losses are theoretically unlimited if the stock rises. Alpaca paper simulates borrow but real short availability is broker-dependent.'
+            : undefined,
+          order_id: j.id, status: j.status, filled_qty: j.filled_qty, submitted_at: j.submitted_at,
+        };
       } catch (e: any) { return { error: e?.message ?? 'alpaca call failed' }; }
     }
     case 'propose_live_order':
       return { error: 'Live order routing is disabled on this platform. Vela.ai is not authorised as an investment firm; only paper orders are supported.' };
+    case 'suggest_hedge': {
+      // Heuristic educational hedge sizing — not tied to a live options pricer.
+      // Returns three candidate overlays so the LLM can present them.
+      const exposure = Number(args.exposure_usd ?? 0) || null;
+      const sym = args.symbol ? String(args.symbol).toUpperCase() : null;
+      const style = args.style ?? 'auto';
+      if (!exposure && !sym) return { error: 'Provide at least one of: symbol, exposure_usd.' };
+
+      const notional = exposure ?? 10_000;
+      const candidates: Array<Record<string, unknown>> = [];
+      if (style === 'short_stock' || style === 'auto') {
+        candidates.push({
+          style: 'short_stock',
+          instrument: sym ?? 'SPY',
+          rationale: sym
+            ? `Short an equal-notional amount of ${sym} to fully neutralise the position (100% hedge). Requires margin & borrow.`
+            : 'Short SPY as a rough beta hedge on a diversified US-equity book.',
+          hedge_notional_usd: Math.round(notional),
+          expected_cost_pct: 0.5,
+          instructions: sym
+            ? `Call place_paper_order with { symbol: "${sym}", side: "sell", short_sell: true, qty: <notional / last_price>, type: "market" } after user confirmation.`
+            : 'Call place_paper_order with { symbol: "SPY", side: "sell", short_sell: true, qty: <notional / last_price>, type: "market" }.',
+        });
+      }
+      if (style === 'put_option' || style === 'auto') {
+        candidates.push({
+          style: 'put_option',
+          instrument: sym ? `${sym} 30-day 5%-OTM put` : 'SPY 30-day 5%-OTM put',
+          rationale: 'Defined-risk downside protection. Max loss = premium. Best when the user wants a floor without giving up upside.',
+          hedge_notional_usd: Math.round(notional),
+          expected_cost_pct: 1.5,
+          instructions: `Open /options/${sym ?? 'SPY'} to size the put by delta; then place at the broker (not routable via paper here yet).`,
+        });
+      }
+      if (style === 'short_future' || style === 'auto') {
+        candidates.push({
+          style: 'short_future',
+          instrument: 'ES=F (E-mini S&P 500 front)',
+          rationale: 'Capital-efficient beta hedge. Each ES contract ≈ $50 × index (~$275k notional). Use for portfolio-level equity hedges.',
+          hedge_notional_usd: Math.round(notional),
+          expected_cost_pct: 0.1,
+          instructions: 'Open /futures to see current specs. Executing futures shorts is not yet supported in the in-app paper engine — route via your broker.',
+        });
+      }
+      return {
+        ok: true,
+        scope: args.scope ?? (sym ? 'single' : 'portfolio'),
+        symbol: sym,
+        exposure_usd: notional,
+        candidates,
+        disclaimer: 'Educational hedge sketches. Actual cost, borrow availability and margin depend on the broker.',
+      };
+    }
     case 'capture_feature_request': {
       const title = String(args.title ?? '').slice(0, 200);
       const analysis = {

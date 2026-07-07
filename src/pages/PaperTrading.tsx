@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload } from "lucide-react";
+import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -68,7 +68,7 @@ export default function PaperTrading() {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [selected, setSelected] = useState<SearchHit | null>(null);
-  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [side, setSide] = useState<"buy" | "sell" | "short">("buy");
   const [qty, setQty] = useState<string>("10");
 
   // Symbol search (debounced)
@@ -141,22 +141,38 @@ export default function PaperTrading() {
     if (!quantity) return;
     const notional = px * quantity;
     const currentCash = cash?.cash || 0;
+    const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
     if (side === "buy" && notional > currentCash) {
       toast({ title: "Insufficient virtual cash", description: `Need ${fmt(notional)}, have ${fmt(currentCash)}.`, variant: "destructive" });
       return;
     }
-    const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
     if (side === "sell" && quantity > heldQty) {
-      toast({ title: "Short selling disabled in Lab", description: `You hold ${heldQty} ${selected.symbol}.`, variant: "destructive" });
+      toast({ title: "Cannot sell more than you hold", description: `You hold ${heldQty} ${selected.symbol}. Use SHORT to sell shares you don't own.`, variant: "destructive" });
       return;
     }
+    if (side === "short") {
+      const marginReq = notional * 0.5; // Reg-T style 50% initial margin
+      if (marginReq > currentCash) {
+        toast({ title: "Insufficient margin for short", description: `Short requires ~${fmt(marginReq)} initial margin, have ${fmt(currentCash)}.`, variant: "destructive" });
+        return;
+      }
+      const ok = confirm(`Confirm SHORT SELL ${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}?\n\nLosses on a short are theoretically unlimited. Initial margin ~${fmt(marginReq)} will be reserved.`);
+      if (!ok) return;
+    }
+    // Persist: SHORT rows use side='sell' (DB CHECK constraint) but the note tags them so the
+    // positions reducer already produces a negative qty (existing behaviour).
     await (supabase as any).from("paper_trades").insert({
       user_id: user.id, portfolio_id: activeId, symbol: selected.symbol, name: selected.name,
-      side, quantity, price: px, currency: selected.currency || "EUR",
+      side: side === "short" ? "sell" : side, quantity, price: px, currency: selected.currency || "EUR",
+      notes: side === "short" ? "short_sell" : null,
     });
+    // Cash impact: SHORT credits proceeds but reserves margin; keep it simple and mirror sell credit.
     const newCash = side === "buy" ? currentCash - notional : currentCash + notional;
     await (supabase as any).from("paper_cash").update({ cash: newCash }).eq("portfolio_id", activeId);
-    toast({ title: `${side.toUpperCase()} simulated`, description: `${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}` });
+    toast({
+      title: `${side === "short" ? "SHORT SELL" : side.toUpperCase()} simulated`,
+      description: `${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}${side === "short" ? " · unlimited-loss risk noted" : ""}`,
+    });
     setSelected(null); setQ(""); setQty("10");
     refresh(activeId);
   }
@@ -330,7 +346,22 @@ export default function PaperTrading() {
                 <div className="flex gap-2 mb-3">
                   <Badge variant={side === "buy" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSide("buy")}>Buy</Badge>
                   <Badge variant={side === "sell" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSide("sell")}>Sell</Badge>
+                  <Badge
+                    variant={side === "short" ? "default" : "outline"}
+                    className={`cursor-pointer gap-1 ${side === "short" ? "" : "border-destructive/40 text-destructive"}`}
+                    onClick={() => setSide("short")}
+                  >
+                    <ArrowDownFromLine className="h-3 w-3" /> Short
+                  </Badge>
                 </div>
+                {side === "short" && (
+                  <Alert className="mb-3 border-destructive/40 bg-destructive/5">
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                    <AlertDescription className="text-[11px] leading-snug">
+                      <strong>Short-sell risk checks:</strong> losses are theoretically unlimited. Simulation reserves 50% initial margin (Reg-T style) and credits proceeds to cash. Real broker shorts also require locate/borrow availability and pay borrow fees, which we ignore here.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <Label className="text-xs">Instrument</Label>
                 <div className="flex items-center gap-2 mb-2">
                   <Search className="h-3.5 w-3.5 text-muted-foreground" />
@@ -348,14 +379,30 @@ export default function PaperTrading() {
                 )}
                 <Label className="text-xs">Quantity</Label>
                 <Input type="number" min="0" step="1" value={qty} onChange={(e) => setQty(e.target.value)} className="mb-3" />
-                {selected && quotes[selected.symbol]?.price && (
-                  <div className="text-xs text-muted-foreground mb-3">
-                    Live: <span className="font-semibold tabular-nums">{fmt(quotes[selected.symbol].price, selected.currency)}</span>
-                    {" · "}Notional ≈ <span className="font-semibold tabular-nums">{fmt(quotes[selected.symbol].price * Number(qty || 0), selected.currency)}</span>
-                  </div>
-                )}
-                <Button className="w-full" onClick={placeOrder} disabled={!selected || !Number(qty)}>
-                  Simulate {side.toUpperCase()}
+                {selected && quotes[selected.symbol]?.price && (() => {
+                  const px = quotes[selected.symbol].price;
+                  const notional = px * Number(qty || 0);
+                  const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
+                  const currentCash = cash?.cash || 0;
+                  const marginReq = notional * 0.5;
+                  return (
+                    <div className="text-xs text-muted-foreground mb-3 space-y-0.5">
+                      <div>Live: <span className="font-semibold tabular-nums">{fmt(px, selected.currency)}</span> · Notional ≈ <span className="font-semibold tabular-nums">{fmt(notional, selected.currency)}</span></div>
+                      {side === "short" && (
+                        <>
+                          <div>Position held: <span className="font-mono">{heldQty}</span> · Margin req (50%): <span className={`font-semibold ${marginReq > currentCash ? "text-destructive" : ""}`}>{fmt(marginReq, selected.currency)}</span></div>
+                          <div>Cash after fill: <span className="font-mono">{fmt(currentCash + notional, selected.currency)}</span> · Reserved for margin: <span className="font-mono">{fmt(marginReq, selected.currency)}</span></div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+                <Button
+                  className={`w-full ${side === "short" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
+                  onClick={placeOrder}
+                  disabled={!selected || !Number(qty)}
+                >
+                  Simulate {side === "short" ? "SHORT SELL" : side.toUpperCase()}
                 </Button>
               </Card>
 

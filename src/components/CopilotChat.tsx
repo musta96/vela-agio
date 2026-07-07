@@ -679,3 +679,48 @@ function SimulationArtifactCard({ result }: { result: any }) {
     </div>
   );
 }
+
+function PortfolioImpactArtifactCard({ result }: { result: any }) {
+  const s = result?.summary ?? {};
+  const dv = s.diversification ?? {};
+  const href: string | undefined = result?.ui?.href;
+  const deltaCls = dv.verdict === "improves" ? "text-bull" : dv.verdict === "worsens" ? "text-bear" : "text-muted-foreground";
+  const dupSyms: string[] = s.duplicateSymbols ?? [];
+  const flaggedSectors: { sector: string; combinedPct: number; duplicationPct: number }[] = s.sectorDuplication ?? [];
+  return (
+    <div className="rounded-lg border border-border bg-card/70 p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <BrainCircuit className="h-3 w-3" /> Portfolio Impact
+          </div>
+          <div className="font-semibold truncate">
+            Diversification <span className={`font-mono ${deltaCls}`}>{dv.currentScore} → {dv.combinedScore}</span>{" "}
+            <span className={`text-[11px] ${deltaCls}`}>({dv.delta >= 0 ? "+" : ""}{dv.delta} · {dv.verdict})</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div>
+          <div className="text-muted-foreground">Duplicate symbols</div>
+          <div className="font-mono">{dupSyms.length ? dupSyms.slice(0, 5).join(", ") : "none"}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Sector duplication</div>
+          <div className="font-mono">
+            {flaggedSectors.length
+              ? flaggedSectors.slice(0, 3).map((f) => `${f.sector} ${f.combinedPct.toFixed(0)}%`).join(", ")
+              : "none"}
+          </div>
+        </div>
+      </div>
+      {href && (
+        <Link to={href}>
+          <Button size="sm" className="w-full gap-1.5 h-8">
+            Open in /rebalance & generate PDF memo <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+      )}
+    </div>
+  );
+}

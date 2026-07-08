@@ -6,6 +6,7 @@ import { getUserDataKey } from '../_shared/data-provider.ts';
 import { PLATFORM_MAP } from '../_shared/platform-map.ts';
 import { resolveAiAccess, aiDeniedResponse, logAiUsage, modelForCap } from '../_shared/ai-access.ts';
 import { fetchQuoteWithFallback } from '../_shared/quote-providers.ts';
+import { computeRoicWacc } from '../_shared/roic-wacc.ts';
 
 // =====================================================================
 // AGENTIC COPILOT — tool-calling loop
@@ -35,7 +36,7 @@ const TOOLS = [
       parameters: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'get_news', description: 'Recent news headlines + AI sentiment score for a ticker. Calls the analyze-sentiment pipeline.',
       parameters: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol'] } } },
-  { type: 'function', function: { name: 'get_fundamentals', description: 'Fundamental snapshot + DCF/DDM intrinsic value via deep-analysis.',
+  { type: 'function', function: { name: 'get_fundamentals', description: 'Fundamental snapshot + DCF/DDM intrinsic value via deep-analysis, plus computed ROIC (return on invested capital) and WACC (CAPM cost of equity + after-tax cost of debt) with the ROIC−WACC spread indicating whether the company is creating or destroying capital value.',
       parameters: { type: 'object', properties: { symbol: { type: 'string' }, name: { type: 'string' } }, required: ['symbol'] } } },
   { type: 'function', function: { name: 'get_timing_signals', description: 'Entry-timing verdict for one ticker. Combines technicals (RSI, MACD, 50/200-DMA), fundamentals (P/E vs 5y median, post-earnings dip) and macro proximity (earnings, policy, CPI windows) into a buy / wait / avoid verdict with a composite score (-100..+100) and a contributing-signal list. Use when the user asks "when should I buy X", "is now a good entry for X", "any timing signal on X". Purely informational — not investment advice.',
       parameters: { type: 'object', properties: { symbol: { type: 'string', description: 'Yahoo-format ticker.' } }, required: ['symbol'] } } },
@@ -218,8 +219,18 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         topHeadlines: (res.articles ?? []).slice(0, 6).map((a: any) => ({ title: a.title, source: a.source, sentiment: a.sentiment })) };
     }
     case 'get_fundamentals': {
-      const res = await callEdge(ctx.authHeader, 'deep-analysis', { symbol: args.symbol, name: args.name });
-      return { fundamentals: res.fundamentals, valuation: res.valuation, recommendation: res.analysis?.recommendation, thesis: res.analysis?.thesis };
+      const sym = String(args.symbol).toUpperCase();
+      const [res, capital] = await Promise.all([
+        callEdge(ctx.authHeader, 'deep-analysis', { symbol: sym, name: args.name }),
+        computeRoicWacc(sym),
+      ]);
+      return {
+        fundamentals: res.fundamentals,
+        valuation: res.valuation,
+        recommendation: res.analysis?.recommendation,
+        thesis: res.analysis?.thesis,
+        capital_efficiency: capital,
+      };
     }
     case 'get_timing_signals': {
       const sym = String(args.symbol ?? '').toUpperCase();

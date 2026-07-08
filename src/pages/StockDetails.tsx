@@ -40,6 +40,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
 import { FinancialStatementsPanel } from "@/components/stock/FinancialStatementsPanel";
+import { RoicWaccPanel } from "@/components/stock/RoicWaccPanel";
 import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
 
 function BackLink() {
@@ -1141,6 +1142,7 @@ const StockDetails = () => {
 
           {/* STATEMENTS */}
           <TabsContent value="statements" className="space-y-6">
+            <RoicWaccPanel symbol={sym} />
             <FinancialStatementsPanel symbol={sym} />
           </TabsContent>
           {/* PEERS */}

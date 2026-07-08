@@ -101,7 +101,7 @@ async function fetchFred(seriesId: string): Promise<MacroSeriesResult | null> {
   const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${encodeURIComponent(
     seriesId,
   )}&api_key=${FRED_KEY}&file_type=json&observation_start=${
-    new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    new Date(Date.now() - 3 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
   }`;
   try {
     const r = await fetch(url);
@@ -196,6 +196,29 @@ export async function getMacroSeries(id: string): Promise<MacroSeriesResult> {
         (await fetchEurostat("une_rt_m", "geo=EA20&s_adj=SA&age=TOTAL&sex=T&unit=PC_ACT", "EA Unemployment", "%")) ??
         notCovered(id, "EA Unemployment", "%")
       );
+    // ---- Credit spreads (ICE BofA OAS via FRED) ----
+    case "us_ig_oas":
+      return (await fetchFred("BAMLC0A0CM")) ?? notCovered(id, "US IG Corporate OAS", "%");
+    case "us_hy_oas":
+      return (await fetchFred("BAMLH0A0HYM2")) ?? notCovered(id, "US HY Corporate OAS", "%");
+    case "us_aaa_oas":
+      return (await fetchFred("BAMLC0A1CAAA")) ?? notCovered(id, "US AAA OAS", "%");
+    case "us_aa_oas":
+      return (await fetchFred("BAMLC0A2CAA")) ?? notCovered(id, "US AA OAS", "%");
+    case "us_a_oas":
+      return (await fetchFred("BAMLC0A3CA")) ?? notCovered(id, "US A OAS", "%");
+    case "us_bbb_oas":
+      return (await fetchFred("BAMLC0A4CBBB")) ?? notCovered(id, "US BBB OAS", "%");
+    case "us_bb_oas":
+      return (await fetchFred("BAMLH0A1HYBB")) ?? notCovered(id, "US BB OAS", "%");
+    case "us_b_oas":
+      return (await fetchFred("BAMLH0A2HYB")) ?? notCovered(id, "US B OAS", "%");
+    case "us_ccc_oas":
+      return (await fetchFred("BAMLH0A3HYC")) ?? notCovered(id, "US CCC & Lower OAS", "%");
+    case "em_corp_oas":
+      return (await fetchFred("BAMLEMCBPIOAS")) ?? notCovered(id, "EM Corporate OAS", "%");
+    case "eur_ig_oas":
+      return (await fetchFred("BAMLEMEBCRPIEMEAOAS")) ?? notCovered(id, "EMEA Corporate OAS", "%");
     default:
       return notCovered(id, id, "");
   }

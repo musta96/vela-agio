@@ -29,6 +29,7 @@ import Earnings from "./pages/Earnings";
 import Insider from "./pages/Insider";
 import Macro from "./pages/Macro";
 import CreditSpreads from "./pages/CreditSpreads";
+import BuybackAnalyzer from "./pages/BuybackAnalyzer";
 import Copilot from "./pages/Copilot";
 import Goals from "./pages/Goals";
 import PortfolioSimulations from "./pages/PortfolioSimulations";
@@ -168,6 +169,7 @@ const App = () => (
             <Route path="/insider" element={<Insider />} />
             <Route path="/macro" element={<Macro />} />
             <Route path="/credit-spreads" element={<CreditSpreads />} />
+            <Route path="/buybacks" element={<BuybackAnalyzer />} />
             <Route path="/copilot" element={<Copilot />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/simulations" element={<PortfolioSimulations />} />

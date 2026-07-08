@@ -110,6 +110,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical, badge: "new" },
     { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine, badge: "new" },
     { title: "Backtesting", url: "/backtest", icon: Repeat },
+    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat, badge: "new" },
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
   ],
 };

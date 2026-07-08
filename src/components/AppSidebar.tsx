@@ -80,6 +80,7 @@ const MARKETS: NavGroup = {
     { title: "Watchlist", url: "/watchlist", icon: Eye },
     { title: "Stock Screener", url: "/screener", icon: Filter },
     { title: "Macro", url: "/macro", icon: Globe2 },
+    { title: "Credit Spreads", url: "/credit-spreads", icon: Activity, badge: "new" },
   ],
 };
 

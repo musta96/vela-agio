@@ -111,6 +111,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine, badge: "new" },
     { title: "Backtesting", url: "/backtest", icon: Repeat },
     { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat, badge: "new" },
+    { title: "13F Replicator", url: "/replicate", icon: Users, badge: "new" },
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
   ],
 };

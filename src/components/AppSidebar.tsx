@@ -10,7 +10,7 @@ import {
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
   ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
-  ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users,
+  ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users, Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -81,6 +81,7 @@ const MARKETS: NavGroup = {
     { title: "Stock Screener", url: "/screener", icon: Filter },
     { title: "Macro", url: "/macro", icon: Globe2 },
     { title: "Credit Spreads", url: "/credit-spreads", icon: Activity, badge: "new" },
+    { title: "Bond Calculator", url: "/bonds", icon: Calculator, badge: "new" },
   ],
 };
 

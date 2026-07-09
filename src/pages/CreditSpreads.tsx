@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useMacroSeries, type MacroSeries } from "@/hooks/useMacroSeries";
 import { Activity, AlertTriangle, Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -29,7 +32,33 @@ const AGG_IDS = [
   { id: "eur_ig_oas", label: "EMEA Corporate",   color: "hsl(190 55% 50%)" },
 ];
 
-const ALL_IDS = [...RATING_IDS.map(r => r.id), ...AGG_IDS.map(a => a.id)];
+const TREASURY_IDS = [
+  { id: "us_2y",  label: "UST 2Y",  color: "hsl(45 90% 50%)" },
+  { id: "us_10y", label: "UST 10Y", color: "hsl(280 70% 55%)" },
+];
+
+const ALL_IDS = [
+  ...RATING_IDS.map(r => r.id),
+  ...AGG_IDS.map(a => a.id),
+  ...TREASURY_IDS.map(t => t.id),
+];
+
+const LOOKBACKS = [
+  { id: "3m", label: "3M",  days: 90 },
+  { id: "6m", label: "6M",  days: 180 },
+  { id: "1y", label: "1Y",  days: 365 },
+  { id: "3y", label: "3Y",  days: 365 * 3 },
+] as const;
+type LookbackId = typeof LOOKBACKS[number]["id"];
+
+const SEGMENTS = [
+  { id: "ratings", label: "By rating (US)" },
+  { id: "us_ig",   label: "US IG" },
+  { id: "us_hy",   label: "US HY" },
+  { id: "em",      label: "EM Corp" },
+  { id: "emea",    label: "EMEA Corp" },
+] as const;
+type SegmentId = typeof SEGMENTS[number]["id"];
 
 function latest(series: MacroSeries | undefined): number | null {
   const p = series?.points?.[series.points.length - 1];
@@ -64,6 +93,24 @@ function fmtDelta(v: number | null | undefined) {
 
 export default function CreditSpreads() {
   const { series, loading } = useMacroSeries(ALL_IDS);
+  const [lookback, setLookback] = useState<LookbackId>("3y");
+  const [segment, setSegment] = useState<SegmentId>("ratings");
+  const [showUst2y, setShowUst2y] = useState(false);
+  const [showUst10y, setShowUst10y] = useState(false);
+
+  const lookbackDays = LOOKBACKS.find(l => l.id === lookback)!.days;
+  const cutoffMs = Date.now() - lookbackDays * 86400 * 1000;
+
+  const activeLines = useMemo(() => {
+    switch (segment) {
+      case "us_ig":   return [AGG_IDS[0]];
+      case "us_hy":   return [AGG_IDS[1]];
+      case "em":      return [AGG_IDS[2]];
+      case "emea":    return [AGG_IDS[3]];
+      case "ratings":
+      default:        return RATING_IDS;
+    }
+  }, [segment]);
 
   const rows = useMemo(() => {
     const build = (id: string, label: string, grade?: "IG" | "HY") => {
@@ -102,16 +149,38 @@ export default function CreditSpreads() {
   // Build chart data by merging rating series on date
   const chartData = useMemo(() => {
     const map = new Map<string, Record<string, number | string>>();
-    for (const r of RATING_IDS) {
+    const spreadLines = activeLines;
+    for (const r of spreadLines) {
       const s = series[r.id]; if (!s?.points) continue;
       for (const p of s.points) {
+        if (new Date(p.t).getTime() < cutoffMs) continue;
         const row = map.get(p.t) ?? { t: p.t };
-        row[r.label] = p.v * 100; // to bps
+        row[r.label] = p.v * 100; // OAS % → bps
         map.set(p.t, row);
       }
     }
-    return Array.from(map.values()).sort((a: any, b: any) => a.t.localeCompare(b.t));
-  }, [series]);
+    const trs: typeof TREASURY_IDS = [];
+    if (showUst2y)  trs.push(TREASURY_IDS[0]);
+    if (showUst10y) trs.push(TREASURY_IDS[1]);
+    for (const t of trs) {
+      const s = series[t.id]; if (!s?.points) continue;
+      for (const p of s.points) {
+        if (new Date(p.t).getTime() < cutoffMs) continue;
+        const row = map.get(p.t) ?? { t: p.t };
+        row[t.label] = p.v * 100; // yield % → bps for shared axis
+        map.set(p.t, row);
+      }
+    }
+    return Array.from(map.values()).sort((a: any, b: any) => (a.t as string).localeCompare(b.t as string));
+  }, [series, activeLines, cutoffMs, showUst2y, showUst10y]);
+
+  const chartLines = useMemo(() => {
+    const arr: { key: string; color: string; dashed?: boolean }[] =
+      activeLines.map(r => ({ key: r.label, color: r.color }));
+    if (showUst2y)  arr.push({ key: TREASURY_IDS[0].label, color: TREASURY_IDS[0].color, dashed: true });
+    if (showUst10y) arr.push({ key: TREASURY_IDS[1].label, color: TREASURY_IDS[1].color, dashed: true });
+    return arr;
+  }, [activeLines, showUst2y, showUst10y]);
 
   const covered = ALL_IDS.some(id => series[id]?.points?.length);
 
@@ -178,8 +247,40 @@ export default function CreditSpreads() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Spread history by rating</CardTitle>
-          <CardDescription>Last 3 years, basis points over Treasuries.</CardDescription>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <CardTitle className="text-base">Spread history</CardTitle>
+              <CardDescription>
+                Basis points over duration-matched Treasuries. Treasury yield overlays are converted to bps for a shared axis.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Segment</Label>
+                <ToggleGroup type="single" size="sm" value={segment} onValueChange={(v) => v && setSegment(v as SegmentId)}>
+                  {SEGMENTS.map(s => (
+                    <ToggleGroupItem key={s.id} value={s.id} className="text-xs px-2">{s.label}</ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Lookback</Label>
+                <ToggleGroup type="single" size="sm" value={lookback} onValueChange={(v) => v && setLookback(v as LookbackId)}>
+                  {LOOKBACKS.map(l => (
+                    <ToggleGroupItem key={l.id} value={l.id} className="text-xs px-2">{l.label}</ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+              <div className="flex items-center gap-3">
+                <Label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <Switch checked={showUst2y} onCheckedChange={setShowUst2y} /> UST 2Y
+                </Label>
+                <Label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <Switch checked={showUst10y} onCheckedChange={setShowUst10y} /> UST 10Y
+                </Label>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="h-[360px]">
           {loading ? (
@@ -194,8 +295,17 @@ export default function CreditSpreads() {
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}`} />
                 <Tooltip formatter={(v: number) => `${Math.round(v)} bps`} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                {RATING_IDS.map(r => (
-                  <Line key={r.id} type="monotone" dataKey={r.label} stroke={r.color} dot={false} strokeWidth={1.4} />
+                {chartLines.map(l => (
+                  <Line
+                    key={l.key}
+                    type="monotone"
+                    dataKey={l.key}
+                    stroke={l.color}
+                    strokeDasharray={l.dashed ? "4 3" : undefined}
+                    dot={false}
+                    strokeWidth={1.4}
+                    connectNulls
+                  />
                 ))}
               </LineChart>
             </ResponsiveContainer>

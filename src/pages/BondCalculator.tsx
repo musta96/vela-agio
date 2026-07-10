@@ -8,14 +8,19 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Calculator, TrendingDown, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Calculator, TrendingDown, TrendingUp, Download, Save, Trash2, Plus } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
   BarChart, Bar, Legend,
 } from "recharts";
 import {
   bondMetrics, priceAtYield, yieldToMaturity, estimatePriceChange,
+  type DayCount, type BondType,
 } from "@/lib/bonds/pricing";
+import { downloadCsv } from "@/lib/csvUtil";
 
 const FREQ_OPTIONS = [
   { label: "Annual", value: 1 },
@@ -23,6 +28,14 @@ const FREQ_OPTIONS = [
   { label: "Quarterly", value: 4 },
   { label: "Monthly", value: 12 },
 ];
+const DAYCOUNTS: DayCount[] = ["ACT/360", "ACT/365", "30/360"];
+const BOND_TYPES: { value: BondType; label: string; note?: string }[] = [
+  { value: "fixed", label: "Fixed-rate bullet" },
+  { value: "zero", label: "Zero-coupon" },
+  { value: "callable", label: "Callable (placeholder)", note: "Priced as bullet; call schedule coming soon." },
+  { value: "putable", label: "Putable (placeholder)", note: "Priced as bullet; put schedule coming soon." },
+];
+const PALETTE = ["hsl(var(--primary))", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4"];
 
 function fmt(n: number, d = 2) {
   if (!Number.isFinite(n)) return "-";
@@ -31,6 +44,24 @@ function fmt(n: number, d = 2) {
 function pct(n: number, d = 2) {
   return `${fmt(n * 100, d)}%`;
 }
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+interface SavedBond {
+  id: string;
+  name: string;
+  color: string;
+  face: number;
+  couponRate: number;
+  years: number;
+  frequency: number;
+  yieldRate: number;
+  dayCount: DayCount;
+  bondType: BondType;
+  settlement: string;
+  accruedFraction: number;
+}
 
 export default function BondCalculator() {
   const [face, setFace] = useState(1000);
@@ -38,24 +69,75 @@ export default function BondCalculator() {
   const [years, setYears] = useState(10);
   const [frequency, setFrequency] = useState(2);
   const [yieldRate, setYieldRate] = useState(0.05);
+  const [dayCount, setDayCount] = useState<DayCount>("ACT/365");
+  const [bondType, setBondType] = useState<BondType>("fixed");
+  const [settlement, setSettlement] = useState<string>(today());
+  const [priceMode, setPriceMode] = useState<"clean" | "dirty">("clean");
 
   // Solve-for-yield inputs
   const [targetPrice, setTargetPrice] = useState(1000);
 
-  const inp = { face, couponRate, yearsToMaturity: years, frequency };
-  const metrics = useMemo(() => bondMetrics({ ...inp, yieldRate }), [face, couponRate, years, frequency, yieldRate]);
-  const solvedYtm = useMemo(() => yieldToMaturity(inp, targetPrice, yieldRate), [face, couponRate, years, frequency, targetPrice, yieldRate]);
+  // Compute the fraction of the current coupon period elapsed at settlement.
+  // We approximate the previous coupon date as (settlement - 1 period) so the
+  // user only needs to pick a settlement date rather than a schedule.
+  const accruedFraction = useMemo(() => {
+    if (bondType === "zero") return 0;
+    const periodDays = 365 / frequency;
+    const s = new Date(settlement + "T00:00:00Z");
+    if (Number.isNaN(s.getTime())) return 0;
+    // Days since a synthetic previous coupon date one period back.
+    // Using midnight UTC keeps the fraction stable across DST boundaries.
+    const now = new Date(today() + "T00:00:00Z");
+    const diffDays = (s.getTime() - now.getTime()) / 86_400_000;
+    // Wrap into [0, periodDays) so any settlement date maps to a valid fraction.
+    const wrapped = ((diffDays % periodDays) + periodDays) % periodDays;
+    return wrapped / periodDays;
+  }, [settlement, frequency, bondType]);
+
+  const inp = { face, couponRate, yearsToMaturity: years, frequency, dayCount, bondType, accruedFraction };
+  const metrics = useMemo(
+    () => bondMetrics({ ...inp, yieldRate }),
+    [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction],
+  );
+  // If user quotes clean, add back accrued before solving so YTM reprices dirty.
+  const solverTarget = priceMode === "clean" ? targetPrice + metrics.accruedInterest : targetPrice;
+  const solvedYtm = useMemo(
+    () => yieldToMaturity(inp, solverTarget, yieldRate),
+    [face, couponRate, years, frequency, solverTarget, yieldRate, dayCount, bondType, accruedFraction],
+  );
+
+  // ── Comparison panel ──────────────────────────────────────────────────────
+  const [saved, setSaved] = useState<SavedBond[]>([]);
+  const saveCurrent = () => {
+    setSaved((prev) => {
+      const color = PALETTE[prev.length % PALETTE.length];
+      const name = `${bondType === "zero" ? "Zero" : `${(couponRate * 100).toFixed(2)}%`} · ${years}y · YTM ${(yieldRate * 100).toFixed(2)}%`;
+      return [...prev, {
+        id: crypto.randomUUID(), name, color,
+        face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
+      }];
+    });
+  };
+  const removeSaved = (id: string) => setSaved((s) => s.filter((x) => x.id !== id));
 
   const priceYieldData = useMemo(() => {
-    const points = [];
     const min = Math.max(0.0025, yieldRate - 0.06);
     const max = yieldRate + 0.06;
     const step = (max - min) / 60;
+    const points: Record<string, number>[] = [];
     for (let y = min; y <= max + 1e-9; y += step) {
-      points.push({ yPct: +(y * 100).toFixed(3), price: +priceAtYield(inp, y).toFixed(4) });
+      const row: Record<string, number> = { yPct: +(y * 100).toFixed(3) };
+      row["Current"] = +priceAtYield(inp, y).toFixed(4);
+      for (const s of saved) {
+        row[s.name] = +priceAtYield(
+          { face: s.face, couponRate: s.couponRate, yearsToMaturity: s.years, frequency: s.frequency, dayCount: s.dayCount, bondType: s.bondType, accruedFraction: s.accruedFraction },
+          y,
+        ).toFixed(4);
+      }
+      points.push(row);
     }
     return points;
-  }, [face, couponRate, years, frequency, yieldRate]);
+  }, [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction, saved]);
 
   const cashflowData = useMemo(
     () => metrics.cashflows.map(cf => ({
@@ -66,6 +148,30 @@ export default function BondCalculator() {
     })),
     [metrics],
   );
+
+  // Overlaid cashflow PVs across current + saved bonds, keyed by period index.
+  const overlayCashflows = useMemo(() => {
+    const maxN = Math.max(metrics.cashflows.length, ...saved.map((s) => {
+      const n = s.bondType === "zero" ? 1 : Math.round(s.years * s.frequency);
+      return n;
+    }));
+    const rows: Record<string, number | string>[] = [];
+    for (let k = 1; k <= maxN; k++) {
+      const row: Record<string, number | string> = { period: `P${k}` };
+      const curr = metrics.cashflows.find((c) => c.period === k);
+      if (curr) row["Current"] = +curr.pv.toFixed(2);
+      for (const s of saved) {
+        const m = bondMetrics({
+          face: s.face, couponRate: s.couponRate, yearsToMaturity: s.years, frequency: s.frequency,
+          yieldRate: s.yieldRate, dayCount: s.dayCount, bondType: s.bondType, accruedFraction: s.accruedFraction,
+        });
+        const cf = m.cashflows.find((c) => c.period === k);
+        if (cf) row[s.name] = +cf.pv.toFixed(2);
+      }
+      rows.push(row);
+    }
+    return rows;
+  }, [metrics, saved]);
 
   const shocks = [-200, -100, -50, -25, 25, 50, 100, 200];
   const shockRows = shocks.map(bp => {
@@ -86,6 +192,82 @@ export default function BondCalculator() {
     ? { label: "Discount", tone: "secondary" as const, icon: TrendingDown }
     : { label: "Par", tone: "outline" as const, icon: TrendingUp };
 
+  // ── Exports ───────────────────────────────────────────────────────────────
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [
+      ["Bond Yield & Pricing Calculator — export"],
+      ["Generated", new Date().toISOString()],
+      [],
+      ["Assumptions"],
+      ["Face value", face],
+      ["Coupon rate", couponRate],
+      ["Years to maturity", years],
+      ["Frequency (per yr)", frequency],
+      ["Yield to maturity", yieldRate],
+      ["Day count", dayCount],
+      ["Bond type", bondType],
+      ["Settlement", settlement],
+      ["Accrued fraction", accruedFraction.toFixed(6)],
+      ["Price mode", priceMode],
+      [],
+      ["KPIs"],
+      ["Dirty price", metrics.dirtyPrice],
+      ["Clean price", metrics.cleanPrice],
+      ["Accrued interest", metrics.accruedInterest],
+      ["Macaulay duration (y)", metrics.macaulayDuration],
+      ["Modified duration (y)", metrics.modifiedDuration],
+      ["Convexity", metrics.convexity],
+      ["DV01", metrics.dv01],
+      ["Current yield", metrics.currentYield],
+      [],
+      ["Cashflows"],
+      ["Period", "t (yrs)", "Amount", "Present value"],
+      ...metrics.cashflows.map((c) => [c.period, c.t, c.amount, c.pv]),
+      [],
+      ["Rate shocks"],
+      ["bps", "Est Δ%", "Est price", "Exact Δ%", "Exact price"],
+      ...shockRows.map((r) => [r.bp, r.est, r.estPrice, r.exactPct, r.exact]),
+    ];
+    if (saved.length) {
+      rows.push([], ["Saved comparisons"], ["Name", "Coupon", "Years", "Freq", "YTM", "Day count", "Type"]);
+      for (const s of saved) rows.push([s.name, s.couponRate, s.years, s.frequency, s.yieldRate, s.dayCount, s.bondType]);
+    }
+    downloadCsv(`bond-calc-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  };
+
+  const exportPdf = () => {
+    // Lightweight print-to-PDF: open a print window rendering the same summary.
+    const w = window.open("", "_blank", "width=900,height=1100");
+    if (!w) return;
+    const line = (l: string, v: string) => `<tr><td style="padding:4px 12px 4px 0;color:#666">${l}</td><td style="padding:4px 0;font-family:monospace">${v}</td></tr>`;
+    const rows = metrics.cashflows.map((c) =>
+      `<tr><td>P${c.period}</td><td>${c.t.toFixed(3)}</td><td style="text-align:right">${fmt(c.amount)}</td><td style="text-align:right">${fmt(c.pv)}</td></tr>`,
+    ).join("");
+    const shockHtml = shockRows.map((r) =>
+      `<tr><td>${r.bp > 0 ? "+" : ""}${r.bp} bps</td><td style="text-align:right">${pct(r.est, 3)}</td><td style="text-align:right">${fmt(r.estPrice, 4)}</td><td style="text-align:right">${pct(r.exactPct, 3)}</td><td style="text-align:right">${fmt(r.exact, 4)}</td></tr>`,
+    ).join("");
+    const savedHtml = saved.length
+      ? `<h3>Saved comparisons</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th align="left">Name</th><th>Coupon</th><th>Years</th><th>YTM</th><th>Type</th></tr></thead><tbody>${saved.map((s) => `<tr><td>${s.name}</td><td align="right">${pct(s.couponRate)}</td><td align="right">${s.years}</td><td align="right">${pct(s.yieldRate)}</td><td align="right">${s.bondType}</td></tr>`).join("")}</tbody></table>`
+      : "";
+    w.document.write(`<!doctype html><html><head><title>Bond calc export</title>
+      <style>body{font-family:system-ui,-apple-system,sans-serif;padding:32px;color:#111}h1{font-size:20px;margin:0 0 4px}h3{margin:24px 0 8px;font-size:14px}table{width:100%;font-size:12px;border-collapse:collapse}th,td{padding:4px 8px;border-bottom:1px solid #eee}</style>
+    </head><body>
+      <h1>Bond Yield & Pricing Calculator</h1>
+      <p style="color:#666;font-size:12px">Generated ${new Date().toLocaleString()}</p>
+      <h3>Assumptions</h3>
+      <table>${line("Face value", fmt(face))}${line("Coupon rate", pct(couponRate))}${line("Years to maturity", String(years))}${line("Frequency", `${frequency}/yr`)}${line("YTM", pct(yieldRate, 3))}${line("Day count", dayCount)}${line("Bond type", bondType)}${line("Settlement", settlement)}${line("Price quote", priceMode)}</table>
+      <h3>Key metrics</h3>
+      <table>${line("Dirty price", fmt(metrics.dirtyPrice, 4))}${line("Clean price", fmt(metrics.cleanPrice, 4))}${line("Accrued interest", fmt(metrics.accruedInterest, 4))}${line("Modified duration", `${fmt(metrics.modifiedDuration)} y`)}${line("Macaulay duration", `${fmt(metrics.macaulayDuration)} y`)}${line("Convexity", fmt(metrics.convexity, 3))}${line("DV01", fmt(metrics.dv01, 4))}${line("Current yield", pct(metrics.currentYield, 3))}</table>
+      <h3>Cashflows</h3>
+      <table><thead><tr><th align="left">Period</th><th align="left">t</th><th align="right">Amount</th><th align="right">PV</th></tr></thead><tbody>${rows}</tbody></table>
+      <h3>Rate shocks</h3>
+      <table><thead><tr><th align="left">Shock</th><th align="right">Est Δ%</th><th align="right">Est price</th><th align="right">Exact Δ%</th><th align="right">Exact price</th></tr></thead><tbody>${shockHtml}</tbody></table>
+      ${savedHtml}
+      <script>window.onload=()=>{setTimeout(()=>window.print(),200)}</script>
+    </body></html>`);
+    w.document.close();
+  };
+
   return (
     <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO
@@ -93,47 +275,96 @@ export default function BondCalculator() {
         description="Compute bond price, yield to maturity, Macaulay & modified duration, convexity and DV01 with interactive price-yield curve and cashflow charts."
         path="/bonds"
       />
-      <PageHeader
-        icon={Calculator}
-        title="Bond Yield & Pricing Calculator"
-        description="Model fixed-coupon bonds: price, YTM, duration, convexity and interest-rate sensitivity."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader
+          icon={Calculator}
+          title="Bond Yield & Pricing Calculator"
+          description="Model fixed-coupon bonds: price, YTM, duration, convexity and interest-rate sensitivity."
+        />
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={saveCurrent}>
+            <Save className="h-4 w-4 mr-1.5" /> Save to compare
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm"><Download className="h-4 w-4 mr-1.5" /> Export</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportCsv}>Download CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={exportPdf}>Download PDF (print)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,340px)_1fr]">
         {/* Inputs */}
         <Card className="h-fit">
           <CardHeader>
             <CardTitle className="text-base">Bond inputs</CardTitle>
-            <CardDescription>Assumes end-of-period coupons, no accrued interest.</CardDescription>
+            <CardDescription>Day-count conventions, settlement and price mode drive clean vs dirty results.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <div className="space-y-1.5">
+              <Label>Bond type</Label>
+              <Select value={bondType} onValueChange={(v) => setBondType(v as BondType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {BOND_TYPES.map((b) => (
+                    <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {BOND_TYPES.find((b) => b.value === bondType)?.note && (
+                <p className="text-[11px] text-muted-foreground">{BOND_TYPES.find((b) => b.value === bondType)?.note}</p>
+              )}
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="face">Face value</Label>
               <Input id="face" type="number" min={1} value={face}
                 onChange={e => setFace(Math.max(1, Number(e.target.value) || 0))} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Coupon rate — {pct(couponRate, 2)}</Label>
-              <Slider min={0} max={15} step={0.05}
-                value={[couponRate * 100]}
-                onValueChange={([v]) => setCouponRate(v / 100)} />
-            </div>
+            {bondType !== "zero" && (
+              <div className="space-y-1.5">
+                <Label>Coupon rate — {pct(couponRate, 2)}</Label>
+                <Slider min={0} max={15} step={0.05}
+                  value={[couponRate * 100]}
+                  onValueChange={([v]) => setCouponRate(v / 100)} />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Years to maturity — {years}</Label>
               <Slider min={0.25} max={40} step={0.25}
                 value={[years]}
                 onValueChange={([v]) => setYears(v)} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Coupon frequency</Label>
-              <Select value={String(frequency)} onValueChange={(v) => setFrequency(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {FREQ_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {bondType !== "zero" && (
+              <div className="space-y-1.5">
+                <Label>Coupon frequency (compounding)</Label>
+                <Select value={String(frequency)} onValueChange={(v) => setFrequency(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {FREQ_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Day count</Label>
+                <Select value={dayCount} onValueChange={(v) => setDayCount(v as DayCount)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DAYCOUNTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="settle">Settlement</Label>
+                <Input id="settle" type="date" value={settlement} onChange={(e) => setSettlement(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Yield to maturity — {pct(yieldRate, 3)}</Label>
@@ -141,22 +372,57 @@ export default function BondCalculator() {
                 value={[yieldRate * 100]}
                 onValueChange={([v]) => setYieldRate(v / 100)} />
             </div>
+            <div className="space-y-1.5">
+              <Label>Price quotation</Label>
+              <ToggleGroup type="single" value={priceMode} onValueChange={(v) => v && setPriceMode(v as "clean" | "dirty")} className="justify-start">
+                <ToggleGroupItem value="clean" size="sm">Clean</ToggleGroupItem>
+                <ToggleGroupItem value="dirty" size="sm">Dirty</ToggleGroupItem>
+              </ToggleGroup>
+              <p className="text-[11px] text-muted-foreground">
+                Accrued: {fmt(metrics.accruedInterest, 4)} · {(accruedFraction * 100).toFixed(2)}% of period
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         {/* Results + charts */}
         <div className="space-y-6 min-w-0">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi label="Dirty price" value={fmt(metrics.price, 4)}
+            <Kpi label={priceMode === "clean" ? "Clean price" : "Dirty price"}
+              value={fmt(priceMode === "clean" ? metrics.cleanPrice : metrics.dirtyPrice, 4)}
               badge={<Badge variant={premiumDiscount.tone} className="text-[10px] gap-1"><premiumDiscount.icon className="h-3 w-3" />{premiumDiscount.label}</Badge>} />
+            <Kpi label="Accrued interest" value={fmt(metrics.accruedInterest, 4)} />
             <Kpi label="Modified duration" value={`${fmt(metrics.modifiedDuration)} y`} />
             <Kpi label="Convexity" value={fmt(metrics.convexity, 3)} />
             <Kpi label="DV01 (per 1bp)" value={fmt(metrics.dv01, 4)} />
             <Kpi label="Macaulay duration" value={`${fmt(metrics.macaulayDuration)} y`} />
             <Kpi label="Current yield" value={pct(metrics.currentYield, 3)} />
-            <Kpi label="Coupon payment" value={fmt((couponRate * face) / frequency, 2)} />
-            <Kpi label="Periods" value={String(Math.round(years * frequency))} />
+            <Kpi label="Coupon payment" value={bondType === "zero" ? "—" : fmt((couponRate * face) / frequency, 2)} />
           </div>
+
+          {saved.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>Saved comparisons</span>
+                  <Button variant="ghost" size="sm" onClick={() => setSaved([])}><Trash2 className="h-4 w-4 mr-1" /> Clear all</Button>
+                </CardTitle>
+                <CardDescription>These overlay on the price-yield and cashflow charts below.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {saved.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+                    <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-muted-foreground">{s.dayCount} · {s.bondType}</span>
+                    <button className="text-muted-foreground hover:text-destructive" onClick={() => removeSaved(s.id)} aria-label="Remove">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Tabs defaultValue="curve">
             <TabsList>
@@ -170,7 +436,7 @@ export default function BondCalculator() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Price sensitivity to yield</CardTitle>
-                  <CardDescription>Vertical line marks the current YTM assumption.</CardDescription>
+                  <CardDescription>Vertical line marks the current YTM. Saved bonds overlay for comparison.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[360px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -183,9 +449,13 @@ export default function BondCalculator() {
                         labelFormatter={(l) => `Yield ${l}%`}
                         contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
                       />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
                       <ReferenceLine x={+(yieldRate * 100).toFixed(3)} stroke="hsl(var(--primary))" strokeDasharray="4 3" />
                       <ReferenceLine y={face} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 4" label={{ value: "Par", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                      <Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" dot={false} strokeWidth={1.6} />
+                      <Line type="monotone" dataKey="Current" stroke="hsl(var(--primary))" dot={false} strokeWidth={1.8} />
+                      {saved.map((s) => (
+                        <Line key={s.id} type="monotone" dataKey={s.name} stroke={s.color} dot={false} strokeWidth={1.4} strokeDasharray="4 3" />
+                      ))}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -196,11 +466,11 @@ export default function BondCalculator() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Coupon & principal cashflows</CardTitle>
-                  <CardDescription>Nominal vs. present-value cashflows at the current YTM.</CardDescription>
+                  <CardDescription>Present-value cashflows at the current YTM, overlaid with any saved bonds.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[360px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={cashflowData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+                    <BarChart data={saved.length ? overlayCashflows : cashflowData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="period" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 10 }} />
@@ -209,8 +479,13 @@ export default function BondCalculator() {
                         contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
                       />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="Cashflow" fill="hsl(var(--muted-foreground))" opacity={0.5} />
-                      <Bar dataKey="Present value" fill="hsl(var(--primary))" />
+                      {saved.length === 0 && <Bar dataKey="Cashflow" fill="hsl(var(--muted-foreground))" opacity={0.5} />}
+                      {saved.length === 0
+                        ? <Bar dataKey="Present value" fill="hsl(var(--primary))" />
+                        : <>
+                            <Bar dataKey="Current" fill="hsl(var(--primary))" />
+                            {saved.map((s) => <Bar key={s.id} dataKey={s.name} fill={s.color} />)}
+                          </>}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -254,12 +529,12 @@ export default function BondCalculator() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Solve YTM from market price</CardTitle>
-                  <CardDescription>Enter a market price; we solve for the annual yield that reprices it exactly.</CardDescription>
+                  <CardDescription>Enter a {priceMode} market price; we add back accrued if needed, then solve YTM.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                     <div className="space-y-1.5">
-                      <Label htmlFor="tgt">Market price</Label>
+                      <Label htmlFor="tgt">Market {priceMode} price</Label>
                       <Input id="tgt" type="number" min={0.01} step="0.01" value={targetPrice}
                         onChange={e => setTargetPrice(Math.max(0.01, Number(e.target.value) || 0))} />
                     </div>
@@ -273,12 +548,12 @@ export default function BondCalculator() {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Kpi label="Implied YTM" value={pct(solvedYtm, 4)} />
-                    <Kpi label="Repriced value" value={fmt(priceAtYield(inp, solvedYtm), 4)} />
+                    <Kpi label="Repriced dirty" value={fmt(priceAtYield(inp, solvedYtm), 4)} />
                     <Kpi label="Coupon vs YTM"
                       value={couponRate > solvedYtm ? "Coupon > YTM" : couponRate < solvedYtm ? "Coupon < YTM" : "Coupon = YTM"} />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Educational tool — assumes flat yield curve, no taxes, no credit spread shocks, and equal periodic coupons.
+                    Educational tool — assumes flat yield curve, no taxes and no credit spread shocks. Callable/putable pricing currently uses bullet cashflows; embedded-option pricing is planned.
                   </p>
                 </CardContent>
               </Card>

@@ -218,17 +218,70 @@ export default function BondCalculator() {
 
   // ── Comparison panel ──────────────────────────────────────────────────────
   const [saved, setSaved] = useState<SavedBond[]>([]);
-  const saveCurrent = () => {
-    setSaved((prev) => {
-      const color = PALETTE[prev.length % PALETTE.length];
-      const name = `${bondType === "zero" ? "Zero" : `${(couponRate * 100).toFixed(2)}%`} · ${years}y · YTM ${(yieldRate * 100).toFixed(2)}%`;
-      return [...prev, {
-        id: crypto.randomUUID(), name, color,
-        face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
-      }];
-    });
+
+  // Hydrate saved bonds from Lovable Cloud when signed in.
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) { setSaved([]); return; }
+    setLoadingSaved(true);
+    listSavedBonds()
+      .then((rows) => {
+        if (cancelled) return;
+        setSaved(rows.map((r: SavedBondRow, i) => ({
+          id: r.id, cloudId: r.id, name: r.name,
+          color: r.color || PALETTE[i % PALETTE.length],
+          face: r.face, couponRate: r.couponRate, years: r.years, frequency: r.frequency,
+          yieldRate: r.yieldRate, dayCount: r.dayCount as DayCount, bondType: r.bondType as BondType,
+          settlement: r.settlement, accruedFraction: r.accruedFraction,
+          volatility: r.volatility, calls: r.calls, puts: r.puts,
+          curve: r.curve, oasBps: r.oasBps, useCurve: r.useCurve,
+        })));
+      })
+      .catch((e) => toast({ title: "Couldn't load saved bonds", description: String(e?.message ?? e), variant: "destructive" }))
+      .finally(() => { if (!cancelled) setLoadingSaved(false); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const saveCurrent = async () => {
+    const color = PALETTE[saved.length % PALETTE.length];
+    const name = `${bondType === "zero" ? "Zero" : `${(couponRate * 100).toFixed(2)}%`} · ${years}y · YTM ${(yieldRate * 100).toFixed(2)}%${useCurve ? " · curve" : ""}`;
+    const payload = {
+      face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
+      color, volatility, calls, puts, curve, oasBps, useCurve,
+    };
+    if (!user) {
+      // Local-only fallback (in-memory) for signed-out users.
+      setSaved((prev) => [...prev, { id: crypto.randomUUID(), name, ...payload }]);
+      toast({ title: "Saved locally", description: "Sign in to sync bonds across devices." });
+      return;
+    }
+    try {
+      const row = await insertSavedBond(name, payload);
+      setSaved((prev) => [...prev, {
+        id: row.id, cloudId: row.id, name: row.name,
+        color, face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
+        volatility, calls, puts, curve, oasBps, useCurve,
+      }]);
+      toast({ title: "Bond saved" });
+    } catch (e) {
+      toast({ title: "Save failed", description: String((e as Error).message), variant: "destructive" });
+    }
   };
-  const removeSaved = (id: string) => setSaved((s) => s.filter((x) => x.id !== id));
+
+  const removeSaved = async (id: string) => {
+    const row = saved.find((s) => s.id === id);
+    setSaved((s) => s.filter((x) => x.id !== id));
+    if (row?.cloudId) {
+      try { await deleteSavedBond(row.cloudId); }
+      catch (e) { toast({ title: "Delete failed", description: String((e as Error).message), variant: "destructive" }); }
+    }
+  };
+
+  const clearAllSaved = async () => {
+    const ids = saved.map((s) => s.cloudId).filter(Boolean) as string[];
+    setSaved([]);
+    for (const id of ids) { try { await deleteSavedBond(id); } catch { /* swallow */ } }
+  };
 
   const priceYieldData = useMemo(() => {
     const min = Math.max(0.0025, yieldRate - 0.06);

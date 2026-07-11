@@ -47,13 +47,13 @@ export function binomialBondPrice(inp: BinomialInputs, rateShiftBps = 0): number
   const rate = (i: number, j: number) => r0 * Math.pow(u, 2 * j - i);
   const df = (i: number, j: number) => 1 / (1 + rate(i, j) * dt);
 
-  // Cashflows keyed by step index (coupons at step 1..n, principal at n).
+  // Cashflows keyed by step index (coupons at step 1..n, principal folded in at n).
   const cfs = bondCashflows(inp);
   const cfByStep = new Map<number, number>();
   for (const c of cfs) cfByStep.set(c.period, c.amount);
 
-  // Terminal payoff = redemption + last coupon (already inside cfByStep at n).
-  let values: number[] = new Array(n + 1).fill(cfByStep.get(n) ?? inp.face);
+  // Terminal: bond has redeemed, no residual value at step n.
+  let values: number[] = new Array(n + 1).fill(0);
 
   // Sort schedules once; strike is quoted per 100 → scale to face.
   const scale = inp.face / 100;
@@ -65,16 +65,15 @@ export function binomialBondPrice(inp: BinomialInputs, rateShiftBps = 0): number
   for (let i = n - 1; i >= 0; i--) {
     const next: number[] = new Array(i + 1);
     const tYears = i * dt;
-    // Coupon paid at end of step i+1 already sits inside the future values via
-    // the terminal payoff seed; interior coupons are added when we roll back
-    // through step i (below) so each PV includes coupons received at step i.
-    const couponHere = i > 0 ? (cfByStep.get(i) ?? 0) : 0;
-    // Find the most restrictive call/put applicable at this time slice.
+    const cfNext = cfByStep.get(i + 1) ?? 0; // cashflow received at end of this step
+    // Most restrictive call/put in force at time slice i (exercise decision is
+    // ex-coupon, on the continuation value).
     const call = [...calls].reverse().find((c) => c.time <= tYears + 1e-9);
     const put = [...puts].reverse().find((p) => p.time <= tYears + 1e-9);
     for (let j = 0; j <= i; j++) {
-      // Risk-neutral 0.5/0.5 branching, discount at this node's short rate.
-      let v = df(i, j) * 0.5 * (values[j + 1] + values[j]) + couponHere;
+      const contUp = values[j + 1] + cfNext;
+      const contDn = values[j] + cfNext;
+      let v = df(i, j) * 0.5 * (contUp + contDn);
       if (call !== undefined && v > call.price) v = call.price;   // issuer calls
       if (put !== undefined && v < put.price) v = put.price;      // holder puts
       next[j] = v;

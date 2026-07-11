@@ -45,7 +45,8 @@ export async function insertSavedBond(name: string, payload: SavedBondPayload): 
   if (!uid) throw new Error("Sign in required to save bonds");
   const { data, error } = await supabase
     .from("bond_saved_bonds")
-    .insert({ user_id: uid, name, inputs: payload as unknown as Record<string, unknown> })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert({ user_id: uid, name, inputs: payload as any })
     .select("id,name,inputs")
     .single();
   if (error) throw error;

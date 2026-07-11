@@ -781,11 +781,30 @@ export default function BondCalculator() {
                     <Kpi label="Coupon vs YTM"
                       value={couponRate > solvedYtm ? "Coupon > YTM" : couponRate < solvedYtm ? "Coupon < YTM" : "Coupon = YTM"} />
                   </div>
+                  {isOptionBond && solvedOas != null && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Kpi label="Implied OAS (bps)" value={solvedOas.toFixed(1)} />
+                      <Kpi label="Tree reprice" value={fmt(binomialBondPrice({ ...inp, shortRate: yieldRate, volatility, calls: bondType === "callable" ? calls : undefined, puts: bondType === "putable" ? puts : undefined }, solvedOas), 4)} />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Educational tool — assumes flat yield curve, no taxes and no credit spread shocks. Callable/putable pricing currently uses bullet cashflows; embedded-option pricing is planned.
+                    Educational tool. Callable/putable use a log-normal short-rate binomial tree with your schedule and volatility; effective duration & convexity via ±10bp short-rate shifts.
                   </p>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="validate">
+              <ValidationTab
+                selectedCase={selectedCase}
+                setSelectedCase={setSelectedCase}
+                refPrice={refPrice}
+                setRefPrice={setRefPrice}
+                refDuration={refDuration}
+                setRefDuration={setRefDuration}
+                userInputs={inp}
+                userYield={yieldRate}
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -804,5 +823,208 @@ function Kpi({ label, value, badge }: { label: string; value: string; badge?: Re
         </CardTitle>
       </CardHeader>
     </Card>
+  );
+}
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function ScheduleEditor({
+  label, schedule, onChange, maxYears,
+}: {
+  label: string;
+  schedule: CallPutSchedule;
+  onChange: (s: CallPutSchedule) => void;
+  maxYears: number;
+}) {
+  const update = (i: number, patch: Partial<{ time: number; price: number }>) => {
+    const next = schedule.map((e, idx) => idx === i ? { ...e, ...patch } : e);
+    onChange(next);
+  };
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+        <Button variant="ghost" size="sm" className="h-7 px-2"
+          onClick={() => onChange([...schedule, { time: Math.min(maxYears, (schedule.at(-1)?.time ?? 1) + 1), price: 100 }])}>
+          <Plus className="h-3 w-3 mr-1" /> Add
+        </Button>
+      </div>
+      {schedule.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">No dates — bond will price as a bullet.</p>
+      )}
+      {schedule.map((e, i) => (
+        <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
+          <Input type="number" min={0.25} max={maxYears} step={0.25} value={e.time}
+            onChange={(ev) => update(i, { time: Number(ev.target.value) || 0 })} />
+          <Input type="number" min={50} max={150} step={0.25} value={e.price}
+            onChange={(ev) => update(i, { price: Number(ev.target.value) || 0 })} />
+          <button type="button" className="text-muted-foreground hover:text-destructive"
+            onClick={() => onChange(schedule.filter((_, idx) => idx !== i))} aria-label="Remove">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground">Time in years since settlement · price per 100 face.</p>
+    </div>
+  );
+}
+
+function CurveEditor({
+  curve, onChange,
+}: { curve: YieldCurve; onChange: (c: YieldCurve) => void }) {
+  const update = (i: number, patch: Partial<{ t: number; rate: number }>) => {
+    onChange(curve.map((p, idx) => idx === i ? { ...p, ...patch } : p));
+  };
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Zero rates (tenor · rate)</span>
+        <Button variant="ghost" size="sm" className="h-7 px-2"
+          onClick={() => onChange([...curve, { t: (curve.at(-1)?.t ?? 1) + 1, rate: curve.at(-1)?.rate ?? 0.04 }])}>
+          <Plus className="h-3 w-3 mr-1" /> Add
+        </Button>
+      </div>
+      <div className="max-h-52 overflow-y-auto space-y-1 pr-1">
+        {curve.map((p, i) => (
+          <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
+            <Input type="number" min={0.01} max={50} step={0.25} value={p.t}
+              onChange={(e) => update(i, { t: Number(e.target.value) || 0 })} />
+            <Input type="number" min={-1} max={20} step={0.01} value={+(p.rate * 100).toFixed(3)}
+              onChange={(e) => update(i, { rate: (Number(e.target.value) || 0) / 100 })} />
+            <button type="button" className="text-muted-foreground hover:text-destructive"
+              onClick={() => onChange(curve.filter((_, idx) => idx !== i))} aria-label="Remove">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground">Tenor in years · rate in percent. Linear interpolation, flat extrapolation.</p>
+    </div>
+  );
+}
+
+function ValidationTab({
+  selectedCase, setSelectedCase, refPrice, setRefPrice, refDuration, setRefDuration, userInputs, userYield,
+}: {
+  selectedCase: string;
+  setSelectedCase: (id: string) => void;
+  refPrice: number;
+  setRefPrice: (v: number) => void;
+  refDuration: number;
+  setRefDuration: (v: number) => void;
+  userInputs: Omit<import("@/lib/bonds/pricing").BondInputs, "yieldRate">;
+  userYield: number;
+}) {
+  const tc = TEXTBOOK_CASES.find((c) => c.id === selectedCase) ?? TEXTBOOK_CASES[0];
+  const overrides = { dayCount: userInputs.dayCount, frequency: userInputs.frequency };
+  const rows: ValidationRow[] = validateTextbook(tc, overrides);
+  const grid: ConventionGridResult[] = scanConventionGrid(
+    { face: userInputs.face, couponRate: userInputs.couponRate, yearsToMaturity: userInputs.yearsToMaturity, bondType: userInputs.bondType, accruedFraction: userInputs.accruedFraction },
+    userYield,
+    { price: refPrice > 0 ? refPrice : undefined, modifiedDuration: refDuration > 0 ? refDuration : undefined },
+  );
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Textbook validation</CardTitle>
+          <CardDescription>Reprice a canonical bond using your current day-count &amp; frequency. Mismatches usually mean a convention drift.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="space-y-1.5">
+              <Label>Case</Label>
+              <Select value={selectedCase} onValueChange={setSelectedCase}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TEXTBOOK_CASES.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">{tc.source}</p>
+            </div>
+            <div className="text-[11px] text-muted-foreground self-end pb-1">
+              Override: dayCount = <span className="font-mono">{overrides.dayCount ?? "—"}</span> · freq = <span className="font-mono">{overrides.frequency}</span>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground uppercase tracking-wide">
+                <th className="text-left py-2 font-medium">Metric</th>
+                <th className="text-right py-2 font-medium">Expected</th>
+                <th className="text-right py-2 font-medium">Actual</th>
+                <th className="text-right py-2 font-medium">|Δ|</th>
+                <th className="text-right py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.metric} className="border-b last:border-0">
+                  <td className="py-2">{r.metric}</td>
+                  <td className="text-right font-mono">{fmt(r.expected, 4)}</td>
+                  <td className="text-right font-mono">{fmt(r.actual, 4)}</td>
+                  <td className="text-right font-mono">{fmt(r.absDiff, 4)}</td>
+                  <td className="text-right">
+                    {r.match
+                      ? <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="h-3.5 w-3.5" /> match</span>
+                      : <span className="inline-flex items-center gap-1 text-destructive"><AlertTriangle className="h-3.5 w-3.5" /> {`> ${r.tolerance}`}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Convention scan</CardTitle>
+          <CardDescription>Enter a reference clean price / modified duration; we grid across day-count × frequency × price-mode combos to find matches.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Reference price (0 to ignore)</Label>
+              <Input type="number" min={0} step="0.01" value={refPrice}
+                onChange={(e) => setRefPrice(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reference modified duration (yrs, 0 to ignore)</Label>
+              <Input type="number" min={0} step="0.01" value={refDuration}
+                onChange={(e) => setRefDuration(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground uppercase tracking-wide">
+                  <th className="text-left py-2 font-medium">Day count</th>
+                  <th className="text-left py-2 font-medium">Freq</th>
+                  <th className="text-left py-2 font-medium">Price mode</th>
+                  <th className="text-right py-2 font-medium">Price</th>
+                  <th className="text-right py-2 font-medium">Mod dur</th>
+                  <th className="text-right py-2 font-medium">Match</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grid.slice(0, 12).map((g, i) => (
+                  <tr key={i} className={`border-b last:border-0 ${g.match ? "bg-success/5" : ""}`}>
+                    <td className="py-1.5">{g.dayCount}</td>
+                    <td>{g.frequency}/yr</td>
+                    <td>{g.priceMode}</td>
+                    <td className="text-right font-mono">{fmt(g.price, 4)}</td>
+                    <td className="text-right font-mono">{fmt(g.modifiedDuration, 3)}</td>
+                    <td className="text-right">
+                      {g.match
+                        ? <CheckCircle2 className="inline h-3.5 w-3.5 text-success" />
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

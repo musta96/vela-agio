@@ -138,16 +138,83 @@ export default function BondCalculator() {
   }, [settlement, frequency, bondType]);
 
   const inp = { face, couponRate, yearsToMaturity: years, frequency, dayCount, bondType, accruedFraction };
-  const metrics = useMemo(
+  const bulletMetrics = useMemo(
     () => bondMetrics({ ...inp, yieldRate }),
     [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction],
   );
+
+  const isOptionBond = bondType === "callable" || bondType === "putable";
+  const activeSchedule: CallPutSchedule | undefined = isOptionBond
+    ? (bondType === "callable" ? calls : puts)
+    : undefined;
+
+  // Curve overlay metrics — always computable so users can toggle without lag.
+  const curveMetrics = useMemo(
+    () => bondMetricsFromCurve(inp, curve, oasBps),
+    [face, couponRate, years, frequency, dayCount, bondType, accruedFraction, curve, oasBps],
+  );
+
+  // Binomial (callable/putable) metrics.
+  const treeMetrics = useMemo(() => {
+    if (!isOptionBond) return null;
+    return binomialMetrics({
+      ...inp, shortRate: yieldRate, volatility,
+      calls: bondType === "callable" ? calls : undefined,
+      puts: bondType === "putable" ? puts : undefined,
+    });
+  }, [isOptionBond, bondType, face, couponRate, years, frequency, dayCount, accruedFraction, yieldRate, volatility, calls, puts]);
+
+  // The "primary" metrics view: curve > tree > bullet.
+  const metrics = useMemo(() => {
+    const ai = bulletMetrics.accruedInterest;
+    if (useCurve) {
+      return {
+        price: curveMetrics.dirtyPrice,
+        cleanPrice: curveMetrics.cleanPrice,
+        dirtyPrice: curveMetrics.dirtyPrice,
+        accruedInterest: ai,
+        cashflows: bulletMetrics.cashflows,
+        macaulayDuration: curveMetrics.effectiveDuration,
+        modifiedDuration: curveMetrics.effectiveDuration,
+        convexity: curveMetrics.effectiveConvexity,
+        currentYield: curveMetrics.cleanPrice > 0 ? (couponRate * face) / curveMetrics.cleanPrice : 0,
+        dv01: curveMetrics.dv01,
+        engine: "curve" as const,
+      };
+    }
+    if (treeMetrics) {
+      return {
+        price: treeMetrics.price,
+        cleanPrice: treeMetrics.price - ai,
+        dirtyPrice: treeMetrics.price,
+        accruedInterest: ai,
+        cashflows: bulletMetrics.cashflows,
+        macaulayDuration: treeMetrics.effectiveDuration,
+        modifiedDuration: treeMetrics.effectiveDuration,
+        convexity: treeMetrics.effectiveConvexity,
+        currentYield: treeMetrics.price > 0 ? (couponRate * face) / (treeMetrics.price - ai) : 0,
+        dv01: treeMetrics.dv01,
+        engine: "tree" as const,
+      };
+    }
+    return { ...bulletMetrics, engine: "bullet" as const };
+  }, [useCurve, curveMetrics, treeMetrics, bulletMetrics, face, couponRate]);
   // If user quotes clean, add back accrued before solving so YTM reprices dirty.
   const solverTarget = priceMode === "clean" ? targetPrice + metrics.accruedInterest : targetPrice;
   const solvedYtm = useMemo(
     () => yieldToMaturity(inp, solverTarget, yieldRate),
     [face, couponRate, years, frequency, solverTarget, yieldRate, dayCount, bondType, accruedFraction],
   );
+
+  // Solve OAS (bps) when user gives a market price for an option bond.
+  const solvedOas = useMemo(() => {
+    if (!isOptionBond) return null;
+    return solveOAS({
+      ...inp, shortRate: yieldRate, volatility,
+      calls: bondType === "callable" ? calls : undefined,
+      puts: bondType === "putable" ? puts : undefined,
+    }, solverTarget);
+  }, [isOptionBond, bondType, face, couponRate, years, frequency, dayCount, accruedFraction, yieldRate, volatility, calls, puts, solverTarget]);
 
   // ── Comparison panel ──────────────────────────────────────────────────────
   const [saved, setSaved] = useState<SavedBond[]>([]);

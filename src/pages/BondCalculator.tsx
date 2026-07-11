@@ -560,6 +560,50 @@ export default function BondCalculator() {
                 Accrued: {fmt(metrics.accruedInterest, 4)} · {(accruedFraction * 100).toFixed(2)}% of period
               </p>
             </div>
+
+            {isOptionBond && (
+              <div className="space-y-2 rounded-md border border-dashed p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {bondType === "callable" ? "Call schedule" : "Put schedule"}
+                  </Label>
+                  <Badge variant="outline" className="text-[10px]">Binomial tree</Badge>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Short-rate volatility — {(volatility * 100).toFixed(1)}%</Label>
+                  <Slider min={1} max={50} step={0.5}
+                    value={[volatility * 100]}
+                    onValueChange={([v]) => setVolatility(v / 100)} />
+                </div>
+                <ScheduleEditor
+                  label={bondType === "callable" ? "Call dates" : "Put dates"}
+                  schedule={bondType === "callable" ? calls : puts}
+                  onChange={bondType === "callable" ? setCalls : setPuts}
+                  maxYears={years}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Yield-curve discounting</Label>
+                <Switch checked={useCurve} onCheckedChange={setUseCurve} />
+              </div>
+              {useCurve && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>OAS spread (bps) — {oasBps.toFixed(0)}</Label>
+                    <Slider min={-200} max={500} step={5}
+                      value={[oasBps]}
+                      onValueChange={([v]) => setOasBps(v)} />
+                  </div>
+                  <CurveEditor curve={curve} onChange={setCurve} />
+                  <p className="text-[11px] text-muted-foreground">
+                    Each cashflow is discounted at its own zero rate + OAS. Duration & convexity are effective (±1bp curve shift).
+                  </p>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -578,14 +622,20 @@ export default function BondCalculator() {
             <Kpi label="Coupon payment" value={bondType === "zero" ? "—" : fmt((couponRate * face) / frequency, 2)} />
           </div>
 
-          {saved.length > 0 && (
+          {(saved.length > 0 || loadingSaved) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span>Saved comparisons</span>
-                  <Button variant="ghost" size="sm" onClick={() => setSaved([])}><Trash2 className="h-4 w-4 mr-1" /> Clear all</Button>
+                  <span className="flex items-center gap-2">
+                    Saved comparisons {loadingSaved && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                  </span>
+                  {saved.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearAllSaved}><Trash2 className="h-4 w-4 mr-1" /> Clear all</Button>
+                  )}
                 </CardTitle>
-                <CardDescription>These overlay on the price-yield and cashflow charts below.</CardDescription>
+                <CardDescription>
+                  {user ? "Synced to your account across devices." : "Sign in to persist across sessions — currently local to this browser."}
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {saved.map((s) => (
@@ -608,6 +658,7 @@ export default function BondCalculator() {
               <TabsTrigger value="cashflows">Cashflows</TabsTrigger>
               <TabsTrigger value="shocks">Rate shocks</TabsTrigger>
               <TabsTrigger value="solver">Solve for YTM</TabsTrigger>
+              <TabsTrigger value="validate">Validation</TabsTrigger>
             </TabsList>
 
             <TabsContent value="curve">

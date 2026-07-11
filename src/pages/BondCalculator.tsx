@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calculator, TrendingDown, TrendingUp, Download, Save, Trash2, Plus } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Calculator, TrendingDown, TrendingUp, Download, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
   BarChart, Bar, Legend,
@@ -20,6 +21,12 @@ import {
   bondMetrics, priceAtYield, yieldToMaturity, estimatePriceChange,
   type DayCount, type BondType,
 } from "@/lib/bonds/pricing";
+import { curveRate, priceFromCurve, bondMetricsFromCurve, type YieldCurve } from "@/lib/bonds/curve";
+import { binomialBondPrice, binomialMetrics, solveOAS, type CallPutSchedule } from "@/lib/bonds/binomial";
+import { TEXTBOOK_CASES, validateTextbook, scanConventionGrid, type ValidationRow, type ConventionGridResult } from "@/lib/bonds/validation";
+import { listSavedBonds, insertSavedBond, deleteSavedBond, type SavedBondRow } from "@/lib/bonds/savedBonds";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 import { downloadCsv } from "@/lib/csvUtil";
 
 const FREQ_OPTIONS = [
@@ -32,8 +39,18 @@ const DAYCOUNTS: DayCount[] = ["ACT/360", "ACT/365", "30/360"];
 const BOND_TYPES: { value: BondType; label: string; note?: string }[] = [
   { value: "fixed", label: "Fixed-rate bullet" },
   { value: "zero", label: "Zero-coupon" },
-  { value: "callable", label: "Callable (placeholder)", note: "Priced as bullet; call schedule coming soon." },
-  { value: "putable", label: "Putable (placeholder)", note: "Priced as bullet; put schedule coming soon." },
+  { value: "callable", label: "Callable (binomial tree)", note: "Prices via a log-normal short-rate tree with your call schedule." },
+  { value: "putable", label: "Putable (binomial tree)", note: "Prices via a log-normal short-rate tree with your put schedule." },
+];
+
+const DEFAULT_CURVE: YieldCurve = [
+  { t: 0.25, rate: 0.045 },
+  { t: 0.5, rate: 0.045 },
+  { t: 1, rate: 0.044 },
+  { t: 2, rate: 0.042 },
+  { t: 5, rate: 0.041 },
+  { t: 10, rate: 0.043 },
+  { t: 30, rate: 0.045 },
 ];
 const PALETTE = ["hsl(var(--primary))", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4"];
 

@@ -706,6 +706,33 @@ export type Database = {
         }
         Relationships: []
       }
+      bond_saved_bonds: {
+        Row: {
+          created_at: string
+          id: string
+          inputs: Json
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inputs: Json
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inputs?: Json
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       broker_accounts: {
         Row: {
           cash: number | null

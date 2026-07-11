@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calculator, TrendingDown, TrendingUp, Download, Save, Trash2, Plus } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Calculator, TrendingDown, TrendingUp, Download, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
   BarChart, Bar, Legend,
@@ -20,6 +21,12 @@ import {
   bondMetrics, priceAtYield, yieldToMaturity, estimatePriceChange,
   type DayCount, type BondType,
 } from "@/lib/bonds/pricing";
+import { curveRate, priceFromCurve, bondMetricsFromCurve, type YieldCurve } from "@/lib/bonds/curve";
+import { binomialBondPrice, binomialMetrics, solveOAS, type CallPutSchedule } from "@/lib/bonds/binomial";
+import { TEXTBOOK_CASES, validateTextbook, scanConventionGrid, type ValidationRow, type ConventionGridResult } from "@/lib/bonds/validation";
+import { listSavedBonds, insertSavedBond, deleteSavedBond, type SavedBondRow } from "@/lib/bonds/savedBonds";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 import { downloadCsv } from "@/lib/csvUtil";
 
 const FREQ_OPTIONS = [
@@ -32,8 +39,18 @@ const DAYCOUNTS: DayCount[] = ["ACT/360", "ACT/365", "30/360"];
 const BOND_TYPES: { value: BondType; label: string; note?: string }[] = [
   { value: "fixed", label: "Fixed-rate bullet" },
   { value: "zero", label: "Zero-coupon" },
-  { value: "callable", label: "Callable (placeholder)", note: "Priced as bullet; call schedule coming soon." },
-  { value: "putable", label: "Putable (placeholder)", note: "Priced as bullet; put schedule coming soon." },
+  { value: "callable", label: "Callable (binomial tree)", note: "Prices via a log-normal short-rate tree with your call schedule." },
+  { value: "putable", label: "Putable (binomial tree)", note: "Prices via a log-normal short-rate tree with your put schedule." },
+];
+
+const DEFAULT_CURVE: YieldCurve = [
+  { t: 0.25, rate: 0.045 },
+  { t: 0.5, rate: 0.045 },
+  { t: 1, rate: 0.044 },
+  { t: 2, rate: 0.042 },
+  { t: 5, rate: 0.041 },
+  { t: 10, rate: 0.043 },
+  { t: 30, rate: 0.045 },
 ];
 const PALETTE = ["hsl(var(--primary))", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4"];
 
@@ -61,6 +78,14 @@ interface SavedBond {
   bondType: BondType;
   settlement: string;
   accruedFraction: number;
+  volatility?: number;
+  calls?: CallPutSchedule;
+  puts?: CallPutSchedule;
+  curve?: YieldCurve;
+  oasBps?: number;
+  useCurve?: boolean;
+  /** Cloud row id when persisted; otherwise undefined (local-only). */
+  cloudId?: string;
 }
 
 export default function BondCalculator() {
@@ -73,6 +98,24 @@ export default function BondCalculator() {
   const [bondType, setBondType] = useState<BondType>("fixed");
   const [settlement, setSettlement] = useState<string>(today());
   const [priceMode, setPriceMode] = useState<"clean" | "dirty">("clean");
+
+  // Embedded option model
+  const [volatility, setVolatility] = useState(0.15); // 15% short-rate vol
+  const [calls, setCalls] = useState<CallPutSchedule>([{ time: 3, price: 102 }]);
+  const [puts, setPuts] = useState<CallPutSchedule>([{ time: 5, price: 100 }]);
+
+  // Yield-curve overlay
+  const [useCurve, setUseCurve] = useState(false);
+  const [curve, setCurve] = useState<YieldCurve>(DEFAULT_CURVE);
+  const [oasBps, setOasBps] = useState(0);
+
+  // Validation
+  const [selectedCase, setSelectedCase] = useState<string>(TEXTBOOK_CASES[0].id);
+  const [refPrice, setRefPrice] = useState<number>(100);
+  const [refDuration, setRefDuration] = useState<number>(0);
+
+  const { user } = useAuth();
+  const [loadingSaved, setLoadingSaved] = useState(false);
 
   // Solve-for-yield inputs
   const [targetPrice, setTargetPrice] = useState(1000);
@@ -95,10 +138,67 @@ export default function BondCalculator() {
   }, [settlement, frequency, bondType]);
 
   const inp = { face, couponRate, yearsToMaturity: years, frequency, dayCount, bondType, accruedFraction };
-  const metrics = useMemo(
+  const bulletMetrics = useMemo(
     () => bondMetrics({ ...inp, yieldRate }),
     [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction],
   );
+
+  const isOptionBond = bondType === "callable" || bondType === "putable";
+  const activeSchedule: CallPutSchedule | undefined = isOptionBond
+    ? (bondType === "callable" ? calls : puts)
+    : undefined;
+
+  // Curve overlay metrics — always computable so users can toggle without lag.
+  const curveMetrics = useMemo(
+    () => bondMetricsFromCurve(inp, curve, oasBps),
+    [face, couponRate, years, frequency, dayCount, bondType, accruedFraction, curve, oasBps],
+  );
+
+  // Binomial (callable/putable) metrics.
+  const treeMetrics = useMemo(() => {
+    if (!isOptionBond) return null;
+    return binomialMetrics({
+      ...inp, shortRate: yieldRate, volatility,
+      calls: bondType === "callable" ? calls : undefined,
+      puts: bondType === "putable" ? puts : undefined,
+    });
+  }, [isOptionBond, bondType, face, couponRate, years, frequency, dayCount, accruedFraction, yieldRate, volatility, calls, puts]);
+
+  // The "primary" metrics view: curve > tree > bullet.
+  const metrics = useMemo(() => {
+    const ai = bulletMetrics.accruedInterest;
+    if (useCurve) {
+      return {
+        price: curveMetrics.dirtyPrice,
+        cleanPrice: curveMetrics.cleanPrice,
+        dirtyPrice: curveMetrics.dirtyPrice,
+        accruedInterest: ai,
+        cashflows: bulletMetrics.cashflows,
+        macaulayDuration: curveMetrics.effectiveDuration,
+        modifiedDuration: curveMetrics.effectiveDuration,
+        convexity: curveMetrics.effectiveConvexity,
+        currentYield: curveMetrics.cleanPrice > 0 ? (couponRate * face) / curveMetrics.cleanPrice : 0,
+        dv01: curveMetrics.dv01,
+        engine: "curve" as const,
+      };
+    }
+    if (treeMetrics) {
+      return {
+        price: treeMetrics.price,
+        cleanPrice: treeMetrics.price - ai,
+        dirtyPrice: treeMetrics.price,
+        accruedInterest: ai,
+        cashflows: bulletMetrics.cashflows,
+        macaulayDuration: treeMetrics.effectiveDuration,
+        modifiedDuration: treeMetrics.effectiveDuration,
+        convexity: treeMetrics.effectiveConvexity,
+        currentYield: treeMetrics.price > 0 ? (couponRate * face) / (treeMetrics.price - ai) : 0,
+        dv01: treeMetrics.dv01,
+        engine: "tree" as const,
+      };
+    }
+    return { ...bulletMetrics, engine: "bullet" as const };
+  }, [useCurve, curveMetrics, treeMetrics, bulletMetrics, face, couponRate]);
   // If user quotes clean, add back accrued before solving so YTM reprices dirty.
   const solverTarget = priceMode === "clean" ? targetPrice + metrics.accruedInterest : targetPrice;
   const solvedYtm = useMemo(
@@ -106,28 +206,106 @@ export default function BondCalculator() {
     [face, couponRate, years, frequency, solverTarget, yieldRate, dayCount, bondType, accruedFraction],
   );
 
+  // Solve OAS (bps) when user gives a market price for an option bond.
+  const solvedOas = useMemo(() => {
+    if (!isOptionBond) return null;
+    return solveOAS({
+      ...inp, shortRate: yieldRate, volatility,
+      calls: bondType === "callable" ? calls : undefined,
+      puts: bondType === "putable" ? puts : undefined,
+    }, solverTarget);
+  }, [isOptionBond, bondType, face, couponRate, years, frequency, dayCount, accruedFraction, yieldRate, volatility, calls, puts, solverTarget]);
+
   // ── Comparison panel ──────────────────────────────────────────────────────
   const [saved, setSaved] = useState<SavedBond[]>([]);
-  const saveCurrent = () => {
-    setSaved((prev) => {
-      const color = PALETTE[prev.length % PALETTE.length];
-      const name = `${bondType === "zero" ? "Zero" : `${(couponRate * 100).toFixed(2)}%`} · ${years}y · YTM ${(yieldRate * 100).toFixed(2)}%`;
-      return [...prev, {
-        id: crypto.randomUUID(), name, color,
-        face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
-      }];
-    });
+
+  // Hydrate saved bonds from Lovable Cloud when signed in.
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) { setSaved([]); return; }
+    setLoadingSaved(true);
+    listSavedBonds()
+      .then((rows) => {
+        if (cancelled) return;
+        setSaved(rows.map((r: SavedBondRow, i) => ({
+          id: r.id, cloudId: r.id, name: r.name,
+          color: r.color || PALETTE[i % PALETTE.length],
+          face: r.face, couponRate: r.couponRate, years: r.years, frequency: r.frequency,
+          yieldRate: r.yieldRate, dayCount: r.dayCount as DayCount, bondType: r.bondType as BondType,
+          settlement: r.settlement, accruedFraction: r.accruedFraction,
+          volatility: r.volatility, calls: r.calls, puts: r.puts,
+          curve: r.curve, oasBps: r.oasBps, useCurve: r.useCurve,
+        })));
+      })
+      .catch((e) => toast({ title: "Couldn't load saved bonds", description: String(e?.message ?? e), variant: "destructive" }))
+      .finally(() => { if (!cancelled) setLoadingSaved(false); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const saveCurrent = async () => {
+    const color = PALETTE[saved.length % PALETTE.length];
+    const name = `${bondType === "zero" ? "Zero" : `${(couponRate * 100).toFixed(2)}%`} · ${years}y · YTM ${(yieldRate * 100).toFixed(2)}%${useCurve ? " · curve" : ""}`;
+    const payload = {
+      face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
+      color, volatility, calls, puts, curve, oasBps, useCurve,
+    };
+    if (!user) {
+      // Local-only fallback (in-memory) for signed-out users.
+      setSaved((prev) => [...prev, { id: crypto.randomUUID(), name, ...payload }]);
+      toast({ title: "Saved locally", description: "Sign in to sync bonds across devices." });
+      return;
+    }
+    try {
+      const row = await insertSavedBond(name, payload);
+      setSaved((prev) => [...prev, {
+        id: row.id, cloudId: row.id, name: row.name,
+        color, face, couponRate, years, frequency, yieldRate, dayCount, bondType, settlement, accruedFraction,
+        volatility, calls, puts, curve, oasBps, useCurve,
+      }]);
+      toast({ title: "Bond saved" });
+    } catch (e) {
+      toast({ title: "Save failed", description: String((e as Error).message), variant: "destructive" });
+    }
   };
-  const removeSaved = (id: string) => setSaved((s) => s.filter((x) => x.id !== id));
+
+  const removeSaved = async (id: string) => {
+    const row = saved.find((s) => s.id === id);
+    setSaved((s) => s.filter((x) => x.id !== id));
+    if (row?.cloudId) {
+      try { await deleteSavedBond(row.cloudId); }
+      catch (e) { toast({ title: "Delete failed", description: String((e as Error).message), variant: "destructive" }); }
+    }
+  };
+
+  const clearAllSaved = async () => {
+    const ids = saved.map((s) => s.cloudId).filter(Boolean) as string[];
+    setSaved([]);
+    for (const id of ids) { try { await deleteSavedBond(id); } catch { /* swallow */ } }
+  };
 
   const priceYieldData = useMemo(() => {
     const min = Math.max(0.0025, yieldRate - 0.06);
     const max = yieldRate + 0.06;
     const step = (max - min) / 60;
     const points: Record<string, number>[] = [];
+    const priceOne = (y: number) => {
+      if (useCurve) {
+        // Bump entire curve in parallel by (y - yieldRate) so slider maps to curve shifts.
+        const shifted = curve.map((p) => ({ t: p.t, rate: p.rate + (y - yieldRate) }));
+        return priceFromCurve(inp, shifted, oasBps);
+      }
+      if (isOptionBond) {
+        return binomialBondPrice({
+          ...inp, shortRate: y, volatility,
+          calls: bondType === "callable" ? calls : undefined,
+          puts: bondType === "putable" ? puts : undefined,
+        });
+      }
+      return priceAtYield(inp, y);
+    };
     for (let y = min; y <= max + 1e-9; y += step) {
       const row: Record<string, number> = { yPct: +(y * 100).toFixed(3) };
-      row["Current"] = +priceAtYield(inp, y).toFixed(4);
+      row["Current"] = +priceOne(y).toFixed(4);
       for (const s of saved) {
         row[s.name] = +priceAtYield(
           { face: s.face, couponRate: s.couponRate, yearsToMaturity: s.years, frequency: s.frequency, dayCount: s.dayCount, bondType: s.bondType, accruedFraction: s.accruedFraction },
@@ -137,7 +315,7 @@ export default function BondCalculator() {
       points.push(row);
     }
     return points;
-  }, [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction, saved]);
+  }, [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction, saved, useCurve, curve, oasBps, isOptionBond, volatility, calls, puts]);
 
   const cashflowData = useMemo(
     () => metrics.cashflows.map(cf => ({
@@ -382,6 +560,50 @@ export default function BondCalculator() {
                 Accrued: {fmt(metrics.accruedInterest, 4)} · {(accruedFraction * 100).toFixed(2)}% of period
               </p>
             </div>
+
+            {isOptionBond && (
+              <div className="space-y-2 rounded-md border border-dashed p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {bondType === "callable" ? "Call schedule" : "Put schedule"}
+                  </Label>
+                  <Badge variant="outline" className="text-[10px]">Binomial tree</Badge>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Short-rate volatility — {(volatility * 100).toFixed(1)}%</Label>
+                  <Slider min={1} max={50} step={0.5}
+                    value={[volatility * 100]}
+                    onValueChange={([v]) => setVolatility(v / 100)} />
+                </div>
+                <ScheduleEditor
+                  label={bondType === "callable" ? "Call dates" : "Put dates"}
+                  schedule={bondType === "callable" ? calls : puts}
+                  onChange={bondType === "callable" ? setCalls : setPuts}
+                  maxYears={years}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Yield-curve discounting</Label>
+                <Switch checked={useCurve} onCheckedChange={setUseCurve} />
+              </div>
+              {useCurve && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>OAS spread (bps) — {oasBps.toFixed(0)}</Label>
+                    <Slider min={-200} max={500} step={5}
+                      value={[oasBps]}
+                      onValueChange={([v]) => setOasBps(v)} />
+                  </div>
+                  <CurveEditor curve={curve} onChange={setCurve} />
+                  <p className="text-[11px] text-muted-foreground">
+                    Each cashflow is discounted at its own zero rate + OAS. Duration & convexity are effective (±1bp curve shift).
+                  </p>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -400,14 +622,20 @@ export default function BondCalculator() {
             <Kpi label="Coupon payment" value={bondType === "zero" ? "—" : fmt((couponRate * face) / frequency, 2)} />
           </div>
 
-          {saved.length > 0 && (
+          {(saved.length > 0 || loadingSaved) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span>Saved comparisons</span>
-                  <Button variant="ghost" size="sm" onClick={() => setSaved([])}><Trash2 className="h-4 w-4 mr-1" /> Clear all</Button>
+                  <span className="flex items-center gap-2">
+                    Saved comparisons {loadingSaved && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                  </span>
+                  {saved.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearAllSaved}><Trash2 className="h-4 w-4 mr-1" /> Clear all</Button>
+                  )}
                 </CardTitle>
-                <CardDescription>These overlay on the price-yield and cashflow charts below.</CardDescription>
+                <CardDescription>
+                  {user ? "Synced to your account across devices." : "Sign in to persist across sessions — currently local to this browser."}
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {saved.map((s) => (
@@ -430,6 +658,7 @@ export default function BondCalculator() {
               <TabsTrigger value="cashflows">Cashflows</TabsTrigger>
               <TabsTrigger value="shocks">Rate shocks</TabsTrigger>
               <TabsTrigger value="solver">Solve for YTM</TabsTrigger>
+              <TabsTrigger value="validate">Validation</TabsTrigger>
             </TabsList>
 
             <TabsContent value="curve">
@@ -552,11 +781,30 @@ export default function BondCalculator() {
                     <Kpi label="Coupon vs YTM"
                       value={couponRate > solvedYtm ? "Coupon > YTM" : couponRate < solvedYtm ? "Coupon < YTM" : "Coupon = YTM"} />
                   </div>
+                  {isOptionBond && solvedOas != null && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Kpi label="Implied OAS (bps)" value={solvedOas.toFixed(1)} />
+                      <Kpi label="Tree reprice" value={fmt(binomialBondPrice({ ...inp, shortRate: yieldRate, volatility, calls: bondType === "callable" ? calls : undefined, puts: bondType === "putable" ? puts : undefined }, solvedOas), 4)} />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Educational tool — assumes flat yield curve, no taxes and no credit spread shocks. Callable/putable pricing currently uses bullet cashflows; embedded-option pricing is planned.
+                    Educational tool. Callable/putable use a log-normal short-rate binomial tree with your schedule and volatility; effective duration & convexity via ±10bp short-rate shifts.
                   </p>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="validate">
+              <ValidationTab
+                selectedCase={selectedCase}
+                setSelectedCase={setSelectedCase}
+                refPrice={refPrice}
+                setRefPrice={setRefPrice}
+                refDuration={refDuration}
+                setRefDuration={setRefDuration}
+                userInputs={inp}
+                userYield={yieldRate}
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -575,5 +823,208 @@ function Kpi({ label, value, badge }: { label: string; value: string; badge?: Re
         </CardTitle>
       </CardHeader>
     </Card>
+  );
+}
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function ScheduleEditor({
+  label, schedule, onChange, maxYears,
+}: {
+  label: string;
+  schedule: CallPutSchedule;
+  onChange: (s: CallPutSchedule) => void;
+  maxYears: number;
+}) {
+  const update = (i: number, patch: Partial<{ time: number; price: number }>) => {
+    const next = schedule.map((e, idx) => idx === i ? { ...e, ...patch } : e);
+    onChange(next);
+  };
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+        <Button variant="ghost" size="sm" className="h-7 px-2"
+          onClick={() => onChange([...schedule, { time: Math.min(maxYears, (schedule.at(-1)?.time ?? 1) + 1), price: 100 }])}>
+          <Plus className="h-3 w-3 mr-1" /> Add
+        </Button>
+      </div>
+      {schedule.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">No dates — bond will price as a bullet.</p>
+      )}
+      {schedule.map((e, i) => (
+        <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
+          <Input type="number" min={0.25} max={maxYears} step={0.25} value={e.time}
+            onChange={(ev) => update(i, { time: Number(ev.target.value) || 0 })} />
+          <Input type="number" min={50} max={150} step={0.25} value={e.price}
+            onChange={(ev) => update(i, { price: Number(ev.target.value) || 0 })} />
+          <button type="button" className="text-muted-foreground hover:text-destructive"
+            onClick={() => onChange(schedule.filter((_, idx) => idx !== i))} aria-label="Remove">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground">Time in years since settlement · price per 100 face.</p>
+    </div>
+  );
+}
+
+function CurveEditor({
+  curve, onChange,
+}: { curve: YieldCurve; onChange: (c: YieldCurve) => void }) {
+  const update = (i: number, patch: Partial<{ t: number; rate: number }>) => {
+    onChange(curve.map((p, idx) => idx === i ? { ...p, ...patch } : p));
+  };
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Zero rates (tenor · rate)</span>
+        <Button variant="ghost" size="sm" className="h-7 px-2"
+          onClick={() => onChange([...curve, { t: (curve.at(-1)?.t ?? 1) + 1, rate: curve.at(-1)?.rate ?? 0.04 }])}>
+          <Plus className="h-3 w-3 mr-1" /> Add
+        </Button>
+      </div>
+      <div className="max-h-52 overflow-y-auto space-y-1 pr-1">
+        {curve.map((p, i) => (
+          <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
+            <Input type="number" min={0.01} max={50} step={0.25} value={p.t}
+              onChange={(e) => update(i, { t: Number(e.target.value) || 0 })} />
+            <Input type="number" min={-1} max={20} step={0.01} value={+(p.rate * 100).toFixed(3)}
+              onChange={(e) => update(i, { rate: (Number(e.target.value) || 0) / 100 })} />
+            <button type="button" className="text-muted-foreground hover:text-destructive"
+              onClick={() => onChange(curve.filter((_, idx) => idx !== i))} aria-label="Remove">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground">Tenor in years · rate in percent. Linear interpolation, flat extrapolation.</p>
+    </div>
+  );
+}
+
+function ValidationTab({
+  selectedCase, setSelectedCase, refPrice, setRefPrice, refDuration, setRefDuration, userInputs, userYield,
+}: {
+  selectedCase: string;
+  setSelectedCase: (id: string) => void;
+  refPrice: number;
+  setRefPrice: (v: number) => void;
+  refDuration: number;
+  setRefDuration: (v: number) => void;
+  userInputs: Omit<import("@/lib/bonds/pricing").BondInputs, "yieldRate">;
+  userYield: number;
+}) {
+  const tc = TEXTBOOK_CASES.find((c) => c.id === selectedCase) ?? TEXTBOOK_CASES[0];
+  const overrides = { dayCount: userInputs.dayCount, frequency: userInputs.frequency };
+  const rows: ValidationRow[] = validateTextbook(tc, overrides);
+  const grid: ConventionGridResult[] = scanConventionGrid(
+    { face: userInputs.face, couponRate: userInputs.couponRate, yearsToMaturity: userInputs.yearsToMaturity, bondType: userInputs.bondType, accruedFraction: userInputs.accruedFraction },
+    userYield,
+    { price: refPrice > 0 ? refPrice : undefined, modifiedDuration: refDuration > 0 ? refDuration : undefined },
+  );
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Textbook validation</CardTitle>
+          <CardDescription>Reprice a canonical bond using your current day-count &amp; frequency. Mismatches usually mean a convention drift.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="space-y-1.5">
+              <Label>Case</Label>
+              <Select value={selectedCase} onValueChange={setSelectedCase}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TEXTBOOK_CASES.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">{tc.source}</p>
+            </div>
+            <div className="text-[11px] text-muted-foreground self-end pb-1">
+              Override: dayCount = <span className="font-mono">{overrides.dayCount ?? "—"}</span> · freq = <span className="font-mono">{overrides.frequency}</span>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground uppercase tracking-wide">
+                <th className="text-left py-2 font-medium">Metric</th>
+                <th className="text-right py-2 font-medium">Expected</th>
+                <th className="text-right py-2 font-medium">Actual</th>
+                <th className="text-right py-2 font-medium">|Δ|</th>
+                <th className="text-right py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.metric} className="border-b last:border-0">
+                  <td className="py-2">{r.metric}</td>
+                  <td className="text-right font-mono">{fmt(r.expected, 4)}</td>
+                  <td className="text-right font-mono">{fmt(r.actual, 4)}</td>
+                  <td className="text-right font-mono">{fmt(r.absDiff, 4)}</td>
+                  <td className="text-right">
+                    {r.match
+                      ? <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="h-3.5 w-3.5" /> match</span>
+                      : <span className="inline-flex items-center gap-1 text-destructive"><AlertTriangle className="h-3.5 w-3.5" /> {`> ${r.tolerance}`}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Convention scan</CardTitle>
+          <CardDescription>Enter a reference clean price / modified duration; we grid across day-count × frequency × price-mode combos to find matches.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Reference price (0 to ignore)</Label>
+              <Input type="number" min={0} step="0.01" value={refPrice}
+                onChange={(e) => setRefPrice(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reference modified duration (yrs, 0 to ignore)</Label>
+              <Input type="number" min={0} step="0.01" value={refDuration}
+                onChange={(e) => setRefDuration(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground uppercase tracking-wide">
+                  <th className="text-left py-2 font-medium">Day count</th>
+                  <th className="text-left py-2 font-medium">Freq</th>
+                  <th className="text-left py-2 font-medium">Price mode</th>
+                  <th className="text-right py-2 font-medium">Price</th>
+                  <th className="text-right py-2 font-medium">Mod dur</th>
+                  <th className="text-right py-2 font-medium">Match</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grid.slice(0, 12).map((g, i) => (
+                  <tr key={i} className={`border-b last:border-0 ${g.match ? "bg-success/5" : ""}`}>
+                    <td className="py-1.5">{g.dayCount}</td>
+                    <td>{g.frequency}/yr</td>
+                    <td>{g.priceMode}</td>
+                    <td className="text-right font-mono">{fmt(g.price, 4)}</td>
+                    <td className="text-right font-mono">{fmt(g.modifiedDuration, 3)}</td>
+                    <td className="text-right">
+                      {g.match
+                        ? <CheckCircle2 className="inline h-3.5 w-3.5 text-success" />
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

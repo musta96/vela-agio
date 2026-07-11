@@ -288,9 +288,24 @@ export default function BondCalculator() {
     const max = yieldRate + 0.06;
     const step = (max - min) / 60;
     const points: Record<string, number>[] = [];
+    const priceOne = (y: number) => {
+      if (useCurve) {
+        // Bump entire curve in parallel by (y - yieldRate) so slider maps to curve shifts.
+        const shifted = curve.map((p) => ({ t: p.t, rate: p.rate + (y - yieldRate) }));
+        return priceFromCurve(inp, shifted, oasBps);
+      }
+      if (isOptionBond) {
+        return binomialBondPrice({
+          ...inp, shortRate: y, volatility,
+          calls: bondType === "callable" ? calls : undefined,
+          puts: bondType === "putable" ? puts : undefined,
+        });
+      }
+      return priceAtYield(inp, y);
+    };
     for (let y = min; y <= max + 1e-9; y += step) {
       const row: Record<string, number> = { yPct: +(y * 100).toFixed(3) };
-      row["Current"] = +priceAtYield(inp, y).toFixed(4);
+      row["Current"] = +priceOne(y).toFixed(4);
       for (const s of saved) {
         row[s.name] = +priceAtYield(
           { face: s.face, couponRate: s.couponRate, yearsToMaturity: s.years, frequency: s.frequency, dayCount: s.dayCount, bondType: s.bondType, accruedFraction: s.accruedFraction },
@@ -300,7 +315,7 @@ export default function BondCalculator() {
       points.push(row);
     }
     return points;
-  }, [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction, saved]);
+  }, [face, couponRate, years, frequency, yieldRate, dayCount, bondType, accruedFraction, saved, useCurve, curve, oasBps, isOptionBond, volatility, calls, puts]);
 
   const cashflowData = useMemo(
     () => metrics.cashflows.map(cf => ({

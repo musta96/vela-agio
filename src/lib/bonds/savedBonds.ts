@@ -34,8 +34,8 @@ export async function listSavedBonds(): Promise<SavedBondRow[]> {
     .select("id,name,inputs")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((r: { id: string; name: string; inputs: SavedBondPayload }) => ({
-    id: r.id, name: r.name, ...(r.inputs ?? ({} as SavedBondPayload)),
+  return (data ?? []).map((r) => ({
+    id: r.id, name: r.name, ...((r.inputs as unknown) as SavedBondPayload),
   }));
 }
 
@@ -45,11 +45,11 @@ export async function insertSavedBond(name: string, payload: SavedBondPayload): 
   if (!uid) throw new Error("Sign in required to save bonds");
   const { data, error } = await supabase
     .from("bond_saved_bonds")
-    .insert({ user_id: uid, name, inputs: payload })
+    .insert({ user_id: uid, name, inputs: payload as unknown as Record<string, unknown> })
     .select("id,name,inputs")
     .single();
   if (error) throw error;
-  return { id: data.id, name: data.name, ...(data.inputs as SavedBondPayload) };
+  return { id: data.id, name: data.name, ...((data.inputs as unknown) as SavedBondPayload) };
 }
 
 export async function deleteSavedBond(id: string): Promise<void> {

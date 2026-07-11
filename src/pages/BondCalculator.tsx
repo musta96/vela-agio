@@ -78,6 +78,14 @@ interface SavedBond {
   bondType: BondType;
   settlement: string;
   accruedFraction: number;
+  volatility?: number;
+  calls?: CallPutSchedule;
+  puts?: CallPutSchedule;
+  curve?: YieldCurve;
+  oasBps?: number;
+  useCurve?: boolean;
+  /** Cloud row id when persisted; otherwise undefined (local-only). */
+  cloudId?: string;
 }
 
 export default function BondCalculator() {
@@ -90,6 +98,24 @@ export default function BondCalculator() {
   const [bondType, setBondType] = useState<BondType>("fixed");
   const [settlement, setSettlement] = useState<string>(today());
   const [priceMode, setPriceMode] = useState<"clean" | "dirty">("clean");
+
+  // Embedded option model
+  const [volatility, setVolatility] = useState(0.15); // 15% short-rate vol
+  const [calls, setCalls] = useState<CallPutSchedule>([{ time: 3, price: 102 }]);
+  const [puts, setPuts] = useState<CallPutSchedule>([{ time: 5, price: 100 }]);
+
+  // Yield-curve overlay
+  const [useCurve, setUseCurve] = useState(false);
+  const [curve, setCurve] = useState<YieldCurve>(DEFAULT_CURVE);
+  const [oasBps, setOasBps] = useState(0);
+
+  // Validation
+  const [selectedCase, setSelectedCase] = useState<string>(TEXTBOOK_CASES[0].id);
+  const [refPrice, setRefPrice] = useState<number>(100);
+  const [refDuration, setRefDuration] = useState<number>(0);
+
+  const { user } = useAuth();
+  const [loadingSaved, setLoadingSaved] = useState(false);
 
   // Solve-for-yield inputs
   const [targetPrice, setTargetPrice] = useState(1000);

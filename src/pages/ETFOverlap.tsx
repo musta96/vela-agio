@@ -115,11 +115,12 @@ export default function ETFOverlap() {
       <SEO
         title="ETF Overlap Analyzer — Diversification & Holdings"
         description="Compare ETFs to find overlapping holdings, sector exposure, concentration risk, and a diversification score for portfolio construction."
+        path="/etf-overlap"
       />
       <PageHeader
         icon={GitCompare}
         title="ETF Overlap Analyzer"
-        subtitle="Compare up to 5 ETFs — spot duplicate holdings, sector concentration, and true diversification"
+        description="Compare up to 5 ETFs — spot duplicate holdings, sector concentration, and true diversification"
       />
 
       {/* Selection panel */}

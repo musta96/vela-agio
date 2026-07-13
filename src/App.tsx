@@ -174,6 +174,7 @@ const App = () => (
             <Route path="/credit-spreads" element={<CreditSpreads />} />
             <Route path="/buybacks" element={<BuybackAnalyzer />} />
             <Route path="/bonds" element={<BondCalculator />} />
+            <Route path="/etf-overlap" element={<ETFOverlap />} />
             <Route path="/replicate" element={<HedgeFundReplicator />} />
             <Route path="/copilot" element={<Copilot />} />
             <Route path="/goals" element={<Goals />} />

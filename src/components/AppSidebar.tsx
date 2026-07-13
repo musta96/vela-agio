@@ -11,6 +11,7 @@ import {
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
   ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
   ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users, Calculator,
+  GitCompare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";

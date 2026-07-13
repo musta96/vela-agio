@@ -11,6 +11,7 @@ import {
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
   ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
   ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users, Calculator,
+  GitCompare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
@@ -112,6 +113,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine, badge: "new" },
     { title: "Backtesting", url: "/backtest", icon: Repeat },
     { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat, badge: "new" },
+    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare, badge: "new" },
     { title: "13F Replicator", url: "/replicate", icon: Users, badge: "new" },
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
   ],

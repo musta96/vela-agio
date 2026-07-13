@@ -31,6 +31,7 @@ import Macro from "./pages/Macro";
 import CreditSpreads from "./pages/CreditSpreads";
 import BuybackAnalyzer from "./pages/BuybackAnalyzer";
 import BondCalculator from "./pages/BondCalculator";
+import ETFOverlap from "./pages/ETFOverlap";
 import HedgeFundReplicator from "./pages/HedgeFundReplicator";
 import Copilot from "./pages/Copilot";
 import Goals from "./pages/Goals";
@@ -173,6 +174,7 @@ const App = () => (
             <Route path="/credit-spreads" element={<CreditSpreads />} />
             <Route path="/buybacks" element={<BuybackAnalyzer />} />
             <Route path="/bonds" element={<BondCalculator />} />
+            <Route path="/etf-overlap" element={<ETFOverlap />} />
             <Route path="/replicate" element={<HedgeFundReplicator />} />
             <Route path="/copilot" element={<Copilot />} />
             <Route path="/goals" element={<Goals />} />

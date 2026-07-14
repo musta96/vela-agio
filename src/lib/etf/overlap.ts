@@ -212,16 +212,21 @@ export function diversificationScore(etfs: ETFDef[], allocations?: number[]): {
 } {
   if (etfs.length === 0) return { score: 0, breakdown: { avgOverlap: 0, top10: 0, topSector: 0 } };
 
-  // Average pairwise weight overlap across all selected pairs.
+  // Allocation-weighted average pairwise overlap. Each pair contributes in
+  // proportion to how much the user has actually allocated to both funds.
+  const alloc = (allocations && allocations.length === etfs.length)
+    ? normalizeAlloc(allocations)
+    : Array(etfs.length).fill(1 / Math.max(1, etfs.length));
   let overlapSum = 0;
-  let pairs = 0;
+  let wSum = 0;
   for (let i = 0; i < etfs.length; i++) {
     for (let j = i + 1; j < etfs.length; j++) {
-      overlapSum += pairwiseOverlap(etfs[i], etfs[j]).weightOverlap;
-      pairs += 1;
+      const w = alloc[i] * alloc[j];
+      overlapSum += w * pairwiseOverlap(etfs[i], etfs[j]).weightOverlap;
+      wSum += w;
     }
   }
-  const avgOverlap = pairs > 0 ? overlapSum / pairs : 0;
+  const avgOverlap = wSum > 0 ? overlapSum / wSum : 0;
 
   const blend = blendedPortfolio(etfs, allocations);
   const top10 = blend.holdings.slice(0, 10).reduce((s, h) => s + h.weight, 0); // percent

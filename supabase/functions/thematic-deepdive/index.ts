@@ -134,6 +134,7 @@ async function fetchSentiment(auth: string, symbol: string): Promise<number | nu
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: auth, apikey: SUPABASE_ANON_KEY },
       body: JSON.stringify({ symbol }),
+      signal: AbortSignal.timeout(6000),
     });
     if (!r.ok) return null;
     const j = await r.json();
@@ -222,19 +223,24 @@ Deno.serve(async (req) => {
       const sym = c.symbol.trim().toUpperCase();
       if (!sym || candidateMap.has(sym)) continue;
       candidateMap.set(sym, { segment: seg.segment, exposure: c.exposure, thesis: c.thesis, name: c.name, evidence: c.evidence, exposurePct: c.exposurePct ?? null });
-      if (candidateMap.size >= 60) break;
+      if (candidateMap.size >= 30) break;
     }
-    if (candidateMap.size >= 60) break;
+    if (candidateMap.size >= 30) break;
   }
 
   // 3. Fanout fundamentals + sentiment ---------------------------------
   const symbols = [...candidateMap.keys()];
   const rows: Array<z.infer<typeof ChainSegment>["companies"][number] & { fundamentals: Awaited<ReturnType<typeof fetchFundamentals>>; sentiment: number | null }> = [];
-  for (let i = 0; i < symbols.length; i += 5) {
-    const batch = symbols.slice(i, i + 5);
+  for (let i = 0; i < symbols.length; i += 10) {
+    const batch = symbols.slice(i, i + 10);
     const results = await Promise.all(batch.map(async (sym) => {
       const [f, s] = await Promise.all([
-        fetchFundamentals(sym).catch(() => null),
+        // Hard-cap each downstream call so one slow provider can't push
+        // the whole function past the 150s edge-runtime idle timeout.
+        Promise.race([
+          fetchFundamentals(sym).catch(() => null),
+          new Promise<null>((res) => setTimeout(() => res(null), 8000)),
+        ]),
         fetchSentiment(auth, sym).catch(() => null),
       ]);
       const meta = candidateMap.get(sym)!;

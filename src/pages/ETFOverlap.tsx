@@ -19,6 +19,9 @@ import {
   pairwiseOverlap, sharedHoldings, sectorMatrix, blendedPortfolio,
   diversificationScore, scoreBand,
 } from "@/lib/etf/overlap";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { Link } from "react-router-dom";
+import { Lock } from "lucide-react";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -29,7 +32,8 @@ const COLORS = [
 ];
 
 const DEFAULT_SELECTION = ["SPY", "QQQ", "VTI"];
-const MAX_SLOTS = 5;
+const FREE_MAX_SLOTS = 3;
+const PAID_MAX_SLOTS = 5;
 
 function pct(x: number, digits = 1) {
   return `${x.toFixed(digits)}%`;
@@ -40,6 +44,9 @@ function pctFrac(x: number, digits = 1) {
 
 export default function ETFOverlap() {
   const universe = listETFs();
+  const ent = useEntitlements();
+  const isPaid = ent.tier !== "free" || ent.betaActive;
+  const MAX_SLOTS = isPaid ? PAID_MAX_SLOTS : FREE_MAX_SLOTS;
   const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTION);
   const [allocations, setAllocations] = useState<number[]>(DEFAULT_SELECTION.map(() => 1));
   const [query, setQuery] = useState("");
@@ -89,6 +96,7 @@ export default function ETFOverlap() {
   const blend = useMemo(() => (etfs.length >= 1 ? blendedPortfolio(etfs, allocations) : null), [etfs, allocations]);
   const scoreObj = useMemo(() => diversificationScore(etfs, allocations), [etfs, allocations]);
   const band = scoreBand(scoreObj.score);
+  const topBlendSector = blend?.sectors[0];
 
   const sectorChartData = useMemo(
     () =>
@@ -120,7 +128,7 @@ export default function ETFOverlap() {
       <PageHeader
         icon={GitCompare}
         title="ETF Overlap Analyzer"
-        description="Compare up to 5 ETFs — spot duplicate holdings, sector concentration, and true diversification"
+        description={`Compare up to ${MAX_SLOTS} ETFs — allocation-weighted overlap, sector concentration, and diversification scoring`}
       />
 
       {/* Selection panel */}
@@ -130,7 +138,7 @@ export default function ETFOverlap() {
             <Layers className="h-4 w-4" /> Selected ETFs ({selected.length}/{MAX_SLOTS})
           </CardTitle>
           <CardDescription>
-            Pick funds from the catalog. Allocations are relative weights — used to build the blended portfolio.
+            Allocations are your actual portfolio weights — they drive the blended portfolio, HHI, effective-N and the allocation-weighted diversification score.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -194,6 +202,17 @@ export default function ETFOverlap() {
               </div>
             </div>
           )}
+          {selected.length >= MAX_SLOTS && !isPaid && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+              <span className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-primary" />
+                Free plan compares up to {FREE_MAX_SLOTS} ETFs. Upgrade to compare up to {PAID_MAX_SLOTS} and unlock multi-ETF concentration analytics.
+              </span>
+              <Button asChild size="sm" variant="default">
+                <Link to="/upgrade">Upgrade</Link>
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -212,13 +231,13 @@ export default function ETFOverlap() {
               value={scoreObj.score.toFixed(0)}
               suffix="/100"
               tone={band.tone}
-              hint={band.label}
+              hint={`${band.label} · allocation-weighted`}
             />
             <Kpi
-              label="Avg Pairwise Overlap"
+              label="Weighted Pairwise Overlap"
               value={pctFrac(scoreObj.breakdown.avgOverlap)}
               tone={scoreObj.breakdown.avgOverlap > 0.5 ? "bad" : scoreObj.breakdown.avgOverlap > 0.25 ? "warn" : "good"}
-              hint="weight-min across shared holdings"
+              hint="pairs weighted by your allocations"
             />
             <Kpi
               label="Blended Top-10 Weight"
@@ -228,12 +247,40 @@ export default function ETFOverlap() {
             />
             <Kpi
               label="Top Sector"
-              value={sectors[0]?.sector ?? "-"}
-              suffix={sectors[0] ? ` ${pct(sectors[0].blended)}` : ""}
+              value={topBlendSector?.sector ?? "-"}
+              suffix={topBlendSector ? ` ${pct(topBlendSector.weight)}` : ""}
               tone={scoreObj.breakdown.topSector > 45 ? "bad" : scoreObj.breakdown.topSector > 30 ? "warn" : "good"}
-              hint="blended sector weight"
+              hint="allocation-weighted sector"
             />
           </div>
+
+          {etfs.length >= 3 && blend && (
+            <div className="grid gap-3 md:grid-cols-4">
+              <Kpi
+                label="Combined HHI"
+                value={blend.hhi.toFixed(4)}
+                tone={blend.hhi > 0.15 ? "bad" : blend.hhi > 0.08 ? "warn" : "good"}
+                hint="Herfindahl on blended holdings"
+              />
+              <Kpi
+                label="Effective # Holdings"
+                value={blend.effectiveN.toFixed(1)}
+                tone={blend.effectiveN < 15 ? "bad" : blend.effectiveN < 40 ? "warn" : "good"}
+                hint="1 / HHI (disclosed portion)"
+              />
+              <Kpi
+                label="Disclosed Coverage"
+                value={pctFrac(blend.disclosedCoverage)}
+                hint="share of NAV in disclosed top names"
+              />
+              <Kpi
+                label="Set Size"
+                value={String(etfs.length)}
+                suffix={` ETFs`}
+                hint="multi-ETF portfolio analytics"
+              />
+            </div>
+          )}
 
           <Tabs defaultValue="overlap" className="space-y-4">
             <TabsList>

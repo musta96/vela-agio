@@ -13,8 +13,7 @@ import {
   computeBuybackImpact, projectBuybacks, fmtMoney, fmtShares, fmtPct,
   type BuybackYear,
 } from "@/lib/buybacks/model";
-
-const PROXY = "https://api.allorigins.win/raw?url=";
+import { supabase } from "@/integrations/supabase/client";
 
 function num(v: any): number | null {
   if (v == null) return null;
@@ -40,13 +39,14 @@ export default function BuybackAnalyzer() {
     if (!symbol) return;
     let active = true;
     setLoading(true); setErr(null);
-    const modules = "cashflowStatementHistory,incomeStatementHistory,defaultKeyStatistics,summaryDetail,price,financialData";
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
-    fetch(`${PROXY}${encodeURIComponent(url)}`)
-      .then(r => r.json())
-      .then(j => {
+    // Route through our edge function — Yahoo's public quoteSummary endpoint
+    // now requires a crumb/cookie handshake and is not directly CORS-callable.
+    supabase.functions
+      .invoke("buyback-fundamentals", { body: { symbol } })
+      .then(({ data: resp, error }) => {
         if (!active) return;
-        const q = j?.quoteSummary?.result?.[0];
+        if (error) { setErr("Failed to load fundamentals."); setLoading(false); return; }
+        const q = (resp as any)?.result;
         if (!q) { setErr("Not covered for this symbol."); setLoading(false); return; }
         setData(q); setLoading(false);
       })

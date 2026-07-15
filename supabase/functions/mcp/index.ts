@@ -320,6 +320,18 @@ function projectDividends(input) {
   const seedIncome = positions.reduce((a, p) => a + (p.shares * p.price * (p.yieldPct / 100) || 0), 0);
   const seededFromPositions = positions.length > 0 && seedValue > 0;
   const blendedYield = seededFromPositions ? seedIncome / seedValue : y0Scalar;
+  const hasPositionDrip = positions.some((p) => typeof p.dripPct === "number");
+  const fallbackDrip = typeof input.reinvestRatePct === "number" ? input.reinvestRatePct : input.reinvest ? 100 : 0;
+  let blendedDripPct = fallbackDrip;
+  if (hasPositionDrip && seedIncome > 0) {
+    const weighted = positions.reduce((a, p) => {
+      const inc = p.shares * p.price * (p.yieldPct / 100);
+      const drip = typeof p.dripPct === "number" ? p.dripPct : fallbackDrip;
+      return a + inc * drip;
+    }, 0);
+    blendedDripPct = weighted / seedIncome;
+  }
+  const dripFrac = Math.min(1, Math.max(0, blendedDripPct / 100));
   const startingValue = seededFromPositions ? seedValue : input.startingValue;
   let price = 1;
   let shares = startingValue / price;
@@ -343,9 +355,10 @@ function projectDividends(input) {
         const net = gross * (1 - tax);
         grossThisYear += gross;
         netThisYear += net;
-        if (input.reinvest) {
-          shares += net / price;
-          cumulativeReinvested += net;
+        if (dripFrac > 0) {
+          const reinv = net * dripFrac;
+          shares += reinv / price;
+          cumulativeReinvested += reinv;
         }
         dividendPerShare *= Math.pow(1 + dgr, 1 / freq);
       }
@@ -375,7 +388,8 @@ function projectDividends(input) {
     totalNet,
     yieldOnCost: last?.yieldOnCost ?? 0,
     blendedStartYieldPct: blendedYield * 100,
-    seededFromPositions
+    seededFromPositions,
+    blendedDripPct
   };
 }
 

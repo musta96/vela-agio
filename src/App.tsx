@@ -84,6 +84,7 @@ import OwnerConsole from "./pages/OwnerConsole";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import OAuthConsent from "./pages/OAuthConsent";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
@@ -122,6 +123,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
           <Route path="/signup/trial" element={<SignupTrial />} />
           <Route path="/signup/trial/return" element={<SignupTrialReturn />} />

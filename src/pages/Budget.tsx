@@ -370,7 +370,30 @@ export default function Budget() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      {isFutureOrCurrent && projectedByCategory.size > 0 && (
+        <Alert className="mb-4">
+          <Repeat className="h-4 w-4" />
+          <AlertTitle>Projected recurring transactions applied</AlertTitle>
+          <AlertDescription className="text-xs">
+            {Array.from(projectedByCategory.entries())
+              .map(([c, v]) => `${c} (+${fmt(v, ccy)})`)
+              .join(" · ")}
+            {" — "}scheduled from your recurring rules because no matching import exists yet this month.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="recurring">
+            Recurring rules {rules.length > 0 && <Badge variant="secondary" className="ml-2 h-4 text-[10px]">{rules.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="reconcile">Reconcile</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4 mt-0">
+          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         {/* Comparison chart */}
         <Card>
           <CardHeader className="pb-2">
@@ -480,6 +503,30 @@ export default function Budget() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="recurring" className="mt-0">
+          <RecurringRulesPanel
+            rules={rules}
+            onChange={persistRules}
+            ccy={ccy}
+            selectedMonth={selectedMonth}
+            monthEntries={monthEntries}
+            isFutureOrCurrent={isFutureOrCurrent}
+            isExcluded={isExcluded}
+          />
+        </TabsContent>
+
+        <TabsContent value="reconcile" className="mt-0">
+          <ReconcilePanel
+            entries={entries}
+            tags={tags}
+            onChange={persistTags}
+            ccy={ccy}
+            selectedMonth={selectedMonth}
+          />
+        </TabsContent>
+      </Tabs>
 
       <ImportCsvDialog
         open={importOpen}

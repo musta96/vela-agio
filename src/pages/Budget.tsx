@@ -77,6 +77,64 @@ type TxTag = "transfer" | "duplicate" | "matched";
 
 const RULES_LS_KEY = (uid: string) => `vela.budget.recurring.rules.v1.${uid}`;
 const TAGS_LS_KEY = (uid: string) => `vela.budget.tx.tags.v1.${uid}`;
+const RECONCILE_CFG_LS_KEY = (uid: string) => `vela.budget.reconcile.cfg.v1.${uid}`;
+
+/**
+ * Configurable matching rules for reconciliation.
+ * - amountTolerancePct / amountToleranceAbs: candidate pairs match when the
+ *   difference between two amounts is within EITHER tolerance (whichever is
+ *   larger). Set both to 0 to require exact matches.
+ * - dateWindowDays: max |Δdays| between the two entries.
+ * - labelSimilarity: minimum Jaccard similarity of tokenised descriptions
+ *   for duplicate detection (0 disables label check, 1 requires identical).
+ * - ignoredPayeeKeywords: tokens stripped from labels before similarity is
+ *   computed (e.g. "pos", "purchase", "visa") so noisy prefixes don't hurt.
+ * - transferKeywords: if provided, at least one keyword must appear in the
+ *   description of the outflow OR the inflow for it to be treated as a
+ *   transfer candidate. Empty list = purely amount/date matching.
+ */
+type ReconcileConfig = {
+  amountTolerancePct: number;
+  amountToleranceAbs: number;
+  dateWindowDays: number;
+  labelSimilarity: number;
+  ignoredPayeeKeywords: string[];
+  transferKeywords: string[];
+};
+
+const DEFAULT_RECONCILE_CFG: ReconcileConfig = {
+  amountTolerancePct: 0,
+  amountToleranceAbs: 0,
+  dateWindowDays: 3,
+  labelSimilarity: 0.4,
+  ignoredPayeeKeywords: ["pos", "purchase", "visa", "debit", "card", "payment", "ref"],
+  transferKeywords: [],
+};
+
+function loadReconcileCfg(uid: string): ReconcileConfig {
+  if (typeof window === "undefined") return DEFAULT_RECONCILE_CFG;
+  try {
+    const raw = window.localStorage.getItem(RECONCILE_CFG_LS_KEY(uid));
+    if (!raw) return DEFAULT_RECONCILE_CFG;
+    return { ...DEFAULT_RECONCILE_CFG, ...JSON.parse(raw) };
+  } catch { return DEFAULT_RECONCILE_CFG; }
+}
+function saveReconcileCfg(uid: string, cfg: ReconcileConfig) {
+  try { window.localStorage.setItem(RECONCILE_CFG_LS_KEY(uid), JSON.stringify(cfg)); } catch { /* ignore */ }
+}
+
+function amountsMatch(a: number, b: number, cfg: ReconcileConfig): boolean {
+  const diff = Math.abs(a - b);
+  const pctTol = (Math.max(Math.abs(a), Math.abs(b)) * cfg.amountTolerancePct) / 100;
+  const tol = Math.max(cfg.amountToleranceAbs, pctTol, 0.005);
+  return diff <= tol;
+}
+
+function containsAny(label: string | null, keywords: string[]): boolean {
+  if (!keywords.length) return true; // no keywords = accept anything
+  const l = (label || "").toLowerCase();
+  return keywords.some((k) => k && l.includes(k.toLowerCase()));
+}
 
 function loadRules(uid: string): RecurringRule[] {
   if (typeof window === "undefined") return [];
@@ -168,13 +226,15 @@ export default function Budget() {
   const [importOpen, setImportOpen] = useState(false);
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [tags, setTags] = useState<Record<string, TxTag>>({});
+  const [reconcileCfg, setReconcileCfg] = useState<ReconcileConfig>(DEFAULT_RECONCILE_CFG);
   const [tab, setTab] = useState<string>("overview");
 
   // Load rules & tags whenever the user changes.
   useEffect(() => {
-    if (!user) { setRules([]); setTags({}); return; }
+    if (!user) { setRules([]); setTags({}); setReconcileCfg(DEFAULT_RECONCILE_CFG); return; }
     setRules(loadRules(user.id));
     setTags(loadTags(user.id));
+    setReconcileCfg(loadReconcileCfg(user.id));
   }, [user?.id]);
 
   const persistRules = (next: RecurringRule[]) => {
@@ -184,6 +244,10 @@ export default function Budget() {
   const persistTags = (next: Record<string, TxTag>) => {
     setTags(next);
     if (user) saveTags(user.id, next);
+  };
+  const persistReconcileCfg = (next: ReconcileConfig) => {
+    setReconcileCfg(next);
+    if (user) saveReconcileCfg(user.id, next);
   };
 
   const load = async () => {
@@ -524,6 +588,8 @@ export default function Budget() {
             onChange={persistTags}
             ccy={ccy}
             selectedMonth={selectedMonth}
+            cfg={reconcileCfg}
+            onCfgChange={persistReconcileCfg}
           />
         </TabsContent>
       </Tabs>
@@ -1038,61 +1104,75 @@ function RecurringRulesPanel({
  * transactions are excluded from budget-vs-actual totals.
  */
 function ReconcilePanel({
-  entries, tags, onChange, ccy, selectedMonth,
+  entries, tags, onChange, ccy, selectedMonth, cfg, onCfgChange,
 }: {
   entries: CashFlowEntry[];
   tags: Record<string, TxTag>;
   onChange: (next: Record<string, TxTag>) => void;
   ccy: string;
   selectedMonth: string;
+  cfg: ReconcileConfig;
+  onCfgChange: (next: ReconcileConfig) => void;
 }) {
   const monthEntries = useMemo(
     () => entries.filter((e) => monthKey(e.entry_date) === selectedMonth),
     [entries, selectedMonth],
   );
 
-  // Duplicate detection: for each pair of same-direction entries in the same
-  // month with matching amount (rounded to 2dp) and Jaccard-ish label overlap
-  // and dates within 3 days, treat the later row as the duplicate candidate.
+  // Duplicate detection: pairs of same-direction entries with amounts within
+  // the user-configured tolerance, dates within the configured window, and
+  // description Jaccard similarity ≥ the configured threshold. Ignored
+  // payee keywords are stripped before tokenising so filler words don't
+  // inflate the score.
   const duplicates = useMemo(() => {
     const out: Array<{ keep: CashFlowEntry; dup: CashFlowEntry; score: number }> = [];
-    const norm = (s: string | null) => (s || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+    const ignored = new Set(cfg.ignoredPayeeKeywords.map((k) => k.toLowerCase()).filter(Boolean));
+    const norm = (s: string | null) =>
+      (s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w && !ignored.has(w));
     for (let i = 0; i < monthEntries.length; i++) {
       for (let j = i + 1; j < monthEntries.length; j++) {
         const a = monthEntries[i], b = monthEntries[j];
         if (a.direction !== b.direction) continue;
-        if (Math.round(Number(a.amount) * 100) !== Math.round(Number(b.amount) * 100)) continue;
+        if (!amountsMatch(Number(a.amount), Number(b.amount), cfg)) continue;
         const days = Math.abs((new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()) / 86400000);
-        if (days > 3) continue;
+        if (days > cfg.dateWindowDays) continue;
         const wa = new Set(norm(a.label));
         const wb = new Set(norm(b.label));
         const inter = [...wa].filter((w) => wb.has(w)).length;
         const union = new Set([...wa, ...wb]).size || 1;
         const jacc = inter / union;
-        if (jacc < 0.4 && (a.label || "") !== (b.label || "")) continue;
+        if (jacc < cfg.labelSimilarity && (a.label || "") !== (b.label || "")) continue;
         const [keep, dup] = a.entry_date <= b.entry_date ? [a, b] : [b, a];
         out.push({ keep, dup, score: jacc });
       }
     }
     return out;
-  }, [monthEntries]);
+  }, [monthEntries, cfg]);
 
-  // Transfer detection: matching abs amounts between an income and an expense
-  // within 3 days (money leaving one account then landing in another).
+  // Transfer detection: offsetting income/expense pairs within the configured
+  // amount tolerance and date window. When transferKeywords is non-empty, at
+  // least one side of the pair must include one of the keywords.
   const transfers = useMemo(() => {
     const out: Array<{ out: CashFlowEntry; in: CashFlowEntry }> = [];
     const outs = monthEntries.filter((e) => e.direction === "expense");
     const ins = monthEntries.filter((e) => e.direction === "income");
     for (const o of outs) {
       for (const i of ins) {
-        if (Math.round(Number(o.amount) * 100) !== Math.round(Number(i.amount) * 100)) continue;
+        if (!amountsMatch(Number(o.amount), Number(i.amount), cfg)) continue;
         const days = Math.abs((new Date(o.entry_date).getTime() - new Date(i.entry_date).getTime()) / 86400000);
-        if (days > 3) continue;
+        if (days > cfg.dateWindowDays) continue;
+        if (cfg.transferKeywords.length > 0
+            && !containsAny(o.label, cfg.transferKeywords)
+            && !containsAny(i.label, cfg.transferKeywords)) continue;
         out.push({ out: o, in: i });
       }
     }
     return out;
-  }, [monthEntries]);
+  }, [monthEntries, cfg]);
 
   const tagBoth = (ids: string[], tag: TxTag | undefined) => {
     const next = { ...tags };
@@ -1124,10 +1204,16 @@ function ReconcilePanel({
         <Kpi label="Duplicates" value={String(summary.duplicates)} icon={GitMerge} tone={summary.duplicates > 0 ? "bad" : "neutral"} />
       </div>
 
+      <ReconcileConfigCard cfg={cfg} onChange={onCfgChange} />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2"><GitMerge className="h-4 w-4" /> Suspected duplicates</CardTitle>
-          <CardDescription>Pairs with matching amount and near-identical descriptions within 3 days.</CardDescription>
+          <CardDescription>
+            Pairs with matching amount (±{cfg.amountToleranceAbs} {ccy} or ±{cfg.amountTolerancePct}%),
+            {" "}dates within {cfg.dateWindowDays} day{cfg.dateWindowDays === 1 ? "" : "s"},
+            {" "}and description similarity ≥ {(cfg.labelSimilarity * 100).toFixed(0)}%.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           {duplicates.length === 0 ? (
@@ -1292,6 +1378,104 @@ function Kpi({
       <div className={`text-2xl font-semibold mt-1 tabular-nums ${tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : ""}`}>
         {value}
       </div>
+    </Card>
+  );
+}
+
+// ---------------- Reconcile matching config ----------------
+function ReconcileConfigCard({
+  cfg, onChange,
+}: {
+  cfg: ReconcileConfig;
+  onChange: (next: ReconcileConfig) => void;
+}) {
+  const [ignoredInput, setIgnoredInput] = useState(cfg.ignoredPayeeKeywords.join(", "));
+  const [transferInput, setTransferInput] = useState(cfg.transferKeywords.join(", "));
+
+  useEffect(() => { setIgnoredInput(cfg.ignoredPayeeKeywords.join(", ")); }, [cfg.ignoredPayeeKeywords]);
+  useEffect(() => { setTransferInput(cfg.transferKeywords.join(", ")); }, [cfg.transferKeywords]);
+
+  const parseList = (s: string) =>
+    Array.from(new Set(s.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)));
+
+  const reset = () => onChange(DEFAULT_RECONCILE_CFG);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
+        <div>
+          <CardTitle className="text-base">Matching rules</CardTitle>
+          <CardDescription>
+            Tune how aggressively duplicates and transfers are detected. Changes apply instantly and are saved to this device.
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" onClick={reset}>Reset defaults</Button>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1">
+          <Label className="text-xs">Amount tolerance (absolute)</Label>
+          <Input
+            type="number" min={0} step={0.01} className="h-8"
+            value={cfg.amountToleranceAbs}
+            onChange={(e) => onChange({ ...cfg, amountToleranceAbs: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <p className="text-[11px] text-muted-foreground">e.g. 0.50 to allow up to 50¢ rounding drift.</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Amount tolerance (%)</Label>
+          <Input
+            type="number" min={0} step={0.1} className="h-8"
+            value={cfg.amountTolerancePct}
+            onChange={(e) => onChange({ ...cfg, amountTolerancePct: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <p className="text-[11px] text-muted-foreground">Useful for FX-converted transfers.</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Date window (days)</Label>
+          <Input
+            type="number" min={0} max={30} step={1} className="h-8"
+            value={cfg.dateWindowDays}
+            onChange={(e) => onChange({ ...cfg, dateWindowDays: Math.max(0, Math.min(30, Number(e.target.value) || 0)) })}
+          />
+          <p className="text-[11px] text-muted-foreground">Max |Δdays| between the two entries.</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Label similarity (min %)</Label>
+          <Input
+            type="number" min={0} max={100} step={5} className="h-8"
+            value={Math.round(cfg.labelSimilarity * 100)}
+            onChange={(e) => onChange({ ...cfg, labelSimilarity: Math.max(0, Math.min(1, (Number(e.target.value) || 0) / 100)) })}
+          />
+          <p className="text-[11px] text-muted-foreground">Higher = fewer false duplicates.</p>
+        </div>
+
+        <div className="space-y-1 md:col-span-2">
+          <Label className="text-xs">Ignored payee keywords</Label>
+          <Input
+            className="h-8"
+            value={ignoredInput}
+            onChange={(e) => setIgnoredInput(e.target.value)}
+            onBlur={() => onChange({ ...cfg, ignoredPayeeKeywords: parseList(ignoredInput) })}
+            placeholder="pos, purchase, visa, card"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Comma-separated. Stripped from descriptions before similarity is measured — keeps filler words from inflating matches.
+          </p>
+        </div>
+        <div className="space-y-1 md:col-span-2">
+          <Label className="text-xs">Transfer payee keywords</Label>
+          <Input
+            className="h-8"
+            value={transferInput}
+            onChange={(e) => setTransferInput(e.target.value)}
+            onBlur={() => onChange({ ...cfg, transferKeywords: parseList(transferInput) })}
+            placeholder="transfer, wire, own account, savings"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            When set, at least one keyword must appear on one side of the pair. Leave empty to match on amount + date only.
+          </p>
+        </div>
+      </CardContent>
     </Card>
   );
 }

@@ -1,96 +1,79 @@
-# Thematic Deep-Dive
+# AI-Powered Advanced Technical Analysis
 
-Let users pick or type a theme (AI chips, GLP-1, defence electronics, uranium, grid infra…) and get:
-1. an AI-generated value-chain map (raw materials → components → manufacturers → distributors → end users),
-2. a ranked list of listed companies across the chain — including deliberately included micro/small caps,
-3. per-name fundamentals, sentiment, and a one-click path to the memo/timing engines already in the app.
+Scope is very large. Proposal: ship it as **four modules on `/technical`** plus a new **Strategy Builder** wired into `/backtest`, all client-side computed from existing OHLC data (no new market-data provider needed). AI narrative summary via existing Lovable AI edge function.
 
-## User surface
+## Modules
 
-**New route `/explore/themes`** (added as a tab on the existing `/explore` hub, so it lives with the other discovery rails):
+### 1. Pattern & structure engine (pure TS lib)
+New `src/lib/ta/` package computing everything from OHLC bars already returned by `useOHLCHistory`:
+- **Candlestick patterns** — all 19 requested: hammer, inverted hammer, hanging man, shooting star, engulfing (bull/bear), morning/evening star, piercing line, dark cloud cover, three white soldiers, three black crows, dragonfly/gravestone/standard doji, spinning top, marubozu.
+- **Chart patterns** — head & shoulders (+ inverse), double top/bottom, ascending/descending/symmetrical triangles, bull/bear flags, wedges, using pivot-high/low detection.
+- **Support & resistance** — dynamic (rolling pivot clusters w/ touch count) + static (round-number & prior swing highs/lows).
+- **Trendlines** — auto-fit through swing pivots with breakout flag.
+- **Smart-money concepts** — Fair Value Gaps (3-bar imbalances), Order Blocks (last opposing candle before displacement), Liquidity Grabs (sweep-and-reclaim of prior swing), Break of Structure / Change of Character.
+- **Supply/demand zones** — base-then-drop / base-then-rally clustering.
 
-- Theme picker: 12 curated preset chips (AI infra, GLP-1, defence, nuclear/uranium, grid & transmission, cybersecurity, cloud data, robotics, space, EV supply chain, biotech gene therapy, quantum) + free-text input.
-- Region + size filters: All / North America / Europe / Asia; and All / Large / Mid / Small & Micro (`marketCap < 2B`).
-- "Discovery mode" toggle — when on, the ranker down-weights mega-caps and lifts small/unknown names with theme exposure.
+Unit-tested with vitest.
 
-Result page:
-- **Value-chain diagram** (5 columns: Raw materials, Components, Manufacturers, Distributors/Integrators, End users) with company chips per node.
-- **Ranked table**: symbol, name, chain segment, market cap, revenue growth, P/E, sentiment score, exposure tag ("pure-play" / "partial" / "adjacent").
-- Row actions: Add to watchlist, Open in `/technical`, Generate research brief, Add to a portfolio memo.
-- Sources footer (news / filings snippets used by the AI).
+### 2. Chart overlay
+Upgrade the existing candle chart on `/technical` with a lightweight canvas overlay layer showing:
+- Colored zones for S/R, supply/demand, FVGs, order blocks.
+- Trendlines and their breakout markers.
+- Candle-pattern flags rendered above/below the affected bars (click → detail popover: definition, bias, invalidation level).
+- Toggle chips to show/hide each family.
 
-## Copilot integration
+### 3. Actionable indicator insights
+Beside the existing RSI / MACD / MA charts, add an **Insights** card that turns raw values into signals:
+- "RSI overbought (73) — potential mean-reversion short"
+- "Golden Cross detected 4 bars ago (SMA50 > SMA200)"
+- "MACD bull-cross with rising histogram"
+- "Volume surge 2.4× 20-day avg confirming breakout"
+- Each row: signal name, timeframe, direction, confidence, "how to trade it".
 
-Register a `run_thematic_deepdive` tool: `{ theme: string, region?: string, size?: 'all'|'large'|'mid'|'small', discoveryMode?: boolean }`. Returns the same JSON as the edge function (chain + ranked candidates). Copilot uses it when the user asks things like "who benefits from GLP-1", "small caps riding AI power demand", "hidden names in defence electronics". The existing `run_screener` stays for objective-metric queries.
+### 4. Trade planner (R:R + position sizing)
+New card: user picks entry, stop, target (auto-prefilled from nearest S/R). Outputs:
+- Risk:Reward ratio, expected value.
+- Position size in shares/contracts based on **% account risk** setting (default 1%) pulled from the existing portfolio risk settings if available.
+- Distance-to-stop as ATR multiple; warn if < 1 ATR.
 
-## Backend
+### 5. Multi-timeframe / top-down analysis
+A **Top-Down** tab showing the same asset synchronized across 1W / 1D / 4H / 1H:
+- Compact scorecards per timeframe with trend, key S/R, active patterns.
+- "Alignment score" – how many timeframes agree bullish vs bearish.
 
-**New edge function `thematic-deepdive`**:
+### 6. Strategy Builder → backtest bridge
+- New `/technical` section: build a rule from the detected primitives (e.g. "Enter long when: RSI < 30 AND bullish engulfing AND price at support. Exit: 2R target or ATR-stop.").
+- Save to a new `trading_strategies` table (user-scoped, RLS).
+- "Backtest this strategy" button links into `/backtest` with strategy pre-loaded (extend BacktestingModule to run rule-based strategies against historical bars).
 
-1. **AI value-chain expansion** (Lovable AI, `google/gemini-3-flash-preview`, JSON mode). Prompt: "Given theme X, produce a value chain with 5 segments and 6–15 publicly-listed tickers per segment (Yahoo format, mix of global exchanges, include small/micro caps where relevant). For each company: segment, exposure tier (pure-play/partial/adjacent), one-line thesis." Zod-validate.
-2. **Universe assembly**: dedupe tickers, cap at 60 per run to stay within fanout budget.
-3. **Fundamentals + sentiment fanout**: reuse existing `nl-screener`'s Yahoo `fetchFundamentals` (extracted into a shared helper) and `analyze-sentiment` for a light sentiment score. Concurrency 5.
-4. **Filters**: region (infer from exchange suffix), size band (`marketCap`), and drop tickers that fail to resolve.
-5. **Ranking**: composite score = `w1·revGrowth + w2·(1/pe if pe>0) + w3·sentiment + w4·exposureBonus`. In Discovery mode, add a `-log10(marketCap)` term so smaller names rise. Deterministic tie-break by ticker.
-6. **Return**: `{ theme, chain: Segment[], results: RankedCompany[], sources }`. Cache in `ai_output_cache` keyed on `(theme, region, size, discoveryMode)` for 24h to keep repeat requests cheap.
+### 7. AI narrative
+New edge function `technical-analysis-brief` (Lovable AI, `openai/gpt-5.5`) takes the computed pattern/indicator/structure JSON and returns a portfolio-manager style trade thesis, using the existing AI access gating & throttling pattern (mirrors `equity-research-analyst`). Cached per (symbol, timeframe, latest-bar-timestamp).
 
-Gated behind the existing AI-access resolver (same pattern as `nl-screener`).
+## Delivery in phases
 
----
+Given the breadth I'd ship in three PRs to keep each reviewable:
 
-# Backlog — Should-have: Short selling & hedging
+**Phase 1 — Core engine + overlay + insights** (this turn if you approve)
+- `src/lib/ta/` package with all pattern & structure detectors + tests
+- Chart overlay + toggle chips
+- Actionable indicator insights card
+- Trade planner card with R:R and position sizing
+- AI narrative edge function + "AI trade thesis" panel
 
-**Why it matters:** aggressive/professional investors need to express negative views and hedge long exposure. Without shorts, options and futures the platform can't cover pro-grade strategies.
+**Phase 2 — Top-Down multi-timeframe view** (next turn)
+- Parallel fetching of 4 timeframes + alignment scoring UI
 
-**Phased rollout:**
-1. **Short paper orders** — extend Alpaca sandbox flow to accept `side: "sell"` on non-owned positions; track borrow/short P&L in `paper_trades` and margin in `paper_cash`. Surface a "Short" toggle in the ticket UI.
-2. **Options chain viewer** — new panel on `/technical` (and a card on `/explore`) fetching Yahoo/CBOE chain per ticker; show strikes, expiries, IV, and basic Greeks (delta, gamma, theta, vega) computed with a Black-Scholes helper in `src/lib/options/`.
-3. **Futures viewer** — contract table for major commodities (CL, GC, NG, HG, ZC) and indices (ES, NQ, YM, RTY, VX) via Yahoo continuous contracts; front-month + calendar spread quick view.
-4. **Copilot integration** — extend `place_paper_order` with `short_sell: true`; add `suggest_hedge(symbol, size)` tool returning a proposed put spread / short future overlay ranked by cost-to-hedge.
-
-**Open questions:** margin model for shorts on the paper engine, IV surface data source (Yahoo has gaps), regulatory copy for EU users.
-
----
-
-# Backlog — Should-have: Portfolio impact comparison
-
-**Why it matters:** capital-allocation decisions are currently made in isolation. Investors need to see how a proposed strategy (memo, thematic deep-dive, screener output) interacts with what they already hold — overlap, risk shift, diversification delta, and how to rebalance around it.
-
-**Scope:**
-1. **Shared engine `src/lib/portfolio/impact.ts`** — pure functions that take `{ existing: Holding[], proposed: Allocation[] }` and compute: sector & geography overlap matrix, combined weights, combined β / vol / VaR (reuse `src/lib/quant/*`), Herfindahl-based diversification score before/after, and a rebalance suggestion that trims duplicated names to a target max weight.
-2. **New edge function `portfolio-impact`** — wraps the engine, pulls existing holdings from `portfolio_holdings` for `auth.uid()`, accepts a proposed allocation payload, returns the full impact JSON (+ cache in `ai_output_cache` keyed on holdings hash + proposal hash).
-3. **UI surface on `/rebalance`** — new "Impact vs current portfolio" panel: overlap heatmap (sector × source), before/after risk cards, diversification delta bar, and a rebalancing table with one-click "Apply suggestion".
-4. **Memo integration** — extend `generate-memo-pdf` with an `include_existing_portfolio_comparison: true` flag that appends a "Portfolio fit" section (overlap chart, risk deltas, rebalance table) to the PDF and to the in-app memo preview.
-5. **Copilot tool** — register `compare_portfolio_impact({ proposed })` returning the same JSON, and let the memo builder auto-invoke it when the user has holdings.
-
-**Open questions:** how to represent proposed allocation (weights vs cash amounts vs share counts), whether to include broker-connected `broker_positions` alongside `portfolio_holdings`, and treatment of ETFs (look-through vs surface-level overlap).
-
-## Files to add / edit
-
-Add:
-- `supabase/functions/thematic-deepdive/index.ts`
-- `supabase/functions/_shared/fundamentals.ts` (extract Yahoo `fetchFundamentals` + `getCrumb` for reuse; refactor `nl-screener` to import from it)
-- `src/lib/thematic/schema.ts` (Zod contract shared with the edge function response)
-- `src/lib/thematic/client.ts` (`fetchThematicDeepDive`)
-- `src/pages/ExploreThemes.tsx`
-- `src/components/thematic/ValueChainDiagram.tsx`
-- `src/components/thematic/ThemedResultsTable.tsx`
-- `src/lib/thematic/__tests__/scoring.test.ts` (rank composition + Discovery-mode small-cap lift)
-
-Edit:
-- `src/App.tsx` — route `/explore/themes`
-- `src/pages/Explore.tsx` — add a "Themes" tab entry
-- `supabase/functions/copilot/index.ts` — register `run_thematic_deepdive` tool + executor
-- `supabase/functions/nl-screener/index.ts` — import from shared fundamentals helper
-
-## Out of scope
-
-- Live revenue-exposure percentages per theme (would need paid filings data). We rely on the AI's exposure tier + a disclaimer.
-- Auto-populated theme catalogue from news trends — v1 uses the curated 12 presets plus free-text.
-- Backtesting the discovery output.
+**Phase 3 — Strategy Builder + backtest integration** (next turn)
+- `trading_strategies` table + migration
+- Rule builder UI
+- Extension of `/backtest` to execute rule-based strategies
 
 ## Technical notes
+- All detectors are pure functions over `OHLCBar[]`; no new market-data source.
+- Overlay uses SVG on top of the existing recharts container to keep bundle size flat; no `lightweight-charts` dependency added.
+- Position sizing reads from `profiles.risk_pct` if present, otherwise defaults to 1% with a user-editable input.
+- No breaking changes to existing `/technical` sections — everything is additive.
 
-- Reuse `resolveAiAccess` / `modelForCap` for gating and BYOK, same as `nl-screener`.
-- No new tables — cache uses existing `ai_output_cache`.
-- Value-chain diagram is a CSS grid of columns with badge cards — no external graph lib.
+## Question before I start
+
+**Do you want me to ship Phase 1 now** (engine + overlay + insights + trade planner + AI thesis), and I'll do Phases 2 & 3 in follow-up turns? Or should I re-scope (e.g., skip the smart-money concepts, or start with Strategy Builder first)?

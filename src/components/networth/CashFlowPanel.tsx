@@ -428,7 +428,7 @@ export function CashFlowPanel() {
       });
     }
     return { rows, monthlyDelta: firstMonthDelta, baseline };
-  }, [entries, netWorth.total, monthlySeries, forecastMonths]);
+  }, [entries, budgets, netWorth.total, monthlySeries, forecastMonths]);
 
   const kpiCard = (label: string, value: string, hint?: string, tone?: "good" | "bad" | "muted") => (
     <Card className="p-4">

@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBaseCurrency } from "@/hooks/useBaseCurrency";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDownRight, ArrowUpRight, Plus, Trash2, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Plus, Trash2, Wallet, Pencil, Pause, Play, Target, TrendingUp, AlertTriangle } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -19,6 +21,7 @@ import {
   Cell,
   Legend,
   Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -26,7 +29,9 @@ import {
   XAxis,
   YAxis,
   ComposedChart,
+  ReferenceLine,
 } from "recharts";
+import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 
 /**
  * Monthly cash flow tracker — records income and expense entries and
@@ -48,6 +53,15 @@ type CashFlowEntry = {
   currency: string;
   recurring_monthly: boolean;
   notes: string | null;
+  paused_from: string | null; // YYYY-MM-DD; recurring stops projecting from this date onward
+};
+
+type BudgetTarget = {
+  id: string;
+  user_id: string;
+  category: string;
+  monthly_limit: number;
+  currency: string;
 };
 
 const INCOME_CATEGORIES = ["Salary", "Freelance", "Dividends", "Interest", "Rental", "Bonus", "Other"];

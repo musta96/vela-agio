@@ -339,12 +339,26 @@ export default function DividendPlanner() {
               <div className="space-y-1.5">
                 <Label className="flex items-center justify-between">
                   Reinvest (DRIP)
-                  <Switch checked={reinvest} onCheckedChange={setReinvest} />
+                  <Switch checked={reinvest} onCheckedChange={(v) => { setReinvest(v); setGlobalDripPct(v ? 100 : 0); }} />
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {reinvest ? "Net dividends buy new shares." : "Dividends paid as cash."}
+                  {globalDripPct >= 100 ? "Full DRIP — every dividend reinvests." : globalDripPct <= 0 ? "Dividends paid as cash." : `${globalDripPct}% reinvested, rest paid as cash.`}
                 </p>
               </div>
+            </div>
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Default DRIP rate</Label>
+                <span className="text-sm font-medium tabular-nums">{globalDripPct}%</span>
+              </div>
+              <Slider
+                value={[globalDripPct]}
+                onValueChange={([v]) => { setGlobalDripPct(v); setReinvest(v > 0); }}
+                min={0} max={100} step={5}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Applied on each pay date. Per-position overrides in the imported table win when seeded from portfolio.
+              </p>
             </div>
           </CardContent>
         </Card>

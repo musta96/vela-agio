@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       if (!userId) return jsonResp({ notes: [], authenticated: false });
       const q = svc().from('ai_research_notes')
-        .select('id, symbol, name, mode, source_url, source_label, focus, model, generated_at, created_at, report')
+        .select('id, symbol, name, mode, source_url, source_label, focus, model, generated_at, created_at, report, share_token, share_enabled, share_permissions, share_expires_at')
         .eq('user_id', userId).order('generated_at', { ascending: false }).limit(200);
       if (body.symbol) q.eq('symbol', body.symbol.toUpperCase());
       const { data, error } = await q;

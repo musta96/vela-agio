@@ -309,6 +309,11 @@ export type Database = {
           name: string | null
           provider_notice: string | null
           report: Json
+          share_created_at: string | null
+          share_enabled: boolean
+          share_expires_at: string | null
+          share_permissions: Json
+          share_token: string | null
           source_hash: string
           source_label: string | null
           source_note: string | null
@@ -326,6 +331,11 @@ export type Database = {
           name?: string | null
           provider_notice?: string | null
           report: Json
+          share_created_at?: string | null
+          share_enabled?: boolean
+          share_expires_at?: string | null
+          share_permissions?: Json
+          share_token?: string | null
           source_hash: string
           source_label?: string | null
           source_note?: string | null
@@ -343,6 +353,11 @@ export type Database = {
           name?: string | null
           provider_notice?: string | null
           report?: Json
+          share_created_at?: string | null
+          share_enabled?: boolean
+          share_expires_at?: string | null
+          share_permissions?: Json
+          share_token?: string | null
           source_hash?: string
           source_label?: string | null
           source_note?: string | null

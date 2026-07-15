@@ -86,6 +86,7 @@ import OwnerConsole from "./pages/OwnerConsole";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import SharedResearchNote from "./pages/SharedResearchNote";
 import OAuthConsent from "./pages/OAuthConsent";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
@@ -143,6 +144,7 @@ const App = () => (
           <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/features" element={<Features />} />
           <Route path="/contact-sales" element={<ContactSales />} />
+          <Route path="/research/shared/:token" element={<SharedResearchNote />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/sentiment" element={<SentimentDashboard />} />

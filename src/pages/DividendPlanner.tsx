@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Coins, Download, TrendingUp, Briefcase, Calendar } from "lucide-react";
+import { Coins, Download, TrendingUp, Briefcase, Calendar, RotateCcw, Save } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis, ComposedChart,
@@ -19,6 +19,56 @@ import { useBaseCurrency } from "@/hooks/useBaseCurrency";
 import { downloadCsv } from "@/lib/csvUtil";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { projectDividends, buildPayoutCalendar, type DividendPositionSeed } from "@/lib/dividends/project";
+
+/** LocalStorage key for persisted planner settings. */
+const STORAGE_KEY = "vela.dividendPlanner.v2";
+
+type PersistedSettings = {
+  startingValue: number;
+  monthlyContribution: number;
+  contributionGrowth: number;
+  dividendYield: number;
+  dividendGrowth: number;
+  priceGrowth: number;
+  taxRate: number;
+  years: number;
+  reinvest: boolean;
+  payoutFreq: "1" | "2" | "4" | "12";
+  globalDripPct: number;
+  importFromPortfolio: boolean;
+  positionYields: Record<string, number>;
+  positionDrip: Record<string, number>;
+  nextPayoutMonth: number;
+};
+
+const DEFAULTS: PersistedSettings = {
+  startingValue: 25_000,
+  monthlyContribution: 500,
+  contributionGrowth: 3,
+  dividendYield: 3.5,
+  dividendGrowth: 6,
+  priceGrowth: 4,
+  taxRate: 15,
+  years: 20,
+  reinvest: true,
+  payoutFreq: "4",
+  globalDripPct: 100,
+  importFromPortfolio: false,
+  positionYields: {},
+  positionDrip: {},
+  nextPayoutMonth: new Date().getMonth() + 1,
+};
+
+function loadPersisted(): PersistedSettings {
+  if (typeof window === "undefined") return DEFAULTS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULTS;
+    return { ...DEFAULTS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULTS;
+  }
+}
 
 /**
  * Dividend Income Planner
@@ -59,24 +109,58 @@ export default function DividendPlanner() {
   const { baseCurrency } = useBaseCurrency();
   const ccy = (baseCurrency || "USD").toUpperCase();
   const portfolio = usePortfolio();
+  const initial = useMemo(() => loadPersisted(), []);
 
-  const [startingValue, setStartingValue] = useState(25_000);
-  const [monthlyContribution, setMonthlyContribution] = useState(500);
-  const [contributionGrowth, setContributionGrowth] = useState(3); // % per year
-  const [dividendYield, setDividendYield] = useState(3.5);         // % annual
-  const [dividendGrowth, setDividendGrowth] = useState(6);         // % per year
-  const [priceGrowth, setPriceGrowth] = useState(4);               // % per year (capital appreciation)
-  const [taxRate, setTaxRate] = useState(15);                      // % on dividends
-  const [years, setYears] = useState(20);
-  const [reinvest, setReinvest] = useState(true);
-  const [payoutFreq, setPayoutFreq] = useState<"1" | "2" | "4" | "12">("4");
+  const [startingValue, setStartingValue] = useState(initial.startingValue);
+  const [monthlyContribution, setMonthlyContribution] = useState(initial.monthlyContribution);
+  const [contributionGrowth, setContributionGrowth] = useState(initial.contributionGrowth);
+  const [dividendYield, setDividendYield] = useState(initial.dividendYield);
+  const [dividendGrowth, setDividendGrowth] = useState(initial.dividendGrowth);
+  const [priceGrowth, setPriceGrowth] = useState(initial.priceGrowth);
+  const [taxRate, setTaxRate] = useState(initial.taxRate);
+  const [years, setYears] = useState(initial.years);
+  const [reinvest, setReinvest] = useState(initial.reinvest);
+  const [payoutFreq, setPayoutFreq] = useState<"1" | "2" | "4" | "12">(initial.payoutFreq);
+  const [globalDripPct, setGlobalDripPct] = useState<number>(initial.globalDripPct);
 
-  // Portfolio import: when enabled, seed starting value + blended yield
-  // from the user's real holdings. Per-position yields default to a naive
-  // guess (2 %) or a per-symbol override; users can edit them inline.
-  const [importFromPortfolio, setImportFromPortfolio] = useState(false);
-  const [positionYields, setPositionYields] = useState<Record<string, number>>({});
-  const [nextPayoutMonth, setNextPayoutMonth] = useState<number>(new Date().getMonth() + 1);
+  const [importFromPortfolio, setImportFromPortfolio] = useState(initial.importFromPortfolio);
+  const [positionYields, setPositionYields] = useState<Record<string, number>>(initial.positionYields);
+  const [positionDrip, setPositionDrip] = useState<Record<string, number>>(initial.positionDrip);
+  const [nextPayoutMonth, setNextPayoutMonth] = useState<number>(initial.nextPayoutMonth);
+  const [savedAt, setSavedAt] = useState<number>(0);
+
+  // Persist all planner settings automatically (debounced via microtask).
+  useEffect(() => {
+    const payload: PersistedSettings = {
+      startingValue, monthlyContribution, contributionGrowth, dividendYield,
+      dividendGrowth, priceGrowth, taxRate, years, reinvest, payoutFreq,
+      globalDripPct, importFromPortfolio, positionYields, positionDrip, nextPayoutMonth,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      setSavedAt(Date.now());
+    } catch { /* quota / private mode — silent */ }
+  }, [startingValue, monthlyContribution, contributionGrowth, dividendYield,
+      dividendGrowth, priceGrowth, taxRate, years, reinvest, payoutFreq,
+      globalDripPct, importFromPortfolio, positionYields, positionDrip, nextPayoutMonth]);
+
+  const resetSettings = () => {
+    setStartingValue(DEFAULTS.startingValue);
+    setMonthlyContribution(DEFAULTS.monthlyContribution);
+    setContributionGrowth(DEFAULTS.contributionGrowth);
+    setDividendYield(DEFAULTS.dividendYield);
+    setDividendGrowth(DEFAULTS.dividendGrowth);
+    setPriceGrowth(DEFAULTS.priceGrowth);
+    setTaxRate(DEFAULTS.taxRate);
+    setYears(DEFAULTS.years);
+    setReinvest(DEFAULTS.reinvest);
+    setPayoutFreq(DEFAULTS.payoutFreq);
+    setGlobalDripPct(DEFAULTS.globalDripPct);
+    setImportFromPortfolio(DEFAULTS.importFromPortfolio);
+    setPositionYields({});
+    setPositionDrip({});
+    setNextPayoutMonth(DEFAULTS.nextPayoutMonth);
+  };
 
   const seedPositions: DividendPositionSeed[] = useMemo(() => {
     if (!importFromPortfolio) return [];
@@ -87,9 +171,10 @@ export default function DividendPlanner() {
       yieldPct: positionYields[p.holding.symbol]
         ?? DEFAULT_YIELD_BY_SYMBOL[p.holding.symbol]
         ?? DEFAULT_YIELD,
+      dripPct: positionDrip[p.holding.symbol] ?? globalDripPct,
       nextPayoutMonth,
     }));
-  }, [importFromPortfolio, portfolio.positions, positionYields, nextPayoutMonth]);
+  }, [importFromPortfolio, portfolio.positions, positionYields, positionDrip, globalDripPct, nextPayoutMonth]);
 
   const projection = useMemo(
     () =>
@@ -104,10 +189,11 @@ export default function DividendPlanner() {
         years,
         reinvest,
         payoutFrequency: Number(payoutFreq) as 1 | 2 | 4 | 12,
+        reinvestRatePct: globalDripPct,
         positions: seedPositions,
       }),
     [startingValue, monthlyContribution, contributionGrowth, dividendYield,
-     dividendGrowth, priceGrowth, taxRate, years, reinvest, payoutFreq, seedPositions],
+     dividendGrowth, priceGrowth, taxRate, years, reinvest, payoutFreq, globalDripPct, seedPositions],
   );
 
   const rows = useMemo(
@@ -154,9 +240,19 @@ export default function DividendPlanner() {
         title="Dividend Income Planner"
         description="Project future dividend income from contributions, dividend growth, price appreciation and reinvestment."
         actions={
-          <Button variant="outline" size="sm" onClick={exportCsv}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            {savedAt > 0 && (
+              <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Save className="h-3 w-3" /> Saved
+              </span>
+            )}
+            <Button variant="ghost" size="sm" onClick={resetSettings} title="Reset all planner settings to defaults">
+              <RotateCcw className="h-4 w-4 mr-2" /> Reset
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+          </div>
         }
       />
 

@@ -35,6 +35,7 @@ import ETFOverlap from "./pages/ETFOverlap";
 import HedgeFundReplicator from "./pages/HedgeFundReplicator";
 import Copilot from "./pages/Copilot";
 import Goals from "./pages/Goals";
+import DividendPlanner from "./pages/DividendPlanner";
 import PortfolioSimulations from "./pages/PortfolioSimulations";
 import EventStudy from "./pages/EventStudy";
 import TaxHarvest from "./pages/TaxHarvest";

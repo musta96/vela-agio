@@ -688,7 +688,10 @@ export function CashFlowPanel() {
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Projected in {forecastMonths === 60 ? "5y" : `${forecastMonths / 12}y`}</div>
             <div className="text-lg font-semibold tabular-nums">
-              {fmt(forecastSeries.baseline + forecastSeries.monthlyDelta * forecastMonths, ccy)}
+              {fmt(
+                (forecastSeries.rows[forecastSeries.rows.length - 1]?.forecast ?? forecastSeries.baseline) as number,
+                ccy,
+              )}
             </div>
           </div>
         </div>

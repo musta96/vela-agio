@@ -409,13 +409,15 @@ var project_dividends_default = defineTool8({
     years: z5.number().describe("Projection horizon in years."),
     reinvest: z5.boolean().describe("If true, net dividends buy new shares (DRIP)."),
     payout_frequency: z5.number().describe("Payouts per year: 1, 2, 4 or 12."),
+    reinvest_rate_pct: z5.number().optional().describe("Optional global DRIP rate 0-100 overriding `reinvest`. Ignored if any position sets `drip_pct`."),
     positions: z5.array(
       z5.object({
         symbol: z5.string(),
         shares: z5.number(),
         price: z5.number(),
         yield_pct: z5.number(),
-        next_payout_month: z5.number().optional()
+        next_payout_month: z5.number().optional(),
+        drip_pct: z5.number().optional()
       })
     ).optional().describe("Optional real holdings. When provided, seed the starting value and blended yield from these positions.")
   },
@@ -433,12 +435,14 @@ var project_dividends_default = defineTool8({
       years: Math.max(1, Math.min(60, Math.round(args.years))),
       reinvest: args.reinvest,
       payoutFrequency: freq,
+      reinvestRatePct: args.reinvest_rate_pct,
       positions: args.positions?.map((p) => ({
         symbol: p.symbol,
         shares: p.shares,
         price: p.price,
         yieldPct: p.yield_pct,
-        nextPayoutMonth: p.next_payout_month
+        nextPayoutMonth: p.next_payout_month,
+        dripPct: p.drip_pct
       }))
     });
     const summary = {
@@ -451,6 +455,7 @@ var project_dividends_default = defineTool8({
       total_net_dividends: Math.round(result.totalNet),
       yield_on_cost_pct: Number((result.yieldOnCost * 100).toFixed(3)),
       blended_start_yield_pct: Number(result.blendedStartYieldPct.toFixed(3)),
+      blended_drip_pct: Number(result.blendedDripPct.toFixed(2)),
       seeded_from_positions: result.seededFromPositions
     };
     const rows = result.rows.map((r) => ({

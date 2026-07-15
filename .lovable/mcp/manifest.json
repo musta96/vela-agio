@@ -249,6 +249,10 @@
               "type": "number",
               "description": "Payouts per year: 1, 2, 4 or 12."
             },
+            "reinvest_rate_pct": {
+              "description": "Optional global DRIP rate 0-100 overriding `reinvest`. Ignored if any position sets `drip_pct`.",
+              "type": "number"
+            },
             "positions": {
               "description": "Optional real holdings. When provided, seed the starting value and blended yield from these positions.",
               "type": "array",
@@ -268,6 +272,9 @@
                     "type": "number"
                   },
                   "next_payout_month": {
+                    "type": "number"
+                  },
+                  "drip_pct": {
                     "type": "number"
                   }
                 },

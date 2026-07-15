@@ -24,6 +24,7 @@ export default defineTool({
     years: z.number().describe("Projection horizon in years."),
     reinvest: z.boolean().describe("If true, net dividends buy new shares (DRIP)."),
     payout_frequency: z.number().describe("Payouts per year: 1, 2, 4 or 12."),
+    reinvest_rate_pct: z.number().optional().describe("Optional global DRIP rate 0-100 overriding `reinvest`. Ignored if any position sets `drip_pct`."),
     positions: z
       .array(
         z.object({
@@ -32,6 +33,7 @@ export default defineTool({
           price: z.number(),
           yield_pct: z.number(),
           next_payout_month: z.number().optional(),
+          drip_pct: z.number().optional(),
         }),
       )
       .optional()
@@ -51,12 +53,14 @@ export default defineTool({
       years: Math.max(1, Math.min(60, Math.round(args.years))),
       reinvest: args.reinvest,
       payoutFrequency: freq,
+      reinvestRatePct: args.reinvest_rate_pct,
       positions: args.positions?.map((p) => ({
         symbol: p.symbol,
         shares: p.shares,
         price: p.price,
         yieldPct: p.yield_pct,
         nextPayoutMonth: p.next_payout_month,
+        dripPct: p.drip_pct,
       })),
     });
     const summary = {
@@ -69,6 +73,7 @@ export default defineTool({
       total_net_dividends: Math.round(result.totalNet),
       yield_on_cost_pct: Number((result.yieldOnCost * 100).toFixed(3)),
       blended_start_yield_pct: Number(result.blendedStartYieldPct.toFixed(3)),
+      blended_drip_pct: Number(result.blendedDripPct.toFixed(2)),
       seeded_from_positions: result.seededFromPositions,
     };
     const rows = result.rows.map((r) => ({

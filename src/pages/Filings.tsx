@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, ExternalLink, Loader2 } from "lucide-react";
+import { FileText, ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AIEquityAnalystDialog, type AnalystInput } from "@/components/research/AIEquityAnalystDialog";
 
 export default function Filings() {
   const { t } = useTranslation();
@@ -15,6 +16,18 @@ export default function Filings() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [analystOpen, setAnalystOpen] = useState(false);
+  const [analystInput, setAnalystInput] = useState<AnalystInput | null>(null);
+
+  const analyzeFiling = (f: any) => {
+    setAnalystInput({
+      symbol,
+      mode: "filing",
+      filingUrl: f.url,
+      filingLabel: `${f.form} • ${f.date}`,
+    });
+    setAnalystOpen(true);
+  };
 
   const load = async () => {
     setLoading(true); setNote(null);
@@ -47,11 +60,19 @@ export default function Filings() {
                   <span className="font-mono text-sm">{f.date}</span>
                   <span className="text-sm text-muted-foreground">{f.accession}</span>
                 </div>
-                <Button asChild variant="outline" size="sm"><a href={f.url} target="_blank" rel="noreferrer">Open <ExternalLink className="h-3 w-3 ml-1" /></a></Button>
+                <div className="flex gap-2">
+                  {['10-K','10-Q','8-K','20-F','6-K'].includes(f.form) && (
+                    <Button size="sm" onClick={() => analyzeFiling(f)}>
+                      <Sparkles className="h-3 w-3 mr-1" /> AI Analyze
+                    </Button>
+                  )}
+                  <Button asChild variant="outline" size="sm"><a href={f.url} target="_blank" rel="noreferrer">Open <ExternalLink className="h-3 w-3 ml-1" /></a></Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
+        <AIEquityAnalystDialog open={analystOpen} onOpenChange={setAnalystOpen} input={analystInput} />
       </main>
     </div>
   );

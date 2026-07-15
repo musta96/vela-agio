@@ -101,6 +101,100 @@
           "properties": {}
         },
         "outputSchema": null
+      },
+      {
+        "name": "get_net_worth",
+        "title": "Get net worth summary",
+        "description": "Return the signed-in Vela user's net-worth accounts with totals for assets, liabilities and net. Values are in each account's stored currency (no FX conversion).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_cash_flow",
+        "title": "List cash flow entries",
+        "description": "Return the signed-in user's cash flow entries (income/expense), most recent first. Optional `limit` (default 100, max 500).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Max entries to return (default 100, capped at 500)."
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_cash_flow_entry",
+        "title": "Add cash flow entry",
+        "description": "Record an income or expense for the signed-in user. Use `recurring_monthly: true` for fixed monthly bills or salary — Vela will project it forward automatically.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "direction": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense"
+              ],
+              "description": "Whether this is income or an expense."
+            },
+            "category": {
+              "type": "string",
+              "description": "Category label (e.g. Salary, Housing, Food, Subscriptions)."
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Positive amount in the entry's currency."
+            },
+            "entry_date": {
+              "type": "string",
+              "description": "Date in YYYY-MM-DD; defaults to today when omitted."
+            },
+            "currency": {
+              "type": "string",
+              "description": "3-letter currency code (default EUR)."
+            },
+            "label": {
+              "type": "string",
+              "description": "Optional short note, e.g. 'Rent', 'Employer'."
+            },
+            "recurring_monthly": {
+              "type": "boolean",
+              "description": "True if this repeats every month."
+            }
+          },
+          "required": [
+            "direction",
+            "category",
+            "amount"
+          ]
+        },
+        "outputSchema": null
       }
     ]
   }

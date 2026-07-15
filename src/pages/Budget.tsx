@@ -1381,3 +1381,101 @@ function Kpi({
     </Card>
   );
 }
+
+// ---------------- Reconcile matching config ----------------
+function ReconcileConfigCard({
+  cfg, onChange,
+}: {
+  cfg: ReconcileConfig;
+  onChange: (next: ReconcileConfig) => void;
+}) {
+  const [ignoredInput, setIgnoredInput] = useState(cfg.ignoredPayeeKeywords.join(", "));
+  const [transferInput, setTransferInput] = useState(cfg.transferKeywords.join(", "));
+
+  useEffect(() => { setIgnoredInput(cfg.ignoredPayeeKeywords.join(", ")); }, [cfg.ignoredPayeeKeywords]);
+  useEffect(() => { setTransferInput(cfg.transferKeywords.join(", ")); }, [cfg.transferKeywords]);
+
+  const parseList = (s: string) =>
+    Array.from(new Set(s.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)));
+
+  const reset = () => onChange(DEFAULT_RECONCILE_CFG);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
+        <div>
+          <CardTitle className="text-base">Matching rules</CardTitle>
+          <CardDescription>
+            Tune how aggressively duplicates and transfers are detected. Changes apply instantly and are saved to this device.
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" onClick={reset}>Reset defaults</Button>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1">
+          <Label className="text-xs">Amount tolerance (absolute)</Label>
+          <Input
+            type="number" min={0} step={0.01} className="h-8"
+            value={cfg.amountToleranceAbs}
+            onChange={(e) => onChange({ ...cfg, amountToleranceAbs: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <p className="text-[11px] text-muted-foreground">e.g. 0.50 to allow up to 50¢ rounding drift.</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Amount tolerance (%)</Label>
+          <Input
+            type="number" min={0} step={0.1} className="h-8"
+            value={cfg.amountTolerancePct}
+            onChange={(e) => onChange({ ...cfg, amountTolerancePct: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <p className="text-[11px] text-muted-foreground">Useful for FX-converted transfers.</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Date window (days)</Label>
+          <Input
+            type="number" min={0} max={30} step={1} className="h-8"
+            value={cfg.dateWindowDays}
+            onChange={(e) => onChange({ ...cfg, dateWindowDays: Math.max(0, Math.min(30, Number(e.target.value) || 0)) })}
+          />
+          <p className="text-[11px] text-muted-foreground">Max |Δdays| between the two entries.</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Label similarity (min %)</Label>
+          <Input
+            type="number" min={0} max={100} step={5} className="h-8"
+            value={Math.round(cfg.labelSimilarity * 100)}
+            onChange={(e) => onChange({ ...cfg, labelSimilarity: Math.max(0, Math.min(1, (Number(e.target.value) || 0) / 100)) })}
+          />
+          <p className="text-[11px] text-muted-foreground">Higher = fewer false duplicates.</p>
+        </div>
+
+        <div className="space-y-1 md:col-span-2">
+          <Label className="text-xs">Ignored payee keywords</Label>
+          <Input
+            className="h-8"
+            value={ignoredInput}
+            onChange={(e) => setIgnoredInput(e.target.value)}
+            onBlur={() => onChange({ ...cfg, ignoredPayeeKeywords: parseList(ignoredInput) })}
+            placeholder="pos, purchase, visa, card"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Comma-separated. Stripped from descriptions before similarity is measured — keeps filler words from inflating matches.
+          </p>
+        </div>
+        <div className="space-y-1 md:col-span-2">
+          <Label className="text-xs">Transfer payee keywords</Label>
+          <Input
+            className="h-8"
+            value={transferInput}
+            onChange={(e) => setTransferInput(e.target.value)}
+            onBlur={() => onChange({ ...cfg, transferKeywords: parseList(transferInput) })}
+            placeholder="transfer, wire, own account, savings"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            When set, at least one keyword must appear on one side of the pair. Leave empty to match on amount + date only.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

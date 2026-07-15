@@ -1204,10 +1204,16 @@ function ReconcilePanel({
         <Kpi label="Duplicates" value={String(summary.duplicates)} icon={GitMerge} tone={summary.duplicates > 0 ? "bad" : "neutral"} />
       </div>
 
+      <ReconcileConfigCard cfg={cfg} onChange={onCfgChange} />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2"><GitMerge className="h-4 w-4" /> Suspected duplicates</CardTitle>
-          <CardDescription>Pairs with matching amount and near-identical descriptions within 3 days.</CardDescription>
+          <CardDescription>
+            Pairs with matching amount (±{cfg.amountToleranceAbs} {ccy} or ±{cfg.amountTolerancePct}%),
+            {" "}dates within {cfg.dateWindowDays} day{cfg.dateWindowDays === 1 ? "" : "s"},
+            {" "}and description similarity ≥ {(cfg.labelSimilarity * 100).toFixed(0)}%.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           {duplicates.length === 0 ? (

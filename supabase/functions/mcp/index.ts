@@ -302,13 +302,167 @@ var add_cash_flow_entry_default = defineTool7({
   }
 });
 
+// src/lib/mcp/tools/project-dividends.ts
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z5 } from "npm:zod@^4.4.3";
+
+// src/lib/dividends/project.ts
+function projectDividends(input) {
+  const y0Scalar = input.dividendYieldPct / 100;
+  const dgr = input.dividendGrowthPct / 100;
+  const pgr = input.priceGrowthPct / 100;
+  const tax = Math.min(1, Math.max(0, input.taxPct / 100));
+  const contribGrowth = input.contributionGrowthPct / 100;
+  const freq = input.payoutFrequency;
+  const monthsPerPayout = 12 / freq;
+  const positions = input.positions ?? [];
+  const seedValue = positions.reduce((a, p) => a + (p.shares * p.price || 0), 0);
+  const seedIncome = positions.reduce((a, p) => a + (p.shares * p.price * (p.yieldPct / 100) || 0), 0);
+  const seededFromPositions = positions.length > 0 && seedValue > 0;
+  const blendedYield = seededFromPositions ? seedIncome / seedValue : y0Scalar;
+  const startingValue = seededFromPositions ? seedValue : input.startingValue;
+  let price = 1;
+  let shares = startingValue / price;
+  let dividendPerShare = blendedYield * price / freq;
+  let cumulativeNetContrib = startingValue;
+  let cumulativeReinvested = 0;
+  let monthlyContrib = input.monthlyContribution;
+  let totalGross = 0;
+  let totalNet = 0;
+  const rows = [];
+  for (let year = 1; year <= input.years; year++) {
+    let grossThisYear = 0;
+    let netThisYear = 0;
+    for (let month = 1; month <= 12; month++) {
+      if (monthlyContrib > 0) {
+        shares += monthlyContrib / price;
+        cumulativeNetContrib += monthlyContrib;
+      }
+      if (month % monthsPerPayout === 0) {
+        const gross = dividendPerShare * shares;
+        const net = gross * (1 - tax);
+        grossThisYear += gross;
+        netThisYear += net;
+        if (input.reinvest) {
+          shares += net / price;
+          cumulativeReinvested += net;
+        }
+        dividendPerShare *= Math.pow(1 + dgr, 1 / freq);
+      }
+      price *= Math.pow(1 + pgr, 1 / 12);
+    }
+    totalGross += grossThisYear;
+    totalNet += netThisYear;
+    rows.push({
+      year,
+      contributions: cumulativeNetContrib,
+      reinvested: cumulativeReinvested,
+      portfolio: shares * price,
+      grossDividends: grossThisYear,
+      netDividends: netThisYear,
+      yieldOnCost: cumulativeNetContrib > 0 ? netThisYear / cumulativeNetContrib : 0
+    });
+    monthlyContrib *= 1 + contribGrowth;
+  }
+  const last = rows[rows.length - 1];
+  return {
+    rows,
+    finalPortfolio: last?.portfolio ?? startingValue,
+    finalNetIncome: last?.netDividends ?? 0,
+    totalContrib: last?.contributions ?? startingValue,
+    totalReinvested: last?.reinvested ?? 0,
+    totalGross,
+    totalNet,
+    yieldOnCost: last?.yieldOnCost ?? 0,
+    blendedStartYieldPct: blendedYield * 100,
+    seededFromPositions
+  };
+}
+
+// src/lib/mcp/tools/project-dividends.ts
+var project_dividends_default = defineTool8({
+  name: "project_dividends",
+  title: "Project future dividend income",
+  description: "Model annual dividend income for a given horizon using contributions, dividend yield, dividend growth, price appreciation, tax rate and optional DRIP. Accepts an optional `positions` array to seed the starting value and blended yield from real holdings. Returns per-year rows (portfolio value, gross/net dividends, yield on cost) plus totals.",
+  inputSchema: {
+    starting_value: z5.number().describe("Starting portfolio value in the projection currency."),
+    monthly_contribution: z5.number().describe("Monthly cash added to the portfolio."),
+    contribution_growth_pct: z5.number().describe("Annual growth of monthly contributions in percent."),
+    dividend_yield_pct: z5.number().describe("Starting annual dividend yield in percent."),
+    dividend_growth_pct: z5.number().describe("Annual dividend growth rate in percent (DGR)."),
+    price_growth_pct: z5.number().describe("Annual price appreciation in percent."),
+    tax_pct: z5.number().describe("Dividend withholding/income tax rate in percent."),
+    years: z5.number().describe("Projection horizon in years."),
+    reinvest: z5.boolean().describe("If true, net dividends buy new shares (DRIP)."),
+    payout_frequency: z5.number().describe("Payouts per year: 1, 2, 4 or 12."),
+    positions: z5.array(
+      z5.object({
+        symbol: z5.string(),
+        shares: z5.number(),
+        price: z5.number(),
+        yield_pct: z5.number(),
+        next_payout_month: z5.number().optional()
+      })
+    ).optional().describe("Optional real holdings. When provided, seed the starting value and blended yield from these positions.")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (args) => {
+    const freq = [1, 2, 4, 12].includes(args.payout_frequency) ? args.payout_frequency : 4;
+    const result = projectDividends({
+      startingValue: args.starting_value,
+      monthlyContribution: args.monthly_contribution,
+      contributionGrowthPct: args.contribution_growth_pct,
+      dividendYieldPct: args.dividend_yield_pct,
+      dividendGrowthPct: args.dividend_growth_pct,
+      priceGrowthPct: args.price_growth_pct,
+      taxPct: args.tax_pct,
+      years: Math.max(1, Math.min(60, Math.round(args.years))),
+      reinvest: args.reinvest,
+      payoutFrequency: freq,
+      positions: args.positions?.map((p) => ({
+        symbol: p.symbol,
+        shares: p.shares,
+        price: p.price,
+        yieldPct: p.yield_pct,
+        nextPayoutMonth: p.next_payout_month
+      }))
+    });
+    const summary = {
+      final_portfolio: Math.round(result.finalPortfolio),
+      final_annual_net_income: Math.round(result.finalNetIncome),
+      final_monthly_net_income: Math.round(result.finalNetIncome / 12),
+      total_contributions: Math.round(result.totalContrib),
+      total_reinvested: Math.round(result.totalReinvested),
+      total_gross_dividends: Math.round(result.totalGross),
+      total_net_dividends: Math.round(result.totalNet),
+      yield_on_cost_pct: Number((result.yieldOnCost * 100).toFixed(3)),
+      blended_start_yield_pct: Number(result.blendedStartYieldPct.toFixed(3)),
+      seeded_from_positions: result.seededFromPositions
+    };
+    const rows = result.rows.map((r) => ({
+      year: r.year,
+      contributions: Math.round(r.contributions),
+      reinvested: Math.round(r.reinvested),
+      portfolio: Math.round(r.portfolio),
+      gross_dividends: Math.round(r.grossDividends),
+      net_dividends: Math.round(r.netDividends),
+      yield_on_cost_pct: Number((r.yieldOnCost * 100).toFixed(3))
+    }));
+    const payload = { summary, rows };
+    return {
+      content: [{ type: "text", text: JSON.stringify(payload) }],
+      structuredContent: payload
+    };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "pcisxjfgdrgpxzfzfscf";
 var mcp_default = defineMcp({
   name: "vela",
   title: "Vela \u2014 Trading Strategy Platform",
   version: "1.0.0",
-  instructions: "Tools for Vela.ai. Use `get_quote` for any Yahoo-style ticker and `search_strategies` to browse the strategy library (both public). Authenticated tools return the signed-in user's own data: `get_watchlist`, `get_portfolio`, `get_net_worth` (assets + liabilities), `list_cash_flow` (income/expense history), and `add_cash_flow_entry` (record new income or expense).",
+  instructions: "Tools for Vela.ai. Public tools: `get_quote` (any Yahoo-style ticker), `search_strategies`, and `project_dividends` (deterministic dividend income projections with optional real-position seeding). Authenticated tools return the signed-in user's own data: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, and `add_cash_flow_entry`.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -320,7 +474,8 @@ var mcp_default = defineMcp({
     get_portfolio_default,
     get_net_worth_default,
     list_cash_flow_default,
-    add_cash_flow_entry_default
+    add_cash_flow_entry_default,
+    project_dividends_default
   ]
 });
 

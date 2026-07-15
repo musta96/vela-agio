@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBaseCurrency } from "@/hooks/useBaseCurrency";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDownRight, ArrowUpRight, Plus, Trash2, Wallet, Pencil, Pause, Play, Target, TrendingUp, AlertTriangle, Info, FlaskConical, RotateCcw } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Plus, Trash2, Wallet, Pencil, Pause, Play, Target, TrendingUp, AlertTriangle, Info, FlaskConical, RotateCcw, BarChart3, Tags } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -134,6 +134,20 @@ export function CashFlowPanel() {
   const [scenarioMode, setScenarioMode] = useState<boolean>(false);
   const [scenarioBudgets, setScenarioBudgets] = useState<Record<string, number>>({});
   const [showAssumptions, setShowAssumptions] = useState<boolean>(false);
+  // Uncategorized-category reclassification map: sourceCategory → targetCategory.
+  // Persisted in localStorage; applied INSIDE the projection so budget caps
+  // reach categories the user hasn't formally renamed.
+  const RECLASSIFY_LS_KEY = "vela.cashflow.reclassify";
+  const [reclassifyMap, setReclassifyMap] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(window.localStorage.getItem(RECLASSIFY_LS_KEY) || "{}"); }
+    catch { return {}; }
+  });
+  const persistReclassify = (next: Record<string, string>) => {
+    setReclassifyMap(next);
+    try { window.localStorage?.setItem(RECLASSIFY_LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+  const [selectedForecastMonth, setSelectedForecastMonth] = useState<string | null>(null);
 
   // New-entry form state
   const [direction, setDirection] = useState<"income" | "expense">("expense");
@@ -422,7 +436,12 @@ export function CashFlowPanel() {
           if (e.paused_from && mk >= monthKey(e.paused_from)) continue;
           const amt = Number(e.amount) || 0;
           if (e.direction === "income") income += amt;
-          else expenseByCat.set(e.category, (expenseByCat.get(e.category) || 0) + amt);
+          else {
+            // Reclassify: pool this expense under the mapped target category
+            // so its budget cap applies. Falls back to the entry's own category.
+            const cat = reclassifyMap[e.category] || e.category;
+            expenseByCat.set(cat, (expenseByCat.get(cat) || 0) + amt);
+          }
         } else if (withOneOff) {
           if (startKey !== mk) continue;
           if (monthDate <= nowMonthDate) continue;
@@ -481,13 +500,63 @@ export function CashFlowPanel() {
   const forecastSeries = useMemo(
     () => buildForecast({}, includeOneOff),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [entries, budgets, netWorth.total, monthlySeries, forecastMonths, includeOneOff, capUncategorized],
+    [entries, budgets, netWorth.total, monthlySeries, forecastMonths, includeOneOff, capUncategorized, reclassifyMap],
   );
   const scenarioForecast = useMemo(
     () => (scenarioMode ? buildForecast(scenarioBudgets, includeOneOff) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scenarioMode, scenarioBudgets, entries, budgets, netWorth.total, monthlySeries, forecastMonths, includeOneOff, capUncategorized],
+    [scenarioMode, scenarioBudgets, entries, budgets, netWorth.total, monthlySeries, forecastMonths, includeOneOff, capUncategorized, reclassifyMap],
   );
+
+  // Categories used by recurring expense entries that DON'T have a budget
+  // cap and haven't been reclassified. These surface in the reclassify UI.
+  const uncategorizedRecurring = useMemo(() => {
+    const budgetCats = new Set(budgets.map((b) => b.category));
+    const usage = new Map<string, number>();
+    for (const e of entries) {
+      if (!e.recurring_monthly || e.direction !== "expense") continue;
+      if (budgetCats.has(e.category)) continue;
+      usage.set(e.category, (usage.get(e.category) || 0) + (Number(e.amount) || 0));
+    }
+    return Array.from(usage.entries())
+      .map(([category, monthlyTotal]) => ({ category, monthlyTotal, mappedTo: reclassifyMap[category] || null }))
+      .sort((a, b) => b.monthlyTotal - a.monthlyTotal);
+  }, [entries, budgets, reclassifyMap]);
+
+  // Waterfall data for the currently-selected projected month.
+  const waterfallMonth = useMemo(() => {
+    if (!forecastSeries.breakdown.length) return null;
+    const target =
+      forecastSeries.breakdown.find((b) => b.mk === selectedForecastMonth) ??
+      forecastSeries.breakdown[0];
+    // Waterfall steps: start at 0, add income, subtract raw expenses, add
+    // budget savings back in, then apply signed one-off.
+    const netExpenseAfterCap = target.recurringExpenseCapped;
+    const steps = [
+      { key: "income",     label: "Income",         value: target.income,             cumulative: target.income,                                   fill: "hsl(142 70% 45%)" },
+      { key: "expenseRaw", label: "Expenses (raw)", value: -target.recurringExpenseRaw, cumulative: target.income - target.recurringExpenseRaw,     fill: "hsl(0 75% 55%)" },
+      { key: "budgetCap",  label: "Budget cap savings", value: target.cappedSavings,   cumulative: target.income - netExpenseAfterCap,             fill: "hsl(199 89% 48%)" },
+      { key: "oneOff",     label: "One-time",       value: target.oneOff,              cumulative: target.income - netExpenseAfterCap + target.oneOff, fill: target.oneOff >= 0 ? "hsl(38 92% 50%)" : "hsl(340 70% 55%)" },
+      { key: "net",        label: "Net delta",      value: target.netDelta,            cumulative: target.netDelta,                                fill: target.netDelta >= 0 ? "hsl(142 70% 45%)" : "hsl(0 75% 55%)", isTotal: true },
+    ];
+    // For a floating-bar waterfall each bar has [base, top].
+    const bars = steps.map((s, i) => {
+      if (s.isTotal) return { ...s, range: [0, s.cumulative] as [number, number] };
+      const prev = i === 0 ? 0 : (steps[i - 1].cumulative);
+      const top = s.cumulative;
+      const lo = Math.min(prev, top);
+      const hi = Math.max(prev, top);
+      return { ...s, range: [lo, hi] as [number, number] };
+    });
+    return { target, bars };
+  }, [forecastSeries.breakdown, selectedForecastMonth]);
+
+  useEffect(() => {
+    // Auto-select first projected month once breakdown becomes available.
+    if (!selectedForecastMonth && forecastSeries.breakdown[0]) {
+      setSelectedForecastMonth(forecastSeries.breakdown[0].mk);
+    }
+  }, [forecastSeries.breakdown, selectedForecastMonth]);
 
   // Merged rows for the dual-line chart (baseline + scenario overlay).
   const forecastChartRows = useMemo(() => {
@@ -967,6 +1036,119 @@ export function CashFlowPanel() {
           </div>
         )}
       </Card>
+
+      {/* Per-month waterfall breakdown */}
+      {forecastSeries.breakdown.length > 0 && waterfallMonth && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Waterfall — how {waterfallMonth.target.label} adds up</h3>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                Income → raw expenses → budget cap savings → one-time → net delta
+              </span>
+            </div>
+            <Select
+              value={selectedForecastMonth ?? forecastSeries.breakdown[0].mk}
+              onValueChange={setSelectedForecastMonth}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {forecastSeries.breakdown.map((b) => (
+                  <SelectItem key={b.mk} value={b.mk}>{b.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={waterfallMonth.bars} layout="vertical" margin={{ left: 24, right: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`} />
+                <YAxis dataKey="label" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} width={140} />
+                <RTooltip
+                  formatter={(_v: any, _n: any, p: any) => [fmt(Number(p.payload.value), ccy), p.payload.label]}
+                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+                />
+                <Bar dataKey="range" radius={[3, 3, 3, 3]}>
+                  {waterfallMonth.bars.map((b, i) => (
+                    <Cell key={i} fill={b.fill} />
+                  ))}
+                </Bar>
+                <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-xs">
+            {waterfallMonth.bars.map((b) => (
+              <div key={b.key} className="rounded-md border border-border p-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{b.label}</div>
+                <div className={`tabular-nums font-medium ${b.value >= 0 ? "text-success" : "text-destructive"}`}>
+                  {b.value >= 0 ? "+" : ""}{fmt(b.value, ccy)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Reclassify uncategorized recurring expenses */}
+      {uncategorizedRecurring.length > 0 && (
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Tags className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Reclassify uncategorized transactions</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            These recurring expense categories have no budget target, so they pass through the forecast uncapped.
+            Map each one to an existing budget category (or the shared "Other" pool) so the cap applies consistently to future months.
+          </p>
+          <div className="grid gap-2 md:grid-cols-2">
+            {uncategorizedRecurring.map((row) => (
+              <div key={row.category} className="flex items-center gap-2 rounded-lg border border-border p-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{row.category}</div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">
+                    ~{fmt(row.monthlyTotal, ccy)} / mo recurring
+                  </div>
+                </div>
+                <Select
+                  value={row.mappedTo ?? "__none__"}
+                  onValueChange={(v) => {
+                    const next = { ...reclassifyMap };
+                    if (v === "__none__") delete next[row.category];
+                    else next[row.category] = v;
+                    persistReclassify(next);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue placeholder="Keep as-is" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Keep as-is (uncapped)</SelectItem>
+                    {budgets.map((b) => (
+                      <SelectItem key={b.id} value={b.category}>
+                        {b.category} · {fmt(Number(b.monthly_limit), ccy)}
+                      </SelectItem>
+                    ))}
+                    {!budgets.some((b) => b.category === "Other") && (
+                      <SelectItem value="Other">Other (pool)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+          {Object.keys(reclassifyMap).length > 0 && (
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" variant="ghost" className="gap-1 h-7" onClick={() => persistReclassify({})}>
+                <RotateCcw className="h-3.5 w-3.5" /> Clear reclassification
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Recent entries */}
       <Card className="overflow-hidden">

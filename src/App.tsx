@@ -181,6 +181,7 @@ const App = () => (
             <Route path="/replicate" element={<HedgeFundReplicator />} />
             <Route path="/copilot" element={<Copilot />} />
             <Route path="/goals" element={<Goals />} />
+            <Route path="/dividends" element={<DividendPlanner />} />
             <Route path="/simulations" element={<PortfolioSimulations />} />
             <Route path="/event-study" element={<EventStudy />} />
             <Route path="/tax-harvest" element={<TaxHarvest />} />

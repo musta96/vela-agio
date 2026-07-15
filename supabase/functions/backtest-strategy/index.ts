@@ -4,7 +4,20 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Strategy = "buy_hold" | "sma_cross" | "rsi";
+type Strategy = "buy_hold" | "sma_cross" | "rsi" | "custom";
+
+interface CustomCondition {
+  type: string;
+  value?: number;
+  period?: number;
+  fast?: number;
+  slow?: number;
+}
+interface CustomRules {
+  entry: CustomCondition[];
+  exit: CustomCondition[];
+  risk: { stopPct?: number; targetPct?: number };
+}
 
 interface Holding { symbol: string; weight: number; }
 interface Bar { t: number; close: number; }
@@ -56,16 +69,103 @@ function rsi(closes: number[], i: number, period = 14): number | null {
   return 100 - 100 / (1 + rs);
 }
 
-function simulate(bars: Bar[], strategy: Strategy, initial: number) {
+function evalCondition(c: CustomCondition, closes: number[], i: number): boolean {
+  const smaAt = (n: number, idx: number) => sma(closes, n, idx);
+  switch (c.type) {
+    case "rsi_below": {
+      const r = rsi(closes, i);
+      return r !== null && r < (c.value ?? 30);
+    }
+    case "rsi_above": {
+      const r = rsi(closes, i);
+      return r !== null && r > (c.value ?? 70);
+    }
+    case "sma_cross_up": {
+      const f = c.fast ?? 20, s = c.slow ?? 50;
+      const a = smaAt(f, i), b = smaAt(s, i);
+      const ap = smaAt(f, i - 1), bp = smaAt(s, i - 1);
+      return !!(a && b && ap && bp && ap <= bp && a > b);
+    }
+    case "sma_cross_down": {
+      const f = c.fast ?? 20, s = c.slow ?? 50;
+      const a = smaAt(f, i), b = smaAt(s, i);
+      const ap = smaAt(f, i - 1), bp = smaAt(s, i - 1);
+      return !!(a && b && ap && bp && ap >= bp && a < b);
+    }
+    case "price_above_sma": {
+      const v = smaAt(c.period ?? 50, i);
+      return v !== null && closes[i] > v;
+    }
+    case "price_below_sma": {
+      const v = smaAt(c.period ?? 50, i);
+      return v !== null && closes[i] < v;
+    }
+    case "macd_cross_up": {
+      // Use EMA(12) - EMA(26) with signal EMA(9). Compute incrementally is heavy;
+      // approximate by evaluating on window ending at i.
+      const m = macdAt(closes, i);
+      const mp = macdAt(closes, i - 1);
+      return !!(m && mp && mp.macd <= mp.signal && m.macd > m.signal);
+    }
+    case "macd_cross_down": {
+      const m = macdAt(closes, i);
+      const mp = macdAt(closes, i - 1);
+      return !!(m && mp && mp.macd >= mp.signal && m.macd < m.signal);
+    }
+    case "price_pct_change": {
+      const n = c.period ?? 5;
+      if (i - n < 0) return false;
+      const chg = (closes[i] - closes[i - n]) / closes[i - n] * 100;
+      const thr = c.value ?? 5;
+      return thr >= 0 ? chg >= thr : chg <= thr;
+    }
+    case "volume_spike":
+      // Volume not modeled on basket bars — never triggers server-side.
+      return false;
+    default:
+      return false;
+  }
+}
+
+function ema(closes: number[], period: number, i: number): number | null {
+  if (i + 1 < period) return null;
+  const k = 2 / (period + 1);
+  let prev = 0;
+  for (let x = 0; x <= i; x++) {
+    if (x < period - 1) { prev += closes[x]; continue; }
+    if (x === period - 1) { prev = (prev + closes[x]) / period; continue; }
+    prev = closes[x] * k + prev * (1 - k);
+  }
+  return prev;
+}
+function macdAt(closes: number[], i: number): { macd: number; signal: number } | null {
+  const f = ema(closes, 12, i);
+  const s = ema(closes, 26, i);
+  if (f == null || s == null) return null;
+  // Signal = EMA(9) of the macd line — approximate with EMA over the derived series.
+  const macdLine: number[] = [];
+  for (let x = 0; x <= i; x++) {
+    const ef = ema(closes, 12, x);
+    const es = ema(closes, 26, x);
+    macdLine.push(ef != null && es != null ? ef - es : 0);
+  }
+  const sig = ema(macdLine, 9, macdLine.length - 1);
+  if (sig == null) return null;
+  return { macd: f - s, signal: sig };
+}
+
+function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: CustomRules) {
   const closes = bars.map(b => b.close);
   let cash = initial, shares = 0;
   const equity: { t: number; value: number; benchmark: number }[] = [];
   const trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number }[] = [];
   const baseShares = initial / closes[0];
 
+  let entryPrice = 0;
   const buy = (i: number) => {
     if (shares > 0 || cash <= 0) return;
     shares = cash / closes[i]; cash = 0;
+    entryPrice = closes[i];
     trades.push({ date: new Date(bars[i].t).toISOString().slice(0,10), type: "BUY", price: closes[i], shares });
   };
   const sell = (i: number) => {
@@ -90,6 +190,20 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number) {
       if (r !== null) {
         if (r < 30 && shares === 0) buy(i);
         else if (r > 70 && shares > 0) sell(i);
+      }
+    } else if (strategy === "custom" && rules) {
+      // Evaluate hard stop/target first if position open.
+      if (shares > 0) {
+        const chg = (closes[i] - entryPrice) / entryPrice * 100;
+        if (rules.risk?.stopPct && chg <= -Math.abs(rules.risk.stopPct)) { sell(i); }
+        else if (rules.risk?.targetPct && chg >= Math.abs(rules.risk.targetPct)) { sell(i); }
+      }
+      if (shares === 0) {
+        const entryOk = rules.entry.length > 0 && rules.entry.every(c => evalCondition(c, closes, i));
+        if (entryOk) buy(i);
+      } else {
+        const exitOk = rules.exit.length > 0 && rules.exit.every(c => evalCondition(c, closes, i));
+        if (exitOk) sell(i);
       }
     }
     const value = cash + shares * closes[i];
@@ -194,7 +308,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const result = simulate(basketBars, strategy, initial);
+    const rules: CustomRules | undefined = strategy === "custom" && body.rules
+      ? { entry: body.rules.entry ?? [], exit: body.rules.exit ?? [], risk: body.rules.risk ?? {} }
+      : undefined;
+    if (strategy === "custom" && (!rules || rules.entry.length === 0)) {
+      return new Response(JSON.stringify({ error: "Custom strategy requires at least one entry rule" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const result = simulate(basketBars, strategy, initial, rules);
 
     // External benchmark (index): replace the self-basket benchmark in the equity series.
     let benchmarkLabel = "Buy & Hold (basket)";

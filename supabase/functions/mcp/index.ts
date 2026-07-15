@@ -175,18 +175,153 @@ var get_portfolio_default = defineTool4({
   }
 });
 
+// src/lib/mcp/tools/get-net-worth.ts
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.22.2";
+function supabaseForUser3(ctx) {
+  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var get_net_worth_default = defineTool5({
+  name: "get_net_worth",
+  title: "Get net worth summary",
+  description: "Return the signed-in Vela user's net-worth accounts with totals for assets, liabilities and net. Values are in each account's stored currency (no FX conversion).",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_args, ctx) => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    }
+    const sb = supabaseForUser3(ctx);
+    const { data, error } = await sb.from("net_worth_accounts").select("id, name, category, subcategory, currency, manual_value, is_liability, include_in_total").eq("user_id", ctx.getUserId());
+    if (error) {
+      return { content: [{ type: "text", text: error.message }], isError: true };
+    }
+    const accounts = data ?? [];
+    let assets = 0;
+    let liabilities = 0;
+    for (const a of accounts) {
+      if (!a.include_in_total) continue;
+      const v = Number(a.manual_value) || 0;
+      if (a.is_liability) liabilities += Math.abs(v);
+      else assets += v;
+    }
+    const summary = { assets, liabilities, net: assets - liabilities, currency_note: "Values are per-account; no FX conversion applied." };
+    return {
+      content: [{ type: "text", text: JSON.stringify({ summary, accounts }) }],
+      structuredContent: { summary, accounts }
+    };
+  }
+});
+
+// src/lib/mcp/tools/list-cash-flow.ts
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z3 } from "npm:zod@^4.4.3";
+function supabaseForUser4(ctx) {
+  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var list_cash_flow_default = defineTool6({
+  name: "list_cash_flow",
+  title: "List cash flow entries",
+  description: "Return the signed-in user's cash flow entries (income/expense), most recent first. Optional `limit` (default 100, max 500).",
+  inputSchema: {
+    limit: z3.number().int().positive().describe("Max entries to return (default 100, capped at 500).").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ limit }, ctx) => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    }
+    const capped = Math.min(500, Math.max(1, limit ?? 100));
+    const sb = supabaseForUser4(ctx);
+    const { data, error } = await sb.from("cash_flow_entries").select("id, entry_date, direction, category, label, amount, currency, recurring_monthly, paused_from").eq("user_id", ctx.getUserId()).order("entry_date", { ascending: false }).limit(capped);
+    if (error) {
+      return { content: [{ type: "text", text: error.message }], isError: true };
+    }
+    const entries = data ?? [];
+    return {
+      content: [{ type: "text", text: JSON.stringify(entries) }],
+      structuredContent: { entries }
+    };
+  }
+});
+
+// src/lib/mcp/tools/add-cash-flow-entry.ts
+import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z4 } from "npm:zod@^4.4.3";
+function supabaseForUser5(ctx) {
+  return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var add_cash_flow_entry_default = defineTool7({
+  name: "add_cash_flow_entry",
+  title: "Add cash flow entry",
+  description: "Record an income or expense for the signed-in user. Use `recurring_monthly: true` for fixed monthly bills or salary \u2014 Vela will project it forward automatically.",
+  inputSchema: {
+    direction: z4.enum(["income", "expense"]).describe("Whether this is income or an expense."),
+    category: z4.string().describe("Category label (e.g. Salary, Housing, Food, Subscriptions)."),
+    amount: z4.number().positive().describe("Positive amount in the entry's currency."),
+    entry_date: z4.string().describe("Date in YYYY-MM-DD; defaults to today when omitted.").optional(),
+    currency: z4.string().describe("3-letter currency code (default EUR).").optional(),
+    label: z4.string().describe("Optional short note, e.g. 'Rent', 'Employer'.").optional(),
+    recurring_monthly: z4.boolean().describe("True if this repeats every month.").optional()
+  },
+  annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+  handler: async (args, ctx) => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    }
+    const sb = supabaseForUser5(ctx);
+    const payload = {
+      user_id: ctx.getUserId(),
+      direction: args.direction,
+      category: args.category,
+      amount: args.amount,
+      entry_date: args.entry_date ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+      currency: (args.currency ?? "EUR").toUpperCase(),
+      label: args.label ?? null,
+      recurring_monthly: args.recurring_monthly ?? false
+    };
+    const { data, error } = await sb.from("cash_flow_entries").insert(payload).select().single();
+    if (error) {
+      return { content: [{ type: "text", text: error.message }], isError: true };
+    }
+    return {
+      content: [{ type: "text", text: `Recorded ${args.direction} of ${args.amount} ${payload.currency} in ${args.category}.` }],
+      structuredContent: { entry: data }
+    };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "pcisxjfgdrgpxzfzfscf";
 var mcp_default = defineMcp({
   name: "vela",
   title: "Vela \u2014 Trading Strategy Platform",
   version: "1.0.0",
-  instructions: "Tools for Vela.ai. Use `get_quote` for any Yahoo-style ticker and `search_strategies` to browse the strategy library (both public). Authenticated tools (`get_watchlist`, `get_portfolio`) return the signed-in user's own data.",
+  instructions: "Tools for Vela.ai. Use `get_quote` for any Yahoo-style ticker and `search_strategies` to browse the strategy library (both public). Authenticated tools return the signed-in user's own data: `get_watchlist`, `get_portfolio`, `get_net_worth` (assets + liabilities), `list_cash_flow` (income/expense history), and `add_cash_flow_entry` (record new income or expense).",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [get_quote_default, search_strategies_default, get_watchlist_default, get_portfolio_default]
+  tools: [
+    get_quote_default,
+    search_strategies_default,
+    get_watchlist_default,
+    get_portfolio_default,
+    get_net_worth_default,
+    list_cash_flow_default,
+    add_cash_flow_entry_default
+  ]
 });
 
 // lovable-mcp-supabase-entry.ts

@@ -828,6 +828,36 @@ export type Database = {
           },
         ]
       }
+      budget_targets: {
+        Row: {
+          category: string
+          created_at: string
+          currency: string
+          id: string
+          monthly_limit: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          currency?: string
+          id?: string
+          monthly_limit: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cancellation_feedback: {
         Row: {
           accepted_offer: boolean
@@ -875,6 +905,7 @@ export type Database = {
           id: string
           label: string | null
           notes: string | null
+          paused_from: string | null
           recurring_monthly: boolean
           updated_at: string
           user_id: string
@@ -889,6 +920,7 @@ export type Database = {
           id?: string
           label?: string | null
           notes?: string | null
+          paused_from?: string | null
           recurring_monthly?: boolean
           updated_at?: string
           user_id: string
@@ -903,6 +935,7 @@ export type Database = {
           id?: string
           label?: string | null
           notes?: string | null
+          paused_from?: string | null
           recurring_monthly?: boolean
           updated_at?: string
           user_id?: string

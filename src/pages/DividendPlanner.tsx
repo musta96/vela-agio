@@ -277,6 +277,7 @@ export default function DividendPlanner() {
                   <p className="text-[11px] text-muted-foreground">
                     Using {portfolio.positions.length} live position{portfolio.positions.length === 1 ? "" : "s"} · blended starting yield
                     <span className="font-medium text-foreground"> {projection.blendedStartYieldPct.toFixed(2)}%</span>
+                    · blended DRIP <span className="font-medium text-foreground">{projection.blendedDripPct.toFixed(0)}%</span>
                     · starting value <span className="font-medium text-foreground">{fmt(portfolio.marketValue, ccy)}</span>
                   </p>
                   <div className="space-y-1.5">

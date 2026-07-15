@@ -15,9 +15,6 @@ verify_jwt = false
 [functions.mcp]
 verify_jwt = false
 
-[functions.well-known-mcp]
-verify_jwt = false
-
 [functions.create-checkout]
 verify_jwt = false
 

@@ -406,6 +406,21 @@ export function CashFlowPanel() {
 
   return (
     <div className="p-5 space-y-5">
+      {/* Over-budget banner */}
+      {overBudget.length > 0 && (
+        <Card className="p-3 border-destructive/40 bg-destructive/5 flex items-start gap-3">
+          <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <div className="font-semibold text-destructive">Over budget this month</div>
+            <div className="text-xs text-muted-foreground">
+              {overBudget
+                .map((b) => `${b.category} (${fmt(b.spent, ccy)} / ${fmt(Number(b.monthly_limit), ccy)})`)
+                .join(" · ")}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {kpiCard("Income this month", fmt(thisMonth.income, ccy), `12-mo avg ${fmt(trailing.income, ccy)}`, "good")}

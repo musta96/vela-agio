@@ -15,6 +15,8 @@ export type DividendPositionSeed = {
   price: number;       // per-share price in the projection's currency
   yieldPct: number;    // annual dividend yield (0-100), e.g. 3.5
   nextPayoutMonth?: number; // 1-12; if omitted, quarterly cycle starting month 3
+  dripPct?: number;    // per-position DRIP rate 0-100. If omitted, falls back
+                       // to the projection's global reinvest setting.
 };
 
 export type ProjectionInputs = {
@@ -28,6 +30,10 @@ export type ProjectionInputs = {
   years: number;
   reinvest: boolean;
   payoutFrequency: 1 | 2 | 4 | 12;
+  /** Optional global DRIP rate 0-100 overriding the boolean `reinvest`.
+   *  When positions supply their own `dripPct`, the effective rate is the
+   *  income-weighted blend of those overrides. */
+  reinvestRatePct?: number;
   /** Optional real positions — when provided, they drive the starting
    *  portfolio value AND the blended starting yield instead of the
    *  scalar dividendYield. Contributions still use `dividendYieldPct`
@@ -56,6 +62,7 @@ export type ProjectionResult = {
   yieldOnCost: number;
   blendedStartYieldPct: number;
   seededFromPositions: boolean;
+  blendedDripPct: number;
 };
 
 export function projectDividends(input: ProjectionInputs): ProjectionResult {
@@ -73,6 +80,25 @@ export function projectDividends(input: ProjectionInputs): ProjectionResult {
   const seedIncome = positions.reduce((a, p) => a + (p.shares * p.price * (p.yieldPct / 100) || 0), 0);
   const seededFromPositions = positions.length > 0 && seedValue > 0;
   const blendedYield = seededFromPositions ? seedIncome / seedValue : y0Scalar;
+
+  // Effective DRIP fraction. Priority:
+  //   1. income-weighted blend of per-position `dripPct` (if any position sets it)
+  //   2. explicit `reinvestRatePct` on the input
+  //   3. legacy boolean `reinvest` (true = 100%, false = 0%)
+  const hasPositionDrip = positions.some((p) => typeof p.dripPct === "number");
+  const fallbackDrip = typeof input.reinvestRatePct === "number"
+    ? input.reinvestRatePct
+    : input.reinvest ? 100 : 0;
+  let blendedDripPct = fallbackDrip;
+  if (hasPositionDrip && seedIncome > 0) {
+    const weighted = positions.reduce((a, p) => {
+      const inc = p.shares * p.price * (p.yieldPct / 100);
+      const drip = typeof p.dripPct === "number" ? p.dripPct : fallbackDrip;
+      return a + inc * drip;
+    }, 0);
+    blendedDripPct = weighted / seedIncome;
+  }
+  const dripFrac = Math.min(1, Math.max(0, blendedDripPct / 100));
 
   const startingValue = seededFromPositions ? seedValue : input.startingValue;
 
@@ -100,9 +126,10 @@ export function projectDividends(input: ProjectionInputs): ProjectionResult {
         const net = gross * (1 - tax);
         grossThisYear += gross;
         netThisYear += net;
-        if (input.reinvest) {
-          shares += net / price;
-          cumulativeReinvested += net;
+        if (dripFrac > 0) {
+          const reinv = net * dripFrac;
+          shares += reinv / price;
+          cumulativeReinvested += reinv;
         }
         dividendPerShare *= Math.pow(1 + dgr, 1 / freq);
       }
@@ -134,6 +161,7 @@ export function projectDividends(input: ProjectionInputs): ProjectionResult {
     yieldOnCost: last?.yieldOnCost ?? 0,
     blendedStartYieldPct: blendedYield * 100,
     seededFromPositions,
+    blendedDripPct,
   };
 }
 

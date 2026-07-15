@@ -1037,6 +1037,119 @@ export function CashFlowPanel() {
         )}
       </Card>
 
+      {/* Per-month waterfall breakdown */}
+      {forecastSeries.breakdown.length > 0 && waterfallMonth && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Waterfall — how {waterfallMonth.target.label} adds up</h3>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                Income → raw expenses → budget cap savings → one-time → net delta
+              </span>
+            </div>
+            <Select
+              value={selectedForecastMonth ?? forecastSeries.breakdown[0].mk}
+              onValueChange={setSelectedForecastMonth}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {forecastSeries.breakdown.map((b) => (
+                  <SelectItem key={b.mk} value={b.mk}>{b.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={waterfallMonth.bars} layout="vertical" margin={{ left: 24, right: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`} />
+                <YAxis dataKey="label" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} width={140} />
+                <RTooltip
+                  formatter={(_v: any, _n: any, p: any) => [fmt(Number(p.payload.value), ccy), p.payload.label]}
+                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+                />
+                <Bar dataKey="range" radius={[3, 3, 3, 3]}>
+                  {waterfallMonth.bars.map((b, i) => (
+                    <Cell key={i} fill={b.fill} />
+                  ))}
+                </Bar>
+                <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-xs">
+            {waterfallMonth.bars.map((b) => (
+              <div key={b.key} className="rounded-md border border-border p-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{b.label}</div>
+                <div className={`tabular-nums font-medium ${b.value >= 0 ? "text-success" : "text-destructive"}`}>
+                  {b.value >= 0 ? "+" : ""}{fmt(b.value, ccy)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Reclassify uncategorized recurring expenses */}
+      {uncategorizedRecurring.length > 0 && (
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Tags className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Reclassify uncategorized transactions</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            These recurring expense categories have no budget target, so they pass through the forecast uncapped.
+            Map each one to an existing budget category (or the shared "Other" pool) so the cap applies consistently to future months.
+          </p>
+          <div className="grid gap-2 md:grid-cols-2">
+            {uncategorizedRecurring.map((row) => (
+              <div key={row.category} className="flex items-center gap-2 rounded-lg border border-border p-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{row.category}</div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">
+                    ~{fmt(row.monthlyTotal, ccy)} / mo recurring
+                  </div>
+                </div>
+                <Select
+                  value={row.mappedTo ?? "__none__"}
+                  onValueChange={(v) => {
+                    const next = { ...reclassifyMap };
+                    if (v === "__none__") delete next[row.category];
+                    else next[row.category] = v;
+                    persistReclassify(next);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue placeholder="Keep as-is" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Keep as-is (uncapped)</SelectItem>
+                    {budgets.map((b) => (
+                      <SelectItem key={b.id} value={b.category}>
+                        {b.category} · {fmt(Number(b.monthly_limit), ccy)}
+                      </SelectItem>
+                    ))}
+                    {!budgets.some((b) => b.category === "Other") && (
+                      <SelectItem value="Other">Other (pool)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+          {Object.keys(reclassifyMap).length > 0 && (
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" variant="ghost" className="gap-1 h-7" onClick={() => persistReclassify({})}>
+                <RotateCcw className="h-3.5 w-3.5" /> Clear reclassification
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Recent entries */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">

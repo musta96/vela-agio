@@ -193,6 +193,49 @@ export function CashFlowPanel() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
+  const updateEntry = async (patch: Partial<CashFlowEntry> & { id: string }) => {
+    const { id, ...rest } = patch;
+    const { error } = await (supabase as any).from("cash_flow_entries").update(rest).eq("id", id);
+    if (error) return toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    toast({ title: "Entry updated" });
+    setEditing(null);
+    void load();
+  };
+
+  const togglePause = async (e: CashFlowEntry) => {
+    if (!e.recurring_monthly) return;
+    const nextPause = e.paused_from ? null : new Date().toISOString().slice(0, 10);
+    const { error } = await (supabase as any)
+      .from("cash_flow_entries")
+      .update({ paused_from: nextPause })
+      .eq("id", e.id);
+    if (error) return toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    toast({ title: nextPause ? "Recurring paused" : "Recurring resumed" });
+    void load();
+  };
+
+  const saveBudget = async () => {
+    if (!user || !budgetDialog) return;
+    const amt = Number(budgetDialog.amount);
+    if (!isFinite(amt) || amt < 0) {
+      return toast({ title: "Enter a valid limit", variant: "destructive" });
+    }
+    const { error } = await (supabase as any).from("budget_targets").upsert(
+      { user_id: user.id, category: budgetDialog.category, monthly_limit: amt, currency: ccy },
+      { onConflict: "user_id,category" },
+    );
+    if (error) return toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    toast({ title: "Budget target saved" });
+    setBudgetDialog(null);
+    void load();
+  };
+
+  const removeBudget = async (id: string) => {
+    const { error } = await (supabase as any).from("budget_targets").delete().eq("id", id);
+    if (error) return toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    setBudgets((prev) => prev.filter((b) => b.id !== id));
+  };
+
   // ---- Aggregations ------------------------------------------------------
   // Project each entry into every month from its entry_date up to "now" when
   // recurring_monthly is on, otherwise the single entry month. A recurring

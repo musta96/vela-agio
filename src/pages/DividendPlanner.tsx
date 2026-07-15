@@ -160,10 +160,9 @@ export default function DividendPlanner() {
   const totalReturn = totalContrib > 0 ? finalPortfolio / totalContrib - 1 : 0;
 
   const exportCsv = () => {
-    downloadCsv(
-      "dividend-plan.csv",
+    downloadCsv("dividend-plan.csv", [
       ["Year", "Cumulative contributions", "Cumulative reinvested", "Portfolio value", "Gross dividends", "Net dividends", "Yield on cost"],
-      rows.map((r) => [
+      ...rows.map((r) => [
         r.year,
         Math.round(r.contributions),
         Math.round(r.reinvested),
@@ -172,7 +171,7 @@ export default function DividendPlanner() {
         Math.round(r.netDividends),
         (r.yieldOnCost * 100).toFixed(2) + "%",
       ]),
-    );
+    ]);
   };
 
   return (
@@ -180,6 +179,7 @@ export default function DividendPlanner() {
       <SEO
         title="Dividend Income Planner — Project Future Dividend Streams"
         description="Model future dividend income with contributions, dividend growth, price appreciation, DRIP and taxes. Interactive charts, yield-on-cost, and year-by-year projections."
+        path="/dividends"
       />
       <PageHeader
         icon={Coins}

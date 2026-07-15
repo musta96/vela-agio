@@ -714,7 +714,13 @@ export function CashFlowPanel() {
                     </TableCell>
                     <TableCell className="text-sm">
                       {e.category}
-                      {e.recurring_monthly && <Badge variant="secondary" className="ml-2 text-[10px]">Monthly</Badge>}
+                      {e.recurring_monthly && (
+                        e.paused_from ? (
+                          <Badge variant="outline" className="ml-2 text-[10px]">Paused</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="ml-2 text-[10px]">Monthly</Badge>
+                        )
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground truncate max-w-[180px]">{e.label || "—"}</TableCell>
                     <TableCell className={`text-right tabular-nums font-medium ${e.direction === "income" ? "text-success" : "text-destructive"}`}>
@@ -722,9 +728,24 @@ export function CashFlowPanel() {
                       {fmt(Number(e.amount), e.currency || ccy)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => removeEntry(e.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-end gap-0.5">
+                        {e.recurring_monthly && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => togglePause(e)}
+                            title={e.paused_from ? "Resume recurring" : "Pause recurring"}
+                          >
+                            {e.paused_from ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => setEditing(e)} title="Edit">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => removeEntry(e.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -733,6 +754,144 @@ export function CashFlowPanel() {
           </div>
         )}
       </Card>
+
+      {/* Edit entry dialog */}
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit cash flow entry</DialogTitle>
+            <DialogDescription>Update the entry details. Recurring entries will re-project future months automatically.</DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Type</Label>
+                  <Select value={editing.direction} onValueChange={(v) => setEditing({ ...editing, direction: v as any })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="expense">Expense</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Category</Label>
+                  <Select value={editing.category} onValueChange={(v) => setEditing({ ...editing, category: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(editing.direction === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Amount ({editing.currency || ccy})</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={String(editing.amount)}
+                    onChange={(e) => setEditing({ ...editing, amount: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Date</Label>
+                  <Input type="date" value={editing.entry_date} onChange={(e) => setEditing({ ...editing, entry_date: e.target.value })} />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Note</Label>
+                  <Input value={editing.label ?? ""} onChange={(e) => setEditing({ ...editing, label: e.target.value })} maxLength={80} />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 pt-1">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="edit-recurring"
+                    checked={!!editing.recurring_monthly}
+                    onCheckedChange={(v) => setEditing({ ...editing, recurring_monthly: v })}
+                  />
+                  <Label htmlFor="edit-recurring" className="text-xs cursor-pointer">Repeats monthly</Label>
+                </div>
+                {editing.recurring_monthly && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="edit-paused"
+                      checked={!!editing.paused_from}
+                      onCheckedChange={(v) =>
+                        setEditing({ ...editing, paused_from: v ? new Date().toISOString().slice(0, 10) : null })
+                      }
+                    />
+                    <Label htmlFor="edit-paused" className="text-xs cursor-pointer">Pause future months</Label>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button
+              onClick={() =>
+                editing &&
+                updateEntry({
+                  id: editing.id,
+                  direction: editing.direction,
+                  category: editing.category,
+                  amount: Number(editing.amount) || 0,
+                  entry_date: editing.entry_date,
+                  label: editing.label?.trim() || null,
+                  recurring_monthly: editing.recurring_monthly,
+                  paused_from: editing.recurring_monthly ? editing.paused_from ?? null : null,
+                })
+              }
+            >
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Budget target dialog */}
+      <Dialog open={!!budgetDialog} onOpenChange={(o) => !o && setBudgetDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set budget target</DialogTitle>
+            <DialogDescription>
+              Monthly limit for a spending category. Alerts show above when this month's spend exceeds it.
+            </DialogDescription>
+          </DialogHeader>
+          {budgetDialog && (
+            <div className="grid gap-3">
+              <div>
+                <Label className="text-xs">Category</Label>
+                <Select
+                  value={budgetDialog.category}
+                  onValueChange={(v) => setBudgetDialog({ ...budgetDialog, category: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Monthly limit ({ccy})</Label>
+                <Input
+                  inputMode="decimal"
+                  value={budgetDialog.amount}
+                  onChange={(e) => setBudgetDialog({ ...budgetDialog, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBudgetDialog(null)}>Cancel</Button>
+            <Button onClick={saveBudget}>Save target</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

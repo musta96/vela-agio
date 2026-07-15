@@ -226,13 +226,15 @@ export default function Budget() {
   const [importOpen, setImportOpen] = useState(false);
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [tags, setTags] = useState<Record<string, TxTag>>({});
+  const [reconcileCfg, setReconcileCfg] = useState<ReconcileConfig>(DEFAULT_RECONCILE_CFG);
   const [tab, setTab] = useState<string>("overview");
 
   // Load rules & tags whenever the user changes.
   useEffect(() => {
-    if (!user) { setRules([]); setTags({}); return; }
+    if (!user) { setRules([]); setTags({}); setReconcileCfg(DEFAULT_RECONCILE_CFG); return; }
     setRules(loadRules(user.id));
     setTags(loadTags(user.id));
+    setReconcileCfg(loadReconcileCfg(user.id));
   }, [user?.id]);
 
   const persistRules = (next: RecurringRule[]) => {
@@ -242,6 +244,10 @@ export default function Budget() {
   const persistTags = (next: Record<string, TxTag>) => {
     setTags(next);
     if (user) saveTags(user.id, next);
+  };
+  const persistReconcileCfg = (next: ReconcileConfig) => {
+    setReconcileCfg(next);
+    if (user) saveReconcileCfg(user.id, next);
   };
 
   const load = async () => {

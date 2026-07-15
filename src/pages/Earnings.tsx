@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { CalendarDays, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AIEquityAnalystDialog, type AnalystInput } from "@/components/research/AIEquityAnalystDialog";
+import { SavedResearchNotes, type SavedNote } from "@/components/research/SavedResearchNotes";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
@@ -21,6 +22,7 @@ export default function Earnings() {
   const [analystInput, setAnalystInput] = useState<AnalystInput | null>(null);
   const [callSymbol, setCallSymbol] = useState("AAPL");
   const [callTranscript, setCallTranscript] = useState("");
+  const [notesRefresh, setNotesRefresh] = useState(0);
 
   const analyzeCall = () => {
     if (!callTranscript.trim() || !callSymbol.trim()) return;
@@ -28,7 +30,20 @@ export default function Earnings() {
     setAnalystOpen(true);
   };
 
-
+  const reopenNote = (n: SavedNote) => {
+    setAnalystInput({
+      symbol: n.symbol,
+      name: n.name ?? undefined,
+      mode: n.mode,
+      filingUrl: n.source_url ?? undefined,
+      filingLabel: n.source_label ?? undefined,
+      initialReport: n.report,
+      initialGeneratedAt: n.generated_at,
+      initialModel: n.model ?? undefined,
+      initialSourceLabel: n.source_label ?? undefined,
+    });
+    setAnalystOpen(true);
+  };
 
   useEffect(() => {
     (async () => {
@@ -111,7 +126,14 @@ export default function Earnings() {
           </CardContent>
         </Card>
 
-        <AIEquityAnalystDialog open={analystOpen} onOpenChange={setAnalystOpen} input={analystInput} />
+        <SavedResearchNotes symbol={callSymbol.toUpperCase()} onReopen={reopenNote} refreshKey={notesRefresh} />
+
+        <AIEquityAnalystDialog
+          open={analystOpen}
+          onOpenChange={setAnalystOpen}
+          input={analystInput}
+          onSaved={() => setNotesRefresh((n) => n + 1)}
+        />
       </main>
     </div>
   );

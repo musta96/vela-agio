@@ -51,6 +51,55 @@ type CashFlowEntry = {
   category: string; label: string | null; amount: number; currency: string;
 };
 
+/**
+ * Recurring transaction rule (client-side, stored in localStorage).
+ * When the selected month has no actual entry that matches the rule pattern,
+ * an expected/projected amount is added into the "actual" column so future
+ * months compare correctly against the budget.
+ */
+type RecurringRule = {
+  id: string;
+  label: string;
+  pattern: string;          // case-insensitive substring/regex against label
+  category: string;
+  amount: number;
+  day_of_month: number;     // 1..28
+  active: boolean;
+};
+
+/**
+ * Per-transaction reconciliation tag (client-side, localStorage).
+ * - transfer: excluded from actuals (moves between own accounts)
+ * - duplicate: excluded from actuals (dedupe of an imported row)
+ * - matched: user-confirmed real expense
+ */
+type TxTag = "transfer" | "duplicate" | "matched";
+
+const RULES_LS_KEY = (uid: string) => `vela.budget.recurring.rules.v1.${uid}`;
+const TAGS_LS_KEY = (uid: string) => `vela.budget.tx.tags.v1.${uid}`;
+
+function loadRules(uid: string): RecurringRule[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(window.localStorage.getItem(RULES_LS_KEY(uid)) || "[]"); } catch { return []; }
+}
+function saveRules(uid: string, rules: RecurringRule[]) {
+  try { window.localStorage.setItem(RULES_LS_KEY(uid), JSON.stringify(rules)); } catch { /* ignore */ }
+}
+function loadTags(uid: string): Record<string, TxTag> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(window.localStorage.getItem(TAGS_LS_KEY(uid)) || "{}"); } catch { return {}; }
+}
+function saveTags(uid: string, tags: Record<string, TxTag>) {
+  try { window.localStorage.setItem(TAGS_LS_KEY(uid), JSON.stringify(tags)); } catch { /* ignore */ }
+}
+
+function matchesRule(rule: RecurringRule, label: string | null): boolean {
+  if (!rule.pattern) return false;
+  const l = (label || "").toLowerCase();
+  const p = rule.pattern.toLowerCase();
+  return l.includes(p);
+}
+
 const fmt = (n: number, ccy = "EUR") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(n || 0);
 

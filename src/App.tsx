@@ -36,6 +36,7 @@ import HedgeFundReplicator from "./pages/HedgeFundReplicator";
 import Copilot from "./pages/Copilot";
 import Goals from "./pages/Goals";
 import DividendPlanner from "./pages/DividendPlanner";
+import Budget from "./pages/Budget";
 import PortfolioSimulations from "./pages/PortfolioSimulations";
 import EventStudy from "./pages/EventStudy";
 import TaxHarvest from "./pages/TaxHarvest";
@@ -182,6 +183,7 @@ const App = () => (
             <Route path="/copilot" element={<Copilot />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/dividends" element={<DividendPlanner />} />
+            <Route path="/budget" element={<Budget />} />
             <Route path="/simulations" element={<PortfolioSimulations />} />
             <Route path="/event-study" element={<EventStudy />} />
             <Route path="/tax-harvest" element={<TaxHarvest />} />

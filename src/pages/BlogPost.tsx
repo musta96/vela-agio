@@ -88,7 +88,7 @@ export default function BlogPost() {
   async function submitForm(e: React.FormEvent) {
     e.preventDefault();
     const parsed = emailSchema.safeParse(form.email);
-    if (!parsed.success) { toast.error(parsed.error.errors[0].message); return; }
+    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
 
     // Validate required lead-magnet fields client-side too
     const cfg = (post?.lead_magnet_fields as Record<string, boolean> | null | undefined) || {};

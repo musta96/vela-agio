@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
 import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
@@ -9,15 +10,27 @@ import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 // style recommendation.
 
 const UA = 'Vela AI Equity Research research@vela.ai';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+const HOURLY_LIMIT = 30;                    // fresh AI runs per user per hour
+const CACHE_TTL_FILING_MS = 7 * 24 * 3600 * 1000;
+const CACHE_TTL_TRANSCRIPT_MS = 24 * 3600 * 1000;
 
 interface Body {
+  action?: 'analyze' | 'list' | 'get' | 'delete';
   symbol: string;
   name?: string;
-  mode: 'filing' | 'transcript';
+  mode?: 'filing' | 'transcript';
   filingUrl?: string;
+  filingLabel?: string;
   transcript?: string;
   lang?: string;
-  focus?: string; // optional user emphasis: "margins", "guidance", "risks"...
+  focus?: string;
+  force?: boolean;   // bypass cache
+  id?: string;      // for get/delete
+  ids?: string[];   // for multi-get (compare)
 }
 
 function htmlToText(html: string): string {
@@ -55,11 +68,11 @@ const SCHEMA = `{
   "period": string,
   "executiveSummary": string,
   "businessOverview": string,
-  "keyMetrics": [{"label": string, "value": string, "yoyChange": string, "commentary": string}],
+  "keyMetrics": [{"label": string, "value": string, "yoyChange": string, "commentary": string, "citation": {"quote": string, "section": string}}],
   "guidance": {"stated": boolean, "summary": string, "direction": "raised"|"reiterated"|"lowered"|"none"},
-  "risks": [{"category": "market"|"operational"|"regulatory"|"financial"|"strategic"|"macro"|"legal", "title": string, "detail": string, "severity": "high"|"medium"|"low"}],
+  "risks": [{"category": "market"|"operational"|"regulatory"|"financial"|"strategic"|"macro"|"legal", "title": string, "detail": string, "severity": "high"|"medium"|"low", "citation": {"quote": string, "section": string}}],
   "opportunities": [{"title": string, "detail": string, "horizon": "short"|"medium"|"long"}],
-  "managementTone": {"sentiment": "positive"|"cautiously-positive"|"neutral"|"cautious"|"negative", "confidence": "high"|"medium"|"low", "notableQuotes": [string], "commentary": string},
+  "managementTone": {"sentiment": "positive"|"cautiously-positive"|"neutral"|"cautious"|"negative", "confidence": "high"|"medium"|"low", "notableQuotes": [{"quote": string, "section": string}], "commentary": string},
   "capitalAllocation": string,
   "researchNote": string,
   "recommendation": {"stance": "constructive"|"neutral"|"cautious", "timeframe": "short"|"medium"|"long", "rationale": string},
@@ -67,33 +80,125 @@ const SCHEMA = `{
   "followUpQuestions": [string]
 }`;
 
+function svc() {
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+}
+
+async function getUserId(authHeader: string | null): Promise<string | null> {
+  if (!authHeader) return null;
+  try {
+    const c = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+    const { data } = await c.auth.getUser();
+    return data.user?.id ?? null;
+  } catch { return null; }
+}
+
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function jsonResp(body: any, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  const access = await resolveAiAccess(req.headers.get('Authorization'));
-  if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
-
   try {
     const body = (await req.json()) as Body;
-    if (!body?.symbol || !body?.mode) {
-      return new Response(JSON.stringify({ error: 'symbol and mode required' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const action = body.action ?? 'analyze';
+    const authHeader = req.headers.get('Authorization');
+    const userId = await getUserId(authHeader);
+
+    // ---- List saved notes ----
+    if (action === 'list') {
+      if (!userId) return jsonResp({ notes: [], authenticated: false });
+      const q = svc().from('ai_research_notes')
+        .select('id, symbol, name, mode, source_url, source_label, focus, model, generated_at, created_at, report')
+        .eq('user_id', userId).order('generated_at', { ascending: false }).limit(200);
+      if (body.symbol) q.eq('symbol', body.symbol.toUpperCase());
+      const { data, error } = await q;
+      if (error) return jsonResp({ error: 'query_failed', message: error.message }, 500);
+      return jsonResp({ notes: data ?? [] });
     }
+
+    // ---- Get one or many by id (for compare) ----
+    if (action === 'get') {
+      if (!userId) return jsonResp({ error: 'auth_required' }, 401);
+      const ids = body.ids?.length ? body.ids : (body.id ? [body.id] : []);
+      if (!ids.length) return jsonResp({ error: 'id or ids required' }, 400);
+      const { data, error } = await svc().from('ai_research_notes')
+        .select('*').eq('user_id', userId).in('id', ids);
+      if (error) return jsonResp({ error: 'query_failed', message: error.message }, 500);
+      return jsonResp({ notes: data ?? [] });
+    }
+
+    // ---- Delete ----
+    if (action === 'delete') {
+      if (!userId) return jsonResp({ error: 'auth_required' }, 401);
+      if (!body.id) return jsonResp({ error: 'id required' }, 400);
+      const { error } = await svc().from('ai_research_notes')
+        .delete().eq('user_id', userId).eq('id', body.id);
+      if (error) return jsonResp({ error: 'delete_failed', message: error.message }, 500);
+      return jsonResp({ ok: true });
+    }
+
+    // ---- Analyze ----
+    const access = await resolveAiAccess(authHeader);
+    if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+
+    if (!body?.symbol || !body?.mode) return jsonResp({ error: 'symbol and mode required' }, 400);
     if (body.mode === 'filing' && !body.filingUrl) {
-      return new Response(JSON.stringify({ error: 'filingUrl required for mode=filing' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResp({ error: 'filingUrl required for mode=filing' }, 400);
     }
     if (body.mode === 'transcript' && !body.transcript?.trim()) {
-      return new Response(JSON.stringify({ error: 'transcript required for mode=transcript' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResp({ error: 'transcript required for mode=transcript' }, 400);
     }
 
     const sym = body.symbol.toUpperCase();
     const name = body.name || sym;
     const lang = body.lang || 'en';
     const langName = lang === 'it' ? 'Italian' : 'English';
+    const focus = (body.focus ?? '').trim();
+
+    // ---- Compute source hash for cache key ----
+    const hashInput = body.mode === 'filing'
+      ? `filing|${body.filingUrl}|${focus}|${lang}`
+      : `transcript|${await sha256Hex(body.transcript!)}|${focus}|${lang}`;
+    const source_hash = await sha256Hex(hashInput);
+
+    // ---- Cache lookup ----
+    if (userId && !body.force) {
+      const { data: existing } = await svc()
+        .from('ai_research_notes').select('*')
+        .eq('user_id', userId).eq('source_hash', source_hash).maybeSingle();
+      if (existing) {
+        const age = Date.now() - new Date(existing.generated_at as string).getTime();
+        const ttl = body.mode === 'filing' ? CACHE_TTL_FILING_MS : CACHE_TTL_TRANSCRIPT_MS;
+        if (age < ttl) {
+          return jsonResp({
+            symbol: sym, name, mode: body.mode,
+            generatedAt: existing.generated_at, model: existing.model,
+            providerNotice: existing.provider_notice, sourceNote: existing.source_note,
+            report: existing.report, cached: true, noteId: existing.id,
+          });
+        }
+      }
+    }
+
+    // ---- Throttle ----
+    if (userId) {
+      const oneHourAgo = new Date(Date.now() - 3600 * 1000).toISOString();
+      const { count } = await svc()
+        .from('ai_research_notes').select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).gte('created_at', oneHourAgo);
+      if ((count ?? 0) >= HOURLY_LIMIT) {
+        return jsonResp({
+          error: 'throttled',
+          message: `Hourly AI research limit reached (${HOURLY_LIMIT}/hour). Reuse a saved note or try again later.`,
+        }, 429);
+      }
+    }
 
     let source = '';
     let note: string | undefined;
@@ -107,19 +212,21 @@ Deno.serve(async (req) => {
     }
 
     if (source.length < 400) {
-      return new Response(JSON.stringify({ error: 'source_too_short', note: 'The document text was too short to analyze. Try a different filing URL or paste the full transcript.' }), {
-        status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResp({ error: 'source_too_short', note: 'The document text was too short to analyze. Try a different filing URL or paste the full transcript.' }, 422);
     }
 
     const cfg = await resolveAIConfig(req.headers.get('Authorization'));
-    const focusLine = body.focus ? `The analyst has asked to focus on: ${body.focus}. Weight the note accordingly, but still cover every section.` : '';
+    const focusLine = focus ? `The analyst has asked to focus on: ${focus}. Weight the note accordingly, but still cover every section.` : '';
     const modeLabel = body.mode === 'filing' ? 'SEC filing / annual or interim report' : 'earnings call transcript';
 
     const systemPrompt = `You are a senior sell-side equity research analyst at a top-tier investment bank covering ${name} (${sym}).
 You read ${modeLabel} documents and extract signal for portfolio managers.
 Write ALL prose fields in ${langName}. Be number-driven, specific, and balanced — separate what management SAID from what the numbers SHOW.
 Never fabricate figures: only quote numbers that appear in the source document. If a metric is not disclosed, say "not disclosed".
+CITATIONS (mandatory): for every keyMetric, every risk, and every notable quote, include a "citation" with:
+  - "quote": a verbatim excerpt from the source document (<= 220 characters, no ellipses added by you)
+  - "section": the section label in which it appears (e.g. "Item 1A. Risk Factors", "Item 7. MD&A", "Financial Highlights", "Guidance", "CEO Prepared Remarks", "Q&A - Operator", or "Source Document" if truly unknown)
+If the source is silent on something, DO NOT invent a citation — omit that item instead.
 Return STRICT JSON only, matching this schema exactly (do not add extra keys): ${SCHEMA}`;
 
     const userPrompt = `Ticker: ${sym}
@@ -147,16 +254,8 @@ Produce the JSON research note now.`;
       }),
     });
 
-    if (r.status === 429) {
-      return new Response(JSON.stringify({ error: 'rate_limited', message: 'AI is temporarily rate-limited. Please retry shortly.' }), {
-        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    if (r.status === 402) {
-      return new Response(JSON.stringify({ error: 'credits_exhausted', message: 'AI credits exhausted for this workspace.' }), {
-        status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    if (r.status === 429) return jsonResp({ error: 'rate_limited', message: 'AI is temporarily rate-limited. Please retry shortly.' }, 429);
+    if (r.status === 402) return jsonResp({ error: 'credits_exhausted', message: 'AI credits exhausted for this workspace.' }, 402);
     if (!r.ok) {
       const t = await r.text();
       throw new Error(`AI ${r.status}: ${t.slice(0, 400)}`);
@@ -165,7 +264,24 @@ Produce the JSON research note now.`;
     let parsed: any = {};
     try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch { parsed = {}; }
 
-    return new Response(JSON.stringify({
+    // ---- Save (upsert) ----
+    let noteId: string | null = null;
+    if (userId) {
+      const { data: saved, error: saveErr } = await svc()
+        .from('ai_research_notes')
+        .upsert({
+          user_id: userId, symbol: sym, name, mode: body.mode, source_hash,
+          source_url: body.filingUrl ?? null, source_label: body.filingLabel ?? null,
+          focus: focus || null, report: parsed, model: cfg.model,
+          provider_notice: cfg.notice ?? null, source_note: note ?? null,
+          generated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,source_hash' })
+        .select('id').maybeSingle();
+      if (saveErr) console.error('save note error', saveErr);
+      noteId = saved?.id ?? null;
+    }
+
+    return jsonResp({
       symbol: sym,
       name,
       mode: body.mode,
@@ -174,11 +290,11 @@ Produce the JSON research note now.`;
       providerNotice: cfg.notice,
       sourceNote: note,
       report: parsed,
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      cached: false,
+      noteId,
+    });
   } catch (e) {
     console.error('equity-research-analyst error', e);
-    return new Response(JSON.stringify({ error: 'internal', message: String((e as Error)?.message ?? e) }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResp({ error: 'internal', message: String((e as Error)?.message ?? e) }, 500);
   }
 });

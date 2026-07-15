@@ -298,6 +298,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_research_notes: {
+        Row: {
+          created_at: string
+          focus: string | null
+          generated_at: string
+          id: string
+          mode: string
+          model: string | null
+          name: string | null
+          provider_notice: string | null
+          report: Json
+          source_hash: string
+          source_label: string | null
+          source_note: string | null
+          source_url: string | null
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          focus?: string | null
+          generated_at?: string
+          id?: string
+          mode: string
+          model?: string | null
+          name?: string | null
+          provider_notice?: string | null
+          report: Json
+          source_hash: string
+          source_label?: string | null
+          source_note?: string | null
+          source_url?: string | null
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          focus?: string | null
+          generated_at?: string
+          id?: string
+          mode?: string
+          model?: string | null
+          name?: string | null
+          provider_notice?: string | null
+          report?: Json
+          source_hash?: string
+          source_label?: string | null
+          source_note?: string | null
+          source_url?: string | null
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_signal_log: {
         Row: {
           confidence: number | null

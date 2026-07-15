@@ -28,10 +28,7 @@ export default function Earnings() {
     setAnalystOpen(true);
   };
 
-  const analyzeEvent = (sym: string) => {
-    setCallSymbol(sym);
-    setAnalystInput({ symbol: sym, mode: "transcript", transcript: "" });
-  };
+
 
   useEffect(() => {
     (async () => {

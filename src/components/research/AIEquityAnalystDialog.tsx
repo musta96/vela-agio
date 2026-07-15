@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +7,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Sparkles, AlertTriangle, TrendingUp, Quote, ClipboardCopy, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, TrendingUp, Quote, ClipboardCopy, RefreshCw, FileDown, Printer, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { Citation } from "./Citation";
+import { downloadMarkdown, openPrintable } from "@/lib/research/export";
 
 export interface AnalystInput {
   symbol: string;
@@ -17,12 +19,18 @@ export interface AnalystInput {
   filingUrl?: string;
   filingLabel?: string; // "10-K • 2024-11-01"
   transcript?: string;
+  // Optional: hydrate directly from a saved note (skips the "run" prompt).
+  initialReport?: any;
+  initialGeneratedAt?: string;
+  initialModel?: string;
+  initialSourceLabel?: string;
 }
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   input: AnalystInput | null;
+  onSaved?: () => void; // fired after a successful analysis (list can refresh)
 }
 
 const severityColor: Record<string, string> = {
@@ -31,31 +39,48 @@ const severityColor: Record<string, string> = {
   low: "text-muted-foreground",
 };
 
-export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
+export function AIEquityAnalystDialog({ open, onOpenChange, input, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
   const [focus, setFocus] = useState("");
   const [report, setReport] = useState<any | null>(null);
-  const [meta, setMeta] = useState<{ sourceNote?: string; model?: string; generatedAt?: string } | null>(null);
+  const [meta, setMeta] = useState<{ sourceNote?: string; model?: string; generatedAt?: string; cached?: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async () => {
+  // Hydrate from a saved note when opened via "Open" from the saved list.
+  useEffect(() => {
+    if (open && input?.initialReport) {
+      setReport(input.initialReport);
+      setMeta({
+        model: input.initialModel,
+        generatedAt: input.initialGeneratedAt,
+        cached: true,
+      });
+      setError(null);
+    }
+  }, [open, input]);
+
+  const run = async (force = false) => {
     if (!input) return;
     setLoading(true); setError(null); setReport(null);
     try {
       const { data, error } = await supabase.functions.invoke("equity-research-analyst", {
         body: {
+          action: "analyze",
           symbol: input.symbol,
           name: input.name,
           mode: input.mode,
           filingUrl: input.filingUrl,
+          filingLabel: input.filingLabel,
           transcript: input.transcript,
           focus: focus.trim() || undefined,
+          force,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.message || data.error);
       setReport(data?.report ?? null);
-      setMeta({ sourceNote: data?.sourceNote, model: data?.model, generatedAt: data?.generatedAt });
+      setMeta({ sourceNote: data?.sourceNote, model: data?.model, generatedAt: data?.generatedAt, cached: !!data?.cached });
+      onSaved?.();
     } catch (e: any) {
       setError(e?.message || "Analysis failed");
     } finally {
@@ -63,18 +88,48 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
     }
   };
 
-  const copy = () => {
+  const copyJson = () => {
     if (!report) return;
     navigator.clipboard.writeText(JSON.stringify(report, null, 2));
     toast.success("Research note copied to clipboard");
   };
 
+  const exportCtx = () => ({
+    symbol: input?.symbol ?? "",
+    name: input?.name,
+    mode: input?.mode ?? "filing",
+    sourceUrl: input?.filingUrl,
+    sourceLabel: input?.filingLabel ?? input?.initialSourceLabel,
+    generatedAt: meta?.generatedAt,
+    model: meta?.model,
+    report,
+  }) as const;
+
   const reset = () => {
     setReport(null); setError(null); setMeta(null);
   };
 
+  const renderQuote = (q: any, i: number) => {
+    const quoteText = typeof q === "string" ? q : q?.quote;
+    const section = typeof q === "string" ? undefined : q?.section;
+    if (!quoteText) return null;
+    return (
+      <div key={i} className="flex gap-2 text-sm italic text-muted-foreground border-l-2 border-primary pl-3 items-start">
+        <Quote className="h-3 w-3 shrink-0 mt-1" />
+        <div className="flex-1">
+          <span>{quoteText}</span>
+          {section && (
+            <span className="not-italic ml-2">
+              <Badge variant="outline" className="text-[10px]">{section}</Badge>
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { reset(); setFocus(""); } }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -97,11 +152,11 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
               onChange={(e) => setFocus(e.target.value)}
             />
             {error && <p className="text-sm text-bear">{error}</p>}
-            <Button onClick={run} className="w-full" disabled={!input}>
+            <Button onClick={() => run(false)} className="w-full" disabled={!input}>
               <Sparkles className="h-4 w-4 mr-2" /> Run AI analysis
             </Button>
             <p className="text-xs text-muted-foreground">
-              The AI reads the source document, extracts figures and risks disclosed by management, and drafts a portfolio-manager style research note.
+              The AI reads the source document, extracts figures/risks with inline SEC section citations, and drafts a portfolio-manager style research note. Repeat runs on the same filing are served from your saved cache within 7 days.
             </p>
           </div>
         )}
@@ -124,8 +179,16 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
               {report.recommendation?.stance && (
                 <Badge variant="outline" className="capitalize">Stance: {report.recommendation.stance}</Badge>
               )}
-              <div className="ml-auto flex gap-2">
-                <Button size="sm" variant="ghost" onClick={copy}><ClipboardCopy className="h-3 w-3 mr-1" /> Copy JSON</Button>
+              {meta?.cached && <Badge variant="outline" className="gap-1"><Zap className="h-3 w-3" /> Cached</Badge>}
+              <div className="ml-auto flex flex-wrap gap-1">
+                <Button size="sm" variant="ghost" onClick={() => openPrintable(exportCtx())}><Printer className="h-3 w-3 mr-1" /> PDF</Button>
+                <Button size="sm" variant="ghost" onClick={() => downloadMarkdown(exportCtx())}><FileDown className="h-3 w-3 mr-1" /> Markdown</Button>
+                <Button size="sm" variant="ghost" onClick={copyJson}><ClipboardCopy className="h-3 w-3 mr-1" /> JSON</Button>
+                {meta?.cached && input && !input.initialReport && (
+                  <Button size="sm" variant="ghost" onClick={() => run(true)} title="Force fresh AI analysis (bills a new run)">
+                    <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => { reset(); }}><RefreshCw className="h-3 w-3 mr-1" /> New run</Button>
               </div>
             </div>
@@ -186,14 +249,19 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
                   <div className="grid gap-2">
                     {(report.keyMetrics ?? []).map((m: any, i: number) => (
                       <Card key={i}>
-                        <CardContent className="p-3 flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{m.label}</div>
-                            {m.commentary && <div className="text-xs text-muted-foreground mt-1">{m.commentary}</div>}
-                          </div>
-                          <div className="text-right">
-                            <div className="font-mono text-sm">{m.value}</div>
-                            {m.yoyChange && <div className="text-xs text-muted-foreground font-mono">YoY: {m.yoyChange}</div>}
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm flex items-center gap-2 flex-wrap">
+                                <span>{m.label}</span>
+                                <Citation citation={m.citation} sourceUrl={input?.filingUrl} />
+                              </div>
+                              {m.commentary && <div className="text-xs text-muted-foreground mt-1">{m.commentary}</div>}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="font-mono text-sm">{m.value}</div>
+                              {m.yoyChange && <div className="text-xs text-muted-foreground font-mono">YoY: {m.yoyChange}</div>}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -206,9 +274,10 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
                   {(report.risks ?? []).map((r: any, i: number) => (
                     <Card key={i}>
                       <CardContent className="p-3">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <AlertTriangle className={`h-4 w-4 ${severityColor[r.severity] ?? ""}`} />
                           <span className="font-medium text-sm">{r.title}</span>
+                          <Citation citation={r.citation} sourceUrl={input?.filingUrl} />
                           <Badge variant="outline" className="ml-auto capitalize">{r.category}</Badge>
                           {r.severity && <Badge variant="secondary" className="capitalize">{r.severity}</Badge>}
                         </div>
@@ -246,11 +315,7 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input }: Props) {
                       {Array.isArray(report.managementTone.notableQuotes) && report.managementTone.notableQuotes.length > 0 && (
                         <div className="space-y-2">
                           <h4 className="font-semibold text-sm">Notable quotes</h4>
-                          {report.managementTone.notableQuotes.map((q: string, i: number) => (
-                            <div key={i} className="flex gap-2 text-sm italic text-muted-foreground border-l-2 border-primary pl-3">
-                              <Quote className="h-3 w-3 shrink-0 mt-1" /> <span>{q}</span>
-                            </div>
-                          ))}
+                          {report.managementTone.notableQuotes.map(renderQuote)}
                         </div>
                       )}
                     </>

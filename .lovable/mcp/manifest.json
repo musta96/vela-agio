@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "sdk_version": "0.22.2",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://pcisxjfgdrgpxzfzfscf.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "vela",
+      "version": "1.0.0",
+      "title": "Vela — Trading Strategy Platform"
+    },
+    "tools": [
+      {
+        "name": "get_quote",
+        "title": "Get quote",
+        "description": "Latest price and daily change for a Yahoo-style ticker (e.g. AAPL, ENI.MI, ASML.AS). Public market data — no auth required.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "symbol": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Yahoo-style ticker symbol, e.g. AAPL, ENI.MI"
+            }
+          },
+          "required": [
+            "symbol"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_strategies",
+        "title": "Search strategies",
+        "description": "Search Vela's strategy library by free-text query (name, category, risk, horizon). Public — no auth required.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "default": "",
+              "description": "Free-text query, e.g. \"momentum\", \"mean reversion\", \"low risk\"",
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Max results (1–50)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_watchlist",
+        "title": "Get watchlist",
+        "description": "Return the signed-in Vela user's watchlist items (symbol, name, added-at).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_portfolio",
+        "title": "Get portfolio",
+        "description": "Return the signed-in Vela user's portfolio holdings (symbol, shares, avg price, currency).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

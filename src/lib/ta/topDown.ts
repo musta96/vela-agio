@@ -31,6 +31,8 @@ export function scoreTimeframe(timeframe: string, bars: Bar[]): TimeframeScoreca
       timeframe, bars: bars.length, lastClose: bars[bars.length - 1]?.close ?? null,
       bias: "neutral", score: 0, trendLabel: "insufficient data", reasons: [],
       nearestSupport: null, nearestResistance: null,
+      trendBias: "neutral", srBias: "neutral", smcBias: "neutral",
+      smcSummary: "—", srDistancePct: null,
     };
   }
   const closes = bars.map((b) => b.close);

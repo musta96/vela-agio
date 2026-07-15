@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BookOpen, Trash2, GitCompare, Loader2, RefreshCw } from "lucide-react";
+import { BookOpen, Trash2, GitCompare, Loader2, RefreshCw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { ResearchCompareDialog } from "./ResearchCompareDialog";
+import { ShareResearchDialog } from "./ShareResearchDialog";
 
 export interface SavedNote {
   id: string;
@@ -20,6 +21,10 @@ export interface SavedNote {
   generated_at: string;
   created_at: string;
   report: any;
+  share_token?: string | null;
+  share_enabled?: boolean | null;
+  share_permissions?: any;
+  share_expires_at?: string | null;
 }
 
 interface Props {
@@ -34,6 +39,7 @@ export function SavedResearchNotes({ symbol, onReopen, refreshKey }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [compareOpen, setCompareOpen] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [shareNote, setShareNote] = useState<SavedNote | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,6 +126,15 @@ export function SavedResearchNotes({ symbol, onReopen, refreshKey }: Props) {
                 </div>
               </div>
               <Button size="sm" variant="outline" onClick={() => onReopen?.(n)}>Open</Button>
+              <Button
+                size="sm"
+                variant={n.share_enabled ? "default" : "ghost"}
+                onClick={() => setShareNote(n)}
+                aria-label="Share note"
+                title={n.share_enabled ? "Manage share link" : "Create share link"}
+              >
+                <Share2 className="h-3 w-3" />
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => del(n.id)} aria-label="Delete note">
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -131,6 +146,12 @@ export function SavedResearchNotes({ symbol, onReopen, refreshKey }: Props) {
         </CardContent>
       </Card>
       <ResearchCompareDialog open={compareOpen} onOpenChange={setCompareOpen} notes={selectedNotes} />
+      <ShareResearchDialog
+        open={!!shareNote}
+        onOpenChange={(v) => { if (!v) setShareNote(null); }}
+        note={shareNote}
+        onChanged={load}
+      />
     </>
   );
 }

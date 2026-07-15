@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBaseCurrency } from "@/hooks/useBaseCurrency";
@@ -18,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { downloadCsv } from "@/lib/csvUtil";
 import {
   AlertTriangle, ArrowLeftRight, Download, PiggyBank, Plus, Trash2, Upload, Wallet,
+  Repeat, GitMerge, CheckCircle2, XCircle, Link2,
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer,

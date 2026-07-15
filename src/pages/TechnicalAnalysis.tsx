@@ -26,6 +26,7 @@ import {
   macd as macdFn,
   rsi as rsiFn,
   sma,
+  atr as atrFn,
   type Signal,
 } from "@/lib/technicalIndicators";
 import {
@@ -36,11 +37,19 @@ import {
   Legend,
   Line,
   ReferenceLine,
+  ReferenceArea,
+  ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { analyzeAll } from "@/lib/ta";
+import { PatternToggleBar, DEFAULT_TOGGLES, type OverlayToggles } from "@/components/technical/PatternToggleBar";
+import { InsightsCard } from "@/components/technical/InsightsCard";
+import { DetectedPatternsCard } from "@/components/technical/DetectedPatternsCard";
+import { TradePlannerCard } from "@/components/technical/TradePlannerCard";
+import { AITradeThesisCard } from "@/components/technical/AITradeThesisCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 
@@ -110,6 +119,27 @@ const TechnicalAnalysis = () => {
   }, [bars]);
 
   const summary = useMemo(() => analyze(bars), [bars]);
+
+  // Advanced TA (patterns, structure, SMC, insights).
+  const ta = useMemo(() => (bars.length ? analyzeAll(bars) : null), [bars]);
+  const atrArr = useMemo(() => (bars.length ? atrFn(bars, 14) : []), [bars]);
+  const lastAtr = atrArr.length ? atrArr[atrArr.length - 1] : null;
+  const [overlays, setOverlays] = useState<OverlayToggles>(DEFAULT_TOGGLES);
+  const overlayCounts = useMemo(() => {
+    if (!ta) return {};
+    return {
+      sr: ta.supportResistance.length,
+      trendlines: ta.trendlines.length,
+      fvg: ta.fvgs.filter((f) => !f.filled).length,
+      orderBlocks: ta.orderBlocks.length,
+      supplyDemand: ta.supplyDemand.filter((z) => z.fresh).length,
+      liquidity: ta.liquidityGrabs.length,
+      candles: ta.candlestickPatterns.length,
+      chartPatterns: ta.chartPatterns.length,
+      structure: ta.structure.length,
+    };
+  }, [ta]);
+  const lastBar = bars[bars.length - 1];
 
   return (
     <div className="min-h-screen bg-background">

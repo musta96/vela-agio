@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { FileText, ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AIEquityAnalystDialog, type AnalystInput } from "@/components/research/AIEquityAnalystDialog";
+import { SavedResearchNotes, type SavedNote } from "@/components/research/SavedResearchNotes";
 
 export default function Filings() {
   const { t } = useTranslation();
@@ -18,6 +19,7 @@ export default function Filings() {
   const [note, setNote] = useState<string | null>(null);
   const [analystOpen, setAnalystOpen] = useState(false);
   const [analystInput, setAnalystInput] = useState<AnalystInput | null>(null);
+  const [notesRefresh, setNotesRefresh] = useState(0);
 
   const analyzeFiling = (f: any) => {
     setAnalystInput({
@@ -25,6 +27,21 @@ export default function Filings() {
       mode: "filing",
       filingUrl: f.url,
       filingLabel: `${f.form} • ${f.date}`,
+    });
+    setAnalystOpen(true);
+  };
+
+  const reopenNote = (n: SavedNote) => {
+    setAnalystInput({
+      symbol: n.symbol,
+      name: n.name ?? undefined,
+      mode: n.mode,
+      filingUrl: n.source_url ?? undefined,
+      filingLabel: n.source_label ?? undefined,
+      initialReport: n.report,
+      initialGeneratedAt: n.generated_at,
+      initialModel: n.model ?? undefined,
+      initialSourceLabel: n.source_label ?? undefined,
     });
     setAnalystOpen(true);
   };
@@ -72,7 +89,13 @@ export default function Filings() {
             </Card>
           ))}
         </div>
-        <AIEquityAnalystDialog open={analystOpen} onOpenChange={setAnalystOpen} input={analystInput} />
+        <SavedResearchNotes symbol={symbol} onReopen={reopenNote} refreshKey={notesRefresh} />
+        <AIEquityAnalystDialog
+          open={analystOpen}
+          onOpenChange={setAnalystOpen}
+          input={analystInput}
+          onSaved={() => setNotesRefresh((n) => n + 1)}
+        />
       </main>
     </div>
   );

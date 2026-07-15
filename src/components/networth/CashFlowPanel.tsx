@@ -120,9 +120,14 @@ export function CashFlowPanel() {
   const { baseCurrency } = useBaseCurrency();
   const ccy = (baseCurrency || "EUR").toUpperCase();
   const { toast } = useToast();
+  const netWorth = useNetWorthTotal();
 
   const [entries, setEntries] = useState<CashFlowEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [budgets, setBudgets] = useState<BudgetTarget[]>([]);
+  const [editing, setEditing] = useState<CashFlowEntry | null>(null);
+  const [budgetDialog, setBudgetDialog] = useState<{ category: string; amount: string } | null>(null);
+  const [forecastMonths, setForecastMonths] = useState<12 | 24 | 60>(24);
 
   // New-entry form state
   const [direction, setDirection] = useState<"income" | "expense">("expense");
@@ -136,12 +141,12 @@ export function CashFlowPanel() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("cash_flow_entries")
-      .select("*")
-      .order("entry_date", { ascending: false })
-      .limit(500);
-    if (!error && data) setEntries(data as CashFlowEntry[]);
+    const [entriesRes, budgetsRes] = await Promise.all([
+      (supabase as any).from("cash_flow_entries").select("*").order("entry_date", { ascending: false }).limit(500),
+      (supabase as any).from("budget_targets").select("*"),
+    ]);
+    if (!entriesRes.error && entriesRes.data) setEntries(entriesRes.data as CashFlowEntry[]);
+    if (!budgetsRes.error && budgetsRes.data) setBudgets(budgetsRes.data as BudgetTarget[]);
     setLoading(false);
   };
   useEffect(() => {

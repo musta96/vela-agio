@@ -479,6 +479,8 @@ const NetWorth = () => {
                 )}
               </div>
               )}
+
+              {breakdownTab === "cashflow" && <CashFlowPanel />}
             </Card>
 
             <Card className="p-5">

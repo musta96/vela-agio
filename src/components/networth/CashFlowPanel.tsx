@@ -351,15 +351,10 @@ export function CashFlowPanel() {
   // (a stable, forward-looking estimate). Historical net cash flow drives the
   // "past" side so users see the join between recorded history and forecast.
   const forecastSeries = useMemo(() => {
-    const recurringNet = entries.reduce((acc, e) => {
-      if (!e.recurring_monthly) return acc;
-      if (e.paused_from && new Date(e.paused_from) <= new Date()) return acc;
-      const sign = e.direction === "income" ? 1 : -1;
-      return acc + sign * Number(e.amount || 0);
-    }, 0);
     const baseline = netWorth.total || 0;
     const now = new Date();
     const rows: { label: string; forecast: number | null; history: number | null; rawMonth: string }[] = [];
+
     // Past 12 months, built from recorded cumulative cash flow (reversed) so
     // the chart connects to today's baseline.
     const monthlyNet = monthlySeries.map((m) => m.net);
@@ -374,12 +369,57 @@ export function CashFlowPanel() {
         forecast: i === monthlySeries.length - 1 ? Math.round(running) : null,
       });
     }
-    // Future N months from recurring cash flow.
+
+    // Budget map for capping recurring expenses per category.
+    const budgetMap = new Map<string, number>();
+    for (const b of budgets) {
+      const lim = Number(b.monthly_limit) || 0;
+      if (lim > 0) budgetMap.set(b.category, lim);
+    }
+
+    // Compute per-month projected delta, incorporating:
+    //   • active recurring entries (expenses capped by budget target per category)
+    //   • one-time future-dated entries (scheduled inflows/outflows)
+    const perMonthDelta = (mk: string) => {
+      const [yy, mm] = mk.split("-").map(Number);
+      const monthDate = new Date(yy, mm - 1, 1);
+      let income = 0;
+      const expenseByCat = new Map<string, number>();
+      let oneOff = 0;
+      for (const e of entries) {
+        const startKey = monthKey(e.entry_date);
+        if (e.recurring_monthly) {
+          if (mk < startKey) continue;
+          if (e.paused_from && mk >= monthKey(e.paused_from)) continue;
+          const amt = Number(e.amount) || 0;
+          if (e.direction === "income") income += amt;
+          else expenseByCat.set(e.category, (expenseByCat.get(e.category) || 0) + amt);
+        } else {
+          // Only include one-time entries that fall in the future month.
+          if (startKey !== mk) continue;
+          if (monthDate <= new Date(now.getFullYear(), now.getMonth(), 1)) continue;
+          const amt = Number(e.amount) || 0;
+          oneOff += e.direction === "income" ? amt : -amt;
+        }
+      }
+      // Apply budget caps: recurring expenses in a budgeted category
+      // cannot exceed the monthly limit (assumes user will stay within budget).
+      let expense = 0;
+      for (const [cat, amt] of expenseByCat) {
+        const cap = budgetMap.get(cat);
+        expense += cap != null ? Math.min(amt, cap) : amt;
+      }
+      return income - expense + oneOff;
+    };
+
     let future = baseline;
+    let firstMonthDelta = 0;
     for (let i = 1; i <= forecastMonths; i++) {
-      future += recurringNet;
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const delta = perMonthDelta(mk);
+      if (i === 1) firstMonthDelta = delta;
+      future += delta;
       rows.push({
         label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }),
         rawMonth: mk,
@@ -387,8 +427,8 @@ export function CashFlowPanel() {
         forecast: Math.round(future),
       });
     }
-    return { rows, monthlyDelta: recurringNet, baseline };
-  }, [entries, netWorth.total, monthlySeries, forecastMonths]);
+    return { rows, monthlyDelta: firstMonthDelta, baseline };
+  }, [entries, budgets, netWorth.total, monthlySeries, forecastMonths]);
 
   const kpiCard = (label: string, value: string, hint?: string, tone?: "good" | "bad" | "muted") => (
     <Card className="p-4">
@@ -648,7 +688,10 @@ export function CashFlowPanel() {
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Projected in {forecastMonths === 60 ? "5y" : `${forecastMonths / 12}y`}</div>
             <div className="text-lg font-semibold tabular-nums">
-              {fmt(forecastSeries.baseline + forecastSeries.monthlyDelta * forecastMonths, ccy)}
+              {fmt(
+                (forecastSeries.rows[forecastSeries.rows.length - 1]?.forecast ?? forecastSeries.baseline) as number,
+                ccy,
+              )}
             </div>
           </div>
         </div>

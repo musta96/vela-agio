@@ -1104,61 +1104,75 @@ function RecurringRulesPanel({
  * transactions are excluded from budget-vs-actual totals.
  */
 function ReconcilePanel({
-  entries, tags, onChange, ccy, selectedMonth,
+  entries, tags, onChange, ccy, selectedMonth, cfg, onCfgChange,
 }: {
   entries: CashFlowEntry[];
   tags: Record<string, TxTag>;
   onChange: (next: Record<string, TxTag>) => void;
   ccy: string;
   selectedMonth: string;
+  cfg: ReconcileConfig;
+  onCfgChange: (next: ReconcileConfig) => void;
 }) {
   const monthEntries = useMemo(
     () => entries.filter((e) => monthKey(e.entry_date) === selectedMonth),
     [entries, selectedMonth],
   );
 
-  // Duplicate detection: for each pair of same-direction entries in the same
-  // month with matching amount (rounded to 2dp) and Jaccard-ish label overlap
-  // and dates within 3 days, treat the later row as the duplicate candidate.
+  // Duplicate detection: pairs of same-direction entries with amounts within
+  // the user-configured tolerance, dates within the configured window, and
+  // description Jaccard similarity ≥ the configured threshold. Ignored
+  // payee keywords are stripped before tokenising so filler words don't
+  // inflate the score.
   const duplicates = useMemo(() => {
     const out: Array<{ keep: CashFlowEntry; dup: CashFlowEntry; score: number }> = [];
-    const norm = (s: string | null) => (s || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+    const ignored = new Set(cfg.ignoredPayeeKeywords.map((k) => k.toLowerCase()).filter(Boolean));
+    const norm = (s: string | null) =>
+      (s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w && !ignored.has(w));
     for (let i = 0; i < monthEntries.length; i++) {
       for (let j = i + 1; j < monthEntries.length; j++) {
         const a = monthEntries[i], b = monthEntries[j];
         if (a.direction !== b.direction) continue;
-        if (Math.round(Number(a.amount) * 100) !== Math.round(Number(b.amount) * 100)) continue;
+        if (!amountsMatch(Number(a.amount), Number(b.amount), cfg)) continue;
         const days = Math.abs((new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()) / 86400000);
-        if (days > 3) continue;
+        if (days > cfg.dateWindowDays) continue;
         const wa = new Set(norm(a.label));
         const wb = new Set(norm(b.label));
         const inter = [...wa].filter((w) => wb.has(w)).length;
         const union = new Set([...wa, ...wb]).size || 1;
         const jacc = inter / union;
-        if (jacc < 0.4 && (a.label || "") !== (b.label || "")) continue;
+        if (jacc < cfg.labelSimilarity && (a.label || "") !== (b.label || "")) continue;
         const [keep, dup] = a.entry_date <= b.entry_date ? [a, b] : [b, a];
         out.push({ keep, dup, score: jacc });
       }
     }
     return out;
-  }, [monthEntries]);
+  }, [monthEntries, cfg]);
 
-  // Transfer detection: matching abs amounts between an income and an expense
-  // within 3 days (money leaving one account then landing in another).
+  // Transfer detection: offsetting income/expense pairs within the configured
+  // amount tolerance and date window. When transferKeywords is non-empty, at
+  // least one side of the pair must include one of the keywords.
   const transfers = useMemo(() => {
     const out: Array<{ out: CashFlowEntry; in: CashFlowEntry }> = [];
     const outs = monthEntries.filter((e) => e.direction === "expense");
     const ins = monthEntries.filter((e) => e.direction === "income");
     for (const o of outs) {
       for (const i of ins) {
-        if (Math.round(Number(o.amount) * 100) !== Math.round(Number(i.amount) * 100)) continue;
+        if (!amountsMatch(Number(o.amount), Number(i.amount), cfg)) continue;
         const days = Math.abs((new Date(o.entry_date).getTime() - new Date(i.entry_date).getTime()) / 86400000);
-        if (days > 3) continue;
+        if (days > cfg.dateWindowDays) continue;
+        if (cfg.transferKeywords.length > 0
+            && !containsAny(o.label, cfg.transferKeywords)
+            && !containsAny(i.label, cfg.transferKeywords)) continue;
         out.push({ out: o, in: i });
       }
     }
     return out;
-  }, [monthEntries]);
+  }, [monthEntries, cfg]);
 
   const tagBoth = (ids: string[], tag: TxTag | undefined) => {
     const next = { ...tags };

@@ -166,6 +166,25 @@ export default function Budget() {
   const [entries, setEntries] = useState<CashFlowEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
+  const [rules, setRules] = useState<RecurringRule[]>([]);
+  const [tags, setTags] = useState<Record<string, TxTag>>({});
+  const [tab, setTab] = useState<string>("overview");
+
+  // Load rules & tags whenever the user changes.
+  useEffect(() => {
+    if (!user) { setRules([]); setTags({}); return; }
+    setRules(loadRules(user.id));
+    setTags(loadTags(user.id));
+  }, [user?.id]);
+
+  const persistRules = (next: RecurringRule[]) => {
+    setRules(next);
+    if (user) saveRules(user.id, next);
+  };
+  const persistTags = (next: Record<string, TxTag>) => {
+    setTags(next);
+    if (user) saveTags(user.id, next);
+  };
 
   const load = async () => {
     if (!user) { setLoading(false); return; }
@@ -181,15 +200,59 @@ export default function Budget() {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
 
+  // Entries excluded from budget totals: user-tagged transfers or duplicates.
+  const isExcluded = (id: string) => {
+    const t = tags[id];
+    return t === "transfer" || t === "duplicate";
+  };
+
   // Bucket actuals for the selected month by category.
+  // Includes scheduled recurring rules for the current or future months when
+  // no actual entry has already covered that rule this month.
+  const isFutureOrCurrent = (() => {
+    const [ny, nm] = nowMonth().split("-").map(Number);
+    const [sy, sm] = selectedMonth.split("-").map(Number);
+    return sy > ny || (sy === ny && sm >= nm);
+  })();
+
+  const monthEntries = useMemo(
+    () => entries.filter((e) => monthKey(e.entry_date) === selectedMonth),
+    [entries, selectedMonth],
+  );
+
   const actualsByCategory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of entries) {
-      if (monthKey(e.entry_date) !== selectedMonth) continue;
+    for (const e of monthEntries) {
+      if (isExcluded(e.id)) continue;
       map.set(e.category, (map.get(e.category) ?? 0) + Number(e.amount || 0));
     }
+    // Layer in projected recurring rules for the current + future months.
+    if (isFutureOrCurrent) {
+      for (const r of rules) {
+        if (!r.active) continue;
+        // Skip rules already satisfied this month by a real entry.
+        const satisfied = monthEntries.some((e) => !isExcluded(e.id) && matchesRule(r, e.label));
+        if (satisfied) continue;
+        map.set(r.category, (map.get(r.category) ?? 0) + Number(r.amount || 0));
+      }
+    }
     return map;
-  }, [entries, selectedMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthEntries, rules, tags, isFutureOrCurrent]);
+
+  // Projected-only slice, for transparency in the UI.
+  const projectedByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!isFutureOrCurrent) return map;
+    for (const r of rules) {
+      if (!r.active) continue;
+      const satisfied = monthEntries.some((e) => !isExcluded(e.id) && matchesRule(r, e.label));
+      if (satisfied) continue;
+      map.set(r.category, (map.get(r.category) ?? 0) + Number(r.amount || 0));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rules, monthEntries, tags, isFutureOrCurrent]);
 
   const chartData = useMemo(() => {
     const cats = new Set<string>([...targets.map((t) => t.category), ...actualsByCategory.keys()]);

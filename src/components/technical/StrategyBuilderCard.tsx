@@ -192,6 +192,12 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
         <p><span className="text-destructive font-medium">EXIT</span> when: {exit.map(describeCondition).join(" AND ") || "—"}
           {risk.stopPct ? ` OR price falls ${risk.stopPct}% (stop)` : ""}
           {risk.targetPct ? ` OR price rises ${risk.targetPct}% (target)` : ""}.</p>
+        {risk.stopPct && risk.targetPct ? (
+          <p className="mt-1 text-muted-foreground">
+            R:R = <span className="font-semibold text-foreground">{(risk.targetPct / risk.stopPct).toFixed(2)}:1</span>
+            {risk.riskPct ? ` · position sized to risk ${risk.riskPct}% of equity per trade` : ""}
+          </p>
+        ) : null}
       </div>
 
       {/* Actions */}

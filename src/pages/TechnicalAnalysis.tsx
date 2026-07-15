@@ -488,6 +488,31 @@ const TechnicalAnalysis = () => {
               </div>
             </Card>
 
+            {/* Advanced TA modules */}
+            {ta && (
+              <>
+                <InsightsCard insights={ta.insights} />
+                <DetectedPatternsCard analysis={ta} />
+                {lastBar && (
+                  <TradePlannerCard
+                    lastPrice={lastBar.close}
+                    atr={lastAtr}
+                    zones={ta.supportResistance}
+                  />
+                )}
+                {lastBar && (
+                  <AITradeThesisCard
+                    symbol={symbol}
+                    name={selected?.name}
+                    timeframe={range}
+                    lastBarTs={lastBar.t}
+                    lastPrice={lastBar.close}
+                    analysis={ta}
+                  />
+                )}
+              </>
+            )}
+
             {/* Signals breakdown */}
             {summary && (
               <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">

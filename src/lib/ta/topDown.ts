@@ -3,6 +3,8 @@ import type { Bar, Bias } from "./types";
 import { sma, ema, rsi, macd } from "../technicalIndicators";
 import { supportResistance } from "./structure";
 import { recentCandlePatterns } from "./candlesticks";
+import { detectFVGs, detectOrderBlocks, detectLiquidityGrabs } from "./smc";
+import { detectStructure } from "./structure";
 
 export interface TimeframeScorecard {
   timeframe: string;
@@ -15,6 +17,12 @@ export interface TimeframeScorecard {
   nearestSupport: number | null;
   nearestResistance: number | null;
   lastPattern?: string;
+  // Alignment sub-signals (kept separate so the UI can show three columns).
+  trendBias: Bias;
+  srBias: Bias;      // support proximity => bullish, resistance proximity => bearish
+  smcBias: Bias;     // net SMC (OB / FVG / BOS/CHoCH / liquidity grab)
+  smcSummary: string;
+  srDistancePct: number | null;
 }
 
 export function scoreTimeframe(timeframe: string, bars: Bar[]): TimeframeScorecard {
@@ -80,17 +88,69 @@ export function scoreTimeframe(timeframe: string, bars: Bar[]): TimeframeScoreca
   const supports = sr.filter((z) => z.type === "support" && z.price < last).sort((a, b) => b.price - a.price);
   const resistances = sr.filter((z) => z.type === "resistance" && z.price > last).sort((a, b) => a.price - b.price);
 
+  // S/R proximity bias: closer to support = bullish setup, closer to resistance = bearish.
+  const nearestS = supports[0]?.price ?? null;
+  const nearestR = resistances[0]?.price ?? null;
+  const distS = nearestS != null ? Math.abs(last - nearestS) / last : Infinity;
+  const distR = nearestR != null ? Math.abs(last - nearestR) / last : Infinity;
+  const srDistancePct = Math.min(distS, distR) === Infinity ? null : Math.min(distS, distR) * 100;
+  let srBias: Bias = "neutral";
+  if (distS < distR && distS < 0.03) srBias = "bullish";
+  else if (distR < distS && distR < 0.03) srBias = "bearish";
+  if (srBias === "bullish") { score += 6; reasons.push(`Price near support (${nearestS!.toFixed(2)})`); }
+  if (srBias === "bearish") { score -= 6; reasons.push(`Price near resistance (${nearestR!.toFixed(2)})`); }
+
+  // SMC contribution: fresh OBs, unfilled FVGs, structure shifts, liquidity grabs (recent).
+  const obs = detectOrderBlocks(bars);
+  const fvgs = detectFVGs(bars).filter((f) => !f.filled);
+  const struct = detectStructure(bars);
+  const liq = detectLiquidityGrabs(bars);
+  const recentIdx = Math.max(0, bars.length - 30);
+  const smcBull =
+    obs.filter((o) => o.bias === "bullish" && o.index >= recentIdx).length +
+    fvgs.filter((f) => f.bias === "bullish" && f.index >= recentIdx).length +
+    struct.filter((s) => s.bias === "bullish" && s.index >= recentIdx).length +
+    liq.filter((l) => l.bias === "bullish" && l.index >= recentIdx).length;
+  const smcBear =
+    obs.filter((o) => o.bias === "bearish" && o.index >= recentIdx).length +
+    fvgs.filter((f) => f.bias === "bearish" && f.index >= recentIdx).length +
+    struct.filter((s) => s.bias === "bearish" && s.index >= recentIdx).length +
+    liq.filter((l) => l.bias === "bearish" && l.index >= recentIdx).length;
+  let smcBias: Bias = "neutral";
+  if (smcBull - smcBear >= 2) { smcBias = "bullish"; score += 8; reasons.push(`SMC skew bullish (${smcBull} vs ${smcBear})`); }
+  else if (smcBear - smcBull >= 2) { smcBias = "bearish"; score -= 8; reasons.push(`SMC skew bearish (${smcBear} vs ${smcBull})`); }
+  const smcSummary = `${smcBull} bull · ${smcBear} bear (OB/FVG/BOS/LG)`;
+
+  // Recompute overall bias after SR + SMC additions.
+  const finalBias: Bias = score > 15 ? "bullish" : score < -15 ? "bearish" : "neutral";
+  const finalTrend =
+    score > 40 ? "Strong uptrend"
+    : score > 15 ? "Uptrend"
+    : score < -40 ? "Strong downtrend"
+    : score < -15 ? "Downtrend"
+    : "Ranging";
+
+  const trendBias: Bias =
+    (s50 != null && s200 != null && s50 > s200 && last > (s20 ?? last)) ? "bullish"
+    : (s50 != null && s200 != null && s50 < s200 && last < (s20 ?? last)) ? "bearish"
+    : "neutral";
+
   return {
     timeframe,
     bars: bars.length,
     lastClose: last,
-    bias,
+    bias: finalBias,
     score: Math.max(-100, Math.min(100, score)),
-    trendLabel,
+    trendLabel: finalTrend,
     reasons,
-    nearestSupport: supports[0]?.price ?? null,
-    nearestResistance: resistances[0]?.price ?? null,
+    nearestSupport: nearestS,
+    nearestResistance: nearestR,
     lastPattern: lastP?.name,
+    trendBias,
+    srBias,
+    smcBias,
+    smcSummary,
+    srDistancePct,
   };
 }
 

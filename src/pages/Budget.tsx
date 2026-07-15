@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBaseCurrency } from "@/hooks/useBaseCurrency";
@@ -18,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { downloadCsv } from "@/lib/csvUtil";
 import {
   AlertTriangle, ArrowLeftRight, Download, PiggyBank, Plus, Trash2, Upload, Wallet,
+  Repeat, GitMerge, CheckCircle2, XCircle, Link2,
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer,
@@ -47,6 +50,55 @@ type CashFlowEntry = {
   id: string; entry_date: string; direction: "income" | "expense";
   category: string; label: string | null; amount: number; currency: string;
 };
+
+/**
+ * Recurring transaction rule (client-side, stored in localStorage).
+ * When the selected month has no actual entry that matches the rule pattern,
+ * an expected/projected amount is added into the "actual" column so future
+ * months compare correctly against the budget.
+ */
+type RecurringRule = {
+  id: string;
+  label: string;
+  pattern: string;          // case-insensitive substring/regex against label
+  category: string;
+  amount: number;
+  day_of_month: number;     // 1..28
+  active: boolean;
+};
+
+/**
+ * Per-transaction reconciliation tag (client-side, localStorage).
+ * - transfer: excluded from actuals (moves between own accounts)
+ * - duplicate: excluded from actuals (dedupe of an imported row)
+ * - matched: user-confirmed real expense
+ */
+type TxTag = "transfer" | "duplicate" | "matched";
+
+const RULES_LS_KEY = (uid: string) => `vela.budget.recurring.rules.v1.${uid}`;
+const TAGS_LS_KEY = (uid: string) => `vela.budget.tx.tags.v1.${uid}`;
+
+function loadRules(uid: string): RecurringRule[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(window.localStorage.getItem(RULES_LS_KEY(uid)) || "[]"); } catch { return []; }
+}
+function saveRules(uid: string, rules: RecurringRule[]) {
+  try { window.localStorage.setItem(RULES_LS_KEY(uid), JSON.stringify(rules)); } catch { /* ignore */ }
+}
+function loadTags(uid: string): Record<string, TxTag> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(window.localStorage.getItem(TAGS_LS_KEY(uid)) || "{}"); } catch { return {}; }
+}
+function saveTags(uid: string, tags: Record<string, TxTag>) {
+  try { window.localStorage.setItem(TAGS_LS_KEY(uid), JSON.stringify(tags)); } catch { /* ignore */ }
+}
+
+function matchesRule(rule: RecurringRule, label: string | null): boolean {
+  if (!rule.pattern) return false;
+  const l = (label || "").toLowerCase();
+  const p = rule.pattern.toLowerCase();
+  return l.includes(p);
+}
 
 const fmt = (n: number, ccy = "EUR") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(n || 0);
@@ -114,6 +166,25 @@ export default function Budget() {
   const [entries, setEntries] = useState<CashFlowEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
+  const [rules, setRules] = useState<RecurringRule[]>([]);
+  const [tags, setTags] = useState<Record<string, TxTag>>({});
+  const [tab, setTab] = useState<string>("overview");
+
+  // Load rules & tags whenever the user changes.
+  useEffect(() => {
+    if (!user) { setRules([]); setTags({}); return; }
+    setRules(loadRules(user.id));
+    setTags(loadTags(user.id));
+  }, [user?.id]);
+
+  const persistRules = (next: RecurringRule[]) => {
+    setRules(next);
+    if (user) saveRules(user.id, next);
+  };
+  const persistTags = (next: Record<string, TxTag>) => {
+    setTags(next);
+    if (user) saveTags(user.id, next);
+  };
 
   const load = async () => {
     if (!user) { setLoading(false); return; }
@@ -129,15 +200,59 @@ export default function Budget() {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
 
+  // Entries excluded from budget totals: user-tagged transfers or duplicates.
+  const isExcluded = (id: string) => {
+    const t = tags[id];
+    return t === "transfer" || t === "duplicate";
+  };
+
   // Bucket actuals for the selected month by category.
+  // Includes scheduled recurring rules for the current or future months when
+  // no actual entry has already covered that rule this month.
+  const isFutureOrCurrent = (() => {
+    const [ny, nm] = nowMonth().split("-").map(Number);
+    const [sy, sm] = selectedMonth.split("-").map(Number);
+    return sy > ny || (sy === ny && sm >= nm);
+  })();
+
+  const monthEntries = useMemo(
+    () => entries.filter((e) => monthKey(e.entry_date) === selectedMonth),
+    [entries, selectedMonth],
+  );
+
   const actualsByCategory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of entries) {
-      if (monthKey(e.entry_date) !== selectedMonth) continue;
+    for (const e of monthEntries) {
+      if (isExcluded(e.id)) continue;
       map.set(e.category, (map.get(e.category) ?? 0) + Number(e.amount || 0));
     }
+    // Layer in projected recurring rules for the current + future months.
+    if (isFutureOrCurrent) {
+      for (const r of rules) {
+        if (!r.active) continue;
+        // Skip rules already satisfied this month by a real entry.
+        const satisfied = monthEntries.some((e) => !isExcluded(e.id) && matchesRule(r, e.label));
+        if (satisfied) continue;
+        map.set(r.category, (map.get(r.category) ?? 0) + Number(r.amount || 0));
+      }
+    }
     return map;
-  }, [entries, selectedMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthEntries, rules, tags, isFutureOrCurrent]);
+
+  // Projected-only slice, for transparency in the UI.
+  const projectedByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!isFutureOrCurrent) return map;
+    for (const r of rules) {
+      if (!r.active) continue;
+      const satisfied = monthEntries.some((e) => !isExcluded(e.id) && matchesRule(r, e.label));
+      if (satisfied) continue;
+      map.set(r.category, (map.get(r.category) ?? 0) + Number(r.amount || 0));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rules, monthEntries, tags, isFutureOrCurrent]);
 
   const chartData = useMemo(() => {
     const cats = new Set<string>([...targets.map((t) => t.category), ...actualsByCategory.keys()]);
@@ -255,7 +370,30 @@ export default function Budget() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      {isFutureOrCurrent && projectedByCategory.size > 0 && (
+        <Alert className="mb-4">
+          <Repeat className="h-4 w-4" />
+          <AlertTitle>Projected recurring transactions applied</AlertTitle>
+          <AlertDescription className="text-xs">
+            {Array.from(projectedByCategory.entries())
+              .map(([c, v]) => `${c} (+${fmt(v, ccy)})`)
+              .join(" · ")}
+            {" — "}scheduled from your recurring rules because no matching import exists yet this month.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="recurring">
+            Recurring rules {rules.length > 0 && <Badge variant="secondary" className="ml-2 h-4 text-[10px]">{rules.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="reconcile">Reconcile</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4 mt-0">
+          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         {/* Comparison chart */}
         <Card>
           <CardHeader className="pb-2">
@@ -365,6 +503,30 @@ export default function Budget() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="recurring" className="mt-0">
+          <RecurringRulesPanel
+            rules={rules}
+            onChange={persistRules}
+            ccy={ccy}
+            selectedMonth={selectedMonth}
+            monthEntries={monthEntries}
+            isFutureOrCurrent={isFutureOrCurrent}
+            isExcluded={isExcluded}
+          />
+        </TabsContent>
+
+        <TabsContent value="reconcile" className="mt-0">
+          <ReconcilePanel
+            entries={entries}
+            tags={tags}
+            onChange={persistTags}
+            ccy={ccy}
+            selectedMonth={selectedMonth}
+          />
+        </TabsContent>
+      </Tabs>
 
       <ImportCsvDialog
         open={importOpen}
@@ -698,6 +860,419 @@ function ColSelect({
           {headers.map((h, i) => <SelectItem key={i} value={String(i)}>{h || `col ${i + 1}`}</SelectItem>)}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+// ---------------- Recurring rules panel ----------------
+function RecurringRulesPanel({
+  rules, onChange, ccy, selectedMonth, monthEntries, isFutureOrCurrent, isExcluded,
+}: {
+  rules: RecurringRule[];
+  onChange: (next: RecurringRule[]) => void;
+  ccy: string;
+  selectedMonth: string;
+  monthEntries: CashFlowEntry[];
+  isFutureOrCurrent: boolean;
+  isExcluded: (id: string) => boolean;
+}) {
+  const [label, setLabel] = useState("");
+  const [pattern, setPattern] = useState("");
+  const [category, setCategory] = useState<string>("Subscriptions");
+  const [amount, setAmount] = useState("");
+  const [day, setDay] = useState<string>("1");
+
+  const add = () => {
+    const n = Number(amount);
+    const d = Math.max(1, Math.min(28, Number(day) || 1));
+    if (!label.trim() || !pattern.trim() || !Number.isFinite(n) || n <= 0) return;
+    const next: RecurringRule = {
+      id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
+      label: label.trim(),
+      pattern: pattern.trim(),
+      category,
+      amount: n,
+      day_of_month: d,
+      active: true,
+    };
+    onChange([...rules, next]);
+    setLabel(""); setPattern(""); setAmount("");
+  };
+
+  const update = (id: string, patch: Partial<RecurringRule>) => {
+    onChange(rules.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+  const remove = (id: string) => onChange(rules.filter((r) => r.id !== id));
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Add recurring rule</CardTitle>
+          <CardDescription>
+            Auto-schedule bills or subscriptions into future months so budget vs actual stays accurate before the transaction imports.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Name</Label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Netflix" className="h-8" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Match imported transactions containing</Label>
+            <Input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="netflix" className="h-8" />
+            <p className="text-[11px] text-muted-foreground">Case-insensitive substring match against the transaction description.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1 col-span-2">
+              <Label className="text-xs">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Day</Label>
+              <Input type="number" min={1} max={28} value={day} onChange={(e) => setDay(e.target.value)} className="h-8" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Amount ({ccy})</Label>
+            <Input type="number" min={0} step={0.5} value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8" />
+          </div>
+          <Button size="sm" onClick={add} className="w-full">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add rule
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Rules ({rules.length})</CardTitle>
+          <CardDescription>
+            {isFutureOrCurrent
+              ? `For ${selectedMonth}, active rules add to actuals when no matching import is found.`
+              : `Rules are only projected into the current & future months. Historical months use imports only.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          {rules.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">No recurring rules yet. Add one on the left.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Pattern</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-center">Day</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="w-8"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rules.map((r) => {
+                  const satisfied = monthEntries.some((e) => !isExcluded(e.id) && matchesRule(r, e.label));
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        <Checkbox checked={r.active} onCheckedChange={(v) => update(r.id, { active: !!v })} />
+                      </TableCell>
+                      <TableCell className="font-medium text-xs">{r.label}</TableCell>
+                      <TableCell className="text-xs font-mono">{r.pattern}</TableCell>
+                      <TableCell className="text-xs">
+                        <Select value={r.category} onValueChange={(v) => update(r.id, { category: v })}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Input type="number" min={1} max={28} value={r.day_of_month}
+                          onChange={(e) => update(r.id, { day_of_month: Math.max(1, Math.min(28, Number(e.target.value) || 1)) })}
+                          className="h-7 w-14 text-xs text-center mx-auto" />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input type="number" min={0} step={0.5} value={r.amount}
+                          onChange={(e) => update(r.id, { amount: Number(e.target.value) || 0 })}
+                          className="h-7 w-24 text-xs text-right ml-auto" />
+                      </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {!r.active ? (
+                          <Badge variant="outline">Paused</Badge>
+                        ) : satisfied ? (
+                          <Badge variant="secondary" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Matched</Badge>
+                        ) : isFutureOrCurrent ? (
+                          <Badge className="gap-1"><Repeat className="h-3 w-3" /> Projected</Badge>
+                        ) : (
+                          <Badge variant="outline">—</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(r.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------- Reconcile panel ----------------
+/**
+ * Detects likely duplicate imports (same abs amount within a small window +
+ * near-identical label) and likely internal transfers (offsetting income /
+ * expense entries within a few days). User confirms each match, and tagged
+ * transactions are excluded from budget-vs-actual totals.
+ */
+function ReconcilePanel({
+  entries, tags, onChange, ccy, selectedMonth,
+}: {
+  entries: CashFlowEntry[];
+  tags: Record<string, TxTag>;
+  onChange: (next: Record<string, TxTag>) => void;
+  ccy: string;
+  selectedMonth: string;
+}) {
+  const monthEntries = useMemo(
+    () => entries.filter((e) => monthKey(e.entry_date) === selectedMonth),
+    [entries, selectedMonth],
+  );
+
+  // Duplicate detection: for each pair of same-direction entries in the same
+  // month with matching amount (rounded to 2dp) and Jaccard-ish label overlap
+  // and dates within 3 days, treat the later row as the duplicate candidate.
+  const duplicates = useMemo(() => {
+    const out: Array<{ keep: CashFlowEntry; dup: CashFlowEntry; score: number }> = [];
+    const norm = (s: string | null) => (s || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+    for (let i = 0; i < monthEntries.length; i++) {
+      for (let j = i + 1; j < monthEntries.length; j++) {
+        const a = monthEntries[i], b = monthEntries[j];
+        if (a.direction !== b.direction) continue;
+        if (Math.round(Number(a.amount) * 100) !== Math.round(Number(b.amount) * 100)) continue;
+        const days = Math.abs((new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()) / 86400000);
+        if (days > 3) continue;
+        const wa = new Set(norm(a.label));
+        const wb = new Set(norm(b.label));
+        const inter = [...wa].filter((w) => wb.has(w)).length;
+        const union = new Set([...wa, ...wb]).size || 1;
+        const jacc = inter / union;
+        if (jacc < 0.4 && (a.label || "") !== (b.label || "")) continue;
+        const [keep, dup] = a.entry_date <= b.entry_date ? [a, b] : [b, a];
+        out.push({ keep, dup, score: jacc });
+      }
+    }
+    return out;
+  }, [monthEntries]);
+
+  // Transfer detection: matching abs amounts between an income and an expense
+  // within 3 days (money leaving one account then landing in another).
+  const transfers = useMemo(() => {
+    const out: Array<{ out: CashFlowEntry; in: CashFlowEntry }> = [];
+    const outs = monthEntries.filter((e) => e.direction === "expense");
+    const ins = monthEntries.filter((e) => e.direction === "income");
+    for (const o of outs) {
+      for (const i of ins) {
+        if (Math.round(Number(o.amount) * 100) !== Math.round(Number(i.amount) * 100)) continue;
+        const days = Math.abs((new Date(o.entry_date).getTime() - new Date(i.entry_date).getTime()) / 86400000);
+        if (days > 3) continue;
+        out.push({ out: o, in: i });
+      }
+    }
+    return out;
+  }, [monthEntries]);
+
+  const tagBoth = (ids: string[], tag: TxTag | undefined) => {
+    const next = { ...tags };
+    for (const id of ids) {
+      if (tag) next[id] = tag;
+      else delete next[id];
+    }
+    onChange(next);
+  };
+
+  const summary = useMemo(() => {
+    let matched = 0, txr = 0, dup = 0, un = 0;
+    for (const e of monthEntries) {
+      const t = tags[e.id];
+      if (t === "matched") matched++;
+      else if (t === "transfer") txr++;
+      else if (t === "duplicate") dup++;
+      else un++;
+    }
+    return { matched, transfers: txr, duplicates: dup, unmatched: un };
+  }, [monthEntries, tags]);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi label="Matched" value={String(summary.matched)} icon={CheckCircle2} tone="good" />
+        <Kpi label="Unmatched" value={String(summary.unmatched)} icon={XCircle} tone={summary.unmatched > 0 ? "bad" : "neutral"} />
+        <Kpi label="Transfers" value={String(summary.transfers)} icon={Link2} />
+        <Kpi label="Duplicates" value={String(summary.duplicates)} icon={GitMerge} tone={summary.duplicates > 0 ? "bad" : "neutral"} />
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><GitMerge className="h-4 w-4" /> Suspected duplicates</CardTitle>
+          <CardDescription>Pairs with matching amount and near-identical descriptions within 3 days.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          {duplicates.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">No duplicates detected for {selectedMonth}.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kept row</TableHead>
+                  <TableHead>Duplicate row</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicates.map(({ keep, dup }) => (
+                  <TableRow key={`${keep.id}_${dup.id}`}>
+                    <TableCell className="text-xs">
+                      <div className="font-medium">{keep.label || keep.category}</div>
+                      <div className="text-muted-foreground">{keep.entry_date} · {keep.category}</div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-medium">{dup.label || dup.category}</div>
+                      <div className="text-muted-foreground">{dup.entry_date} · {dup.category}</div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-xs">{fmt(Number(dup.amount), ccy)}</TableCell>
+                    <TableCell className="text-right">
+                      {tags[dup.id] === "duplicate" ? (
+                        <Button size="sm" variant="ghost" onClick={() => tagBoth([dup.id], undefined)}>Undo</Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => tagBoth([dup.id], "duplicate")}>
+                          Mark duplicate
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Link2 className="h-4 w-4" /> Suspected transfers</CardTitle>
+          <CardDescription>Offsetting income/expense pairs within 3 days — likely movements between your own accounts.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          {transfers.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">No transfer pairs detected for {selectedMonth}.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Outflow</TableHead>
+                  <TableHead>Inflow</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transfers.map(({ out: o, in: i }) => {
+                  const tagged = tags[o.id] === "transfer" && tags[i.id] === "transfer";
+                  return (
+                    <TableRow key={`${o.id}_${i.id}`}>
+                      <TableCell className="text-xs">
+                        <div className="font-medium">{o.label || o.category}</div>
+                        <div className="text-muted-foreground">{o.entry_date}</div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <div className="font-medium">{i.label || i.category}</div>
+                        <div className="text-muted-foreground">{i.entry_date}</div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmt(Number(o.amount), ccy)}</TableCell>
+                      <TableCell className="text-right">
+                        {tagged ? (
+                          <Button size="sm" variant="ghost" onClick={() => tagBoth([o.id, i.id], undefined)}>Undo</Button>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => tagBoth([o.id, i.id], "transfer")}>
+                            Confirm transfer
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">All transactions · {selectedMonth}</CardTitle>
+          <CardDescription>Confirm expenses as matched, or reclassify individual rows.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          {monthEntries.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">No transactions for this month.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="w-[200px]">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthEntries.slice(0, 200).map((e) => {
+                  const t = tags[e.id];
+                  return (
+                    <TableRow key={e.id} className={t === "transfer" || t === "duplicate" ? "opacity-60" : ""}>
+                      <TableCell className="text-xs">{e.entry_date}</TableCell>
+                      <TableCell className="text-xs max-w-[240px] truncate">{e.label || "—"}</TableCell>
+                      <TableCell className="text-xs"><Badge variant="secondary">{e.category}</Badge></TableCell>
+                      <TableCell className={`text-right tabular-nums text-xs ${e.direction === "income" ? "text-success" : ""}`}>
+                        {e.direction === "income" ? "+" : "−"}{fmt(Number(e.amount), ccy)}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={t ?? "unmatched"}
+                          onValueChange={(v) => tagBoth([e.id], v === "unmatched" ? undefined : (v as TxTag))}
+                        >
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unmatched">Unmatched</SelectItem>
+                            <SelectItem value="matched">Matched</SelectItem>
+                            <SelectItem value="transfer">Transfer (exclude)</SelectItem>
+                            <SelectItem value="duplicate">Duplicate (exclude)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

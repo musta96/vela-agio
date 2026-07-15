@@ -52,6 +52,9 @@ import { TradePlannerCard } from "@/components/technical/TradePlannerCard";
 import { AITradeThesisCard } from "@/components/technical/AITradeThesisCard";
 import { TopDownCard } from "@/components/technical/TopDownCard";
 import { StrategyBuilderCard } from "@/components/technical/StrategyBuilderCard";
+import { BreakoutAlertsCard } from "@/components/technical/BreakoutAlertsCard";
+import { PatternStrategyCard } from "@/components/technical/PatternStrategyCard";
+import { TechnicalExportCard } from "@/components/technical/TechnicalExportCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 
@@ -513,7 +516,26 @@ const TechnicalAnalysis = () => {
                   />
                 )}
                 <TopDownCard symbol={symbol} />
+                {lastBar && (
+                  <BreakoutAlertsCard
+                    symbol={symbol}
+                    name={selected?.name}
+                    bars={bars}
+                    analysis={ta}
+                  />
+                )}
+                <PatternStrategyCard symbol={symbol} timeframe={range} analysis={ta} />
                 <StrategyBuilderCard symbol={symbol} timeframe={range} />
+                {lastBar && (
+                  <TechnicalExportCard
+                    symbol={symbol}
+                    name={selected?.name}
+                    timeframe={range}
+                    lastPrice={lastBar.close}
+                    atr={lastAtr}
+                    analysis={ta}
+                  />
+                )}
               </>
             )}
 

@@ -311,8 +311,16 @@ const BacktestingModule = () => {
                     <SelectItem value="buy_hold">Buy &amp; Hold</SelectItem>
                     <SelectItem value="sma_cross">SMA 20/50 Crossover</SelectItem>
                     <SelectItem value="rsi">RSI Mean Reversion (30/70)</SelectItem>
+                    {customRules && (
+                      <SelectItem value="custom">Custom · {customStrategyName ?? "saved rules"}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                {strategy === "custom" && customRules && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Running saved rule-based strategy: <span className="font-semibold">{customStrategyName}</span>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

@@ -26,6 +26,7 @@ import {
   macd as macdFn,
   rsi as rsiFn,
   sma,
+  atr as atrFn,
   type Signal,
 } from "@/lib/technicalIndicators";
 import {
@@ -36,11 +37,19 @@ import {
   Legend,
   Line,
   ReferenceLine,
+  ReferenceArea,
+  ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { analyzeAll } from "@/lib/ta";
+import { PatternToggleBar, DEFAULT_TOGGLES, type OverlayToggles } from "@/components/technical/PatternToggleBar";
+import { InsightsCard } from "@/components/technical/InsightsCard";
+import { DetectedPatternsCard } from "@/components/technical/DetectedPatternsCard";
+import { TradePlannerCard } from "@/components/technical/TradePlannerCard";
+import { AITradeThesisCard } from "@/components/technical/AITradeThesisCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 
@@ -110,6 +119,27 @@ const TechnicalAnalysis = () => {
   }, [bars]);
 
   const summary = useMemo(() => analyze(bars), [bars]);
+
+  // Advanced TA (patterns, structure, SMC, insights).
+  const ta = useMemo(() => (bars.length ? analyzeAll(bars) : null), [bars]);
+  const atrArr = useMemo(() => (bars.length ? atrFn(bars, 14) : []), [bars]);
+  const lastAtr = atrArr.length ? atrArr[atrArr.length - 1] : null;
+  const [overlays, setOverlays] = useState<OverlayToggles>(DEFAULT_TOGGLES);
+  const overlayCounts = useMemo(() => {
+    if (!ta) return {};
+    return {
+      sr: ta.supportResistance.length,
+      trendlines: ta.trendlines.length,
+      fvg: ta.fvgs.filter((f) => !f.filled).length,
+      orderBlocks: ta.orderBlocks.length,
+      supplyDemand: ta.supplyDemand.filter((z) => z.fresh).length,
+      liquidity: ta.liquidityGrabs.length,
+      candles: ta.candlestickPatterns.length,
+      chartPatterns: ta.chartPatterns.length,
+      structure: ta.structure.length,
+    };
+  }, [ta]);
+  const lastBar = bars[bars.length - 1];
 
   return (
     <div className="min-h-screen bg-background">
@@ -252,7 +282,12 @@ const TechnicalAnalysis = () => {
 
             {/* Price + overlays */}
             <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
-              <h3 className="text-lg font-semibold mb-3">Price · SMA 20/50/200 · Bollinger</h3>
+              <div className="flex flex-col gap-3 mb-3">
+                <h3 className="text-lg font-semibold">Price · SMA 20/50/200 · Bollinger</h3>
+                {ta && (
+                  <PatternToggleBar toggles={overlays} counts={overlayCounts} onChange={setOverlays} />
+                )}
+              </div>
               <div className="w-full h-[360px]">
                 <ResponsiveContainer>
                   <ComposedChart data={chartData}>
@@ -286,6 +321,121 @@ const TechnicalAnalysis = () => {
                           fontSize: 10,
                           position: "right",
                         }}
+                      />
+                    ))}
+                    {/* Advanced overlays */}
+                    {ta && overlays.sr && ta.supportResistance.map((z, i) => (
+                      <ReferenceLine
+                        key={`ta-sr-${i}`}
+                        y={z.price}
+                        stroke={z.type === "support" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        strokeDasharray="2 3"
+                        strokeOpacity={0.35 + 0.5 * z.strength}
+                        label={{
+                          value: `${z.type === "support" ? "S" : "R"} ${z.price.toFixed(2)} (${z.touches})`,
+                          fill: "hsl(var(--muted-foreground))", fontSize: 9, position: "insideLeft",
+                        }}
+                      />
+                    ))}
+                    {ta && overlays.fvg && ta.fvgs.filter((f) => !f.filled).map((f, i) => (
+                      <ReferenceArea
+                        key={`ta-fvg-${i}`}
+                        x1={bars[Math.max(0, f.index - 1)]?.t}
+                        x2={lastBar?.t}
+                        y1={f.bottom}
+                        y2={f.top}
+                        fill={f.bias === "bullish" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        fillOpacity={0.08}
+                        stroke="none"
+                      />
+                    ))}
+                    {ta && overlays.orderBlocks && ta.orderBlocks.map((o, i) => (
+                      <ReferenceArea
+                        key={`ta-ob-${i}`}
+                        x1={bars[o.index]?.t}
+                        x2={lastBar?.t}
+                        y1={o.bottom}
+                        y2={o.top}
+                        fill={o.bias === "bullish" ? "hsl(var(--primary))" : "hsl(var(--destructive))"}
+                        fillOpacity={0.12}
+                        stroke={o.bias === "bullish" ? "hsl(var(--primary))" : "hsl(var(--destructive))"}
+                        strokeOpacity={0.4}
+                      />
+                    ))}
+                    {ta && overlays.supplyDemand && ta.supplyDemand.filter((z) => z.fresh).map((z, i) => (
+                      <ReferenceArea
+                        key={`ta-sd-${i}`}
+                        x1={bars[z.from.index]?.t}
+                        x2={lastBar?.t}
+                        y1={z.bottom}
+                        y2={z.top}
+                        fill={z.bias === "bullish" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        fillOpacity={0.08}
+                        stroke={z.bias === "bullish" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        strokeOpacity={0.3}
+                        strokeDasharray="3 3"
+                      />
+                    ))}
+                    {ta && overlays.trendlines && ta.trendlines.map((tl, i) => {
+                      const y0 = tl.slope * tl.from.index + tl.intercept;
+                      const y1 = tl.slope * (bars.length - 1) + tl.intercept;
+                      return (
+                        <ReferenceLine
+                          key={`ta-tl-${i}`}
+                          stroke={tl.kind === "up" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                          strokeWidth={1.5}
+                          strokeDasharray={tl.broken ? "6 3" : undefined}
+                          strokeOpacity={0.8}
+                          segment={[
+                            { x: tl.from.t, y: y0 },
+                            { x: lastBar?.t ?? tl.to.t, y: y1 },
+                          ]}
+                          label={{ value: `${tl.kind === "up" ? "Uptrend" : "Downtrend"}${tl.broken ? " (broken)" : ""}`, fill: "hsl(var(--muted-foreground))", fontSize: 9, position: "insideTopRight" }}
+                        />
+                      );
+                    })}
+                    {ta && overlays.candles && ta.candlestickPatterns.slice(-8).map((c, i) => (
+                      <ReferenceDot
+                        key={`ta-c-${i}`}
+                        x={c.t}
+                        y={c.bias === "bullish" ? c.priceLow : c.priceHigh}
+                        r={4}
+                        fill={c.bias === "bullish" ? "hsl(var(--success))" : c.bias === "bearish" ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={1}
+                        label={{ value: c.name, position: c.bias === "bullish" ? "bottom" : "top", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                      />
+                    ))}
+                    {ta && overlays.liquidity && ta.liquidityGrabs.slice(-6).map((l, i) => (
+                      <ReferenceDot
+                        key={`ta-l-${i}`}
+                        x={l.t}
+                        y={l.sweptLevel}
+                        r={5}
+                        fill="none"
+                        stroke={l.bias === "bullish" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        strokeWidth={2}
+                        label={{ value: `LG ${l.bias === "bullish" ? "↑" : "↓"}`, position: l.bias === "bullish" ? "bottom" : "top", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                      />
+                    ))}
+                    {ta && overlays.structure && ta.structure.slice(-4).map((s, i) => (
+                      <ReferenceLine
+                        key={`ta-str-${i}`}
+                        y={s.level}
+                        stroke={s.bias === "bullish" ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+                        strokeDasharray="1 3"
+                        strokeOpacity={0.6}
+                        label={{ value: `${s.kind} ${s.bias === "bullish" ? "↑" : "↓"} ${s.level.toFixed(2)}`, fill: "hsl(var(--muted-foreground))", fontSize: 9, position: "right" }}
+                      />
+                    ))}
+                    {ta && overlays.chartPatterns && ta.chartPatterns.map((p, i) => (
+                      <ReferenceLine
+                        key={`ta-cp-${i}`}
+                        y={p.keyPrice}
+                        stroke="hsl(var(--primary))"
+                        strokeDasharray="4 2"
+                        strokeOpacity={0.7}
+                        label={{ value: `${p.name} @ ${p.keyPrice.toFixed(2)}`, fill: "hsl(var(--primary))", fontSize: 9, position: "insideBottomLeft" }}
                       />
                     ))}
                   </ComposedChart>
@@ -337,6 +487,31 @@ const TechnicalAnalysis = () => {
                 </ResponsiveContainer>
               </div>
             </Card>
+
+            {/* Advanced TA modules */}
+            {ta && (
+              <>
+                <InsightsCard insights={ta.insights} />
+                <DetectedPatternsCard analysis={ta} />
+                {lastBar && (
+                  <TradePlannerCard
+                    lastPrice={lastBar.close}
+                    atr={lastAtr}
+                    zones={ta.supportResistance}
+                  />
+                )}
+                {lastBar && (
+                  <AITradeThesisCard
+                    symbol={symbol}
+                    name={selected?.name}
+                    timeframe={range}
+                    lastBarTs={lastBar.t}
+                    lastPrice={lastBar.close}
+                    analysis={ta}
+                  />
+                )}
+              </>
+            )}
 
             {/* Signals breakdown */}
             {summary && (

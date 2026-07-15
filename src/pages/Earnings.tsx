@@ -6,14 +6,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CalendarDays, Loader2 } from "lucide-react";
+import { CalendarDays, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AIEquityAnalystDialog, type AnalystInput } from "@/components/research/AIEquityAnalystDialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 export default function Earnings() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [analystOpen, setAnalystOpen] = useState(false);
+  const [analystInput, setAnalystInput] = useState<AnalystInput | null>(null);
+  const [callSymbol, setCallSymbol] = useState("AAPL");
+  const [callTranscript, setCallTranscript] = useState("");
+
+  const analyzeCall = () => {
+    if (!callTranscript.trim() || !callSymbol.trim()) return;
+    setAnalystInput({ symbol: callSymbol.toUpperCase(), mode: "transcript", transcript: callTranscript });
+    setAnalystOpen(true);
+  };
+
+
 
   useEffect(() => {
     (async () => {
@@ -59,10 +74,44 @@ export default function Earnings() {
                     ))}
                   </div>
                 )}
+                <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => { setCallSymbol(e.symbol); document.getElementById('ai-call-summarizer')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                  <Sparkles className="h-3 w-3 mr-1" /> Summarize call with AI
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
+
+        <Card id="ai-call-summarizer" className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> AI Earnings Call Summarizer
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Paste an earnings call transcript. The AI equity research analyst extracts key metrics, guidance direction, risks, management tone, notable quotes, and drafts a research note.
+            </p>
+            <div className="grid md:grid-cols-4 gap-2">
+              <Input value={callSymbol} onChange={(e) => setCallSymbol(e.target.value.toUpperCase())} placeholder="Ticker (e.g. AAPL)" />
+              <div className="md:col-span-3" />
+            </div>
+            <Textarea
+              value={callTranscript}
+              onChange={(e) => setCallTranscript(e.target.value)}
+              placeholder="Paste the full transcript here…"
+              className="min-h-[220px] font-mono text-xs"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">{callTranscript.length.toLocaleString()} characters</span>
+              <Button onClick={analyzeCall} disabled={!callTranscript.trim() || !callSymbol.trim()}>
+                <Sparkles className="h-4 w-4 mr-2" /> Generate research note
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <AIEquityAnalystDialog open={analystOpen} onOpenChange={setAnalystOpen} input={analystInput} />
       </main>
     </div>
   );

@@ -588,6 +588,8 @@ export default function Budget() {
             onChange={persistTags}
             ccy={ccy}
             selectedMonth={selectedMonth}
+            cfg={reconcileCfg}
+            onCfgChange={persistReconcileCfg}
           />
         </TabsContent>
       </Tabs>

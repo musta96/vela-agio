@@ -77,6 +77,64 @@ type TxTag = "transfer" | "duplicate" | "matched";
 
 const RULES_LS_KEY = (uid: string) => `vela.budget.recurring.rules.v1.${uid}`;
 const TAGS_LS_KEY = (uid: string) => `vela.budget.tx.tags.v1.${uid}`;
+const RECONCILE_CFG_LS_KEY = (uid: string) => `vela.budget.reconcile.cfg.v1.${uid}`;
+
+/**
+ * Configurable matching rules for reconciliation.
+ * - amountTolerancePct / amountToleranceAbs: candidate pairs match when the
+ *   difference between two amounts is within EITHER tolerance (whichever is
+ *   larger). Set both to 0 to require exact matches.
+ * - dateWindowDays: max |Δdays| between the two entries.
+ * - labelSimilarity: minimum Jaccard similarity of tokenised descriptions
+ *   for duplicate detection (0 disables label check, 1 requires identical).
+ * - ignoredPayeeKeywords: tokens stripped from labels before similarity is
+ *   computed (e.g. "pos", "purchase", "visa") so noisy prefixes don't hurt.
+ * - transferKeywords: if provided, at least one keyword must appear in the
+ *   description of the outflow OR the inflow for it to be treated as a
+ *   transfer candidate. Empty list = purely amount/date matching.
+ */
+type ReconcileConfig = {
+  amountTolerancePct: number;
+  amountToleranceAbs: number;
+  dateWindowDays: number;
+  labelSimilarity: number;
+  ignoredPayeeKeywords: string[];
+  transferKeywords: string[];
+};
+
+const DEFAULT_RECONCILE_CFG: ReconcileConfig = {
+  amountTolerancePct: 0,
+  amountToleranceAbs: 0,
+  dateWindowDays: 3,
+  labelSimilarity: 0.4,
+  ignoredPayeeKeywords: ["pos", "purchase", "visa", "debit", "card", "payment", "ref"],
+  transferKeywords: [],
+};
+
+function loadReconcileCfg(uid: string): ReconcileConfig {
+  if (typeof window === "undefined") return DEFAULT_RECONCILE_CFG;
+  try {
+    const raw = window.localStorage.getItem(RECONCILE_CFG_LS_KEY(uid));
+    if (!raw) return DEFAULT_RECONCILE_CFG;
+    return { ...DEFAULT_RECONCILE_CFG, ...JSON.parse(raw) };
+  } catch { return DEFAULT_RECONCILE_CFG; }
+}
+function saveReconcileCfg(uid: string, cfg: ReconcileConfig) {
+  try { window.localStorage.setItem(RECONCILE_CFG_LS_KEY(uid), JSON.stringify(cfg)); } catch { /* ignore */ }
+}
+
+function amountsMatch(a: number, b: number, cfg: ReconcileConfig): boolean {
+  const diff = Math.abs(a - b);
+  const pctTol = (Math.max(Math.abs(a), Math.abs(b)) * cfg.amountTolerancePct) / 100;
+  const tol = Math.max(cfg.amountToleranceAbs, pctTol, 0.005);
+  return diff <= tol;
+}
+
+function containsAny(label: string | null, keywords: string[]): boolean {
+  if (!keywords.length) return true; // no keywords = accept anything
+  const l = (label || "").toLowerCase();
+  return keywords.some((k) => k && l.includes(k.toLowerCase()));
+}
 
 function loadRules(uid: string): RecurringRule[] {
   if (typeof window === "undefined") return [];

@@ -56,6 +56,7 @@ const BacktestingModule = () => {
   const [params] = useSearchParams();
   const initialSym = params.get("symbol");
   const initialQuant = decodeQuantParam(params.get("quant"));
+  const initialStrategyId = params.get("strategy_id");
 
   const [mode, setMode] = useState<"single" | "portfolio">(
     initialQuant?.h && initialQuant.h.length > 1 ? "portfolio" : "single",
@@ -82,9 +83,36 @@ const BacktestingModule = () => {
   const [benchmark, setBenchmark] = useState<string>("self");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [customRules, setCustomRules] = useState<any | null>(null);
+  const [customStrategyName, setCustomStrategyName] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const suggestions = useMemo(() => (query ? searchCatalog(query, 6) : []), [query]);
+
+  // Load a saved custom strategy when ?strategy_id=… is present.
+  useEffect(() => {
+    if (!initialStrategyId) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("trading_strategies")
+        .select("*")
+        .eq("id", initialStrategyId)
+        .maybeSingle();
+      if (error || !data) return;
+      setCustomStrategyName(data.name);
+      setCustomRules({
+        entry: data.entry_rules ?? [],
+        exit: data.exit_rules ?? [],
+        risk: data.risk_config ?? {},
+      });
+      setStrategy("custom");
+      if (data.symbol && !holdings.find((h: any) => h.symbol === data.symbol)) {
+        const meta = STOCK_CATALOG.find((c) => c.symbol === data.symbol);
+        setHoldings([{ symbol: data.symbol, weight: 1, name: meta?.name ?? data.symbol }]);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStrategyId]);
 
   // Load portfolio from localStorage if user picks "portfolio" mode
   useEffect(() => {
@@ -133,6 +161,7 @@ const BacktestingModule = () => {
           holdings: holdings.map(h => ({ symbol: h.symbol, weight: h.weight })),
           strategy, range, initialCapital: Number(initialCapital),
           benchmark: benchmark === "self" ? null : benchmark,
+          rules: strategy === "custom" ? customRules : undefined,
         },
       });
       if (error) throw error;
@@ -282,8 +311,16 @@ const BacktestingModule = () => {
                     <SelectItem value="buy_hold">Buy &amp; Hold</SelectItem>
                     <SelectItem value="sma_cross">SMA 20/50 Crossover</SelectItem>
                     <SelectItem value="rsi">RSI Mean Reversion (30/70)</SelectItem>
+                    {customRules && (
+                      <SelectItem value="custom">Custom · {customStrategyName ?? "saved rules"}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                {strategy === "custom" && customRules && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Running saved rule-based strategy: <span className="font-semibold">{customStrategyName}</span>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

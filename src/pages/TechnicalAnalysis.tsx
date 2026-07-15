@@ -50,6 +50,8 @@ import { InsightsCard } from "@/components/technical/InsightsCard";
 import { DetectedPatternsCard } from "@/components/technical/DetectedPatternsCard";
 import { TradePlannerCard } from "@/components/technical/TradePlannerCard";
 import { AITradeThesisCard } from "@/components/technical/AITradeThesisCard";
+import { TopDownCard } from "@/components/technical/TopDownCard";
+import { StrategyBuilderCard } from "@/components/technical/StrategyBuilderCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 
@@ -510,6 +512,8 @@ const TechnicalAnalysis = () => {
                     analysis={ta}
                   />
                 )}
+                <TopDownCard symbol={symbol} />
+                <StrategyBuilderCard symbol={symbol} timeframe={range} />
               </>
             )}
 

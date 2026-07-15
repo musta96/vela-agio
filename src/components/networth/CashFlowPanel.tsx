@@ -548,6 +548,133 @@ export function CashFlowPanel() {
         </Card>
       </div>
 
+      {/* Budget targets */}
+      <Card className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Budget targets</h3>
+            <span className="text-xs text-muted-foreground hidden sm:inline">Monthly spending limits per category</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setBudgetDialog({
+                category: EXPENSE_CATEGORIES.find((c) => !budgets.some((b) => b.category === c)) ?? EXPENSE_CATEGORIES[0],
+                amount: "",
+              })
+            }
+          >
+            <Plus className="h-4 w-4" /> Add target
+          </Button>
+        </div>
+        {budgetRows.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            No budget targets yet. Add one to get alerted when a category exceeds its monthly limit.
+          </div>
+        ) : (
+          <div className="p-4 grid gap-3 md:grid-cols-2">
+            {budgetRows.map((b) => (
+              <div key={b.id} className="border border-border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium">{b.category}</div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => setBudgetDialog({ category: b.category, amount: String(b.monthly_limit) })}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeBudget(b.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <Progress value={Math.min(100, b.pct)} className={b.over ? "[&>*]:bg-destructive" : ""} />
+                <div className="flex items-center justify-between mt-1.5 text-xs">
+                  <span className={b.over ? "text-destructive font-medium" : "text-muted-foreground"}>
+                    {fmt(b.spent, ccy)} of {fmt(Number(b.monthly_limit), ccy)}
+                  </span>
+                  <span className={b.over ? "text-destructive font-medium" : "text-muted-foreground"}>
+                    {b.pct.toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Net worth growth forecast */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Net worth forecast</h3>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Projected from current net worth + active recurring cash flow
+            </span>
+          </div>
+          <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
+            {([12, 24, 60] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setForecastMonths(m)}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  forecastMonths === m ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m === 60 ? "5Y" : `${m / 12}Y`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Baseline today</div>
+            <div className="text-lg font-semibold tabular-nums">{fmt(forecastSeries.baseline, ccy)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Monthly delta</div>
+            <div className={`text-lg font-semibold tabular-nums ${forecastSeries.monthlyDelta >= 0 ? "text-success" : "text-destructive"}`}>
+              {forecastSeries.monthlyDelta >= 0 ? "+" : ""}
+              {fmt(forecastSeries.monthlyDelta, ccy)}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Projected in {forecastMonths === 60 ? "5y" : `${forecastMonths / 12}y`}</div>
+            <div className="text-lg font-semibold tabular-nums">
+              {fmt(forecastSeries.baseline + forecastSeries.monthlyDelta * forecastMonths, ccy)}
+            </div>
+          </div>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={forecastSeries.rows}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} interval="preserveStartEnd" />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <RTooltip
+                formatter={(v: any, n: any) => [v == null ? "—" : fmt(Number(v), ccy), n === "forecast" ? "Forecast" : "Recorded"]}
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+              />
+              <ReferenceLine
+                x={forecastSeries.rows.find((r) => r.history !== null && r.forecast !== null)?.label}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="3 3"
+                label={{ value: "Today", position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              />
+              <Line type="monotone" dataKey="history" name="Recorded" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="forecast" name="Forecast" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
       {/* Recent entries */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">

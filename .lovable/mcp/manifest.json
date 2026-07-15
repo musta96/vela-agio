@@ -195,6 +195,105 @@
           ]
         },
         "outputSchema": null
+      },
+      {
+        "name": "project_dividends",
+        "title": "Project future dividend income",
+        "description": "Model annual dividend income for a given horizon using contributions, dividend yield, dividend growth, price appreciation, tax rate and optional DRIP. Accepts an optional `positions` array to seed the starting value and blended yield from real holdings. Returns per-year rows (portfolio value, gross/net dividends, yield on cost) plus totals.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "starting_value": {
+              "type": "number",
+              "description": "Starting portfolio value in the projection currency."
+            },
+            "monthly_contribution": {
+              "type": "number",
+              "description": "Monthly cash added to the portfolio."
+            },
+            "contribution_growth_pct": {
+              "type": "number",
+              "description": "Annual growth of monthly contributions in percent."
+            },
+            "dividend_yield_pct": {
+              "type": "number",
+              "description": "Starting annual dividend yield in percent."
+            },
+            "dividend_growth_pct": {
+              "type": "number",
+              "description": "Annual dividend growth rate in percent (DGR)."
+            },
+            "price_growth_pct": {
+              "type": "number",
+              "description": "Annual price appreciation in percent."
+            },
+            "tax_pct": {
+              "type": "number",
+              "description": "Dividend withholding/income tax rate in percent."
+            },
+            "years": {
+              "type": "number",
+              "description": "Projection horizon in years."
+            },
+            "reinvest": {
+              "type": "boolean",
+              "description": "If true, net dividends buy new shares (DRIP)."
+            },
+            "payout_frequency": {
+              "type": "number",
+              "description": "Payouts per year: 1, 2, 4 or 12."
+            },
+            "positions": {
+              "description": "Optional real holdings. When provided, seed the starting value and blended yield from these positions.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "shares": {
+                    "type": "number"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "yield_pct": {
+                    "type": "number"
+                  },
+                  "next_payout_month": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "symbol",
+                  "shares",
+                  "price",
+                  "yield_pct"
+                ]
+              }
+            }
+          },
+          "required": [
+            "starting_value",
+            "monthly_contribution",
+            "contribution_growth_pct",
+            "dividend_yield_pct",
+            "dividend_growth_pct",
+            "price_growth_pct",
+            "tax_pct",
+            "years",
+            "reinvest",
+            "payout_frequency"
+          ]
+        },
+        "outputSchema": null
       }
     ]
   }

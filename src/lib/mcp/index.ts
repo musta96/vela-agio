@@ -6,6 +6,7 @@ import getPortfolioTool from "./tools/get-portfolio";
 import getNetWorthTool from "./tools/get-net-worth";
 import listCashFlowTool from "./tools/list-cash-flow";
 import addCashFlowEntryTool from "./tools/add-cash-flow-entry";
+import projectDividendsTool from "./tools/project-dividends";
 
 // The OAuth issuer MUST be the direct Supabase host; construct it from the
 // project ref (Vite inlines this literal at build time, keeping the entry
@@ -17,7 +18,7 @@ export default defineMcp({
   title: "Vela — Trading Strategy Platform",
   version: "1.0.0",
   instructions:
-    "Tools for Vela.ai. Use `get_quote` for any Yahoo-style ticker and `search_strategies` to browse the strategy library (both public). Authenticated tools return the signed-in user's own data: `get_watchlist`, `get_portfolio`, `get_net_worth` (assets + liabilities), `list_cash_flow` (income/expense history), and `add_cash_flow_entry` (record new income or expense).",
+    "Tools for Vela.ai. Public tools: `get_quote` (any Yahoo-style ticker), `search_strategies`, and `project_dividends` (deterministic dividend income projections with optional real-position seeding). Authenticated tools return the signed-in user's own data: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, and `add_cash_flow_entry`.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
@@ -30,5 +31,6 @@ export default defineMcp({
     getNetWorthTool,
     listCashFlowTool,
     addCashFlowEntryTool,
+    projectDividendsTool,
   ],
 });

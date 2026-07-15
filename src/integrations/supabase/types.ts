@@ -2925,6 +2925,48 @@ export type Database = {
         }
         Relationships: []
       }
+      trading_strategies: {
+        Row: {
+          created_at: string
+          description: string | null
+          entry_rules: Json
+          exit_rules: Json
+          id: string
+          name: string
+          risk_config: Json
+          symbol: string | null
+          timeframe: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entry_rules?: Json
+          exit_rules?: Json
+          id?: string
+          name: string
+          risk_config?: Json
+          symbol?: string | null
+          timeframe?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entry_rules?: Json
+          exit_rules?: Json
+          id?: string
+          name?: string
+          risk_config?: Json
+          symbol?: string | null
+          timeframe?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           ciphertext: string

@@ -864,6 +864,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_flow_entries: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          currency: string
+          direction: string
+          entry_date: string
+          id: string
+          label: string | null
+          notes: string | null
+          recurring_monthly: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          currency?: string
+          direction: string
+          entry_date?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          recurring_monthly?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          direction?: string
+          entry_date?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          recurring_monthly?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       copilot_messages: {
         Row: {
           content: string

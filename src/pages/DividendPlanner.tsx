@@ -380,7 +380,7 @@ export default function DividendPlanner() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Briefcase className="h-4 w-4 text-primary" /> Imported positions
                   </CardTitle>
-                  <CardDescription>Edit each holding's estimated yield to refine the projection.</CardDescription>
+                  <CardDescription>Edit each holding's estimated yield and DRIP % — reinvestment applies automatically on every pay date.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0 max-h-64 overflow-y-auto">
                   <Table>
@@ -389,6 +389,7 @@ export default function DividendPlanner() {
                         <TableHead>Symbol</TableHead>
                         <TableHead className="text-right">Value</TableHead>
                         <TableHead className="text-right">Yield %</TableHead>
+                        <TableHead className="text-right">DRIP %</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -403,6 +404,20 @@ export default function DividendPlanner() {
                               className="h-7 w-20 ml-auto text-right text-xs"
                               value={p.yieldPct}
                               onChange={(e) => setPositionYields((prev) => ({ ...prev, [p.symbol]: Number(e.target.value) || 0 }))}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              step="5"
+                              min={0}
+                              max={100}
+                              className="h-7 w-20 ml-auto text-right text-xs"
+                              value={positionDrip[p.symbol] ?? globalDripPct}
+                              onChange={(e) => {
+                                const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                setPositionDrip((prev) => ({ ...prev, [p.symbol]: v }));
+                              }}
                             />
                           </TableCell>
                         </TableRow>

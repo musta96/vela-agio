@@ -326,6 +326,70 @@ export function CashFlowPanel() {
       .sort((a, b) => b.value - a.value);
   }, [projected, thisMonthKey]);
 
+  // ---- Budget targets: progress vs this month, over-limit alerts ---------
+  const budgetRows = useMemo(() => {
+    const spendByCat = new Map<string, number>();
+    for (const r of projected) {
+      if (r.direction !== "expense" || r.month !== thisMonthKey) continue;
+      spendByCat.set(r.category, (spendByCat.get(r.category) || 0) + r.amount);
+    }
+    return budgets
+      .map((b) => {
+        const spent = spendByCat.get(b.category) || 0;
+        const limit = Number(b.monthly_limit) || 0;
+        const pct = limit > 0 ? (spent / limit) * 100 : 0;
+        return { ...b, spent, pct, over: limit > 0 && spent > limit };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  }, [budgets, projected, thisMonthKey]);
+
+  const overBudget = budgetRows.filter((r) => r.over);
+
+  // ---- Net worth growth forecast ----------------------------------------
+  // Baseline = current net worth (FX-converted, shared with dashboard).
+  // Monthly delta = sum of ACTIVE recurring income - active recurring expenses
+  // (a stable, forward-looking estimate). Historical net cash flow drives the
+  // "past" side so users see the join between recorded history and forecast.
+  const forecastSeries = useMemo(() => {
+    const recurringNet = entries.reduce((acc, e) => {
+      if (!e.recurring_monthly) return acc;
+      if (e.paused_from && new Date(e.paused_from) <= new Date()) return acc;
+      const sign = e.direction === "income" ? 1 : -1;
+      return acc + sign * Number(e.amount || 0);
+    }, 0);
+    const baseline = netWorth.total || 0;
+    const now = new Date();
+    const rows: { label: string; forecast: number | null; history: number | null; rawMonth: string }[] = [];
+    // Past 12 months, built from recorded cumulative cash flow (reversed) so
+    // the chart connects to today's baseline.
+    const monthlyNet = monthlySeries.map((m) => m.net);
+    const totalHistoryDelta = monthlyNet.reduce((a, b) => a + b, 0);
+    let running = baseline - totalHistoryDelta;
+    for (let i = 0; i < monthlySeries.length; i++) {
+      running += monthlyNet[i];
+      rows.push({
+        label: monthlySeries[i].month,
+        rawMonth: monthlySeries[i].rawMonth,
+        history: Math.round(running),
+        forecast: i === monthlySeries.length - 1 ? Math.round(running) : null,
+      });
+    }
+    // Future N months from recurring cash flow.
+    let future = baseline;
+    for (let i = 1; i <= forecastMonths; i++) {
+      future += recurringNet;
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      rows.push({
+        label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }),
+        rawMonth: mk,
+        history: null,
+        forecast: Math.round(future),
+      });
+    }
+    return { rows, monthlyDelta: recurringNet, baseline };
+  }, [entries, netWorth.total, monthlySeries, forecastMonths]);
+
   const kpiCard = (label: string, value: string, hint?: string, tone?: "good" | "bad" | "muted") => (
     <Card className="p-4">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>

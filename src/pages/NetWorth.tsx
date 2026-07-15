@@ -21,6 +21,7 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { supabase } from "@/integrations/supabase/client";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { CATEGORY_META as CATEGORIES, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
+import { CashFlowPanel } from "@/components/networth/CashFlowPanel";
 import {
   Wallet, Banknote, Briefcase, Home as HomeIcon, Car, Watch, Building2, Bitcoin,
   PiggyBank, Boxes, CreditCard, Plus, Pencil, Trash2, TrendingUp, TrendingDown,
@@ -63,7 +64,7 @@ const NetWorth = () => {
   const { toast } = useToast();
 
   const [accounts, setAccounts] = useState<NWAccount[]>([]);
-  const [breakdownTab, setBreakdownTab] = useState<"overview" | "accounts" | "history">("overview");
+  const [breakdownTab, setBreakdownTab] = useState<"overview" | "accounts" | "history" | "cashflow">("overview");
   const [snapshots, setSnapshots] = useState<NWSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<NWAccount> | null>(null);
@@ -363,6 +364,7 @@ const NetWorth = () => {
                     { k: "overview", label: "Overview" },
                     { k: "accounts", label: "Accounts" },
                     { k: "history", label: "History" },
+                    { k: "cashflow", label: "Cash Flow" },
                   ] as const).map((t) => (
                     <button
                       key={t.k}
@@ -477,6 +479,8 @@ const NetWorth = () => {
                 )}
               </div>
               )}
+
+              {breakdownTab === "cashflow" && <CashFlowPanel />}
             </Card>
 
             <Card className="p-5">

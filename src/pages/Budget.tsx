@@ -1,0 +1,722 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SEO } from "@/components/SEO";
+import { PageHeader } from "@/components/PageHeader";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useBaseCurrency } from "@/hooks/useBaseCurrency";
+import { supabase } from "@/integrations/supabase/client";
+import { downloadCsv } from "@/lib/csvUtil";
+import {
+  AlertTriangle, ArrowLeftRight, Download, PiggyBank, Plus, Trash2, Upload, Wallet,
+} from "lucide-react";
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer,
+  Tooltip as RTooltip, XAxis, YAxis,
+} from "recharts";
+
+/**
+ * Budget vs Actual Spending Dashboard
+ * -----------------------------------
+ * Reads from the existing `budget_targets` and `cash_flow_entries` tables
+ * (both RLS-scoped to `auth.uid()`) so no migration is needed:
+ *   • Users pick a month, and each category shows target vs actual with a
+ *     bar-chart comparison and inline over-budget alerts.
+ *   • Budget targets can be created/edited/deleted directly from the page.
+ *   • Bank transactions can be imported from any CSV export (Mint, Revolut,
+ *     N26, generic bank exports) with column mapping; imports insert
+ *     `expense` cash-flow entries which then flow into the "actual" column.
+ */
+
+const EXPENSE_CATEGORIES = [
+  "Housing", "Food", "Transport", "Utilities", "Insurance", "Healthcare",
+  "Subscriptions", "Debt payments", "Leisure", "Travel", "Education", "Taxes", "Other",
+];
+
+type BudgetTarget = { id: string; category: string; monthly_limit: number; currency: string };
+type CashFlowEntry = {
+  id: string; entry_date: string; direction: "income" | "expense";
+  category: string; label: string | null; amount: number; currency: string;
+};
+
+const fmt = (n: number, ccy = "EUR") =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(n || 0);
+
+function monthKey(d: Date | string): string {
+  const iso = typeof d === "string" ? d : d.toISOString();
+  return iso.slice(0, 7);
+}
+function nowMonth(): string { return new Date().toISOString().slice(0, 7); }
+function prevMonth(m: string, delta = 1): string {
+  const [y, mm] = m.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, mm - 1 - delta, 1));
+  return dt.toISOString().slice(0, 7);
+}
+function monthOptions(count = 12): string[] {
+  const out: string[] = [];
+  const base = nowMonth();
+  for (let i = 0; i < count; i++) out.push(prevMonth(base, -1 + i)); // include next month & 11 back
+  return Array.from(new Set([nowMonth(), ...Array.from({ length: count }, (_, i) => prevMonth(nowMonth(), i))]))
+    .sort()
+    .reverse();
+}
+
+/** Very small CSV parser — handles quoted values with commas and doubled
+ *  quotes. Sufficient for typical bank/Mint exports; not a full RFC-4180
+ *  implementation. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let cur = ""; let row: string[] = []; let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = false; }
+      } else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(cur); cur = ""; }
+      else if (c === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+      else if (c === "\r") { /* skip */ }
+      else cur += c;
+    }
+  }
+  if (cur.length > 0 || row.length > 0) { row.push(cur); rows.push(row); }
+  return rows.filter((r) => r.some((v) => v.trim().length > 0));
+}
+
+function guessColumn(headers: string[], candidates: string[]): number {
+  const norm = headers.map((h) => h.trim().toLowerCase());
+  for (const c of candidates) {
+    const idx = norm.findIndex((h) => h === c || h.includes(c));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+export default function Budget() {
+  const { user } = useAuth();
+  const { baseCurrency } = useBaseCurrency();
+  const ccy = (baseCurrency || "USD").toUpperCase();
+  const { toast } = useToast();
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(nowMonth());
+  const [targets, setTargets] = useState<BudgetTarget[]>([]);
+  const [entries, setEntries] = useState<CashFlowEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const load = async () => {
+    if (!user) { setLoading(false); return; }
+    setLoading(true);
+    const [{ data: t }, { data: e }] = await Promise.all([
+      (supabase as any).from("budget_targets").select("*").order("category"),
+      (supabase as any).from("cash_flow_entries").select("*").eq("direction", "expense"),
+    ]);
+    setTargets(t ?? []);
+    setEntries((e ?? []) as CashFlowEntry[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
+
+  // Bucket actuals for the selected month by category.
+  const actualsByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of entries) {
+      if (monthKey(e.entry_date) !== selectedMonth) continue;
+      map.set(e.category, (map.get(e.category) ?? 0) + Number(e.amount || 0));
+    }
+    return map;
+  }, [entries, selectedMonth]);
+
+  const chartData = useMemo(() => {
+    const cats = new Set<string>([...targets.map((t) => t.category), ...actualsByCategory.keys()]);
+    return Array.from(cats).sort().map((cat) => {
+      const target = targets.find((t) => t.category === cat)?.monthly_limit ?? 0;
+      const actual = actualsByCategory.get(cat) ?? 0;
+      const variance = actual - target;
+      return { category: cat, target, actual, variance };
+    });
+  }, [targets, actualsByCategory]);
+
+  const totals = useMemo(() => {
+    const target = targets.reduce((a, t) => a + Number(t.monthly_limit || 0), 0);
+    const actual = Array.from(actualsByCategory.values()).reduce((a, v) => a + v, 0);
+    return { target, actual, remaining: target - actual, overspent: Math.max(0, actual - target) };
+  }, [targets, actualsByCategory]);
+
+  const overspent = chartData.filter((r) => r.target > 0 && r.actual > r.target);
+  const uncategorised = chartData.filter((r) => r.target === 0 && r.actual > 0);
+
+  // --- Target CRUD ---
+  const upsertTarget = async (category: string, monthly_limit: number) => {
+    if (!user) return;
+    if (!Number.isFinite(monthly_limit) || monthly_limit < 0) return;
+    const existing = targets.find((t) => t.category === category);
+    const payload = existing
+      ? { id: existing.id, category, monthly_limit, currency: ccy, user_id: user.id }
+      : { category, monthly_limit, currency: ccy, user_id: user.id };
+    const { error } = await (supabase as any).from("budget_targets").upsert(payload, { onConflict: "id" });
+    if (error) { toast({ title: "Save failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Budget saved", description: `${category} · ${fmt(monthly_limit, ccy)} / mo` });
+    load();
+  };
+  const removeTarget = async (id: string) => {
+    const { error } = await (supabase as any).from("budget_targets").delete().eq("id", id);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    setTargets((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // --- Export ---
+  const exportComparison = () => {
+    downloadCsv(`budget-vs-actual-${selectedMonth}.csv`, [
+      ["Category", "Budget", "Actual", "Variance", "% Used"],
+      ...chartData.map((r) => [
+        r.category,
+        r.target,
+        r.actual,
+        r.variance,
+        r.target > 0 ? ((r.actual / r.target) * 100).toFixed(1) + "%" : "—",
+      ]),
+    ]);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <SEO
+        title="Budget vs Actual Spending — Import Bank Transactions"
+        description="Import bank transactions, set monthly budgets per category, and see budget vs actual spending with over-budget alerts."
+        path="/budget"
+      />
+      <PageHeader
+        icon={PiggyBank}
+        title="Budget vs Actual"
+        description="Set monthly targets per category, import bank transactions, and see where every dollar goes."
+        actions={
+          <div className="flex items-center gap-2">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {monthOptions(13).map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Import CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportComparison}>
+              <Download className="h-4 w-4 mr-2" /> Export
+            </Button>
+          </div>
+        }
+      />
+
+      {/* KPI strip */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+        <Kpi label="Budget this month" value={fmt(totals.target, ccy)} icon={Wallet} />
+        <Kpi label="Spent so far" value={fmt(totals.actual, ccy)} icon={ArrowLeftRight}
+             tone={totals.actual > totals.target && totals.target > 0 ? "bad" : "neutral"} />
+        <Kpi label={totals.remaining >= 0 ? "Remaining" : "Over budget"}
+             value={fmt(Math.abs(totals.remaining), ccy)}
+             tone={totals.remaining >= 0 ? "good" : "bad"} />
+        <Kpi label="Overspent categories" value={String(overspent.length)}
+             icon={AlertTriangle} tone={overspent.length > 0 ? "bad" : "good"} />
+      </div>
+
+      {(overspent.length > 0 || uncategorised.length > 0) && (
+        <div className="space-y-2 mb-4">
+          {overspent.length > 0 && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>You're over budget in {overspent.length} categor{overspent.length === 1 ? "y" : "ies"}</AlertTitle>
+              <AlertDescription className="text-xs">
+                {overspent.map((r) => `${r.category} (+${fmt(r.variance, ccy)})`).join(" · ")}
+              </AlertDescription>
+            </Alert>
+          )}
+          {uncategorised.length > 0 && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{uncategorised.length} categor{uncategorised.length === 1 ? "y" : "ies"} without a budget</AlertTitle>
+              <AlertDescription className="text-xs">
+                Set a monthly target for: {uncategorised.map((r) => r.category).join(", ")}.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        {/* Comparison chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Budget vs Actual — {selectedMonth}</CardTitle>
+            <CardDescription>Bars compare your monthly target against actual spending for each category.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[420px]">
+            {chartData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                No budgets or transactions for this month yet. Import a CSV or add a target to get started.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="category" stroke="hsl(var(--muted-foreground))" fontSize={11}
+                    angle={-25} textAnchor="end" height={60} interval={0} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`} />
+                  <RTooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                    formatter={(v: any, n: any) => [fmt(Number(v), ccy), n]}
+                  />
+                  <Legend />
+                  <Bar dataKey="target" name="Budget" fill="hsl(199 89% 48%)" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="actual" name="Actual" radius={[3, 3, 0, 0]}>
+                    {chartData.map((r, i) => (
+                      <Cell key={i} fill={r.target > 0 && r.actual > r.target ? "hsl(0 75% 55%)" : "hsl(142 70% 45%)"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Budget targets editor */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Category budgets</CardTitle>
+            <CardDescription>Monthly targets. Applied on the {selectedMonth} comparison.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <BudgetEditor
+              targets={targets}
+              ccy={ccy}
+              onSave={upsertTarget}
+              onDelete={removeTarget}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Per-category progress table */}
+      <Card className="mt-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Category breakdown</CardTitle>
+          <CardDescription>How each category is trending against its monthly cap.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          {loading ? (
+            <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+          ) : chartData.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">Nothing to show yet.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Budget</TableHead>
+                  <TableHead className="text-right">Actual</TableHead>
+                  <TableHead className="text-right">Variance</TableHead>
+                  <TableHead className="w-[220px]">Progress</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {chartData.map((r) => {
+                  const pct = r.target > 0 ? Math.min(100, (r.actual / r.target) * 100) : 0;
+                  const over = r.target > 0 && r.actual > r.target;
+                  return (
+                    <TableRow key={r.category}>
+                      <TableCell className="font-medium">{r.category}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {r.target > 0 ? fmt(r.target, ccy) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{fmt(r.actual, ccy)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {r.target > 0 ? (
+                          <Badge variant={over ? "destructive" : "secondary"}>
+                            {r.variance >= 0 ? "+" : ""}{fmt(r.variance, ccy)}
+                          </Badge>
+                        ) : <span className="text-muted-foreground text-xs">no target</span>}
+                      </TableCell>
+                      <TableCell>
+                        {r.target > 0 ? (
+                          <div className="space-y-1">
+                            <Progress value={pct} className={over ? "[&>div]:bg-destructive" : ""} />
+                            <div className="text-[10px] text-muted-foreground">{pct.toFixed(0)}% used</div>
+                          </div>
+                        ) : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <ImportCsvDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={load}
+        currency={ccy}
+      />
+
+      <p className="text-xs text-muted-foreground mt-4">
+        Imports create expense entries in your cash-flow ledger. You can review, edit, or delete individual
+        transactions from the Net Worth &rarr; Cash Flow panel. Categories are normalised to the standard list.
+      </p>
+    </div>
+  );
+}
+
+// ---------------- Budget editor ----------------
+function BudgetEditor({
+  targets, ccy, onSave, onDelete,
+}: {
+  targets: BudgetTarget[]; ccy: string;
+  onSave: (category: string, limit: number) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [category, setCategory] = useState<string>("Housing");
+  const [amount, setAmount] = useState<string>("");
+
+  return (
+    <div>
+      <div className="p-3 grid grid-cols-[1fr_120px_auto] gap-2 border-b border-border items-end">
+        <div className="space-y-1">
+          <Label className="text-xs">Category</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Monthly {ccy}</Label>
+          <Input type="number" min={0} step={10} value={amount} className="h-8"
+            onChange={(e) => setAmount(e.target.value)} placeholder="500" />
+        </div>
+        <Button size="sm" className="h-8" onClick={() => {
+          const n = Number(amount);
+          if (!Number.isFinite(n) || n <= 0) return;
+          onSave(category, n);
+          setAmount("");
+        }}>
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="max-h-[340px] overflow-y-auto">
+        {targets.length === 0 ? (
+          <div className="p-4 text-xs text-muted-foreground">No budgets yet. Add one above.</div>
+        ) : (
+          <Table>
+            <TableBody>
+              {targets.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">{t.category}</TableCell>
+                  <TableCell className="text-right">
+                    <Input
+                      type="number"
+                      className="h-7 w-24 ml-auto text-right text-xs"
+                      defaultValue={t.monthly_limit}
+                      onBlur={(e) => {
+                        const n = Number(e.target.value);
+                        if (Number.isFinite(n) && n !== t.monthly_limit && n >= 0) onSave(t.category, n);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell className="w-8 text-right">
+                    <Button size="icon" variant="ghost" className="h-7 w-7"
+                      onClick={() => onDelete(t.id)} aria-label={`Remove ${t.category} budget`}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------- CSV import dialog ----------------
+type MappedRow = { entry_date: string; label: string; amount: number; category: string };
+
+function ImportCsvDialog({
+  open, onOpenChange, onImported, currency,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onImported: () => void;
+  currency: string;
+}) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [rows, setRows] = useState<string[][]>([]);
+  const [dateCol, setDateCol] = useState<number>(-1);
+  const [descCol, setDescCol] = useState<number>(-1);
+  const [amountCol, setAmountCol] = useState<number>(-1);
+  const [categoryCol, setCategoryCol] = useState<number>(-1);
+  const [defaultCategory, setDefaultCategory] = useState<string>("Other");
+  const [invertSign, setInvertSign] = useState<boolean>(false);
+  const [importing, setImporting] = useState(false);
+
+  const reset = () => {
+    setHeaders([]); setRows([]); setDateCol(-1); setDescCol(-1);
+    setAmountCol(-1); setCategoryCol(-1); setInvertSign(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const onFile = async (file: File) => {
+    const text = await file.text();
+    const parsed = parseCsv(text);
+    if (parsed.length < 2) { toast({ title: "Empty CSV", variant: "destructive" }); return; }
+    const [h, ...body] = parsed;
+    setHeaders(h);
+    setRows(body);
+    setDateCol(guessColumn(h, ["date", "transaction date", "posted"]));
+    setDescCol(guessColumn(h, ["description", "merchant", "payee", "narrative", "details", "memo"]));
+    setAmountCol(guessColumn(h, ["amount", "value", "debit", "money out"]));
+    setCategoryCol(guessColumn(h, ["category", "type"]));
+  };
+
+  const normaliseCategory = (raw: string): string => {
+    if (!raw) return defaultCategory;
+    const low = raw.toLowerCase();
+    const hit = EXPENSE_CATEGORIES.find((c) => c.toLowerCase() === low || low.includes(c.toLowerCase()));
+    if (hit) return hit;
+    if (/rent|mortgage|home/.test(low)) return "Housing";
+    if (/grocery|restaurant|coffee|dining|food/.test(low)) return "Food";
+    if (/uber|lyft|gas|fuel|transit|train|bus/.test(low)) return "Transport";
+    if (/electric|water|gas bill|internet|phone|utility/.test(low)) return "Utilities";
+    if (/insurance/.test(low)) return "Insurance";
+    if (/pharmacy|doctor|medical|health/.test(low)) return "Healthcare";
+    if (/netflix|spotify|subscription/.test(low)) return "Subscriptions";
+    if (/loan|credit card/.test(low)) return "Debt payments";
+    if (/flight|hotel|airbnb|travel/.test(low)) return "Travel";
+    if (/school|tuition|udemy|course/.test(low)) return "Education";
+    if (/tax/.test(low)) return "Taxes";
+    return defaultCategory;
+  };
+
+  const preview: MappedRow[] = useMemo(() => {
+    if (dateCol < 0 || amountCol < 0) return [];
+    return rows
+      .map((r) => {
+        const rawDate = (r[dateCol] || "").trim();
+        const rawAmt = (r[amountCol] || "").trim();
+        if (!rawDate || !rawAmt) return null;
+        // Normalise date: accept YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY.
+        let iso = rawDate;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) iso = rawDate;
+        else {
+          const parts = rawDate.split(/[\/\.\-]/);
+          if (parts.length === 3) {
+            const [a, b, c] = parts;
+            const yyyy = c.length === 4 ? c : (parseInt(c) > 50 ? `19${c}` : `20${c}`);
+            // Assume DD/MM/YYYY if the first part > 12.
+            if (parseInt(a) > 12) iso = `${yyyy}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+            else iso = `${yyyy}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
+          }
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+        let amt = Number(rawAmt.replace(/[^\d\.\-]/g, ""));
+        if (!Number.isFinite(amt)) return null;
+        if (invertSign) amt = -amt;
+        // Only import outflows (negative amounts) as expenses. Users often
+        // export both directions; we skip income rows to keep the dashboard
+        // focused on spending. Take absolute value for storage.
+        if (amt >= 0) return null;
+        const label = descCol >= 0 ? (r[descCol] || "").trim() : "";
+        const rawCat = categoryCol >= 0 ? (r[categoryCol] || "").trim() : "";
+        return {
+          entry_date: iso,
+          amount: Math.abs(amt),
+          label,
+          category: normaliseCategory(rawCat || label),
+        } as MappedRow;
+      })
+      .filter(Boolean) as MappedRow[];
+  }, [rows, dateCol, amountCol, descCol, categoryCol, invertSign, defaultCategory]);
+
+  const doImport = async () => {
+    if (!user) { toast({ title: "Sign in required", variant: "destructive" }); return; }
+    if (preview.length === 0) { toast({ title: "Nothing to import", variant: "destructive" }); return; }
+    setImporting(true);
+    const payload = preview.map((r) => ({
+      user_id: user.id,
+      direction: "expense" as const,
+      entry_date: r.entry_date,
+      amount: r.amount,
+      currency,
+      category: r.category,
+      label: r.label || null,
+      recurring_monthly: false,
+    }));
+    const { error } = await (supabase as any).from("cash_flow_entries").insert(payload);
+    setImporting(false);
+    if (error) { toast({ title: "Import failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Imported", description: `${preview.length} transaction${preview.length === 1 ? "" : "s"} added.` });
+    onOpenChange(false);
+    reset();
+    onImported();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Import bank transactions</DialogTitle>
+          <DialogDescription>
+            Upload a CSV export from your bank (Mint, Revolut, N26, Chase, ...). Map the columns and we'll
+            categorise and add each outflow to your cash-flow ledger.
+          </DialogDescription>
+        </DialogHeader>
+
+        {headers.length === 0 ? (
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center space-y-3">
+            <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Drag a CSV here or click to browse.</p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
+            />
+            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Choose file</Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <ColSelect label="Date column" headers={headers} value={dateCol} onChange={setDateCol} />
+              <ColSelect label="Amount column" headers={headers} value={amountCol} onChange={setAmountCol} />
+              <ColSelect label="Description column" headers={headers} value={descCol} onChange={setDescCol} allowNone />
+              <ColSelect label="Category column" headers={headers} value={categoryCol} onChange={setCategoryCol} allowNone />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Default category</Label>
+                <Select value={defaultCategory} onValueChange={setDefaultCategory}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Amount convention</Label>
+                <Select value={invertSign ? "positive-out" : "negative-out"} onValueChange={(v) => setInvertSign(v === "positive-out")}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="negative-out">Expenses are negative (default)</SelectItem>
+                    <SelectItem value="positive-out">Expenses are positive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground">
+              {preview.length} of {rows.length} rows will be imported as expenses.
+              Rows without a valid date, amount, or with positive (income) amounts are skipped.
+            </div>
+
+            <div className="max-h-64 overflow-y-auto border border-border rounded">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.slice(0, 50).map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{r.entry_date}</TableCell>
+                      <TableCell className="text-xs truncate max-w-[220px]">{r.label}</TableCell>
+                      <TableCell className="text-xs"><Badge variant="secondary">{r.category}</Badge></TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmt(r.amount, currency)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {preview.length > 50 && (
+                <div className="p-2 text-[11px] text-muted-foreground text-center">…and {preview.length - 50} more.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { onOpenChange(false); reset(); }}>Cancel</Button>
+          {headers.length > 0 && (
+            <>
+              <Button variant="outline" onClick={reset}>Change file</Button>
+              <Button onClick={doImport} disabled={importing || preview.length === 0}>
+                {importing ? "Importing…" : `Import ${preview.length}`}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ColSelect({
+  label, headers, value, onChange, allowNone,
+}: {
+  label: string; headers: string[]; value: number;
+  onChange: (n: number) => void; allowNone?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select column…" /></SelectTrigger>
+        <SelectContent>
+          {allowNone && <SelectItem value="-1">— none —</SelectItem>}
+          {headers.map((h, i) => <SelectItem key={i} value={String(i)}>{h || `col ${i + 1}`}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// ---------------- Small KPI card ----------------
+function Kpi({
+  label, value, icon: Icon, tone = "neutral",
+}: {
+  label: string; value: string; icon?: any; tone?: "good" | "bad" | "neutral";
+}) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+        {Icon && <Icon className={`h-4 w-4 ${tone === "bad" ? "text-destructive" : tone === "good" ? "text-success" : "text-muted-foreground"}`} />}
+      </div>
+      <div className={`text-2xl font-semibold mt-1 tabular-nums ${tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : ""}`}>
+        {value}
+      </div>
+    </Card>
+  );
+}

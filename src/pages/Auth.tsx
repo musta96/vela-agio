@@ -96,8 +96,13 @@ const Auth = () => {
 
   const googleSignIn = async () => {
     setBusy(true);
+    // Preserve ?next=<consent path> so the OAuth round-trip lands back on
+    // /auth (which honors ?next) instead of dropping the user on `/`.
+    const returnTo = safeNext
+      ? `${window.location.origin}/auth?next=${encodeURIComponent(safeNext)}`
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: returnTo,
     });
     if (result.error) {
       setBusy(false);
@@ -110,8 +115,11 @@ const Auth = () => {
 
   const appleSignIn = async () => {
     setBusy(true);
+    const returnTo = safeNext
+      ? `${window.location.origin}/auth?next=${encodeURIComponent(safeNext)}`
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: window.location.origin,
+      redirect_uri: returnTo,
     });
     if (result.error) {
       setBusy(false);

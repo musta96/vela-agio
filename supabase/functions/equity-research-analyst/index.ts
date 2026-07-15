@@ -19,7 +19,7 @@ const CACHE_TTL_FILING_MS = 7 * 24 * 3600 * 1000;
 const CACHE_TTL_TRANSCRIPT_MS = 24 * 3600 * 1000;
 
 interface Body {
-  action?: 'analyze' | 'list' | 'get' | 'delete';
+  action?: 'analyze' | 'list' | 'get' | 'delete' | 'share_create' | 'share_revoke' | 'share_get';
   symbol: string;
   name?: string;
   mode?: 'filing' | 'transcript';
@@ -31,6 +31,16 @@ interface Body {
   force?: boolean;   // bypass cache
   id?: string;      // for get/delete
   ids?: string[];   // for multi-get (compare)
+  // share
+  token?: string;
+  permissions?: {
+    showCitations?: boolean;
+    showRecommendation?: boolean;
+    showRedFlags?: boolean;
+    showFollowUps?: boolean;
+    showResearchNote?: boolean;
+  };
+  expiresInDays?: number | null;
 }
 
 function htmlToText(html: string): string {
@@ -141,6 +151,85 @@ Deno.serve(async (req) => {
         .delete().eq('user_id', userId).eq('id', body.id);
       if (error) return jsonResp({ error: 'delete_failed', message: error.message }, 500);
       return jsonResp({ ok: true });
+    }
+
+    // ---- Share: create/update link ----
+    if (action === 'share_create') {
+      if (!userId) return jsonResp({ error: 'auth_required' }, 401);
+      if (!body.id) return jsonResp({ error: 'id required' }, 400);
+      const perms = {
+        showCitations: body.permissions?.showCitations ?? true,
+        showRecommendation: body.permissions?.showRecommendation ?? true,
+        showRedFlags: body.permissions?.showRedFlags ?? true,
+        showFollowUps: body.permissions?.showFollowUps ?? true,
+        showResearchNote: body.permissions?.showResearchNote ?? true,
+      };
+      // Fetch existing note (auth check + preserve prior token if present)
+      const { data: existing, error: e1 } = await svc()
+        .from('ai_research_notes').select('id, share_token')
+        .eq('user_id', userId).eq('id', body.id).maybeSingle();
+      if (e1) return jsonResp({ error: 'query_failed', message: e1.message }, 500);
+      if (!existing) return jsonResp({ error: 'not_found' }, 404);
+      const tokenBytes = new Uint8Array(24);
+      crypto.getRandomValues(tokenBytes);
+      const token = existing.share_token || Array.from(tokenBytes)
+        .map((b) => b.toString(16).padStart(2, '0')).join('');
+      const expires = body.expiresInDays && body.expiresInDays > 0
+        ? new Date(Date.now() + body.expiresInDays * 86400_000).toISOString()
+        : null;
+      const { error: e2 } = await svc().from('ai_research_notes').update({
+        share_token: token,
+        share_enabled: true,
+        share_permissions: perms,
+        share_expires_at: expires,
+        share_created_at: new Date().toISOString(),
+      }).eq('user_id', userId).eq('id', body.id);
+      if (e2) return jsonResp({ error: 'update_failed', message: e2.message }, 500);
+      return jsonResp({ ok: true, token, permissions: perms, expiresAt: expires });
+    }
+
+    if (action === 'share_revoke') {
+      if (!userId) return jsonResp({ error: 'auth_required' }, 401);
+      if (!body.id) return jsonResp({ error: 'id required' }, 400);
+      const { error } = await svc().from('ai_research_notes').update({
+        share_enabled: false,
+      }).eq('user_id', userId).eq('id', body.id);
+      if (error) return jsonResp({ error: 'update_failed', message: error.message }, 500);
+      return jsonResp({ ok: true });
+    }
+
+    // ---- Share: public read by token (no auth required) ----
+    if (action === 'share_get') {
+      if (!body.token) return jsonResp({ error: 'token required' }, 400);
+      const { data, error } = await svc()
+        .from('ai_research_notes')
+        .select('id, symbol, name, mode, source_url, source_label, focus, model, generated_at, report, share_permissions, share_enabled, share_expires_at')
+        .eq('share_token', body.token).maybeSingle();
+      if (error) return jsonResp({ error: 'query_failed', message: error.message }, 500);
+      if (!data || !data.share_enabled) return jsonResp({ error: 'not_found' }, 404);
+      if (data.share_expires_at && new Date(data.share_expires_at).getTime() < Date.now()) {
+        return jsonResp({ error: 'expired' }, 410);
+      }
+      const perms = (data.share_permissions ?? {}) as Record<string, boolean>;
+      // Redact fields per permissions
+      const report = { ...(data.report ?? {}) } as any;
+      if (perms.showCitations === false) {
+        if (Array.isArray(report.keyMetrics)) report.keyMetrics = report.keyMetrics.map((m: any) => ({ ...m, citation: undefined }));
+        if (Array.isArray(report.risks)) report.risks = report.risks.map((r: any) => ({ ...r, citation: undefined }));
+        if (report.managementTone?.notableQuotes) {
+          report.managementTone = { ...report.managementTone, notableQuotes: report.managementTone.notableQuotes.map((q: any) => (typeof q === 'string' ? q : { ...q, section: undefined })) };
+        }
+      }
+      if (perms.showRecommendation === false) report.recommendation = undefined;
+      if (perms.showRedFlags === false) report.redFlags = undefined;
+      if (perms.showFollowUps === false) report.followUpQuestions = undefined;
+      if (perms.showResearchNote === false) report.researchNote = undefined;
+      return jsonResp({
+        symbol: data.symbol, name: data.name, mode: data.mode,
+        sourceUrl: data.source_url, sourceLabel: data.source_label,
+        generatedAt: data.generated_at, model: data.model,
+        permissions: perms, report,
+      });
     }
 
     // ---- Analyze ----

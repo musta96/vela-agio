@@ -9,13 +9,16 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Coins, Download, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Coins, Download, TrendingUp, Briefcase, Calendar } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis, ComposedChart,
 } from "recharts";
 import { useBaseCurrency } from "@/hooks/useBaseCurrency";
 import { downloadCsv } from "@/lib/csvUtil";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import { projectDividends, buildPayoutCalendar, type DividendPositionSeed } from "@/lib/dividends/project";
 
 /**
  * Dividend Income Planner
@@ -34,17 +37,6 @@ import { downloadCsv } from "@/lib/csvUtil";
  * is required.
  */
 
-type Row = {
-  year: number;
-  yearLabel: string;
-  contributions: number;   // cumulative net contributions this year
-  reinvested: number;      // cumulative dividends reinvested this year
-  portfolio: number;       // end-of-year portfolio value
-  grossDividends: number;  // dividends paid during the year (pre-tax)
-  netDividends: number;    // after tax
-  yieldOnCost: number;     // net dividends / cumulative net contributions
-};
-
 function fmt(n: number, ccy: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -57,9 +49,16 @@ function pct(n: number, d = 2) {
   return `${(n * 100).toFixed(d)}%`;
 }
 
+// Naive default per-symbol dividend yield estimate (annual %). Only used
+// as a seed when we don't have a live quote fundamental; users can edit
+// the per-position yield in the imported table before projecting.
+const DEFAULT_YIELD_BY_SYMBOL: Record<string, number> = {};
+const DEFAULT_YIELD = 2.0;
+
 export default function DividendPlanner() {
   const { baseCurrency } = useBaseCurrency();
   const ccy = (baseCurrency || "USD").toUpperCase();
+  const portfolio = usePortfolio();
 
   const [startingValue, setStartingValue] = useState(25_000);
   const [monthlyContribution, setMonthlyContribution] = useState(500);
@@ -72,92 +71,61 @@ export default function DividendPlanner() {
   const [reinvest, setReinvest] = useState(true);
   const [payoutFreq, setPayoutFreq] = useState<"1" | "2" | "4" | "12">("4");
 
-  const rows = useMemo<Row[]>(() => {
-    const y0 = dividendYield / 100;
-    const dgr = dividendGrowth / 100;
-    const pgr = priceGrowth / 100;
-    const tax = taxRate / 100;
-    const contribGrowth = contributionGrowth / 100;
-    const freq = Number(payoutFreq);
-    const monthsPerPayout = 12 / freq;
+  // Portfolio import: when enabled, seed starting value + blended yield
+  // from the user's real holdings. Per-position yields default to a naive
+  // guess (2 %) or a per-symbol override; users can edit them inline.
+  const [importFromPortfolio, setImportFromPortfolio] = useState(false);
+  const [positionYields, setPositionYields] = useState<Record<string, number>>({});
+  const [nextPayoutMonth, setNextPayoutMonth] = useState<number>(new Date().getMonth() + 1);
 
-    // Portfolio is modeled as a share of a hypothetical index whose price
-    // grows at `pgr` and whose per-share dividend grows at `dgr` from an
-    // initial yield of `y0`.  Track shares owned; contributions buy shares
-    // at that year's price; dividends are cash unless DRIP is on.
-    let price = 1; // normalized starting price
-    let shares = startingValue / price;
-    let dividendPerShare = (y0 * price) / freq; // per-payout, will grow
-    let cash = 0;
-    let cumulativeNetContrib = startingValue;
-    let cumulativeReinvested = 0;
-    let monthlyContrib = monthlyContribution;
+  const seedPositions: DividendPositionSeed[] = useMemo(() => {
+    if (!importFromPortfolio) return [];
+    return portfolio.positions.map((p) => ({
+      symbol: p.holding.symbol,
+      shares: p.holding.shares,
+      price: p.effectivePrice,
+      yieldPct: positionYields[p.holding.symbol]
+        ?? DEFAULT_YIELD_BY_SYMBOL[p.holding.symbol]
+        ?? DEFAULT_YIELD,
+      nextPayoutMonth,
+    }));
+  }, [importFromPortfolio, portfolio.positions, positionYields, nextPayoutMonth]);
 
-    const out: Row[] = [];
-    for (let year = 1; year <= years; year++) {
-      let grossThisYear = 0;
-      let netThisYear = 0;
-      let reinvestedThisYear = 0;
+  const projection = useMemo(
+    () =>
+      projectDividends({
+        startingValue,
+        monthlyContribution,
+        contributionGrowthPct: contributionGrowth,
+        dividendYieldPct: dividendYield,
+        dividendGrowthPct: dividendGrowth,
+        priceGrowthPct: priceGrowth,
+        taxPct: taxRate,
+        years,
+        reinvest,
+        payoutFrequency: Number(payoutFreq) as 1 | 2 | 4 | 12,
+        positions: seedPositions,
+      }),
+    [startingValue, monthlyContribution, contributionGrowth, dividendYield,
+     dividendGrowth, priceGrowth, taxRate, years, reinvest, payoutFreq, seedPositions],
+  );
 
-      for (let month = 1; month <= 12; month++) {
-        // 1) Contribution buys shares at current price
-        if (monthlyContrib > 0) {
-          const boughtShares = monthlyContrib / price;
-          shares += boughtShares;
-          cumulativeNetContrib += monthlyContrib;
-        }
-
-        // 2) Dividend payout at scheduled months
-        if (month % monthsPerPayout === 0) {
-          const gross = dividendPerShare * shares;
-          const net = gross * (1 - tax);
-          grossThisYear += gross;
-          netThisYear += net;
-          if (reinvest) {
-            const drippedShares = net / price;
-            shares += drippedShares;
-            cumulativeReinvested += net;
-            reinvestedThisYear += net;
-          } else {
-            cash += net;
-          }
-          // Grow DPS between payouts by annual DGR spread across payouts
-          dividendPerShare *= Math.pow(1 + dgr, 1 / freq);
-        }
-
-        // 3) Price drifts up monthly by pgr
-        price *= Math.pow(1 + pgr, 1 / 12);
-      }
-
-      const portfolio = shares * price;
-      out.push({
-        year,
-        yearLabel: `Y${year}`,
-        contributions: cumulativeNetContrib,
-        reinvested: cumulativeReinvested,
-        portfolio,
-        grossDividends: grossThisYear,
-        netDividends: netThisYear,
-        yieldOnCost: cumulativeNetContrib > 0 ? netThisYear / cumulativeNetContrib : 0,
-      });
-
-      // Bump monthly contribution for next year (raises / inflation adjust)
-      monthlyContrib *= 1 + contribGrowth;
-    }
-    return out;
-  }, [
-    startingValue, monthlyContribution, contributionGrowth, dividendYield,
-    dividendGrowth, priceGrowth, taxRate, years, reinvest, payoutFreq,
-  ]);
-
-  const last = rows[rows.length - 1];
-  const totalContrib = last?.contributions ?? startingValue;
-  const totalReinvested = last?.reinvested ?? 0;
-  const finalPortfolio = last?.portfolio ?? startingValue;
-  const finalIncome = last?.netDividends ?? 0;
+  const rows = useMemo(
+    () => projection.rows.map((r) => ({ ...r, yearLabel: `Y${r.year}` })),
+    [projection.rows],
+  );
+  const totalContrib = projection.totalContrib;
+  const totalReinvested = projection.totalReinvested;
+  const finalPortfolio = projection.finalPortfolio;
+  const finalIncome = projection.finalNetIncome;
   const monthlyIncomeFinal = finalIncome / 12;
-  const yieldOnCost = last?.yieldOnCost ?? 0;
+  const yieldOnCost = projection.yieldOnCost;
   const totalReturn = totalContrib > 0 ? finalPortfolio / totalContrib - 1 : 0;
+
+  const payoutCalendar = useMemo(
+    () => (importFromPortfolio ? buildPayoutCalendar(seedPositions, new Date().getMonth() + 1) : []),
+    [importFromPortfolio, seedPositions],
+  );
 
   const exportCsv = () => {
     downloadCsv("dividend-plan.csv", [
@@ -200,10 +168,49 @@ export default function DividendPlanner() {
             <CardDescription>Adjust and watch the projection update.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Portfolio import */}
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm flex items-center gap-1.5 cursor-pointer">
+                  <Briefcase className="h-3.5 w-3.5 text-primary" /> Seed from my portfolio
+                </Label>
+                <Switch checked={importFromPortfolio} onCheckedChange={setImportFromPortfolio} disabled={portfolio.loading || portfolio.positions.length === 0} />
+              </div>
+              {importFromPortfolio ? (
+                <>
+                  <p className="text-[11px] text-muted-foreground">
+                    Using {portfolio.positions.length} live position{portfolio.positions.length === 1 ? "" : "s"} · blended starting yield
+                    <span className="font-medium text-foreground"> {projection.blendedStartYieldPct.toFixed(2)}%</span>
+                    · starting value <span className="font-medium text-foreground">{fmt(portfolio.marketValue, ccy)}</span>
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1.5"><Calendar className="h-3 w-3" /> First payout month</Label>
+                    <Select value={String(nextPayoutMonth)} onValueChange={(v) => setNextPayoutMonth(Number(v))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                          <SelectItem key={m} value={String(m)}>
+                            {new Date(2000, m - 1, 1).toLocaleString("en-US", { month: "long" })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  {portfolio.positions.length === 0
+                    ? "No holdings found — add positions in Portfolio, then re-toggle."
+                    : "Toggle on to project from your real holdings and pay dates."}
+                </p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="start">Starting portfolio</Label>
+              <Label htmlFor="start">Starting portfolio {importFromPortfolio && <span className="text-[10px] text-muted-foreground">(from holdings)</span>}</Label>
               <Input id="start" type="number" min={0} step={1000}
                 value={startingValue}
+                disabled={importFromPortfolio}
                 onChange={(e) => setStartingValue(Math.max(0, Number(e.target.value) || 0))} />
             </div>
             <div className="space-y-1.5">
@@ -214,7 +221,7 @@ export default function DividendPlanner() {
             </div>
 
             <SliderRow label="Contribution growth / yr" value={contributionGrowth} setValue={setContributionGrowth} min={0} max={15} step={0.5} suffix="%" />
-            <SliderRow label="Dividend yield" value={dividendYield} setValue={setDividendYield} min={0} max={12} step={0.1} suffix="%" />
+            <SliderRow label={importFromPortfolio ? "Yield on new capital" : "Dividend yield"} value={dividendYield} setValue={setDividendYield} min={0} max={12} step={0.1} suffix="%" />
             <SliderRow label="Dividend growth (DGR)" value={dividendGrowth} setValue={setDividendGrowth} min={0} max={20} step={0.5} suffix="%" />
             <SliderRow label="Price appreciation" value={priceGrowth} setValue={setPriceGrowth} min={-5} max={15} step={0.5} suffix="%" />
             <SliderRow label="Dividend tax rate" value={taxRate} setValue={setTaxRate} min={0} max={45} step={1} suffix="%" />
@@ -254,6 +261,76 @@ export default function DividendPlanner() {
             <Kpi label="Yield on cost" value={pct(yieldOnCost, 2)} hint={`On ${fmt(totalContrib, ccy)} invested`} />
             <Kpi label="Reinvested dividends" value={fmt(totalReinvested, ccy)} hint={reinvest ? "Compounded into shares" : "DRIP off"} />
           </div>
+
+          {/* Imported positions + upcoming payout calendar */}
+          {importFromPortfolio && seedPositions.length > 0 && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-primary" /> Imported positions
+                  </CardTitle>
+                  <CardDescription>Edit each holding's estimated yield to refine the projection.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0 max-h-64 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Symbol</TableHead>
+                        <TableHead className="text-right">Value</TableHead>
+                        <TableHead className="text-right">Yield %</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {seedPositions.map((p) => (
+                        <TableRow key={p.symbol}>
+                          <TableCell className="font-medium">{p.symbol}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmt(p.shares * p.price, ccy)}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              className="h-7 w-20 ml-auto text-right text-xs"
+                              value={p.yieldPct}
+                              onChange={(e) => setPositionYields((prev) => ({ ...prev, [p.symbol]: Number(e.target.value) || 0 }))}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary" /> Next 12 months of payouts
+                  </CardTitle>
+                  <CardDescription>Estimated cash from imported positions using quarterly cadence.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={payoutCalendar}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11}
+                        tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                        formatter={(v: any) => [fmt(Number(v), ccy), "Income"]}
+                        labelFormatter={(l, payload) => {
+                          const c = (payload?.[0]?.payload as any)?.contributors ?? [];
+                          return `${l}${c.length ? " · " + c.slice(0, 4).join(", ") : ""}`;
+                        }}
+                      />
+                      <Bar dataKey="income" fill="hsl(142 70% 45%)" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <Card>
             <CardHeader className="pb-2">

@@ -195,7 +195,9 @@ export function CashFlowPanel() {
 
   // ---- Aggregations ------------------------------------------------------
   // Project each entry into every month from its entry_date up to "now" when
-  // recurring_monthly is on, otherwise the single entry month.
+  // recurring_monthly is on, otherwise the single entry month. A recurring
+  // entry with `paused_from` set stops projecting from that month onward
+  // (past months already elapsed remain).
   const projected = useMemo(() => {
     const nowKey = currentMonthKey();
     const rows: { month: string; direction: "income" | "expense"; category: string; amount: number }[] = [];
@@ -205,6 +207,7 @@ export function CashFlowPanel() {
         rows.push({ month: startKey, direction: e.direction, category: e.category, amount: Number(e.amount) || 0 });
         continue;
       }
+      const pausedKey = e.paused_from ? monthKey(e.paused_from) : null;
       // Walk months from start → now
       const [sy, sm] = startKey.split("-").map(Number);
       const [ny, nm] = nowKey.split("-").map(Number);
@@ -212,6 +215,7 @@ export function CashFlowPanel() {
       let m = sm;
       while (y < ny || (y === ny && m <= nm)) {
         const mk = `${y}-${String(m).padStart(2, "0")}`;
+        if (pausedKey && mk >= pausedKey) break;
         rows.push({ month: mk, direction: e.direction, category: e.category, amount: Number(e.amount) || 0 });
         m += 1;
         if (m > 12) {

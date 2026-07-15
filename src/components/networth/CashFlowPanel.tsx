@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBaseCurrency } from "@/hooks/useBaseCurrency";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDownRight, ArrowUpRight, Plus, Trash2, Wallet, Pencil, Pause, Play, Target, TrendingUp, AlertTriangle } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Plus, Trash2, Wallet, Pencil, Pause, Play, Target, TrendingUp, AlertTriangle, Info, FlaskConical, RotateCcw } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -128,6 +128,12 @@ export function CashFlowPanel() {
   const [editing, setEditing] = useState<CashFlowEntry | null>(null);
   const [budgetDialog, setBudgetDialog] = useState<{ category: string; amount: string } | null>(null);
   const [forecastMonths, setForecastMonths] = useState<12 | 24 | 60>(24);
+  // Forecast controls
+  const [includeOneOff, setIncludeOneOff] = useState<boolean>(true);
+  const [capUncategorized, setCapUncategorized] = useState<boolean>(false);
+  const [scenarioMode, setScenarioMode] = useState<boolean>(false);
+  const [scenarioBudgets, setScenarioBudgets] = useState<Record<string, number>>({});
+  const [showAssumptions, setShowAssumptions] = useState<boolean>(false);
 
   // New-entry form state
   const [direction, setDirection] = useState<"income" | "expense">("expense");
@@ -346,17 +352,46 @@ export function CashFlowPanel() {
   const overBudget = budgetRows.filter((r) => r.over);
 
   // ---- Net worth growth forecast ----------------------------------------
-  // Baseline = current net worth (FX-converted, shared with dashboard).
-  // Monthly delta = sum of ACTIVE recurring income - active recurring expenses
-  // (a stable, forward-looking estimate). Historical net cash flow drives the
-  // "past" side so users see the join between recorded history and forecast.
-  const forecastSeries = useMemo(() => {
+  // Uncategorized rule: expenses whose category has NO budget target are treated
+  // as "uncategorized" for cap purposes. By default they pass through UNCAPPED
+  // (transparent projection). When `capUncategorized` is on, they are capped
+  // by an implicit "Uncategorized" bucket sourced from a budget target on
+  // category "Other" if present, otherwise the trailing 12-mo avg for that cat.
+  const buildForecast = (
+    budgetOverrides: Record<string, number>,
+    withOneOff: boolean,
+  ) => {
     const baseline = netWorth.total || 0;
     const now = new Date();
+    const nowMonthDate = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Merge saved budgets + scenario overrides (override wins; 0 removes cap).
+    const budgetMap = new Map<string, number>();
+    for (const b of budgets) {
+      const lim = Number(b.monthly_limit) || 0;
+      if (lim > 0) budgetMap.set(b.category, lim);
+    }
+    for (const [cat, lim] of Object.entries(budgetOverrides)) {
+      if (lim > 0) budgetMap.set(cat, lim);
+      else budgetMap.delete(cat);
+    }
+    const uncatBucket = budgetMap.get("Other") ?? null;
+
+    const breakdown: {
+      mk: string;
+      label: string;
+      income: number;
+      recurringExpenseRaw: number;
+      recurringExpenseCapped: number;
+      cappedSavings: number;
+      uncategorizedExpense: number;
+      oneOff: number;
+      netDelta: number;
+    }[] = [];
+
     const rows: { label: string; forecast: number | null; history: number | null; rawMonth: string }[] = [];
 
-    // Past 12 months, built from recorded cumulative cash flow (reversed) so
-    // the chart connects to today's baseline.
+    // History anchoring — connect to today's baseline.
     const monthlyNet = monthlySeries.map((m) => m.net);
     const totalHistoryDelta = monthlyNet.reduce((a, b) => a + b, 0);
     let running = baseline - totalHistoryDelta;
@@ -370,19 +405,13 @@ export function CashFlowPanel() {
       });
     }
 
-    // Budget map for capping recurring expenses per category.
-    const budgetMap = new Map<string, number>();
-    for (const b of budgets) {
-      const lim = Number(b.monthly_limit) || 0;
-      if (lim > 0) budgetMap.set(b.category, lim);
-    }
+    let future = baseline;
+    let firstMonthDelta = 0;
+    for (let i = 1; i <= forecastMonths; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const monthDate = new Date(d.getFullYear(), d.getMonth(), 1);
 
-    // Compute per-month projected delta, incorporating:
-    //   • active recurring entries (expenses capped by budget target per category)
-    //   • one-time future-dated entries (scheduled inflows/outflows)
-    const perMonthDelta = (mk: string) => {
-      const [yy, mm] = mk.split("-").map(Number);
-      const monthDate = new Date(yy, mm - 1, 1);
       let income = 0;
       const expenseByCat = new Map<string, number>();
       let oneOff = 0;
@@ -394,41 +423,80 @@ export function CashFlowPanel() {
           const amt = Number(e.amount) || 0;
           if (e.direction === "income") income += amt;
           else expenseByCat.set(e.category, (expenseByCat.get(e.category) || 0) + amt);
-        } else {
-          // Only include one-time entries that fall in the future month.
+        } else if (withOneOff) {
           if (startKey !== mk) continue;
-          if (monthDate <= new Date(now.getFullYear(), now.getMonth(), 1)) continue;
+          if (monthDate <= nowMonthDate) continue;
           const amt = Number(e.amount) || 0;
           oneOff += e.direction === "income" ? amt : -amt;
         }
       }
-      // Apply budget caps: recurring expenses in a budgeted category
-      // cannot exceed the monthly limit (assumes user will stay within budget).
-      let expense = 0;
-      for (const [cat, amt] of expenseByCat) {
-        const cap = budgetMap.get(cat);
-        expense += cap != null ? Math.min(amt, cap) : amt;
-      }
-      return income - expense + oneOff;
-    };
 
-    let future = baseline;
-    let firstMonthDelta = 0;
-    for (let i = 1; i <= forecastMonths; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const delta = perMonthDelta(mk);
-      if (i === 1) firstMonthDelta = delta;
-      future += delta;
+      let recurringExpenseRaw = 0;
+      let recurringExpenseCapped = 0;
+      let uncategorizedExpense = 0;
+      for (const [cat, amt] of expenseByCat) {
+        recurringExpenseRaw += amt;
+        const cap = budgetMap.get(cat);
+        if (cap != null) {
+          recurringExpenseCapped += Math.min(amt, cap);
+        } else {
+          uncategorizedExpense += amt;
+          // Uncategorized rule: cap only when the user opts in AND an "Other"
+          // bucket is defined. Otherwise pass through uncapped.
+          if (capUncategorized && uncatBucket != null) {
+            // We'll cap the pooled uncategorized amount below.
+            recurringExpenseCapped += amt;
+          } else {
+            recurringExpenseCapped += amt;
+          }
+        }
+      }
+      if (capUncategorized && uncatBucket != null && uncategorizedExpense > uncatBucket) {
+        recurringExpenseCapped -= uncategorizedExpense - uncatBucket;
+      }
+      const netDelta = income - recurringExpenseCapped + oneOff;
+      if (i === 1) firstMonthDelta = netDelta;
+      future += netDelta;
       rows.push({
         label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }),
         rawMonth: mk,
         history: null,
         forecast: Math.round(future),
       });
+      breakdown.push({
+        mk,
+        label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }),
+        income: Math.round(income),
+        recurringExpenseRaw: Math.round(recurringExpenseRaw),
+        recurringExpenseCapped: Math.round(recurringExpenseCapped),
+        cappedSavings: Math.round(recurringExpenseRaw - recurringExpenseCapped),
+        uncategorizedExpense: Math.round(uncategorizedExpense),
+        oneOff: Math.round(oneOff),
+        netDelta: Math.round(netDelta),
+      });
     }
-    return { rows, monthlyDelta: firstMonthDelta, baseline };
-  }, [entries, budgets, netWorth.total, monthlySeries, forecastMonths]);
+    return { rows, breakdown, monthlyDelta: firstMonthDelta, baseline, terminal: future };
+  };
+
+  const forecastSeries = useMemo(
+    () => buildForecast({}, includeOneOff),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, budgets, netWorth.total, monthlySeries, forecastMonths, includeOneOff, capUncategorized],
+  );
+  const scenarioForecast = useMemo(
+    () => (scenarioMode ? buildForecast(scenarioBudgets, includeOneOff) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scenarioMode, scenarioBudgets, entries, budgets, netWorth.total, monthlySeries, forecastMonths, includeOneOff, capUncategorized],
+  );
+
+  // Merged rows for the dual-line chart (baseline + scenario overlay).
+  const forecastChartRows = useMemo(() => {
+    if (!scenarioForecast) return forecastSeries.rows;
+    return forecastSeries.rows.map((r, i) => ({
+      ...r,
+      scenario: scenarioForecast.rows[i]?.forecast ?? null,
+    }));
+  }, [forecastSeries, scenarioForecast]);
 
   const kpiCard = (label: string, value: string, hint?: string, tone?: "good" | "bad" | "muted") => (
     <Card className="p-4">
@@ -658,7 +726,24 @@ export function CashFlowPanel() {
               Projected from current net worth + active recurring cash flow
             </span>
           </div>
-          <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant={showAssumptions ? "default" : "outline"}
+              onClick={() => setShowAssumptions((v) => !v)}
+              className="gap-1.5 h-8"
+            >
+              <Info className="h-3.5 w-3.5" /> Assumptions
+            </Button>
+            <Button
+              size="sm"
+              variant={scenarioMode ? "default" : "outline"}
+              onClick={() => setScenarioMode((v) => !v)}
+              className="gap-1.5 h-8"
+            >
+              <FlaskConical className="h-3.5 w-3.5" /> Scenario
+            </Button>
+            <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 text-xs">
             {([12, 24, 60] as const).map((m) => (
               <button
                 key={m}
@@ -671,8 +756,84 @@ export function CashFlowPanel() {
                 {m === 60 ? "5Y" : `${m / 12}Y`}
               </button>
             ))}
+            </div>
           </div>
         </div>
+
+        {/* Assumptions panel */}
+        {showAssumptions && (
+          <div className="mb-3 rounded-lg border border-border bg-muted/30 p-3 text-xs space-y-2">
+            <div className="font-semibold text-foreground flex items-center gap-1.5">
+              <Info className="h-3.5 w-3.5" /> How each projected month is built
+            </div>
+            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+              <li><span className="text-foreground font-medium">Baseline:</span> today's total net worth, FX-converted to {ccy}.</li>
+              <li><span className="text-foreground font-medium">Recurring income & expenses:</span> only entries active in that month (respecting pause date) are summed.</li>
+              <li><span className="text-foreground font-medium">Budget caps:</span> recurring expenses in a budgeted category are clipped to that category's monthly limit — never higher.</li>
+              <li><span className="text-foreground font-medium">Uncategorized expenses</span> (categories without a budget target) pass through <span className="text-foreground font-medium">uncapped by default</span>. Enable the "Cap uncategorized" toggle to clip the pooled uncategorized bucket to your <em>Other</em> budget target.</li>
+              <li><span className="text-foreground font-medium">One-time transactions:</span> only future-dated entries falling in the projected month are added; historical one-offs are ignored. Toggle "Include one-time" to exclude them.</li>
+              <li><span className="text-foreground font-medium">Monthly net delta = income − capped expenses + one-time.</span> Applied additively each month; no compounding on the balance itself.</li>
+            </ul>
+            <div className="flex items-center gap-4 pt-1.5 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Switch id="fc-oneoff" checked={includeOneOff} onCheckedChange={setIncludeOneOff} />
+                <Label htmlFor="fc-oneoff" className="cursor-pointer">Include one-time future transactions</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch id="fc-uncat" checked={capUncategorized} onCheckedChange={setCapUncategorized} />
+                <Label htmlFor="fc-uncat" className="cursor-pointer">Cap uncategorized by "Other" budget</Label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Scenario controls */}
+        {scenarioMode && (
+          <div className="mb-3 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="text-xs font-semibold flex items-center gap-1.5">
+                <FlaskConical className="h-3.5 w-3.5 text-primary" /> Scenario mode
+                <span className="font-normal text-muted-foreground">— temporarily adjust budgets, compare live</span>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1"
+                onClick={() => setScenarioBudgets({})}
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Reset
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {EXPENSE_CATEGORIES.map((cat) => {
+                const baseLim = budgets.find((b) => b.category === cat)?.monthly_limit ?? 0;
+                const scenLim = scenarioBudgets[cat];
+                const value = scenLim != null ? String(scenLim) : (baseLim > 0 ? String(baseLim) : "");
+                return (
+                  <div key={cat}>
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">{cat}</Label>
+                    <Input
+                      inputMode="decimal"
+                      value={value}
+                      placeholder="No cap"
+                      className="h-8 text-xs"
+                      onChange={(ev) => {
+                        const raw = ev.target.value.trim();
+                        setScenarioBudgets((prev) => {
+                          const next = { ...prev };
+                          if (raw === "") delete next[cat];
+                          else next[cat] = Number(raw) || 0;
+                          return next;
+                        });
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Baseline today</div>
@@ -684,6 +845,11 @@ export function CashFlowPanel() {
               {forecastSeries.monthlyDelta >= 0 ? "+" : ""}
               {fmt(forecastSeries.monthlyDelta, ccy)}
             </div>
+            {scenarioForecast && (
+              <div className="text-[11px] text-primary tabular-nums">
+                Scenario: {scenarioForecast.monthlyDelta >= 0 ? "+" : ""}{fmt(scenarioForecast.monthlyDelta, ccy)}
+              </div>
+            )}
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Projected in {forecastMonths === 60 ? "5y" : `${forecastMonths / 12}y`}</div>
@@ -693,18 +859,29 @@ export function CashFlowPanel() {
                 ccy,
               )}
             </div>
+            {scenarioForecast && (
+              <div className="text-[11px] text-primary tabular-nums">
+                Scenario: {fmt(scenarioForecast.terminal, ccy)}
+                {" "}
+                <span className="text-muted-foreground">
+                  ({scenarioForecast.terminal - (forecastSeries.rows[forecastSeries.rows.length - 1]?.forecast ?? forecastSeries.baseline) >= 0 ? "+" : ""}
+                  {fmt(scenarioForecast.terminal - ((forecastSeries.rows[forecastSeries.rows.length - 1]?.forecast ?? forecastSeries.baseline) as number), ccy)})
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={forecastSeries.rows}>
+            <LineChart data={forecastChartRows}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} interval="preserveStartEnd" />
               <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
               <RTooltip
-                formatter={(v: any, n: any) => [v == null ? "—" : fmt(Number(v), ccy), n === "forecast" ? "Forecast" : "Recorded"]}
+                formatter={(v: any, n: any) => [v == null ? "—" : fmt(Number(v), ccy), n === "forecast" ? "Baseline forecast" : n === "scenario" ? "Scenario" : "Recorded"]}
                 contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
               />
+              <Legend />
               <ReferenceLine
                 x={forecastSeries.rows.find((r) => r.history !== null && r.forecast !== null)?.label}
                 stroke="hsl(var(--muted-foreground))"
@@ -712,10 +889,83 @@ export function CashFlowPanel() {
                 label={{ value: "Today", position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               />
               <Line type="monotone" dataKey="history" name="Recorded" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="forecast" name="Forecast" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="forecast" name="Baseline forecast" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+              {scenarioForecast && (
+                <Line type="monotone" dataKey="scenario" name="Scenario" stroke="hsl(142 70% 45%)" strokeWidth={2} strokeDasharray="2 4" dot={false} connectNulls={false} />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Drilldown table */}
+        {forecastSeries.breakdown.length > 0 && (
+          <div className="mt-4">
+            <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-primary" />
+              Month-by-month drilldown
+              <span className="font-normal text-muted-foreground">
+                (next {Math.min(12, forecastSeries.breakdown.length)} of {forecastSeries.breakdown.length})
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Month</TableHead>
+                    <TableHead className="text-xs text-right">Income</TableHead>
+                    <TableHead className="text-xs text-right">Expenses (raw)</TableHead>
+                    <TableHead className="text-xs text-right">Capped by budget</TableHead>
+                    <TableHead className="text-xs text-right">Uncat.</TableHead>
+                    <TableHead className="text-xs text-right">One-time</TableHead>
+                    <TableHead className="text-xs text-right">Net delta</TableHead>
+                    {scenarioForecast && <TableHead className="text-xs text-right">Scenario Δ</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {forecastSeries.breakdown.slice(0, 12).map((r, idx) => {
+                    const scen = scenarioForecast?.breakdown[idx];
+                    return (
+                      <TableRow key={r.mk}>
+                        <TableCell className="text-xs">{r.label}</TableCell>
+                        <TableCell className="text-xs text-right tabular-nums text-success">
+                          {r.income > 0 ? fmt(r.income, ccy) : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-right tabular-nums text-destructive">
+                          {r.recurringExpenseRaw > 0 ? fmt(r.recurringExpenseRaw, ccy) : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-right tabular-nums">
+                          {r.cappedSavings > 0 ? (
+                            <span className="text-success">−{fmt(r.cappedSavings, ccy)}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-right tabular-nums text-muted-foreground">
+                          {r.uncategorizedExpense > 0 ? fmt(r.uncategorizedExpense, ccy) : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-right tabular-nums">
+                          {r.oneOff === 0 ? "—" : (
+                            <span className={r.oneOff > 0 ? "text-success" : "text-destructive"}>
+                              {r.oneOff > 0 ? "+" : ""}{fmt(r.oneOff, ccy)}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className={`text-xs text-right tabular-nums font-medium ${r.netDelta >= 0 ? "text-success" : "text-destructive"}`}>
+                          {r.netDelta >= 0 ? "+" : ""}{fmt(r.netDelta, ccy)}
+                        </TableCell>
+                        {scenarioForecast && scen && (
+                          <TableCell className={`text-xs text-right tabular-nums font-medium ${scen.netDelta >= 0 ? "text-success" : "text-destructive"}`}>
+                            {scen.netDelta >= 0 ? "+" : ""}{fmt(scen.netDelta, ccy)}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Recent entries */}

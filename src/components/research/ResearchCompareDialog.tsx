@@ -2,7 +2,11 @@ import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GitCompare, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { GitCompare, ArrowUp, ArrowDown, Minus, LineChart as LineChartIcon } from "lucide-react";
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip,
+  CartesianGrid, ReferenceLine,
+} from "recharts";
 
 interface Note {
   id: string;
@@ -22,6 +26,50 @@ interface Props {
 function normLabel(s: string): string {
   return s.trim().toLowerCase().replace(/[\s\-_/]+/g, " ").replace(/[^\w %$.]/g, "").replace(/\s+/g, " ");
 }
+
+// Extract a signed numeric magnitude from strings like "$4.2B", "12.3%", "1,234 M", "-5bps".
+// Returns null if no number is present.
+function parseMetricNumber(raw: unknown): number | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const m = s.match(/-?\$?\s*[\d,]+(?:\.\d+)?/);
+  if (!m) return null;
+  const nStr = m[0].replace(/[$,\s]/g, "");
+  let n = parseFloat(nStr);
+  if (!isFinite(n)) return null;
+  const lower = s.toLowerCase();
+  if (/\btrillion\b|\btn\b|\bt\b(?![a-z])/i.test(s)) n *= 1e12;
+  else if (/\bbillion\b|\bbn?\b(?![a-z])/i.test(s)) n *= 1e9;
+  else if (/\bmillion\b|\bmm?\b(?![a-z])/i.test(s)) n *= 1e6;
+  else if (/\bthousand\b|\bk\b(?![a-z])/i.test(s)) n *= 1e3;
+  if (lower.includes("bps")) n = n / 100; // basis points → percent-equivalent
+  return n;
+}
+
+function metricUnit(raw: unknown): string {
+  const s = String(raw ?? "");
+  if (s.includes("%")) return "%";
+  if (s.includes("$")) return "$";
+  return "";
+}
+
+function formatShort(n: number): string {
+  const a = Math.abs(n);
+  if (a >= 1e12) return (n / 1e12).toFixed(2) + "T";
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(2) + "K";
+  return n.toFixed(2);
+}
+
+const guidanceScore: Record<string, number> = {
+  raised: 1, reiterated: 0, none: 0, lowered: -1,
+};
+
+const sentimentScore: Record<string, number> = {
+  positive: 2, "cautiously-positive": 1, neutral: 0, cautious: -1, negative: -2,
+};
 
 const guidanceIcon: Record<string, JSX.Element> = {
   raised: <ArrowUp className="h-3 w-3 text-bull" />,
@@ -52,6 +100,48 @@ export function ResearchCompareDialog({ open, onOpenChange, notes }: Props) {
     return list.find((m) => normLabel(m?.label ?? "") === key);
   };
 
+  // Timeline dataset (guidance + sentiment) — one entry per note in chronological order.
+  const timeline = useMemo(() => sorted.map((n) => ({
+    id: n.id,
+    label: n.source_label || (n.mode === "transcript" ? "Call" : "Filing"),
+    date: new Date(n.generated_at).toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+    guidance: guidanceScore[n.report?.guidance?.direction ?? "none"] ?? 0,
+    guidanceLabel: n.report?.guidance?.direction ?? "none",
+    sentiment: sentimentScore[n.report?.managementTone?.sentiment ?? "neutral"] ?? 0,
+    sentimentLabel: n.report?.managementTone?.sentiment ?? "neutral",
+  })), [sorted]);
+
+  // Numeric metric trends — keep only labels where ≥2 notes have parseable values.
+  const metricTrends = useMemo(() => {
+    return metricLabels
+      .map(([key, label]) => {
+        const unit = (() => {
+          for (const n of sorted) {
+            const m = getMetric(n, key);
+            if (m?.value) return metricUnit(m.value);
+          }
+          return "";
+        })();
+        const points = sorted.map((n) => {
+          const m = getMetric(n, key);
+          const value = parseMetricNumber(m?.value);
+          return {
+            date: new Date(n.generated_at).toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+            label: n.source_label || (n.mode === "transcript" ? "Call" : "Filing"),
+            value,
+            display: m?.value ?? null,
+          };
+        });
+        const nonNull = points.filter((p) => p.value != null).length;
+        return { key, label, unit, points, nonNull };
+      })
+      .filter((t) => t.nonNull >= 2)
+      .sort((a, b) => b.nonNull - a.nonNull)
+      .slice(0, 8);
+  }, [metricLabels, sorted]);
+
+  const yFmt = (unit: string) => (v: number) => unit === "%" ? `${v.toFixed(1)}%` : (unit === "$" ? `$${formatShort(v)}` : formatShort(v));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -69,7 +159,90 @@ export function ResearchCompareDialog({ open, onOpenChange, notes }: Props) {
           <p className="text-sm text-muted-foreground">Select at least two saved notes to compare.</p>
         ) : (
           <ScrollArea className="flex-1">
-            <div className="min-w-max">
+            <div className="min-w-max space-y-6">
+              {/* Trend charts */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <LineChartIcon className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Trends over time</h3>
+                  <Badge variant="outline" className="text-[10px]">{sorted.length} data points</Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Guidance timeline */}
+                  <div className="rounded-lg border border-border/60 p-3 bg-card/40">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium">Guidance direction</p>
+                      <span className="text-[10px] text-muted-foreground">-1 lowered · 0 reiterated · +1 raised</span>
+                    </div>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={timeline} margin={{ top: 6, right: 12, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 4" />
+                          <ReTooltip
+                            contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", fontSize: 11, borderRadius: 6 }}
+                            formatter={(_v: any, _n: any, p: any) => [p.payload?.guidanceLabel, "Guidance"]}
+                          />
+                          <Line type="monotone" dataKey="guidance" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  {/* Sentiment timeline */}
+                  <div className="rounded-lg border border-border/60 p-3 bg-card/40">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium">Management sentiment</p>
+                      <span className="text-[10px] text-muted-foreground">-2 negative … +2 positive</span>
+                    </div>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={timeline} margin={{ top: 6, right: 12, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[-2.2, 2.2]} ticks={[-2, -1, 0, 1, 2]} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 4" />
+                          <ReTooltip
+                            contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", fontSize: 11, borderRadius: 6 }}
+                            formatter={(_v: any, _n: any, p: any) => [String(p.payload?.sentimentLabel).replace(/-/g, " "), "Sentiment"]}
+                          />
+                          <Line type="monotone" dataKey="sentiment" stroke="hsl(var(--bull))" strokeWidth={2} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  {/* Numeric metric trends */}
+                  {metricTrends.map((t) => (
+                    <div key={t.key} className="rounded-lg border border-border/60 p-3 bg-card/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium">{t.label}</p>
+                        <span className="text-[10px] text-muted-foreground">{t.nonNull}/{sorted.length} disclosed</span>
+                      </div>
+                      <div className="h-40">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={t.points} margin={{ top: 6, right: 12, left: -8, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                            <YAxis tickFormatter={yFmt(t.unit)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" width={54} />
+                            <ReTooltip
+                              contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", fontSize: 11, borderRadius: 6 }}
+                              formatter={(_v: any, _n: any, p: any) => [p.payload?.display ?? "-", t.label]}
+                            />
+                            <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {metricTrends.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No numeric metrics were disclosed in at least two selected notes — trend charts will appear as more filings are analyzed.</p>
+                )}
+              </section>
+
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Metric-by-metric detail</h3>
               <table className="w-full text-sm border-collapse">
                 <thead className="sticky top-0 bg-background z-10">
                   <tr>
@@ -136,6 +309,7 @@ export function ResearchCompareDialog({ open, onOpenChange, notes }: Props) {
                   ))}
                 </tbody>
               </table>
+              </section>
             </div>
           </ScrollArea>
         )}

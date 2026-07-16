@@ -1840,6 +1840,39 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_call_log: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          duration_ms: number
+          error: string | null
+          id: string
+          ok: boolean
+          tool_name: string
+          user_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          error?: string | null
+          id?: string
+          ok: boolean
+          tool_name: string
+          user_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          error?: string | null
+          id?: string
+          ok?: boolean
+          tool_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       net_worth_accounts: {
         Row: {
           category: string

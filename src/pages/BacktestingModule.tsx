@@ -29,6 +29,7 @@ import { CostConfigCard } from "@/components/backtest/CostConfigCard";
 import { SensitivityHeatmap } from "@/components/backtest/SensitivityHeatmap";
 import { RegimeBreakdownCard } from "@/components/backtest/RegimeBreakdownCard";
 import { VersionCompareCard } from "@/components/backtest/VersionCompareCard";
+import { WalkForwardOptimizerCard } from "@/components/backtest/WalkForwardOptimizerCard";
 import { DEFAULT_COSTS, costsSummary, type CostConfig } from "@/lib/backtest/costs";
 
 interface Holding { symbol: string; weight: number; name?: string; }
@@ -519,6 +520,15 @@ const BacktestingModule = () => {
 
                 {strategy === "custom" && customRules && result.bars && result.bars.length > 30 && (
                   <SensitivityHeatmap
+                    bars={result.bars}
+                    rules={customRules}
+                    initial={Number(initialCapital)}
+                    costs={costs}
+                  />
+                )}
+
+                {strategy === "custom" && customRules && result.bars && result.bars.length >= 80 && (
+                  <WalkForwardOptimizerCard
                     bars={result.bars}
                     rules={customRules}
                     initial={Number(initialCapital)}

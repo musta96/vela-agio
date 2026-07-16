@@ -293,9 +293,12 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
         ) : null}
       </div>
 
+      {/* Validation */}
+      <ValidationPanel issues={issues} />
+
       {/* Actions */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
+        <Button size="sm" onClick={handleSave} disabled={saving || hasErrors} className="gap-2">
           <Save className="h-4 w-4" /> {selectedId ? `Update (v${(currentVersion ?? 1) + 1})` : "Save"}
         </Button>
         {selectedId && (
@@ -303,7 +306,7 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
             <Copy className="h-4 w-4" /> Clone
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing} className="gap-2">
+        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing || hasErrors} className="gap-2">
           <BarChart3 className="h-4 w-4" /> {previewing ? "Running…" : "Preview backtest"}
         </Button>
         {selectedId && versions.length > 0 && (

@@ -53,6 +53,7 @@ const KIND_OPTIONS: { value: string; label: string; symbolRequired: boolean; thr
   { value: "macd_cross", label: "MACD cross", symbolRequired: true },
   { value: "ma_cross", label: "Golden/Death cross (50/200)", symbolRequired: true },
   { value: "breakout_52w", label: "52-week breakout", symbolRequired: true },
+  { value: "roic_wacc_spread_delta", label: "ROIC−WACC spread Δ (bps, window)", symbolRequired: true, thresholdLabel: "bps" },
   { value: "portfolio_drawdown", label: "Portfolio drawdown ≥ %", symbolRequired: false, thresholdLabel: "%" },
   { value: "portfolio_concentration", label: "Single holding > % of portfolio", symbolRequired: false, thresholdLabel: "%" },
 ];

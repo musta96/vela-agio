@@ -414,6 +414,28 @@ function instrumentBlock(i: Instrument): string {
   if (i.rationale) sections.push(`<h3>Investment rationale</h3><p>${esc(i.rationale)}</p>`);
   if (i.suitability) sections.push(`<h3>Suitability fit</h3><p>${esc(i.suitability)}</p>`);
 
+  const rw = i.roic_wacc;
+  if (rw && (rw.roic != null || rw.wacc != null || rw.spread != null)) {
+    const pctOrDash = (v: number | null | undefined) =>
+      v == null || !Number.isFinite(v) ? "-" : `${(v * 100).toFixed(1)}%`;
+    const rows: string[] = [];
+    rows.push(`<tr><td>ROIC</td><td class="num">${pctOrDash(rw.roic ?? null)}</td></tr>`);
+    rows.push(`<tr><td>WACC</td><td class="num">${pctOrDash(rw.wacc ?? null)}</td></tr>`);
+    rows.push(`<tr><td><strong>ROIC − WACC spread</strong></td><td class="num ${(rw.spread ?? 0) >= 0 ? "pos" : "neg"}"><strong>${pctOrDash(rw.spread ?? null)}</strong></td></tr>`);
+    const inp = rw.inputs;
+    if (inp) {
+      if (inp.nopat != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">NOPAT</td><td class="num">${fmtBigNum(inp.nopat)}</td></tr>`);
+      if (inp.invested_capital != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">Invested capital</td><td class="num">${fmtBigNum(inp.invested_capital)}</td></tr>`);
+      if (inp.cost_of_equity != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">Cost of equity</td><td class="num">${pctOrDash(inp.cost_of_equity)}</td></tr>`);
+      if (inp.after_tax_cost_of_debt != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">After-tax kd</td><td class="num">${pctOrDash(inp.after_tax_cost_of_debt)}</td></tr>`);
+    }
+    const interp = rw.interpretation ? `<p style="font-size:${tokens.size.small}pt;color:${tokens.color.muted};margin-top:${tokens.space.xs}pt;">${esc(rw.interpretation)}</p>` : "";
+    sections.push(
+      `<h3>Return on capital vs cost of capital</h3>
+       <table class="data" style="margin-top:${tokens.space.xs}pt;"><thead><tr><th>Metric</th><th class="num">Value</th></tr></thead><tbody>${rows.join("")}</tbody></table>${interp}`,
+    );
+  }
+
   const riskRows = (i.risks ?? []).map(
     (r) => `<tr><td><strong>${esc(r.name)}</strong></td><td>${esc(r.desc)}</td></tr>`,
   );
@@ -460,6 +482,17 @@ function implementationSteps(input: MemoInput): string {
 /* ============================== methodology, sources, disclosures ============================== */
 
 function methodologyAndDisclosures(input: MemoInput): string {
+  return methodologyAndDisclosuresImpl(input);
+}
+
+function fmtBigNum(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  return v.toLocaleString();
+}
+
+function methodologyAndDisclosuresImpl(input: MemoInput): string {
   const m = input.methodology ?? [];
   const s = input.sources ?? [];
   const d = input.disclosures;

@@ -131,6 +131,30 @@ export const InstrumentSchema = z.object({
     .array(z.object({ name: z.string(), desc: z.string() }))
     .optional(),
   diversification: z.string().optional(),
+  /**
+   * Optional ROIC / WACC snapshot with plain-English interpretation of the
+   * spread. Rendered as a compact block inside the instrument deep-dive.
+   */
+  roic_wacc: z
+    .object({
+      roic: z.number().nullable().optional(),
+      wacc: z.number().nullable().optional(),
+      spread: z.number().nullable().optional(),
+      interpretation: z.string().optional(),
+      inputs: z
+        .object({
+          nopat: z.number().nullable().optional(),
+          invested_capital: z.number().nullable().optional(),
+          effective_tax_rate: z.number().nullable().optional(),
+          cost_of_equity: z.number().nullable().optional(),
+          after_tax_cost_of_debt: z.number().nullable().optional(),
+          beta: z.number().nullable().optional(),
+          risk_free_rate: z.number().nullable().optional(),
+          equity_risk_premium: z.number().nullable().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 /** ---------- v2: references, macro, portfolio-risk, assumptions ---------- */

@@ -3,6 +3,7 @@ import { resolveAIConfig, type AIConfig } from '../_shared/ai-provider.ts';
 import { fetchAllByoFundamentals } from '../_shared/data-provider.ts';
 import { resolveAiAccess, logAiUsage, aiDeniedResponse } from '../_shared/ai-access.ts';
 import { checkCredits, creditsDeniedResponse, getCachedAnalysis, setCachedAnalysis, creditsFor } from '../_shared/ai-credits.ts';
+import { computeRoicWacc } from '../_shared/roic-wacc.ts';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface Body { symbol: string; name?: string; currency?: string }
@@ -298,6 +299,10 @@ Deno.serve(async (req) => {
     const dcf = dcfValuation(fundamentals);
     const ddm = ddmValuation(fundamentals);
     const liquidity = liquidityProfile(fundamentals);
+    // ROIC / WACC snapshot — non-blocking. Falls back to null on error so the
+    // rest of the memo/analysis still renders.
+    let roicWacc: Awaited<ReturnType<typeof computeRoicWacc>> | null = null;
+    try { roicWacc = await computeRoicWacc(sym); } catch { roicWacc = null; }
     const cfg = await resolveAIConfig(req.headers.get('Authorization'));
     const enrichedForAi = byoFundamentals.length
       ? { ...fundamentals, _byo: byoFundamentals.map(b => ({ source: b.source, snapshot: b.data })) }
@@ -310,6 +315,7 @@ Deno.serve(async (req) => {
       byoFundamentals: byoFundamentals.length ? byoFundamentals : undefined,
       liquidity,
       valuation: { dcf, ddm },
+      roicWacc,
       analysis: ai,
       ai_meta: { provider: cfg.effectiveProvider, model: cfg.model, source: cfg.source, notice: cfg.notice ?? null },
       generatedAt: new Date().toISOString(),

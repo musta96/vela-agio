@@ -13,6 +13,13 @@ import type { Bar, SimResult } from "@/lib/backtest/clientSim";
 import { simulateCustom } from "@/lib/backtest/clientSim";
 import { runCachedParallel } from "@/lib/backtest/simCache";
 
+function formatEta(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, "0")}`;
+}
+
 interface Props {
   bars: Bar[];
   rules: { entry: Condition[]; exit: Condition[]; risk: RiskConfig };
@@ -94,7 +101,7 @@ export function WalkForwardOptimizerCard({ bars, rules, initial, costs }: Props)
   const [trainPct, setTrainPct] = useState<number>(70);
   const [objective, setObjective] = useState<typeof OBJECTIVES[number]["key"]>("sharpe");
   const [results, setResults] = useState<FoldResult[] | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [progress, setProgress] = useState<{ done: number; total: number; etaMs?: number }>({ done: 0, total: 0 });
   const [running, setRunning] = useState(false);
 
   if (axes.length === 0) {
@@ -150,7 +157,7 @@ export function WalkForwardOptimizerCard({ bars, rules, initial, costs }: Props)
       const baseDone = done;
       const { results: isResults } = await runCachedParallel(
         isBars, jobs.map((j) => j.rules), initial, costs,
-        (d) => { done = baseDone + d; setProgress({ done, total: folds * totalPerFold }); },
+        (d, _t, _h, etaMs) => { done = baseDone + d; setProgress({ done, total: folds * totalPerFold, etaMs }); },
       );
       let best: { x: number; y: number; metric: number } | null = null;
       for (let k = 0; k < jobs.length; k++) {
@@ -247,7 +254,10 @@ export function WalkForwardOptimizerCard({ bars, rules, initial, costs }: Props)
         {(running || progress.done > 0) && (
           <div className="space-y-1">
             <Progress value={progress.total ? (progress.done / progress.total) * 100 : 0} className="h-1.5" />
-            <p className="text-[10px] text-muted-foreground">{progress.done}/{progress.total} simulations</p>
+            <p className="text-[10px] text-muted-foreground">
+              {progress.done}/{progress.total} simulations
+              {running && progress.etaMs !== undefined && progress.etaMs > 0 && <span> · ETA {formatEta(progress.etaMs)}</span>}
+            </p>
           </div>
         )}
 

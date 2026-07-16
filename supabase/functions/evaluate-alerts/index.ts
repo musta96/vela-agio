@@ -1,6 +1,7 @@
 // Periodically evaluates enabled alert_rules and inserts notifications.
 // Triggered by pg_cron every 5 minutes.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { computeRoicWacc } from "../_shared/roic-wacc.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -238,6 +239,10 @@ async function evaluateSymbolRule(rule: Rule) {
   if (inCooldown(rule)) return;
 
   const k = rule.kind;
+  if (k === "roic_wacc_spread_delta") {
+    await evaluateRoicWaccSpreadDelta(rule);
+    return;
+  }
   if (k === "price_above" || k === "price_below" || k === "change_up_pct" || k === "change_down_pct") {
     const q = await fetchQuote(rule.symbol);
     if (!q) return;
@@ -314,6 +319,45 @@ async function evaluateSymbolRule(rule: Rule) {
         `Closed at a new 52-week low (${closes[closes.length - 1].toFixed(2)}).`, "warning");
     }
   }
+}
+
+async function evaluateRoicWaccSpreadDelta(rule: Rule) {
+  if (!rule.symbol) return;
+  const params = (rule.params ?? {}) as Record<string, unknown>;
+  const baselineSpread = typeof params.baseline_spread === "number" ? params.baseline_spread : null;
+  const capturedAt = typeof params.baseline_captured_at === "string" ? params.baseline_captured_at : null;
+  const windowDays = Number(params.window_days ?? 30);
+  const direction = (params.direction as string) ?? "either";
+  const thresholdBps = Number(rule.threshold ?? 100);
+  if (baselineSpread == null || !capturedAt) return;
+
+  // Only evaluate once the chosen window has elapsed since baseline.
+  const elapsedMs = Date.now() - new Date(capturedAt).getTime();
+  if (elapsedMs < windowDays * 86400 * 1000) return;
+
+  const snap = await computeRoicWacc(rule.symbol);
+  if (!snap || snap.spread == null) return;
+  const current = snap.spread;
+  const deltaBps = (current - baselineSpread) * 10000;
+  const absMet = Math.abs(deltaBps) >= thresholdBps;
+  const dirMet = direction === "either"
+    ? absMet
+    : direction === "improve" ? deltaBps >= thresholdBps
+    : direction === "worsen" ? deltaBps <= -thresholdBps
+    : absMet;
+  if (!dirMet) return;
+
+  const improved = deltaBps >= 0;
+  const title = `${rule.symbol} ROIC−WACC spread ${improved ? "improved" : "worsened"} ${Math.abs(deltaBps).toFixed(0)} bps`;
+  const body = `Spread moved from ${(baselineSpread * 100).toFixed(2)}% to ${(current * 100).toFixed(2)}% over ${windowDays}d (threshold ${thresholdBps} bps, dir=${direction}). ${snap.interpretation}`;
+  await insertNotification(rule, title, body, improved ? "info" : "warning", {
+    baseline_spread: baselineSpread, current_spread: current, delta_bps: deltaBps, window_days: windowDays,
+  });
+
+  // Refresh baseline so the next evaluation compares to the new anchor.
+  await supabase.from("alert_rules").update({
+    params: { ...params, baseline_spread: current, baseline_captured_at: new Date().toISOString() },
+  }).eq("id", rule.id);
 }
 
 Deno.serve(async (req) => {

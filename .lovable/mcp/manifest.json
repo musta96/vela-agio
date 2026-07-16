@@ -301,6 +301,103 @@
           ]
         },
         "outputSchema": null
+      },
+      {
+        "name": "run_backtest",
+        "title": "Run backtest",
+        "description": "Run a fast historical backtest on a Yahoo-style ticker with a preset strategy (buy_hold, sma_cross, rsi). Returns CAGR, total return, max drawdown, Sharpe, hit rate, and trade count. Requires authentication (rate-limited).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "symbol": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Yahoo ticker, e.g. AAPL, ENI.MI, BTC-USD"
+            },
+            "preset": {
+              "default": "sma_cross",
+              "description": "Strategy preset",
+              "type": "string",
+              "enum": [
+                "buy_hold",
+                "sma_cross",
+                "rsi"
+              ]
+            },
+            "range": {
+              "default": "2y",
+              "description": "Historical window",
+              "type": "string",
+              "enum": [
+                "6mo",
+                "1y",
+                "2y",
+                "5y",
+                "10y",
+                "max"
+              ]
+            },
+            "initial_capital": {
+              "default": 10000,
+              "description": "Starting cash for the sim",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000000
+            },
+            "fast": {
+              "description": "Fast SMA (sma_cross only)",
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 200
+            },
+            "slow": {
+              "description": "Slow SMA (sma_cross only)",
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 400
+            },
+            "rsi_period": {
+              "description": "RSI lookback (rsi only)",
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 50
+            },
+            "rsi_buy": {
+              "description": "RSI oversold threshold",
+              "type": "number",
+              "minimum": 1,
+              "maximum": 99
+            },
+            "rsi_sell": {
+              "description": "RSI overbought threshold",
+              "type": "number",
+              "minimum": 1,
+              "maximum": 99
+            },
+            "stop_pct": {
+              "description": "Stop-loss %",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "target_pct": {
+              "description": "Take-profit %",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "symbol"
+          ]
+        },
+        "outputSchema": null
       }
     ]
   }

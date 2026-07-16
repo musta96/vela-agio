@@ -475,13 +475,272 @@ var project_dividends_default = defineTool8({
   }
 });
 
+// src/lib/mcp/tools/run-backtest.ts
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z6 } from "npm:zod@^4.4.3";
+
+// src/lib/mcp/lib/instrument.ts
+import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.106.1";
+function supabaseFor(ctx) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const authed = ctx.isAuthenticated();
+  return createClient6(url, key, {
+    global: authed ? { headers: { Authorization: `Bearer ${ctx.getToken()}` } } : {},
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+async function withInstrumentation(toolName, ctx, handler, opts) {
+  const start = Date.now();
+  const authed = ctx.isAuthenticated();
+  const userId = authed ? ctx.getUserId() : null;
+  const clientId = (() => {
+    try {
+      return ctx.getClientId?.() ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const sb = supabaseFor(ctx);
+  if (authed && opts?.rateLimit) {
+    const since = new Date(Date.now() - opts.rateLimit.windowSec * 1e3).toISOString();
+    const { count, error } = await sb.from("mcp_call_log").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_name", toolName).gte("created_at", since);
+    if (!error && (count ?? 0) >= opts.rateLimit.max) {
+      const msg = `Rate limit reached: ${opts.rateLimit.max} \`${toolName}\` calls per ${opts.rateLimit.windowSec}s. Please retry shortly.`;
+      void sb.from("mcp_call_log").insert({
+        user_id: userId,
+        tool_name: toolName,
+        ok: false,
+        duration_ms: Date.now() - start,
+        error: "rate_limited",
+        client_id: clientId
+      });
+      return { content: [{ type: "text", text: msg }], isError: true };
+    }
+  }
+  try {
+    const result = await handler();
+    void sb.from("mcp_call_log").insert({
+      user_id: userId,
+      tool_name: toolName,
+      ok: !result.isError,
+      duration_ms: Date.now() - start,
+      error: result.isError ? summarize(result) : null,
+      client_id: clientId
+    });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    void sb.from("mcp_call_log").insert({
+      user_id: userId,
+      tool_name: toolName,
+      ok: false,
+      duration_ms: Date.now() - start,
+      error: message.slice(0, 500),
+      client_id: clientId
+    });
+    throw err;
+  }
+}
+function summarize(r) {
+  const txt = r.content?.[0]?.text ?? "";
+  return txt.slice(0, 500);
+}
+
+// src/lib/mcp/tools/run-backtest.ts
+async function fetchHistory(symbol, range) {
+  const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
+  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`;
+  for (const url of [direct, `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`]) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const res = j?.chart?.result?.[0];
+      const ts = res?.timestamp ?? [];
+      const closes = res?.indicators?.quote?.[0]?.close ?? [];
+      const bars = [];
+      for (let i = 0; i < ts.length; i++) {
+        const c = closes[i];
+        if (c != null && Number.isFinite(c)) bars.push({ t: ts[i] * 1e3, close: c });
+      }
+      if (bars.length >= 30) return bars;
+    } catch {
+    }
+  }
+  return [];
+}
+function sma(arr, n, i) {
+  if (i + 1 < n) return null;
+  let s = 0;
+  for (let k = i - n + 1; k <= i; k++) s += arr[k];
+  return s / n;
+}
+function rsi(closes, i, period = 14) {
+  if (i < period) return null;
+  let g = 0, l = 0;
+  for (let k = i - period + 1; k <= i; k++) {
+    const d = closes[k] - closes[k - 1];
+    if (d >= 0) g += d;
+    else l -= d;
+  }
+  const avgG = g / period, avgL = l / period;
+  if (avgL === 0) return 100;
+  return 100 - 100 / (1 + avgG / avgL);
+}
+function entrySignal(preset, closes, i, params) {
+  if (preset === "buy_hold") return i === 0;
+  if (preset === "sma_cross") {
+    const fast = params.fast ?? 20, slow = params.slow ?? 50;
+    const a = sma(closes, fast, i), b = sma(closes, slow, i);
+    const ap = sma(closes, fast, i - 1), bp = sma(closes, slow, i - 1);
+    return !!(a && b && ap && bp && ap <= bp && a > b);
+  }
+  if (preset === "rsi") {
+    const r = rsi(closes, i, params.rsiPeriod ?? 14);
+    return r !== null && r < (params.rsiBuy ?? 30);
+  }
+  return false;
+}
+function exitSignal(preset, closes, i, params) {
+  if (preset === "buy_hold") return false;
+  if (preset === "sma_cross") {
+    const fast = params.fast ?? 20, slow = params.slow ?? 50;
+    const a = sma(closes, fast, i), b = sma(closes, slow, i);
+    const ap = sma(closes, fast, i - 1), bp = sma(closes, slow, i - 1);
+    return !!(a && b && ap && bp && ap >= bp && a < b);
+  }
+  if (preset === "rsi") {
+    const r = rsi(closes, i, params.rsiPeriod ?? 14);
+    return r !== null && r > (params.rsiSell ?? 70);
+  }
+  return false;
+}
+function simulate(bars, preset, params, initial) {
+  const closes = bars.map((b) => b.close);
+  let cash = initial, shares = 0, entryPrice = 0;
+  const equity = [];
+  const tradeReturns = [];
+  for (let i = 0; i < bars.length; i++) {
+    if (shares > 0) {
+      const chg = (closes[i] - entryPrice) / entryPrice * 100;
+      const stop = params.stopPct ? -Math.abs(params.stopPct) : null;
+      const target = params.targetPct ? Math.abs(params.targetPct) : null;
+      if (stop !== null && chg <= stop || target !== null && chg >= target || exitSignal(preset, closes, i, params)) {
+        cash = shares * closes[i];
+        tradeReturns.push((closes[i] - entryPrice) / entryPrice);
+        shares = 0;
+      }
+    } else if (entrySignal(preset, closes, i, params)) {
+      shares = cash / closes[i];
+      entryPrice = closes[i];
+      cash = 0;
+    }
+    equity.push(cash + shares * closes[i]);
+  }
+  if (shares > 0) {
+    const last = closes[closes.length - 1];
+    tradeReturns.push((last - entryPrice) / entryPrice);
+    cash = shares * last;
+    shares = 0;
+  }
+  const finalValue = equity[equity.length - 1] ?? initial;
+  const totalReturn = (finalValue - initial) / initial;
+  const days = bars.length;
+  const years = days / 252;
+  const cagr = years > 0 ? Math.pow(finalValue / initial, 1 / years) - 1 : 0;
+  let peak = equity[0] ?? initial, maxDD = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    const dd = (v - peak) / peak;
+    if (dd < maxDD) maxDD = dd;
+  }
+  const daily = [];
+  for (let i = 1; i < equity.length; i++) {
+    const p = equity[i - 1];
+    if (p > 0) daily.push((equity[i] - p) / p);
+  }
+  const mean = daily.reduce((a, b) => a + b, 0) / (daily.length || 1);
+  const std = Math.sqrt(daily.reduce((a, b) => a + (b - mean) ** 2, 0) / (daily.length || 1));
+  const sharpe = std > 0 ? mean / std * Math.sqrt(252) : 0;
+  const wins = tradeReturns.filter((r) => r > 0).length;
+  const hitRate = tradeReturns.length > 0 ? wins / tradeReturns.length : 0;
+  return {
+    totalReturn: +(totalReturn * 100).toFixed(2),
+    cagr: +(cagr * 100).toFixed(2),
+    maxDrawdown: +(maxDD * 100).toFixed(2),
+    sharpe: +sharpe.toFixed(3),
+    hitRate: +(hitRate * 100).toFixed(2),
+    totalTrades: tradeReturns.length,
+    bars: bars.length,
+    finalEquity: +finalValue.toFixed(2)
+  };
+}
+var run_backtest_default = defineTool9({
+  name: "run_backtest",
+  title: "Run backtest",
+  description: "Run a fast historical backtest on a Yahoo-style ticker with a preset strategy (buy_hold, sma_cross, rsi). Returns CAGR, total return, max drawdown, Sharpe, hit rate, and trade count. Requires authentication (rate-limited).",
+  inputSchema: {
+    symbol: z6.string().min(1).describe("Yahoo ticker, e.g. AAPL, ENI.MI, BTC-USD"),
+    preset: z6.enum(["buy_hold", "sma_cross", "rsi"]).default("sma_cross").describe("Strategy preset"),
+    range: z6.enum(["6mo", "1y", "2y", "5y", "10y", "max"]).default("2y").describe("Historical window"),
+    initial_capital: z6.number().positive().max(1e7).default(1e4).describe("Starting cash for the sim"),
+    fast: z6.number().int().min(2).max(200).optional().describe("Fast SMA (sma_cross only)"),
+    slow: z6.number().int().min(3).max(400).optional().describe("Slow SMA (sma_cross only)"),
+    rsi_period: z6.number().int().min(2).max(50).optional().describe("RSI lookback (rsi only)"),
+    rsi_buy: z6.number().min(1).max(99).optional().describe("RSI oversold threshold"),
+    rsi_sell: z6.number().min(1).max(99).optional().describe("RSI overbought threshold"),
+    stop_pct: z6.number().min(0).max(100).optional().describe("Stop-loss %"),
+    target_pct: z6.number().min(0).max(500).optional().describe("Take-profit %")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  handler: async (args, ctx) => {
+    return withInstrumentation("run_backtest", ctx, async () => {
+      if (!ctx.isAuthenticated()) {
+        return { content: [{ type: "text", text: "Not authenticated. Sign in via the OAuth flow to run backtests." }], isError: true };
+      }
+      const bars = await fetchHistory(args.symbol.toUpperCase(), args.range);
+      if (bars.length < 30) {
+        return {
+          content: [{ type: "text", text: `Not enough historical data for "${args.symbol}" (${bars.length} bars).` }],
+          isError: true
+        };
+      }
+      const params = {
+        fast: args.fast,
+        slow: args.slow,
+        rsiPeriod: args.rsi_period,
+        rsiBuy: args.rsi_buy,
+        rsiSell: args.rsi_sell,
+        stopPct: args.stop_pct,
+        targetPct: args.target_pct
+      };
+      const metrics = simulate(bars, args.preset, params, args.initial_capital);
+      const result = {
+        symbol: args.symbol.toUpperCase(),
+        preset: args.preset,
+        range: args.range,
+        initial_capital: args.initial_capital,
+        params,
+        metrics,
+        start: new Date(bars[0].t).toISOString().slice(0, 10),
+        end: new Date(bars[bars.length - 1].t).toISOString().slice(0, 10)
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
+        structuredContent: result
+      };
+    }, { rateLimit: { max: 30, windowSec: 60 } });
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "pcisxjfgdrgpxzfzfscf";
 var mcp_default = defineMcp({
   name: "vela",
   title: "Vela \u2014 Trading Strategy Platform",
   version: "1.0.0",
-  instructions: "Tools for Vela.ai. Public tools: `get_quote` (any Yahoo-style ticker), `search_strategies`, and `project_dividends` (deterministic dividend income projections with optional real-position seeding). Authenticated tools return the signed-in user's own data: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, and `add_cash_flow_entry`.",
+  instructions: "Tools for Vela.ai. Public tools: `get_quote` (any Yahoo-style ticker), `search_strategies`, and `project_dividends` (deterministic dividend income projections with optional real-position seeding). Authenticated tools return the signed-in user's own data or run compute on their behalf: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, and `run_backtest` (rate-limited historical backtest with CAGR / drawdown / hit-rate).",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -494,7 +753,8 @@ var mcp_default = defineMcp({
     get_net_worth_default,
     list_cash_flow_default,
     add_cash_flow_entry_default,
-    project_dividends_default
+    project_dividends_default,
+    run_backtest_default
   ]
 });
 

@@ -151,6 +151,16 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const [alertDirection, setAlertDirection] = useState<"either" | "improve" | "worsen">("either");
   const [alertSaving, setAlertSaving] = useState(false);
 
+  // Sensitivity ranges.
+  const [sensOpen, setSensOpen] = useState(false);
+  const [sensRf, setSensRf] = useState<[number, number]>([3.5, 5.0]);
+  const [sensErp, setSensErp] = useState<[number, number]>([4.0, 6.5]);
+  const [sensTax, setSensTax] = useState<[number, number]>([18, 28]);
+  const [sensBeta, setSensBeta] = useState<[number, number]>([0.8, 1.4]);
+
+  // Filing-field drilldown toggle.
+  const [fieldMapOpen, setFieldMapOpen] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
     const res = await fetchSnapshot(symbol);

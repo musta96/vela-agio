@@ -953,7 +953,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
             {alertOpen && (
               <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3 text-xs">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div>
                     <Label className="text-[10px]">Window (days)</Label>
                     <Input type="number" min={1} max={365} value={alertWindowDays} onChange={(e) => setAlertWindowDays(Math.max(1, Number(e.target.value) || 30))} className="h-8" />
@@ -970,9 +970,15 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                       <option value="worsen">Worsens ≥</option>
                     </select>
                   </div>
+                  <div>
+                    <Label className="text-[10px]">Min hold (years)</Label>
+                    <Input type="number" min={0} max={10} step={1} value={alertMinHoldYears} onChange={(e) => setAlertMinHoldYears(Math.max(0, Math.min(10, Number(e.target.value) || 0)))} className="h-8" />
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
                   Baselines the current spread ({pct(spread)}) and fires when |Δ| ≥ {alertThresholdBps} bps after {alertWindowDays} day(s).
+                  {alertMinHoldYears > 0 && <> Enforces a {alertMinHoldYears}-year minimum-hold gap between triggers.</>}
+                  {" "}The preview below rerun instantly on every change.
                 </p>
                 <div className="rounded border border-dashed border-border/60 p-2 space-y-1.5">
                   <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

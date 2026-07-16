@@ -165,8 +165,8 @@ async function withInstrumentation(toolName, ctx, handler, opts) {
       client_id: clientId
     });
     return result;
-  } catch (err2) {
-    const message = err2 instanceof Error ? err2.message : String(err2);
+  } catch (err3) {
+    const message = err3 instanceof Error ? err3.message : String(err3);
     void sb.from("mcp_call_log").insert({
       user_id: userId,
       tool_name: toolName,
@@ -175,7 +175,7 @@ async function withInstrumentation(toolName, ctx, handler, opts) {
       error: message.slice(0, 500),
       client_id: clientId
     });
-    throw err2;
+    throw err3;
   }
 }
 function summarize(r) {
@@ -1069,8 +1069,8 @@ var start_run_default = defineTool10({
         content: [{ type: "text", text: `run_id=${runId} status=succeeded combos=${rows.length}` }],
         structuredContent: { run_id: runId, status: "succeeded", combinations: rows.length }
       };
-    } catch (err2) {
-      const msg = err2 instanceof Error ? err2.message : String(err2);
+    } catch (err3) {
+      const msg = err3 instanceof Error ? err3.message : String(err3);
       log("error", msg);
       await finish({ status: "failed", error: msg, progress: 100 });
       return { content: [{ type: "text", text: `run_id=${runId} status=failed: ${msg}` }], structuredContent: { run_id: runId, status: "failed", error: msg }, isError: true };
@@ -1154,12 +1154,68 @@ var getRunLogs = defineTool11({
   }, { rateLimit: { max: 120, windowSec: 60 } })
 });
 
-// src/lib/mcp/tools/watchlist-updates.ts
+// src/lib/mcp/tools/cancel-run.ts
 import { createClient as createClient9 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z9 } from "npm:zod@^4.4.3";
 function sbUser3(ctx) {
   return createClient9(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+function err2(code, message, extra) {
+  const payload = { error: { code, message, ...extra ?? {} } };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload) }],
+    structuredContent: payload,
+    isError: true
+  };
+}
+var cancel_run_default = defineTool12({
+  name: "cancel_run",
+  title: "Cancel a simulation run",
+  description: "Request cancellation of an in-flight backtest or sensitivity run started with `start_run`. Sets `cancel_requested=true` on the run; the worker checks the flag between iterations and stops cleanly, writing `status='canceled'`. If the run is already `succeeded`, `failed`, or `canceled`, the call is a no-op. Requires authentication; only the run owner can cancel.",
+  inputSchema: {
+    run_id: z9.string().uuid().describe("run_id returned by start_run")
+  },
+  annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
+  handler: async ({ run_id }, ctx) => withInstrumentation("cancel_run", ctx, async () => {
+    if (!ctx.isAuthenticated()) return err2("not_authenticated", "Sign in to cancel a run.");
+    const sb = sbUser3(ctx);
+    const uid = ctx.getUserId();
+    const { data: row, error: readErr } = await sb.from("simulation_runs").select("id, status, cancel_requested").eq("id", run_id).eq("user_id", uid).maybeSingle();
+    if (readErr) return err2("db_error", readErr.message);
+    if (!row) return err2("not_found", `No run ${run_id} for the signed-in user.`);
+    if (row.status !== "running") {
+      const payload2 = {
+        run_id,
+        status: row.status,
+        canceled: false,
+        reason: `run is already ${row.status}; nothing to cancel`
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload2) }],
+        structuredContent: payload2
+      };
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { error: updErr } = await sb.from("simulation_runs").update({ cancel_requested: true, status: "canceled", canceled_at: nowIso, finished_at: nowIso }).eq("id", run_id).eq("user_id", uid).eq("status", "running");
+    if (updErr) return err2("db_error", updErr.message);
+    const payload = { run_id, status: "canceled", canceled: true, canceled_at: nowIso };
+    return {
+      content: [{ type: "text", text: JSON.stringify(payload) }],
+      structuredContent: payload
+    };
+  }, { rateLimit: { max: 30, windowSec: 60 } })
+});
+
+// src/lib/mcp/tools/watchlist-updates.ts
+import { createClient as createClient10 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z10 } from "npm:zod@^4.4.3";
+function sbUser4(ctx) {
+  return createClient10(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -1206,16 +1262,16 @@ async function fetchQuoteSummary(symbol) {
     return null;
   }
 }
-var watchlist_updates_default = defineTool12({
+var watchlist_updates_default = defineTool13({
   name: "watchlist_updates",
   title: "Poll watchlist updates",
   description: "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` \u2014 page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
   inputSchema: {
-    since: z9.string().datetime().optional().describe("ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h."),
-    include_dividends: z9.boolean().default(true).describe("Include dividend fields per symbol."),
-    max_symbols: z9.number().int().min(1).max(50).default(25).describe("Cap on symbols to quote."),
-    limit: z9.number().int().min(1).max(500).default(100).describe("Max alerts per page. `has_more` indicates more pages."),
-    include_quotes: z9.boolean().default(true).describe("Skip quote fetches for pure alert-tail polling (faster).")
+    since: z10.string().datetime().optional().describe("ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h."),
+    include_dividends: z10.boolean().default(true).describe("Include dividend fields per symbol."),
+    max_symbols: z10.number().int().min(1).max(50).default(25).describe("Cap on symbols to quote."),
+    limit: z10.number().int().min(1).max(500).default(100).describe("Max alerts per page. `has_more` indicates more pages."),
+    include_quotes: z10.boolean().default(true).describe("Skip quote fetches for pure alert-tail polling (faster).")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ since, include_dividends, max_symbols, limit, include_quotes }, ctx) => withInstrumentation("watchlist_updates", ctx, async () => {
@@ -1223,7 +1279,7 @@ var watchlist_updates_default = defineTool12({
       const p = { error: { code: "not_authenticated", message: "Sign in to poll watchlist updates." } };
       return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
     }
-    const sb = sbUser3(ctx);
+    const sb = sbUser4(ctx);
     const uid = ctx.getUserId();
     const { data: items, error: wErr } = await sb.from("watchlist_items").select("symbol, name, created_at").eq("user_id", uid).limit(max_symbols);
     if (wErr) {
@@ -1268,8 +1324,8 @@ var watchlist_updates_default = defineTool12({
 });
 
 // src/lib/mcp/tools/list-tool-docs.ts
-import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z10 } from "npm:zod@^4.4.3";
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z11 } from "npm:zod@^4.4.3";
 var DOCS = [
   {
     name: "get_quote",
@@ -1424,12 +1480,12 @@ function toMarkdown() {
   }
   return lines.join("\n");
 }
-var list_tool_docs_default = defineTool13({
+var list_tool_docs_default = defineTool14({
   name: "list_tool_docs",
   title: "List tool documentation",
   description: "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public \u2014 no auth required.",
   inputSchema: {
-    format: z10.enum(["json", "markdown"]).default("markdown").describe("Output format.")
+    format: z11.enum(["json", "markdown"]).default("markdown").describe("Output format.")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ format }) => {
@@ -1453,7 +1509,7 @@ var mcp_default = defineMcp({
   name: "vela",
   title: "Vela \u2014 Trading Strategy Platform",
   version: "1.0.0",
-  instructions: "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human-readable catalog of every tool with inputs/outputs/auth). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest or sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs` (worker logs / debug), and `watchlist_updates` (polling snapshot of quotes, dividends, and alerts with an incremental `since` cursor).",
+  instructions: "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human catalog + machine-readable JSON schema export of every tool). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest / sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs`, `cancel_run` (stop an in-flight sensitivity sweep cleanly), and `watchlist_updates` (paginated polling of quotes, dividends, and alerts with a `next_since` cursor and `has_more` flag). Errors from run tools use `{ error: { code, message } }` envelopes.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -1472,6 +1528,7 @@ var mcp_default = defineMcp({
     getRunStatus,
     getRunResult,
     getRunLogs,
+    cancel_run_default,
     watchlist_updates_default,
     list_tool_docs_default
   ]

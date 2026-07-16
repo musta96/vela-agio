@@ -515,6 +515,32 @@
         "outputSchema": null
       },
       {
+        "name": "cancel_run",
+        "title": "Cancel a simulation run",
+        "description": "Request cancellation of an in-flight backtest or sensitivity run started with `start_run`. Sets `cancel_requested=true` on the run; the worker checks the flag between iterations and stops cleanly, writing `status='canceled'`. If the run is already `succeeded`, `failed`, or `canceled`, the call is a no-op. Requires authentication; only the run owner can cancel.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "run_id returned by start_run"
+            }
+          },
+          "required": [
+            "run_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
         "name": "watchlist_updates",
         "title": "Poll watchlist updates",
         "description": "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` — page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",

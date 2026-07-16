@@ -2933,11 +2933,13 @@ export type Database = {
           exit_rules: Json
           id: string
           name: string
+          parent_id: string | null
           risk_config: Json
           symbol: string | null
           timeframe: string | null
           updated_at: string
           user_id: string
+          version: number
         }
         Insert: {
           created_at?: string
@@ -2946,11 +2948,13 @@ export type Database = {
           exit_rules?: Json
           id?: string
           name: string
+          parent_id?: string | null
           risk_config?: Json
           symbol?: string | null
           timeframe?: string | null
           updated_at?: string
           user_id: string
+          version?: number
         }
         Update: {
           created_at?: string
@@ -2959,13 +2963,79 @@ export type Database = {
           exit_rules?: Json
           id?: string
           name?: string
+          parent_id?: string | null
           risk_config?: Json
           symbol?: string | null
           timeframe?: string | null
           updated_at?: string
           user_id?: string
+          version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trading_strategies_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_strategy_versions: {
+        Row: {
+          change_note: string | null
+          created_at: string
+          description: string | null
+          entry_rules: Json
+          exit_rules: Json
+          id: string
+          name: string
+          risk_config: Json
+          strategy_id: string
+          symbol: string | null
+          timeframe: string | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          change_note?: string | null
+          created_at?: string
+          description?: string | null
+          entry_rules?: Json
+          exit_rules?: Json
+          id?: string
+          name: string
+          risk_config?: Json
+          strategy_id: string
+          symbol?: string | null
+          timeframe?: string | null
+          user_id: string
+          version: number
+        }
+        Update: {
+          change_note?: string | null
+          created_at?: string
+          description?: string | null
+          entry_rules?: Json
+          exit_rules?: Json
+          id?: string
+          name?: string
+          risk_config?: Json
+          strategy_id?: string
+          symbol?: string | null
+          timeframe?: string | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_strategy_versions_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_api_keys: {
         Row: {

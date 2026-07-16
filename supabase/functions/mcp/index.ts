@@ -165,8 +165,8 @@ async function withInstrumentation(toolName, ctx, handler, opts) {
       client_id: clientId
     });
     return result;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (err2) {
+    const message = err2 instanceof Error ? err2.message : String(err2);
     void sb.from("mcp_call_log").insert({
       user_id: userId,
       tool_name: toolName,
@@ -175,7 +175,7 @@ async function withInstrumentation(toolName, ctx, handler, opts) {
       error: message.slice(0, 500),
       client_id: clientId
     });
-    throw err;
+    throw err2;
   }
 }
 function summarize(r) {
@@ -1042,8 +1042,8 @@ var start_run_default = defineTool10({
         content: [{ type: "text", text: `run_id=${runId} status=succeeded combos=${rows.length}` }],
         structuredContent: { run_id: runId, status: "succeeded", combinations: rows.length }
       };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+    } catch (err2) {
+      const msg = err2 instanceof Error ? err2.message : String(err2);
       log("error", msg);
       await finish({ status: "failed", error: msg, progress: 100 });
       return { content: [{ type: "text", text: `run_id=${runId} status=failed: ${msg}` }], structuredContent: { run_id: runId, status: "failed", error: msg }, isError: true };
@@ -1061,6 +1061,14 @@ function sbUser2(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
+function err(code, message, extra) {
+  const payload = { error: { code, message, ...extra ?? {} } };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload) }],
+    structuredContent: payload,
+    isError: true
+  };
+}
 async function loadRun(ctx, runId, columns) {
   const sb = sbUser2(ctx);
   const { data, error } = await sb.from("simulation_runs").select(columns).eq("id", runId).eq("user_id", ctx.getUserId()).maybeSingle();
@@ -1069,35 +1077,37 @@ async function loadRun(ctx, runId, columns) {
 var getRunStatus = defineTool11({
   name: "get_run_status",
   title: "Get run status",
-  description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished timestamps, error string if failed). Requires authentication; only the run owner can read it.",
+  description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished/canceled timestamps, error string if failed). On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
   inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ run_id }, ctx) => withInstrumentation("get_run_status", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, started_at, finished_at, created_at, updated_at");
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    if (!ctx.isAuthenticated()) return err("not_authenticated", "Sign in to read a run.");
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, started_at, finished_at, canceled_at, cancel_requested, created_at, updated_at");
+    if (error) return err("db_error", error.message);
+    if (!data) return err("not_found", `No run ${run_id} for the signed-in user.`);
     return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
   }, { rateLimit: { max: 120, windowSec: 60 } })
 });
 var getRunResult = defineTool11({
   name: "get_run_result",
   title: "Get run result",
-  description: "Return the full result JSON of a completed simulation run. Errors if the run is still running or failed. Requires authentication; only the run owner can read it.",
+  description: "Return the full result JSON of a completed simulation run. Errors with a typed envelope `{ error: { code, message, status?, progress? } }` when the run is not ready. Codes: not_authenticated, not_found, db_error, run_running, run_failed, run_canceled. Requires authentication; only the run owner can read it.",
   inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ run_id }, ctx) => withInstrumentation("get_run_result", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    if (!ctx.isAuthenticated()) return err("not_authenticated", "Sign in to read a run result.");
     const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, result, error");
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    if (error) return err("db_error", error.message);
+    if (!data) return err("not_found", `No run ${run_id} for the signed-in user.`);
     const row = data;
-    if (row.status !== "succeeded") {
-      return {
-        content: [{ type: "text", text: `Run status=${row.status}${row.error ? ` error=${row.error}` : ""}` }],
-        structuredContent: data,
-        isError: row.status === "failed"
-      };
+    if (row.status === "running") {
+      return err("run_running", `Run is still running (progress=${row.progress}%). Poll get_run_status.`, { status: row.status, progress: row.progress });
+    }
+    if (row.status === "failed") {
+      return err("run_failed", row.error ?? "Run failed without an error message.", { status: row.status, progress: row.progress, worker_error: row.error });
+    }
+    if (row.status === "canceled") {
+      return err("run_canceled", "Run was canceled before completion.", { status: row.status, progress: row.progress });
     }
     return { content: [{ type: "text", text: JSON.stringify(row.result) }], structuredContent: data };
   }, { rateLimit: { max: 60, windowSec: 60 } })
@@ -1105,14 +1115,14 @@ var getRunResult = defineTool11({
 var getRunLogs = defineTool11({
   name: "get_run_logs",
   title: "Get run worker logs",
-  description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. Requires authentication; only the run owner can read it.",
+  description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
   inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ run_id }, ctx) => withInstrumentation("get_run_logs", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, logs, started_at, finished_at");
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    if (!ctx.isAuthenticated()) return err("not_authenticated", "Sign in to read run logs.");
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, logs, started_at, finished_at, canceled_at");
+    if (error) return err("db_error", error.message);
+    if (!data) return err("not_found", `No run ${run_id} for the signed-in user.`);
     return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
   }, { rateLimit: { max: 120, windowSec: 60 } })
 });

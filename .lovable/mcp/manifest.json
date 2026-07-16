@@ -517,7 +517,7 @@
       {
         "name": "watchlist_updates",
         "title": "Poll watchlist updates",
-        "description": "Return a polling snapshot for agents: (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date) when available, and (3) alerts (notifications from spread/ROIC/price rules) fired since the `since` cursor. Pass back the returned `cursor` on the next call for incremental delivery. Requires authentication.",
+        "description": "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` — page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -528,7 +528,7 @@
           "type": "object",
           "properties": {
             "since": {
-              "description": "ISO timestamp cursor; only alerts created after this are returned. Omit for last 24h.",
+              "description": "ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h.",
               "type": "string",
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
@@ -544,6 +544,18 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 50
+            },
+            "limit": {
+              "default": 100,
+              "description": "Max alerts per page. `has_more` indicates more pages.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "include_quotes": {
+              "default": true,
+              "description": "Skip quote fetches for pure alert-tail polling (faster).",
+              "type": "boolean"
             }
           }
         },

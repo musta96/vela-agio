@@ -1180,11 +1180,17 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer &amp; sector comparison</CardTitle>
-              <CardDescription>Enter peer tickers (comma-separated) to compare ROIC, WACC, and the ROIC−WACC spread using the same assumptions.</CardDescription>
+              <CardDescription>Rank {symbol.toUpperCase()} and its peers by current ROIC−WACC spread or by the last-N-years trend, with a mini spread sparkline.</CardDescription>
             </div>
-            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={downloadCsv}>
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadCsv}>
+                <Download className="h-3.5 w-3.5" /> CSV
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadPdf} disabled={pdfBusy}>
+                {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+                PDF
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1193,51 +1199,63 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
               <Label className="text-[10px]">Peer symbols</Label>
               <Input value={peerInput} onChange={(e) => setPeerInput(e.target.value)} placeholder="e.g. AAPL, MSFT, GOOGL" className="h-9" />
             </div>
+            <div>
+              <Label className="text-[10px]">Rank by</Label>
+              <select value={peerSort} onChange={(e) => setPeerSort(e.target.value as "spread" | "trend")} className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs">
+                <option value="spread">Current spread</option>
+                <option value="trend">Trend (Δ pp)</option>
+              </select>
+            </div>
             <Button size="sm" onClick={loadPeers} className="gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Compare</Button>
           </div>
 
-          {peers.length > 0 && (
+          {peers.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-muted-foreground uppercase tracking-wide border-b">
+                  <th className="text-left py-1 font-medium">#</th>
                   <th className="text-left py-1 font-medium">Ticker</th>
                   <th className="text-right py-1 font-medium">ROIC</th>
                   <th className="text-right py-1 font-medium">WACC</th>
                   <th className="text-right py-1 font-medium">Spread</th>
-                  <th className="text-right py-1 font-medium">Reading</th>
+                  <th className="text-right py-1 font-medium">Trend</th>
+                  <th className="text-right py-1 font-medium">Sparkline</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b bg-muted/30">
-                  <td className="py-1 font-semibold">{symbol.toUpperCase()} <Badge variant="outline" className="ml-1 text-[9px]">this</Badge></td>
-                  <td className="text-right font-mono py-1">{pct(roicLatest.roic)}</td>
-                  <td className="text-right font-mono py-1">{pct(wacc?.wacc)}</td>
-                  <td className={`text-right font-mono py-1 ${spreadPositive ? "text-success" : "text-destructive"}`}>{pct(spread)}</td>
-                  <td className="text-right text-xs py-1">{spreadPositive ? "value-creating" : "destroying"}</td>
-                </tr>
-                {peers.map((p) => {
-                  const rel = p.spread != null && spread != null ? p.spread - spread : null;
+                {rankedTickers.map((p, idx) => {
                   return (
-                    <tr key={p.sym} className="border-b last:border-0">
-                      <td className="py-1">{p.sym}</td>
-                      <td className="text-right font-mono py-1">{p.loading ? "…" : pct(p.roic)}</td>
-                      <td className="text-right font-mono py-1">{p.loading ? "…" : pct(p.wacc)}</td>
-                      <td className={`text-right font-mono py-1 ${p.spread != null && p.spread >= 0 ? "text-success" : "text-destructive"}`}>{p.loading ? "…" : pct(p.spread)}</td>
-                      <td className="text-right text-xs py-1">
-                        {p.err ? <span className="text-muted-foreground">{p.err}</span> : rel != null ? (
-                          <span className={rel >= 0 ? "text-success" : "text-destructive"}>{rel >= 0 ? "+" : ""}{(rel * 100).toFixed(1)} pp vs {symbol}</span>
-                        ) : "—"}
+                    <tr key={p.sym} className={`border-b last:border-0 ${p.isBase ? "bg-muted/30" : ""}`}>
+                      <td className="py-1 font-mono text-xs text-muted-foreground">{idx + 1}</td>
+                      <td className="py-1">
+                        <span className={p.isBase ? "font-semibold" : ""}>{p.sym}</span>
+                        {p.isBase && <Badge variant="outline" className="ml-1 text-[9px]">this</Badge>}
+                      </td>
+                      <td className="text-right font-mono py-1">{p.err ? "—" : pct(p.roic)}</td>
+                      <td className="text-right font-mono py-1">{p.err ? "—" : pct(p.wacc)}</td>
+                      <td className={`text-right font-mono py-1 ${p.spread != null && p.spread >= 0 ? "text-success" : "text-destructive"}`}>{p.err ? p.err : pct(p.spread)}</td>
+                      <td className="text-right font-mono py-1 text-xs">
+                        {p.trendPP == null ? "—" : (
+                          <span className={`inline-flex items-center gap-0.5 ${p.trendPP >= 0 ? "text-success" : "text-destructive"}`}>
+                            {p.trendPP >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {p.trendPP >= 0 ? "+" : ""}{p.trendPP.toFixed(1)} pp
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-right py-1">
+                        <SpreadSparkline trend={p.trend} />
                       </td>
                     </tr>
                   );
                 })}
                 {peerAvg.spread != null && (
                   <tr className="border-t bg-muted/20">
+                    <td className="py-1"></td>
                     <td className="py-1 font-semibold">Peer avg</td>
                     <td className="text-right font-mono py-1">{pct(peerAvg.roic)}</td>
                     <td className="text-right font-mono py-1">{pct(peerAvg.wacc)}</td>
                     <td className={`text-right font-mono py-1 ${peerAvg.spread >= 0 ? "text-success" : "text-destructive"}`}>{pct(peerAvg.spread)}</td>
-                    <td className="text-right text-xs py-1">
+                    <td className="text-right text-xs py-1" colSpan={2}>
                       {spread != null && (
                         <span className={spread - peerAvg.spread >= 0 ? "text-success" : "text-destructive"}>
                           {symbol.toUpperCase()} {spread - peerAvg.spread >= 0 ? "leads" : "trails"} peers by {Math.abs((spread - peerAvg.spread) * 100).toFixed(1)} pp
@@ -1248,8 +1266,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                 )}
               </tbody>
             </table>
-          )}
-          {peers.length === 0 && (
+          ) : (
             <p className="text-xs text-muted-foreground">Try common sector peers, e.g. banks: <code>JPM, BAC, WFC</code> · mega-cap tech: <code>AAPL, MSFT, GOOGL</code>.</p>
           )}
         </CardContent>

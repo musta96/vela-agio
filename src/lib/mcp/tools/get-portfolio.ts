@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
+import { withInstrumentation } from "../lib/instrument";
 
 function supabaseForUser(ctx: ToolContext) {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
@@ -14,22 +15,23 @@ export default defineTool({
   description: "Return the signed-in Vela user's portfolio holdings (symbol, shares, avg price, currency).",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async (_args, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    }
-    const sb = supabaseForUser(ctx);
-    const { data, error } = await sb
-      .from("portfolio_holdings")
-      .select("symbol, name, shares, avg_price, currency")
-      .eq("user_id", ctx.getUserId());
-    if (error) {
-      return { content: [{ type: "text", text: error.message }], isError: true };
-    }
-    const holdings = data ?? [];
-    return {
-      content: [{ type: "text", text: JSON.stringify(holdings) }],
-      structuredContent: { holdings },
-    };
-  },
+  handler: async (_args, ctx) =>
+    withInstrumentation("get_portfolio", ctx, async () => {
+      if (!ctx.isAuthenticated()) {
+        return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+      }
+      const sb = supabaseForUser(ctx);
+      const { data, error } = await sb
+        .from("portfolio_holdings")
+        .select("symbol, name, shares, avg_price, currency")
+        .eq("user_id", ctx.getUserId());
+      if (error) {
+        return { content: [{ type: "text", text: error.message }], isError: true };
+      }
+      const holdings = data ?? [];
+      return {
+        content: [{ type: "text", text: JSON.stringify(holdings) }],
+        structuredContent: { holdings },
+      };
+    }, { rateLimit: { max: 60, windowSec: 60 } }),
 });

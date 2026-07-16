@@ -389,15 +389,17 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const loadPeers = async () => {
     const syms = peerInput.split(/[,\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 8);
     if (!syms.length) { toast({ title: "Enter one or more peer tickers (comma-separated)" }); return; }
-    setPeers(syms.map((sym) => ({ sym, roic: null, wacc: null, spread: null, loading: true })));
+    setPeers(syms.map((sym) => ({ sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, loading: true })));
     const rows = await Promise.all(syms.map(async (sym) => {
       try {
         const res = await fetchSnapshot(sym);
-        if (!res) return { sym, roic: null, wacc: null, spread: null, err: "no data" };
+        if (!res) return { sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, err: "no data" } as PeerRow;
         const totalDebt = (res.snap.ltDebt ?? 0) + (res.snap.stDebt ?? 0);
+        const currentTax = taxPct === "" ? res.snap.effTaxRate : Number(taxPct) / 100;
+        const currentBeta = res.snap.beta;
         const roic = computeRoic({
           ebit: res.snap.ebit,
-          taxRate: taxPct === "" ? res.snap.effTaxRate : Number(taxPct) / 100,
+          taxRate: currentTax,
           totalEquity: res.snap.equity,
           longTermDebt: res.snap.ltDebt,
           shortLongTermDebt: res.snap.stDebt,
@@ -406,15 +408,28 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         const w = computeWacc({
           marketCap: res.snap.marketCap,
           totalDebt,
-          beta: res.snap.beta,
+          beta: currentBeta,
           riskFreeRate: rfPct / 100,
           equityRiskPremium: erpPct / 100,
           preTaxCostOfDebt: kdPct / 100,
-          taxRate: taxPct === "" ? res.snap.effTaxRate : Number(taxPct) / 100,
+          taxRate: currentTax,
         });
-        return { sym, roic: roic.roic, wacc: w.wacc, spread: roicWaccSpread(roic.roic, w.wacc) };
+        // Per-year trend (spread over the last four filings) using same assumptions.
+        const trend = res.history.map((r) => {
+          const t = taxPct === "" ? (r.taxRate ?? res.snap.effTaxRate ?? 0.21) : Number(taxPct) / 100;
+          const ww = computeWacc({
+            marketCap: r.equityBook, totalDebt: r.totalDebt,
+            beta: currentBeta ?? 1,
+            riskFreeRate: rfPct / 100, equityRiskPremium: erpPct / 100,
+            preTaxCostOfDebt: kdPct / 100, taxRate: t,
+          });
+          return { year: r.year, spread: roicWaccSpread(r.roic, ww.wacc) };
+        });
+        const spreads = trend.map((p) => p.spread).filter((v): v is number => v != null);
+        const trendPP = spreads.length >= 2 ? (spreads[spreads.length - 1] - spreads[0]) * 100 : null;
+        return { sym, roic: roic.roic, wacc: w.wacc, spread: roicWaccSpread(roic.roic, w.wacc), trend, trendPP } as PeerRow;
       } catch {
-        return { sym, roic: null, wacc: null, spread: null, err: "error" };
+        return { sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, err: "error" } as PeerRow;
       }
     }));
     setPeers(rows);

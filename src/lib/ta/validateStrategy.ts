@@ -24,6 +24,7 @@ const REQUIRED: Record<ConditionType, { fields: (keyof Condition)[]; describe: s
   ema_cross_down:   { fields: ["fast", "slow"],    describe: "fast & slow EMA periods" },
   atr_breakout:     { fields: ["value"],           describe: "ATR multiplier" },
   adx_above:        { fields: ["value"],           describe: "ADX threshold" },
+  avwap_sweep_reclaim: { fields: ["value", "period"], describe: "value-area % and sweep lookback bars" },
 };
 
 // Pairs of conditions that contradict each other when combined on the same side.

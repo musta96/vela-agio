@@ -15,7 +15,8 @@ export type ConditionType =
   | "ema_cross_up"        // fast EMA crosses above slow (algorithmic trend)
   | "ema_cross_down"      // fast EMA crosses below slow
   | "atr_breakout"        // range > multiplier × ATR14 (volatility breakout)
-  | "adx_above";          // ADX(14) > threshold (trend strength filter)
+  | "adx_above"           // ADX(14) > threshold (trend strength filter)
+  | "avwap_sweep_reclaim"; // Liquidity sweep near anchored VWAP value area (period=sweep lookback, value=value-area% band)
 
 export interface Condition {
   type: ConditionType;
@@ -87,6 +88,7 @@ export const CONDITION_LABELS: Record<ConditionType, string> = {
   ema_cross_down: "EMA fast crosses BELOW slow",
   atr_breakout: "ATR breakout (bar range × ATR14)",
   adx_above: "ADX(14) above threshold",
+  avwap_sweep_reclaim: "Liquidity sweep reclaimed within AVWAP value area",
 };
 
 export function describeCondition(c: Condition): string {
@@ -105,5 +107,6 @@ export function describeCondition(c: Condition): string {
     case "ema_cross_down": return `EMA(${c.fast ?? 12}) crosses below EMA(${c.slow ?? 26})`;
     case "atr_breakout": return `Bar range > ${c.value ?? 1.5}× ATR(14)`;
     case "adx_above": return `ADX(14) > ${c.value ?? 25}`;
+    case "avwap_sweep_reclaim": return `Sweep reclaimed within ±${c.value ?? 1.5}% AVWAP band (lookback ${c.period ?? 40})`;
   }
 }

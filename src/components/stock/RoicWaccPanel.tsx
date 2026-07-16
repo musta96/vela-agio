@@ -473,22 +473,93 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
             </button>
             {showDrilldown && (
               <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2 text-xs">
-                <div className="font-semibold text-foreground">NOPAT build</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
-                  <span className="text-muted-foreground">EBIT (operating income)</span><span className="text-right">{fmtB(snap.ebit)}</span>
-                  <span className="text-muted-foreground">× (1 − effective tax)</span><span className="text-right">× {pct(roicLatest.taxRate)}</span>
-                  <span className="text-muted-foreground">= NOPAT</span><span className="text-right font-semibold">{fmtB(roicLatest.nopat)}</span>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-foreground">NOPAT &amp; invested-capital build</div>
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                    onClick={() => setFieldMapOpen((v) => !v)}
+                  >
+                    {fieldMapOpen ? "Hide" : "Show"} filing-field labels
+                  </button>
                 </div>
+                <FilingRow
+                  label="EBIT (operating income)"
+                  field="incomeStatementHistory[0].operatingIncome"
+                  unit="USD"
+                  value={fmtB(snap.ebit)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="× (1 − effective tax)"
+                  field="derived: incomeTaxExpense ÷ incomeBeforeTax"
+                  unit="ratio, capped 50%"
+                  value={`× ${pct(roicLatest.taxRate)}`}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="= NOPAT"
+                  field="EBIT × (1 − tax)"
+                  unit="USD"
+                  value={fmtB(roicLatest.nopat)}
+                  bold
+                  used
+                  showField={fieldMapOpen}
+                />
                 <Separator />
-                <div className="font-semibold text-foreground">Invested capital build</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
-                  <span className="text-muted-foreground">Total stockholder equity</span><span className="text-right">{fmtB(snap.equity)}</span>
-                  <span className="text-muted-foreground">+ Long-term debt</span><span className="text-right">{fmtB(snap.ltDebt)}</span>
-                  <span className="text-muted-foreground">+ Current portion of LT debt</span><span className="text-right">{fmtB(snap.stDebt)}</span>
-                  <span className="text-muted-foreground">− Cash &amp; equivalents</span><span className="text-right">{fmtB(-(snap.cash ?? 0))}</span>
-                  <span className="text-muted-foreground">= Invested capital</span><span className="text-right font-semibold">{fmtB(ic > 0 ? ic : null)}</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground pt-1">Filings sourced from latest annual balance sheet + income statement. Effective tax = tax expense ÷ pretax income; capped at 50%.</p>
+                <FilingRow
+                  label="Total stockholder equity"
+                  field="balanceSheetHistory[0].totalStockholderEquity"
+                  unit="USD"
+                  value={fmtB(snap.equity)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="+ Long-term debt"
+                  field="balanceSheetHistory[0].longTermDebt"
+                  unit="USD"
+                  value={fmtB(snap.ltDebt)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="+ Current portion of LT debt"
+                  field="balanceSheetHistory[0].shortLongTermDebt"
+                  unit="USD"
+                  value={fmtB(snap.stDebt)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="− Cash &amp; equivalents"
+                  field="balanceSheetHistory[0].cash"
+                  unit="USD"
+                  value={fmtB(-(snap.cash ?? 0))}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="= Invested capital"
+                  field="equity + LT debt + ST debt − cash"
+                  unit="USD"
+                  value={fmtB(ic > 0 ? ic : null)}
+                  bold
+                  used
+                  showField={fieldMapOpen}
+                />
+                <Separator />
+                <div className="font-semibold text-foreground">WACC inputs</div>
+                <FilingRow label="Market capitalisation" field="price.marketCap" unit="USD (equity weight)" value={fmtB(snap.marketCap)} used showField={fieldMapOpen} />
+                <FilingRow label="Beta (5Y monthly)" field="summaryDetail.beta / defaultKeyStatistics.beta" unit="dimensionless" value={snap.beta != null ? snap.beta.toFixed(2) : "-"} used showField={fieldMapOpen} />
+                <FilingRow label="Risk-free rate" field="user input (10Y proxy)" unit="decimal" value={pct(rfPct / 100)} used showField={fieldMapOpen} />
+                <FilingRow label="Equity risk premium" field="user input" unit="decimal" value={pct(erpPct / 100)} used showField={fieldMapOpen} />
+                <FilingRow label="Pre-tax cost of debt" field="user input" unit="decimal" value={pct(kdPct / 100)} used showField={fieldMapOpen} />
+                <p className="text-[10px] text-muted-foreground pt-1">
+                  Highlighted rows are the exact fields fed into ROIC and WACC. Fields come from the Yahoo Finance <code>quoteSummary</code> feed (annual filings).
+                </p>
               </div>
             )}
             <table className="w-full text-sm">

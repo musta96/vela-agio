@@ -470,13 +470,6 @@ function toMarkdown(): string {
     "Replace `<ACCESS_TOKEN>` with the OAuth 2.1 bearer token from Supabase Auth; `<RUN_ID>` with the UUID returned by `start_run`; `<ISO8601_CURSOR>` with the `next_since` value from a prior `watchlist_updates` call.",
     "",
   );
-  lines.push(
-    // spacer for readability
-    "",
-  );
-  const _pad: string[] = [
-  ];
-  void _pad;
   for (const d of DOCS) {
     lines.push(`## \`${d.name}\` — ${d.title}`);
     lines.push("");

@@ -348,11 +348,11 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <NumField label="Risk-free rate %" value={rfPct} onChange={(n) => { setRfPct(n); markDirty(); }} step={0.05} />
-                <NumField label="Equity risk premium %" value={erpPct} onChange={(n) => { setErpPct(n); markDirty(); }} step={0.1} />
+                <NumField label="Risk-free rate %" value={rfPct} onChange={(n) => { if (n !== "") setRfPct(n); markDirty(); }} step={0.05} />
+                <NumField label="Equity risk premium %" value={erpPct} onChange={(n) => { if (n !== "") setErpPct(n); markDirty(); }} step={0.1} />
                 <NumField label="Tax rate %" value={taxPct} onChange={(n) => { setTaxPct(n); markDirty(); }} step={0.5} placeholder={snap.effTaxRate != null ? (snap.effTaxRate * 100).toFixed(1) : "21"} />
                 <NumField label="Beta" value={betaIn} onChange={(n) => { setBetaIn(n); markDirty(); }} step={0.05} placeholder={snap.beta != null ? snap.beta.toFixed(2) : "1.00"} />
-                <NumField label="Pre-tax cost of debt %" value={kdPct} onChange={(n) => { setKdPct(n); markDirty(); }} step={0.1} />
+                <NumField label="Pre-tax cost of debt %" value={kdPct} onChange={(n) => { if (n !== "") setKdPct(n); markDirty(); }} step={0.1} />
               </div>
               <p className="text-[10px] text-muted-foreground">Changes recalculate ROIC (tax) and WACC live. Reset to defaults sourced from filings + 10Y proxy.</p>
             </div>

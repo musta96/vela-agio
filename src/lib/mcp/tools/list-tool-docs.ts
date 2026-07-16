@@ -198,7 +198,7 @@ function toMarkdown(): string {
 
 // Bundled at build time: the same catalog Lovable's More → Agent integrations panel
 // reads. Import-safe (pure JSON) so the entry-eval and cold-start rules hold.
-import manifest from "../../../../.lovable/mcp/manifest.json" with { type: "json" };
+import manifest from "../../../../.lovable/mcp/manifest.json";
 
 export default defineTool({
   name: "list_tool_docs",

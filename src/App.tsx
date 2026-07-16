@@ -129,6 +129,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+          <Route path="/agent-integrations" element={<AgentIntegrations />} />
           <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
           <Route path="/signup/trial" element={<SignupTrial />} />
           <Route path="/signup/trial/return" element={<SignupTrialReturn />} />

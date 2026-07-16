@@ -398,6 +398,182 @@
           ]
         },
         "outputSchema": null
+      },
+      {
+        "name": "start_run",
+        "title": "Start a backtest or sensitivity run",
+        "description": "Kick off a `backtest` (single-config) or `sensitivity` (parameter sweep) simulation and return a run_id. Follow up with `get_run_status`, `get_run_result`, or `get_run_logs`. Requires authentication.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "backtest",
+                "sensitivity"
+              ],
+              "description": "What to run"
+            },
+            "input": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {},
+              "description": "For kind='backtest': BacktestInput { symbol, preset, range, initial_capital, fast, slow, rsi_period, rsi_buy, rsi_sell, stop_pct, target_pct }. For kind='sensitivity': BacktestInput + `sweep` object with arrays of values for fast/slow/rsi_period/rsi_buy/rsi_sell (max 64 combinations)."
+            }
+          },
+          "required": [
+            "kind",
+            "input"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_run_status",
+        "title": "Get run status",
+        "description": "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished timestamps, error string if failed). Requires authentication; only the run owner can read it.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "run_id returned by start_run"
+            }
+          },
+          "required": [
+            "run_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_run_result",
+        "title": "Get run result",
+        "description": "Return the full result JSON of a completed simulation run. Errors if the run is still running or failed. Requires authentication; only the run owner can read it.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "run_id returned by start_run"
+            }
+          },
+          "required": [
+            "run_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_run_logs",
+        "title": "Get run worker logs",
+        "description": "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. Requires authentication; only the run owner can read it.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "run_id returned by start_run"
+            }
+          },
+          "required": [
+            "run_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "watchlist_updates",
+        "title": "Poll watchlist updates",
+        "description": "Return a polling snapshot for agents: (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date) when available, and (3) alerts (notifications from spread/ROIC/price rules) fired since the `since` cursor. Pass back the returned `cursor` on the next call for incremental delivery. Requires authentication.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "since": {
+              "description": "ISO timestamp cursor; only alerts created after this are returned. Omit for last 24h.",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            "include_dividends": {
+              "default": true,
+              "description": "Include dividend fields per symbol.",
+              "type": "boolean"
+            },
+            "max_symbols": {
+              "default": 25,
+              "description": "Cap on symbols to quote.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_tool_docs",
+        "title": "List tool documentation",
+        "description": "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public — no auth required.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "format": {
+              "default": "markdown",
+              "description": "Output format.",
+              "type": "string",
+              "enum": [
+                "json",
+                "markdown"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
       }
     ]
   }

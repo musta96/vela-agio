@@ -734,13 +734,669 @@ var run_backtest_default = defineTool9({
   }
 });
 
+// src/lib/mcp/tools/start-run.ts
+import { createClient as createClient7 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z7 } from "npm:zod@^4.4.3";
+
+// src/lib/mcp/lib/backtest.ts
+async function fetchHistory2(symbol, range) {
+  const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
+  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`;
+  for (const url of [direct, `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`]) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const res = j?.chart?.result?.[0];
+      const ts = res?.timestamp ?? [];
+      const closes = res?.indicators?.quote?.[0]?.close ?? [];
+      const bars = [];
+      for (let i = 0; i < ts.length; i++) {
+        const c = closes[i];
+        if (c != null && Number.isFinite(c)) bars.push({ t: ts[i] * 1e3, close: c });
+      }
+      if (bars.length >= 30) return bars;
+    } catch {
+    }
+  }
+  return [];
+}
+function sma2(arr, n, i) {
+  if (i + 1 < n) return null;
+  let s = 0;
+  for (let k = i - n + 1; k <= i; k++) s += arr[k];
+  return s / n;
+}
+function rsi2(closes, i, period = 14) {
+  if (i < period) return null;
+  let g = 0, l = 0;
+  for (let k = i - period + 1; k <= i; k++) {
+    const d = closes[k] - closes[k - 1];
+    if (d >= 0) g += d;
+    else l -= d;
+  }
+  const avgG = g / period, avgL = l / period;
+  if (avgL === 0) return 100;
+  return 100 - 100 / (1 + avgG / avgL);
+}
+function entrySignal2(preset, closes, i, p) {
+  if (preset === "buy_hold") return i === 0;
+  if (preset === "sma_cross") {
+    const fast = p.fast ?? 20, slow = p.slow ?? 50;
+    const a = sma2(closes, fast, i), b = sma2(closes, slow, i);
+    const ap = sma2(closes, fast, i - 1), bp = sma2(closes, slow, i - 1);
+    return !!(a && b && ap && bp && ap <= bp && a > b);
+  }
+  if (preset === "rsi") {
+    const r = rsi2(closes, i, p.rsiPeriod ?? 14);
+    return r !== null && r < (p.rsiBuy ?? 30);
+  }
+  return false;
+}
+function exitSignal2(preset, closes, i, p) {
+  if (preset === "buy_hold") return false;
+  if (preset === "sma_cross") {
+    const fast = p.fast ?? 20, slow = p.slow ?? 50;
+    const a = sma2(closes, fast, i), b = sma2(closes, slow, i);
+    const ap = sma2(closes, fast, i - 1), bp = sma2(closes, slow, i - 1);
+    return !!(a && b && ap && bp && ap >= bp && a < b);
+  }
+  if (preset === "rsi") {
+    const r = rsi2(closes, i, p.rsiPeriod ?? 14);
+    return r !== null && r > (p.rsiSell ?? 70);
+  }
+  return false;
+}
+function simulate2(bars, preset, params, initial) {
+  const closes = bars.map((b) => b.close);
+  let cash = initial, shares = 0, entryPrice = 0;
+  const equity = [];
+  const tradeReturns = [];
+  for (let i = 0; i < bars.length; i++) {
+    if (shares > 0) {
+      const chg = (closes[i] - entryPrice) / entryPrice * 100;
+      const stop = params.stopPct ? -Math.abs(params.stopPct) : null;
+      const target = params.targetPct ? Math.abs(params.targetPct) : null;
+      if (stop !== null && chg <= stop || target !== null && chg >= target || exitSignal2(preset, closes, i, params)) {
+        cash = shares * closes[i];
+        tradeReturns.push((closes[i] - entryPrice) / entryPrice);
+        shares = 0;
+      }
+    } else if (entrySignal2(preset, closes, i, params)) {
+      shares = cash / closes[i];
+      entryPrice = closes[i];
+      cash = 0;
+    }
+    equity.push(cash + shares * closes[i]);
+  }
+  if (shares > 0) {
+    const last = closes[closes.length - 1];
+    tradeReturns.push((last - entryPrice) / entryPrice);
+    cash = shares * last;
+    shares = 0;
+  }
+  const finalValue = equity[equity.length - 1] ?? initial;
+  const totalReturn = (finalValue - initial) / initial;
+  const days = bars.length;
+  const years = days / 252;
+  const cagr = years > 0 ? Math.pow(finalValue / initial, 1 / years) - 1 : 0;
+  let peak = equity[0] ?? initial, maxDD = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    const dd = (v - peak) / peak;
+    if (dd < maxDD) maxDD = dd;
+  }
+  const daily = [];
+  for (let i = 1; i < equity.length; i++) {
+    const p = equity[i - 1];
+    if (p > 0) daily.push((equity[i] - p) / p);
+  }
+  const mean = daily.reduce((a, b) => a + b, 0) / (daily.length || 1);
+  const std = Math.sqrt(daily.reduce((a, b) => a + (b - mean) ** 2, 0) / (daily.length || 1));
+  const sharpe = std > 0 ? mean / std * Math.sqrt(252) : 0;
+  const wins = tradeReturns.filter((r) => r > 0).length;
+  const hitRate = tradeReturns.length > 0 ? wins / tradeReturns.length : 0;
+  return {
+    totalReturn: +(totalReturn * 100).toFixed(2),
+    cagr: +(cagr * 100).toFixed(2),
+    maxDrawdown: +(maxDD * 100).toFixed(2),
+    sharpe: +sharpe.toFixed(3),
+    hitRate: +(hitRate * 100).toFixed(2),
+    totalTrades: tradeReturns.length,
+    bars: bars.length,
+    finalEquity: +finalValue.toFixed(2)
+  };
+}
+
+// src/lib/mcp/tools/start-run.ts
+function sbUser(ctx) {
+  return createClient7(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var BacktestInput = z7.object({
+  symbol: z7.string().min(1),
+  preset: z7.enum(["buy_hold", "sma_cross", "rsi"]).default("sma_cross"),
+  range: z7.enum(["6mo", "1y", "2y", "5y", "10y", "max"]).default("2y"),
+  initial_capital: z7.number().positive().max(1e7).default(1e4),
+  fast: z7.number().int().min(2).max(200).optional(),
+  slow: z7.number().int().min(3).max(400).optional(),
+  rsi_period: z7.number().int().min(2).max(50).optional(),
+  rsi_buy: z7.number().min(1).max(99).optional(),
+  rsi_sell: z7.number().min(1).max(99).optional(),
+  stop_pct: z7.number().min(0).max(100).optional(),
+  target_pct: z7.number().min(0).max(500).optional()
+});
+var SensitivityInput = BacktestInput.extend({
+  sweep: z7.object({
+    fast: z7.array(z7.number().int().min(2).max(200)).max(12).optional(),
+    slow: z7.array(z7.number().int().min(3).max(400)).max(12).optional(),
+    rsi_period: z7.array(z7.number().int().min(2).max(50)).max(12).optional(),
+    rsi_buy: z7.array(z7.number().min(1).max(99)).max(12).optional(),
+    rsi_sell: z7.array(z7.number().min(1).max(99)).max(12).optional()
+  }).describe("Arrays of parameter values to sweep. Cartesian product is capped at 64 combinations.")
+});
+var start_run_default = defineTool10({
+  name: "start_run",
+  title: "Start a backtest or sensitivity run",
+  description: "Kick off a `backtest` (single-config) or `sensitivity` (parameter sweep) simulation and return a run_id. Follow up with `get_run_status`, `get_run_result`, or `get_run_logs`. Requires authentication.",
+  inputSchema: {
+    kind: z7.enum(["backtest", "sensitivity"]).describe("What to run"),
+    input: z7.record(z7.string(), z7.any()).describe(
+      "For kind='backtest': BacktestInput { symbol, preset, range, initial_capital, fast, slow, rsi_period, rsi_buy, rsi_sell, stop_pct, target_pct }. For kind='sensitivity': BacktestInput + `sweep` object with arrays of values for fast/slow/rsi_period/rsi_buy/rsi_sell (max 64 combinations)."
+    )
+  },
+  annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: true },
+  handler: async ({ kind, input }, ctx) => withInstrumentation("start_run", ctx, async () => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    }
+    const sb = sbUser(ctx);
+    const userId = ctx.getUserId();
+    const logs = [];
+    const log = (level, msg) => logs.push({ t: (/* @__PURE__ */ new Date()).toISOString(), level, msg });
+    const { data: created, error: createErr } = await sb.from("simulation_runs").insert({ user_id: userId, kind, input, status: "running", started_at: (/* @__PURE__ */ new Date()).toISOString(), progress: 0, logs: [] }).select("id").single();
+    if (createErr || !created) {
+      return { content: [{ type: "text", text: createErr?.message ?? "Failed to create run." }], isError: true };
+    }
+    const runId = created.id;
+    const finish = async (patch) => {
+      await sb.from("simulation_runs").update({
+        ...patch,
+        logs,
+        finished_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", runId).eq("user_id", userId);
+    };
+    try {
+      if (kind === "backtest") {
+        const parsed2 = BacktestInput.safeParse(input);
+        if (!parsed2.success) {
+          log("error", "Invalid backtest input: " + JSON.stringify(parsed2.error.flatten().fieldErrors));
+          await finish({ status: "failed", error: "invalid input", progress: 100 });
+          return { content: [{ type: "text", text: `run_id=${runId} status=failed` }], structuredContent: { run_id: runId, status: "failed" } };
+        }
+        const args2 = parsed2.data;
+        log("info", `Fetching ${args2.symbol} history range=${args2.range}`);
+        const bars2 = await fetchHistory2(args2.symbol.toUpperCase(), args2.range);
+        if (bars2.length < 30) {
+          log("error", `Insufficient bars (${bars2.length}) for ${args2.symbol}`);
+          await finish({ status: "failed", error: "insufficient_history", progress: 100 });
+          return { content: [{ type: "text", text: `run_id=${runId} status=failed` }], structuredContent: { run_id: runId, status: "failed" } };
+        }
+        log("info", `Loaded ${bars2.length} bars \u2014 simulating ${args2.preset}`);
+        const params = {
+          fast: args2.fast,
+          slow: args2.slow,
+          rsiPeriod: args2.rsi_period,
+          rsiBuy: args2.rsi_buy,
+          rsiSell: args2.rsi_sell,
+          stopPct: args2.stop_pct,
+          targetPct: args2.target_pct
+        };
+        const metrics = simulate2(bars2, args2.preset, params, args2.initial_capital);
+        log("info", `Done. CAGR=${metrics.cagr}% MaxDD=${metrics.maxDrawdown}%`);
+        const result2 = {
+          symbol: args2.symbol.toUpperCase(),
+          preset: args2.preset,
+          range: args2.range,
+          initial_capital: args2.initial_capital,
+          params,
+          metrics,
+          start: new Date(bars2[0].t).toISOString().slice(0, 10),
+          end: new Date(bars2[bars2.length - 1].t).toISOString().slice(0, 10)
+        };
+        await finish({ status: "succeeded", progress: 100, result: result2 });
+        return {
+          content: [{ type: "text", text: `run_id=${runId} status=succeeded` }],
+          structuredContent: { run_id: runId, status: "succeeded" }
+        };
+      }
+      const parsed = SensitivityInput.safeParse(input);
+      if (!parsed.success) {
+        log("error", "Invalid sensitivity input: " + JSON.stringify(parsed.error.flatten().fieldErrors));
+        await finish({ status: "failed", error: "invalid input", progress: 100 });
+        return { content: [{ type: "text", text: `run_id=${runId} status=failed` }], structuredContent: { run_id: runId, status: "failed" } };
+      }
+      const args = parsed.data;
+      const sweep = args.sweep ?? {};
+      const dims = [];
+      if (sweep.fast?.length) dims.push(["fast", sweep.fast]);
+      if (sweep.slow?.length) dims.push(["slow", sweep.slow]);
+      if (sweep.rsi_period?.length) dims.push(["rsi_period", sweep.rsi_period]);
+      if (sweep.rsi_buy?.length) dims.push(["rsi_buy", sweep.rsi_buy]);
+      if (sweep.rsi_sell?.length) dims.push(["rsi_sell", sweep.rsi_sell]);
+      let combos = [{}];
+      for (const [name, vals] of dims) {
+        const next = [];
+        for (const c of combos) for (const v of vals) next.push({ ...c, [name]: v });
+        combos = next;
+      }
+      if (combos.length > 64) {
+        log("error", `sweep produced ${combos.length} combinations (max 64)`);
+        await finish({ status: "failed", error: "sweep_too_large", progress: 100 });
+        return { content: [{ type: "text", text: `run_id=${runId} status=failed` }], structuredContent: { run_id: runId, status: "failed" } };
+      }
+      log("info", `Fetching ${args.symbol} history range=${args.range}`);
+      const bars = await fetchHistory2(args.symbol.toUpperCase(), args.range);
+      if (bars.length < 30) {
+        log("error", `Insufficient bars (${bars.length})`);
+        await finish({ status: "failed", error: "insufficient_history", progress: 100 });
+        return { content: [{ type: "text", text: `run_id=${runId} status=failed` }], structuredContent: { run_id: runId, status: "failed" } };
+      }
+      log("info", `Loaded ${bars.length} bars \u2014 running ${combos.length} combos`);
+      const rows = [];
+      for (let i = 0; i < combos.length; i++) {
+        const c = combos[i];
+        const p = {
+          fast: c.fast ?? args.fast,
+          slow: c.slow ?? args.slow,
+          rsiPeriod: c.rsi_period ?? args.rsi_period,
+          rsiBuy: c.rsi_buy ?? args.rsi_buy,
+          rsiSell: c.rsi_sell ?? args.rsi_sell,
+          stopPct: args.stop_pct,
+          targetPct: args.target_pct
+        };
+        const m = simulate2(bars, args.preset, p, args.initial_capital);
+        rows.push({ params: c, metrics: m });
+        const progress = Math.round((i + 1) / combos.length * 100);
+        if (i % 4 === 3 || i === combos.length - 1) {
+          await sb.from("simulation_runs").update({ progress, logs }).eq("id", runId).eq("user_id", userId);
+        }
+      }
+      rows.sort((a, b) => b.metrics.cagr - a.metrics.cagr);
+      log("info", `Sensitivity complete. Best CAGR=${rows[0]?.metrics?.cagr}%`);
+      const result = {
+        symbol: args.symbol.toUpperCase(),
+        preset: args.preset,
+        range: args.range,
+        combinations: rows.length,
+        results: rows,
+        best: rows[0] ?? null,
+        start: new Date(bars[0].t).toISOString().slice(0, 10),
+        end: new Date(bars[bars.length - 1].t).toISOString().slice(0, 10)
+      };
+      await finish({ status: "succeeded", progress: 100, result });
+      return {
+        content: [{ type: "text", text: `run_id=${runId} status=succeeded combos=${rows.length}` }],
+        structuredContent: { run_id: runId, status: "succeeded", combinations: rows.length }
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log("error", msg);
+      await finish({ status: "failed", error: msg, progress: 100 });
+      return { content: [{ type: "text", text: `run_id=${runId} status=failed: ${msg}` }], structuredContent: { run_id: runId, status: "failed", error: msg }, isError: true };
+    }
+  }, { rateLimit: { max: 10, windowSec: 60 } })
+});
+
+// src/lib/mcp/tools/get-run.ts
+import { createClient as createClient8 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z8 } from "npm:zod@^4.4.3";
+function sbUser2(ctx) {
+  return createClient8(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+async function loadRun(ctx, runId, columns) {
+  const sb = sbUser2(ctx);
+  const { data, error } = await sb.from("simulation_runs").select(columns).eq("id", runId).eq("user_id", ctx.getUserId()).maybeSingle();
+  return { data, error, sb };
+}
+var getRunStatus = defineTool11({
+  name: "get_run_status",
+  title: "Get run status",
+  description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished timestamps, error string if failed). Requires authentication; only the run owner can read it.",
+  inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ run_id }, ctx) => withInstrumentation("get_run_status", ctx, async () => {
+    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, started_at, finished_at, created_at, updated_at");
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
+  }, { rateLimit: { max: 120, windowSec: 60 } })
+});
+var getRunResult = defineTool11({
+  name: "get_run_result",
+  title: "Get run result",
+  description: "Return the full result JSON of a completed simulation run. Errors if the run is still running or failed. Requires authentication; only the run owner can read it.",
+  inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ run_id }, ctx) => withInstrumentation("get_run_result", ctx, async () => {
+    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, result, error");
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    const row = data;
+    if (row.status !== "succeeded") {
+      return {
+        content: [{ type: "text", text: `Run status=${row.status}${row.error ? ` error=${row.error}` : ""}` }],
+        structuredContent: data,
+        isError: row.status === "failed"
+      };
+    }
+    return { content: [{ type: "text", text: JSON.stringify(row.result) }], structuredContent: data };
+  }, { rateLimit: { max: 60, windowSec: 60 } })
+});
+var getRunLogs = defineTool11({
+  name: "get_run_logs",
+  title: "Get run worker logs",
+  description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. Requires authentication; only the run owner can read it.",
+  inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ run_id }, ctx) => withInstrumentation("get_run_logs", ctx, async () => {
+    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, logs, started_at, finished_at");
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
+  }, { rateLimit: { max: 120, windowSec: 60 } })
+});
+
+// src/lib/mcp/tools/watchlist-updates.ts
+import { createClient as createClient9 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z9 } from "npm:zod@^4.4.3";
+function sbUser3(ctx) {
+  return createClient9(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+async function fetchQuoteSummary(symbol) {
+  const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
+  const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2d&interval=1d`;
+  const qsUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail`;
+  try {
+    const [cr, sr] = await Promise.all([
+      fetch(chartUrl, { headers: { "User-Agent": UA } }),
+      fetch(qsUrl, { headers: { "User-Agent": UA } }).catch(() => null)
+    ]);
+    if (!cr.ok) return null;
+    const cj = await cr.json();
+    const m = cj?.chart?.result?.[0]?.meta;
+    if (!m) return null;
+    const price = m.regularMarketPrice ?? m.previousClose;
+    const prev = m.previousClose ?? m.chartPreviousClose;
+    let dividendYield = null;
+    let dividendRate = null;
+    let exDivDate = null;
+    if (sr && sr.ok) {
+      const sj = await sr.json();
+      const sd = sj?.quoteSummary?.result?.[0]?.summaryDetail;
+      dividendYield = sd?.dividendYield?.raw ?? null;
+      dividendRate = sd?.dividendRate?.raw ?? null;
+      const ex = sd?.exDividendDate?.raw;
+      exDivDate = ex ? new Date(ex * 1e3).toISOString().slice(0, 10) : null;
+    }
+    return {
+      symbol: m.symbol ?? symbol,
+      name: m.shortName ?? m.longName ?? symbol,
+      price,
+      change: prev != null ? price - prev : 0,
+      change_pct: prev ? (price - prev) / prev * 100 : 0,
+      currency: m.currency,
+      as_of: m.regularMarketTime ? new Date(m.regularMarketTime * 1e3).toISOString() : null,
+      dividend_yield: dividendYield,
+      dividend_rate: dividendRate,
+      ex_dividend_date: exDivDate
+    };
+  } catch {
+    return null;
+  }
+}
+var watchlist_updates_default = defineTool12({
+  name: "watchlist_updates",
+  title: "Poll watchlist updates",
+  description: "Return a polling snapshot for agents: (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date) when available, and (3) alerts (notifications from spread/ROIC/price rules) fired since the `since` cursor. Pass back the returned `cursor` on the next call for incremental delivery. Requires authentication.",
+  inputSchema: {
+    since: z9.string().datetime().optional().describe("ISO timestamp cursor; only alerts created after this are returned. Omit for last 24h."),
+    include_dividends: z9.boolean().default(true).describe("Include dividend fields per symbol."),
+    max_symbols: z9.number().int().min(1).max(50).default(25).describe("Cap on symbols to quote.")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  handler: async ({ since, include_dividends, max_symbols }, ctx) => withInstrumentation("watchlist_updates", ctx, async () => {
+    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    const sb = sbUser3(ctx);
+    const uid = ctx.getUserId();
+    const { data: items, error: wErr } = await sb.from("watchlist_items").select("symbol, name, created_at").eq("user_id", uid).limit(max_symbols);
+    if (wErr) return { content: [{ type: "text", text: wErr.message }], isError: true };
+    const symbols = (items ?? []).map((i) => i.symbol.toUpperCase());
+    const quotes = await Promise.all(
+      symbols.map(async (s) => {
+        const q = include_dividends ? await fetchQuoteSummary(s) : await fetchQuoteSummary(s).then((r) => r && { ...r, dividend_yield: null, dividend_rate: null, ex_dividend_date: null });
+        return { symbol: s, quote: q };
+      })
+    );
+    const sinceIso = since ?? new Date(Date.now() - 24 * 3600 * 1e3).toISOString();
+    const { data: alerts, error: aErr } = await sb.from("notifications").select("id, kind, symbol, title, body, payload, severity, created_at").eq("user_id", uid).gt("created_at", sinceIso).order("created_at", { ascending: false }).limit(100);
+    if (aErr) return { content: [{ type: "text", text: aErr.message }], isError: true };
+    const cursor = (/* @__PURE__ */ new Date()).toISOString();
+    const result = {
+      cursor,
+      since: sinceIso,
+      symbols,
+      quotes,
+      alerts: alerts ?? []
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(result) }],
+      structuredContent: result
+    };
+  }, { rateLimit: { max: 60, windowSec: 60 } })
+});
+
+// src/lib/mcp/tools/list-tool-docs.ts
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z10 } from "npm:zod@^4.4.3";
+var DOCS = [
+  {
+    name: "get_quote",
+    title: "Get quote",
+    auth: "public",
+    rate_limit: null,
+    inputs: { symbol: "Yahoo ticker, e.g. AAPL, ENI.MI, BTC-USD" },
+    outputs: "{ symbol, name, price, change, change_pct, currency, exchange, as_of }"
+  },
+  {
+    name: "search_strategies",
+    title: "Search strategies",
+    auth: "public",
+    rate_limit: null,
+    inputs: { query: "Free-text search over public strategy presets" },
+    outputs: "{ items: [ { name, description, symbol, timeframe, ... } ] }"
+  },
+  {
+    name: "project_dividends",
+    title: "Project dividends",
+    auth: "public",
+    rate_limit: null,
+    inputs: { symbol: "Ticker", shares: "Optional share count", years: "Projection horizon" },
+    outputs: "{ projections: [{ year, income, cumulative }] }"
+  },
+  {
+    name: "get_watchlist",
+    title: "Get watchlist",
+    auth: "oauth-user",
+    rate_limit: "60 / 60s",
+    inputs: {},
+    outputs: "{ items: [{ symbol, name, created_at }] }"
+  },
+  {
+    name: "get_portfolio",
+    title: "Get portfolio",
+    auth: "oauth-user",
+    rate_limit: "60 / 60s",
+    inputs: { portfolio_id: "Optional. Defaults to the user's primary portfolio." },
+    outputs: "{ portfolio, holdings: [...] }"
+  },
+  {
+    name: "get_net_worth",
+    title: "Get net worth",
+    auth: "oauth-user",
+    rate_limit: "60 / 60s",
+    inputs: {},
+    outputs: "{ total, accounts: [...] }"
+  },
+  {
+    name: "list_cash_flow",
+    title: "List cash-flow entries",
+    auth: "oauth-user",
+    rate_limit: "60 / 60s",
+    inputs: { since: "ISO date (optional)", limit: "1..200" },
+    outputs: "{ entries: [...] }"
+  },
+  {
+    name: "add_cash_flow_entry",
+    title: "Add cash-flow entry",
+    auth: "oauth-user",
+    rate_limit: "30 / 60s",
+    inputs: { amount: "number", currency: "ISO", kind: "income|expense|transfer", note: "string?" },
+    outputs: "{ id, created_at }"
+  },
+  {
+    name: "run_backtest",
+    title: "Run backtest (synchronous)",
+    auth: "oauth-user",
+    rate_limit: "30 / 60s",
+    inputs: { symbol: "Ticker", preset: "buy_hold|sma_cross|rsi", range: "6mo..max", initial_capital: "number", "fast/slow/rsi_*": "params" },
+    outputs: "{ metrics: { cagr, maxDrawdown, sharpe, hitRate }, ... }",
+    notes: "For sweeps or long jobs, prefer start_run + get_run_result."
+  },
+  {
+    name: "start_run",
+    title: "Start backtest or sensitivity run",
+    auth: "oauth-user",
+    rate_limit: "10 / 60s",
+    inputs: {
+      kind: "backtest | sensitivity",
+      input: "Backtest params; sensitivity adds `sweep` object with arrays for fast/slow/rsi_period/rsi_buy/rsi_sell (<=64 combos)."
+    },
+    outputs: "{ run_id, status }",
+    notes: "Poll with get_run_status; fetch full data with get_run_result; debug with get_run_logs."
+  },
+  {
+    name: "get_run_status",
+    title: "Get run status",
+    auth: "oauth-user",
+    rate_limit: "120 / 60s",
+    inputs: { run_id: "UUID from start_run" },
+    outputs: "{ status, progress, started_at, finished_at, error }"
+  },
+  {
+    name: "get_run_result",
+    title: "Get run result",
+    auth: "oauth-user",
+    rate_limit: "60 / 60s",
+    inputs: { run_id: "UUID from start_run" },
+    outputs: "Full result JSON of a succeeded run."
+  },
+  {
+    name: "get_run_logs",
+    title: "Get run logs",
+    auth: "oauth-user",
+    rate_limit: "120 / 60s",
+    inputs: { run_id: "UUID from start_run" },
+    outputs: "{ logs: [{ t, level, msg }], error }",
+    notes: "Use this to debug a failed run."
+  },
+  {
+    name: "watchlist_updates",
+    title: "Poll watchlist updates",
+    auth: "oauth-user",
+    rate_limit: "60 / 60s",
+    inputs: { since: "ISO cursor (optional)", include_dividends: "bool", max_symbols: "1..50" },
+    outputs: "{ cursor, quotes: [...], alerts: [...] }",
+    notes: "Pass the returned cursor as `since` on the next call for incremental alerts."
+  },
+  {
+    name: "list_tool_docs",
+    title: "List tool documentation",
+    auth: "public",
+    rate_limit: null,
+    inputs: { format: "'json' | 'markdown' (default 'markdown')" },
+    outputs: "Documentation of every tool with inputs, outputs, auth, and rate limits."
+  }
+];
+function toMarkdown() {
+  const lines = [
+    "# Vela MCP tools",
+    "",
+    "Server: `vela` \u2014 auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
+    ""
+  ];
+  for (const d of DOCS) {
+    lines.push(`## \`${d.name}\` \u2014 ${d.title}`);
+    lines.push("");
+    lines.push(`- **Auth scope:** ${d.auth}`);
+    if (d.rate_limit) lines.push(`- **Rate limit:** ${d.rate_limit}`);
+    const ins = Object.entries(d.inputs);
+    if (ins.length) {
+      lines.push("- **Inputs:**");
+      for (const [k, v] of ins) lines.push(`  - \`${k}\` \u2014 ${v}`);
+    } else {
+      lines.push("- **Inputs:** none");
+    }
+    lines.push(`- **Output:** ${d.outputs}`);
+    if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+var list_tool_docs_default = defineTool13({
+  name: "list_tool_docs",
+  title: "List tool documentation",
+  description: "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public \u2014 no auth required.",
+  inputSchema: {
+    format: z10.enum(["json", "markdown"]).default("markdown").describe("Output format.")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ format }) => {
+    if (format === "json") {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ tools: DOCS }) }],
+        structuredContent: { tools: DOCS }
+      };
+    }
+    const md = toMarkdown();
+    return {
+      content: [{ type: "text", text: md }],
+      structuredContent: { markdown: md, tools: DOCS }
+    };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "pcisxjfgdrgpxzfzfscf";
 var mcp_default = defineMcp({
   name: "vela",
   title: "Vela \u2014 Trading Strategy Platform",
   version: "1.0.0",
-  instructions: "Tools for Vela.ai. Public tools: `get_quote` (any Yahoo-style ticker), `search_strategies`, and `project_dividends` (deterministic dividend income projections with optional real-position seeding). Authenticated tools return the signed-in user's own data or run compute on their behalf: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, and `run_backtest` (rate-limited historical backtest with CAGR / drawdown / hit-rate).",
+  instructions: "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human-readable catalog of every tool with inputs/outputs/auth). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest or sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs` (worker logs / debug), and `watchlist_updates` (polling snapshot of quotes, dividends, and alerts with an incremental `since` cursor).",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -754,7 +1410,13 @@ var mcp_default = defineMcp({
     list_cash_flow_default,
     add_cash_flow_entry_default,
     project_dividends_default,
-    run_backtest_default
+    run_backtest_default,
+    start_run_default,
+    getRunStatus,
+    getRunResult,
+    getRunLogs,
+    watchlist_updates_default,
+    list_tool_docs_default
   ]
 });
 

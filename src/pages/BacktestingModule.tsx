@@ -373,6 +373,8 @@ const BacktestingModule = () => {
             </CardContent>
           </Card>
 
+          <CostConfigCard costs={costs} onChange={setCosts} />
+
           {/* Results */}
           <div className="lg:col-span-2">
             {!result && !running && (
@@ -500,6 +502,38 @@ const BacktestingModule = () => {
 
                 <BacktestDetailCharts equity={result.equity} trades={result.trades} />
                 <WalkForwardCard equity={result.equity} />
+
+                {result.metrics.totalFees !== undefined && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Applied costs: <span className="font-medium text-foreground">{costsSummary(result.costs ?? costs)}</span> ·
+                    total fees paid this run: <span className="font-medium text-foreground">{fmt(result.metrics.totalFees)}</span>
+                  </p>
+                )}
+
+                {result.bars && result.bars.length > 30 && (
+                  <RegimeBreakdownCard
+                    bars={result.bars}
+                    equity={result.equity.map(e => ({ t: e.t, value: e.value }))}
+                  />
+                )}
+
+                {strategy === "custom" && customRules && result.bars && result.bars.length > 30 && (
+                  <SensitivityHeatmap
+                    bars={result.bars}
+                    rules={customRules}
+                    initial={Number(initialCapital)}
+                    costs={costs}
+                  />
+                )}
+
+                {strategy === "custom" && initialStrategyId && result.bars && result.bars.length > 30 && (
+                  <VersionCompareCard
+                    strategyId={initialStrategyId}
+                    bars={result.bars}
+                    initial={Number(initialCapital)}
+                    costs={costs}
+                  />
+                )}
 
                 <BacktestQuantPanel
                   equity={result.equity}

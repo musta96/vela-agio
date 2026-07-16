@@ -656,6 +656,41 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                 <p className="text-[10px] text-muted-foreground">
                   Baselines the current spread ({pct(spread)}) and fires when |Δ| ≥ {alertThresholdBps} bps after {alertWindowDays} day(s).
                 </p>
+                <div className="rounded border border-dashed border-border/60 p-2 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <History className="h-3 w-3" /> Backtest preview
+                  </div>
+                  {timeSeries.filter((r) => r.spread != null).length < 2 ? (
+                    <p className="text-[10px] text-muted-foreground">Need at least two annual observations to backtest.</p>
+                  ) : (
+                    <>
+                      <p className="text-[10px]">
+                        Would have triggered <span className="font-semibold">{backtest.count}</span>{" "}
+                        time{backtest.count === 1 ? "" : "s"} across{" "}
+                        {timeSeries.filter((r) => r.spread != null).length - 1} year-over-year step
+                        {timeSeries.filter((r) => r.spread != null).length - 1 === 1 ? "" : "s"}{" "}
+                        (direction: {alertDirection}, threshold {alertThresholdBps} bps).
+                      </p>
+                      {backtest.events.length > 0 && (
+                        <ul className="text-[10px] font-mono space-y-0.5">
+                          {backtest.events.map((e) => (
+                            <li key={e.year} className="flex items-center justify-between gap-2">
+                              <span>{e.year}</span>
+                              <span className={e.direction === "improve" ? "text-success" : "text-destructive"}>
+                                {e.delta >= 0 ? "+" : ""}{(e.delta * 10000).toFixed(0)} bps
+                                {" "}({e.direction})
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="text-[9px] text-muted-foreground pt-0.5">
+                        Backtest uses annual filings (year-over-year Δ). The live rule uses your chosen
+                        rolling {alertWindowDays}-day window on the same spread definition.
+                      </p>
+                    </>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={saveAlert} disabled={alertSaving}>
                     {alertSaving && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
@@ -671,11 +706,161 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         </Card>
       </div>
 
+      {/* Time-series chart */}
+      {timeSeries.some((r) => r.roicPct != null || r.waccPct != null) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <LineChartIcon className="h-4 w-4" /> ROIC · WACC · Spread over time
+            </CardTitle>
+            <CardDescription>
+              Annual filings from the last {timeSeries.length} year{timeSeries.length === 1 ? "" : "s"}.
+              WACC per year is recomputed using the current rf/ERP/kd/β and per-year book-equity + total-debt weights.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="w-full h-[280px]">
+              <ResponsiveContainer>
+                <ComposedChart data={timeSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="year" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                    tickFormatter={(v) => `${v}%`}
+                    domain={["auto", "auto"]}
+                  />
+                  <ReferenceLine y={0} stroke="hsl(var(--border))" />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }}
+                    formatter={(v: number | string) => (typeof v === "number" ? `${v.toFixed(2)}%` : v)}
+                    labelFormatter={(y, payload) => {
+                      const d = payload?.[0]?.payload?.endDate;
+                      return d ? `${y} (${d})` : String(y);
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="spreadPct" name="ROIC − WACC" fill="hsl(var(--primary))" opacity={0.35} />
+                  <Line type="monotone" dataKey="roicPct" stroke="hsl(var(--success))" strokeWidth={2} dot name="ROIC" />
+                  <Line type="monotone" dataKey="waccPct" stroke="hsl(var(--destructive))" strokeWidth={2} dot name="WACC" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Historic years use book equity as the equity-weight proxy (point-in-time market caps aren't in the feed), so ROIC changes drive most of the spread movement while WACC evolves with the capital structure only.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sensitivity panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4" /> Sensitivity — how inputs move the spread
+          </CardTitle>
+          <CardDescription>
+            Pick a range for each driver. We resample the ROIC − WACC spread across every corner of the range and show the resulting min/max.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <button
+            type="button"
+            className="text-xs text-primary inline-flex items-center gap-1 hover:underline"
+            onClick={() => setSensOpen((v) => !v)}
+          >
+            {sensOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {sensOpen ? "Hide" : "Show"} sensitivity ranges
+          </button>
+          {sensOpen && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <RangeSlider label="Risk-free rate" min={0} max={10} step={0.05} value={sensRf} onChange={setSensRf} unit="%" decimals={2} />
+              <RangeSlider label="Equity risk premium" min={0} max={12} step={0.1} value={sensErp} onChange={setSensErp} unit="%" decimals={2} />
+              <RangeSlider label="Tax rate" min={0} max={50} step={0.5} value={sensTax} onChange={setSensTax} unit="%" decimals={1} />
+              <RangeSlider label="Beta" min={0} max={3} step={0.05} value={sensBeta} onChange={setSensBeta} decimals={2} />
+            </div>
+          )}
+          {sensitivity && (
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-md border border-border/60 p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Current spread</div>
+                <div className={`text-2xl font-mono font-semibold ${spreadPositive ? "text-success" : "text-destructive"}`}>{pct(spread)}</div>
+              </div>
+              <div className="rounded-md border border-border/60 p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Range low</div>
+                <div className={`text-2xl font-mono font-semibold ${sensitivity.min >= 0 ? "text-success" : "text-destructive"}`}>{pct(sensitivity.min)}</div>
+                {spread != null && (
+                  <div className="text-[10px] text-muted-foreground">
+                    Δ {(spread - sensitivity.min) >= 0 ? "−" : "+"}
+                    {Math.abs((sensitivity.min - spread) * 100).toFixed(1)} pp
+                  </div>
+                )}
+              </div>
+              <div className="rounded-md border border-border/60 p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Range high</div>
+                <div className={`text-2xl font-mono font-semibold ${sensitivity.max >= 0 ? "text-success" : "text-destructive"}`}>{pct(sensitivity.max)}</div>
+                {spread != null && (
+                  <div className="text-[10px] text-muted-foreground">
+                    Δ {(sensitivity.max - spread) >= 0 ? "+" : "−"}
+                    {Math.abs((sensitivity.max - spread) * 100).toFixed(1)} pp
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {sensitivity && (
+            <div className="rounded-md border border-border/60 p-3 space-y-2">
+              <div className="text-[11px] font-semibold text-foreground">One-at-a-time sweeps</div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {(["rf", "erp", "tax", "beta"] as const).map((k) => {
+                  const rows = sensitivity.drivers[k];
+                  const label = k === "rf" ? "Risk-free rate" : k === "erp" ? "Equity risk premium" : k === "tax" ? "Tax rate" : "Beta";
+                  const unit = k === "beta" ? "" : "%";
+                  const vals = rows.map((r) => r.spread).filter((v): v is number => v != null);
+                  const lo = vals.length ? Math.min(...vals) : null;
+                  const hi = vals.length ? Math.max(...vals) : null;
+                  return (
+                    <div key={k} className="rounded border border-border/40 p-2 space-y-1 text-[10px] font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span>
+                          spread {pct(lo)} → {pct(hi)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {rows.map((r, i) => (
+                          <div key={i} className="text-center">
+                            <div className="text-[9px] text-muted-foreground">{r.x.toFixed(k === "beta" ? 2 : 1)}{unit}</div>
+                            <div className={r.spread != null && r.spread >= 0 ? "text-success" : "text-destructive"}>
+                              {r.spread != null ? `${(r.spread * 100).toFixed(1)}%` : "-"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Range results use every corner of your 4-range box (16 evaluations). One-at-a-time sweeps hold the other three drivers at the midpoint of their ranges.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Peer / sector comparison */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer &amp; sector comparison</CardTitle>
-          <CardDescription>Enter peer tickers (comma-separated) to compare ROIC, WACC, and the ROIC−WACC spread using the same assumptions.</CardDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer &amp; sector comparison</CardTitle>
+              <CardDescription>Enter peer tickers (comma-separated) to compare ROIC, WACC, and the ROIC−WACC spread using the same assumptions.</CardDescription>
+            </div>
+            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={downloadCsv}>
+              <Download className="h-3.5 w-3.5" /> CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-2">

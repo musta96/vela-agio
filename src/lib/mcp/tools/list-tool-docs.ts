@@ -14,6 +14,7 @@ interface ToolDoc {
   inputs: Record<string, string>;
   outputs: string;
   notes?: string;
+  error_codes?: string[];
 }
 
 const DOCS: ToolDoc[] = [
@@ -108,7 +109,8 @@ const DOCS: ToolDoc[] = [
     auth: "oauth-user",
     rate_limit: "120 / 60s",
     inputs: { run_id: "UUID from start_run" },
-    outputs: "{ status, progress, started_at, finished_at, error }",
+    outputs: "{ status, progress, started_at, finished_at, canceled_at, cancel_requested, error }",
+    error_codes: ["not_authenticated", "not_found", "db_error"],
   },
   {
     name: "get_run_result",
@@ -116,7 +118,8 @@ const DOCS: ToolDoc[] = [
     auth: "oauth-user",
     rate_limit: "60 / 60s",
     inputs: { run_id: "UUID from start_run" },
-    outputs: "Full result JSON of a succeeded run.",
+    outputs: "Full result JSON of a succeeded run. On error: { error: { code, message, status?, progress? } }.",
+    error_codes: ["not_authenticated", "not_found", "db_error", "run_running", "run_failed", "run_canceled"],
   },
   {
     name: "get_run_logs",
@@ -126,23 +129,41 @@ const DOCS: ToolDoc[] = [
     inputs: { run_id: "UUID from start_run" },
     outputs: "{ logs: [{ t, level, msg }], error }",
     notes: "Use this to debug a failed run.",
+    error_codes: ["not_authenticated", "not_found", "db_error"],
+  },
+  {
+    name: "cancel_run",
+    title: "Cancel a simulation run",
+    auth: "oauth-user",
+    rate_limit: "30 / 60s",
+    inputs: { run_id: "UUID from start_run" },
+    outputs: "{ run_id, status, canceled: bool, canceled_at? }. No-op when the run already finished.",
+    notes: "Cancels a running sensitivity sweep between combos. In-flight synchronous simulate() calls are not interrupted; the run is marked canceled and partial results persisted.",
+    error_codes: ["not_authenticated", "not_found", "db_error"],
   },
   {
     name: "watchlist_updates",
     title: "Poll watchlist updates",
     auth: "oauth-user",
     rate_limit: "60 / 60s",
-    inputs: { since: "ISO cursor (optional)", include_dividends: "bool", max_symbols: "1..50" },
-    outputs: "{ cursor, quotes: [...], alerts: [...] }",
-    notes: "Pass the returned cursor as `since` on the next call for incremental alerts.",
+    inputs: {
+      since: "ISO cursor from prior next_since (optional; last 24h if omitted)",
+      include_dividends: "bool (default true)",
+      include_quotes: "bool (default true; false = alerts-only)",
+      max_symbols: "1..50 (default 25)",
+      limit: "1..500 (default 100) alerts per page",
+    },
+    outputs: "{ next_since, cursor, since, has_more, limit, count, symbols, quotes, alerts }",
+    notes: "Alerts are returned oldest→newest. Page with the same `since` while `has_more=true`, then advance to `next_since`. Uses strict `>` on created_at, so no duplicates and no gaps.",
+    error_codes: ["not_authenticated", "db_error"],
   },
   {
     name: "list_tool_docs",
     title: "List tool documentation",
     auth: "public",
     rate_limit: null,
-    inputs: { format: "'json' | 'markdown' (default 'markdown')" },
-    outputs: "Documentation of every tool with inputs, outputs, auth, and rate limits.",
+    inputs: { format: "'json' | 'markdown' | 'json-schema' (default 'markdown')" },
+    outputs: "Documentation of every tool with inputs, outputs, auth, rate limits, and error codes. `json-schema` returns the full machine-readable MCP manifest (JSON Schema for every tool input).",
   },
 ];
 
@@ -151,6 +172,8 @@ function toMarkdown(): string {
     "# Vela MCP tools",
     "",
     "Server: `vela` — auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
+    "",
+    "Error envelope for authenticated run/watchlist tools: `{ error: { code, message, ...extra } }`. Branch on `code`.",
     "",
   ];
   for (const d of DOCS) {
@@ -166,22 +189,34 @@ function toMarkdown(): string {
       lines.push("- **Inputs:** none");
     }
     lines.push(`- **Output:** ${d.outputs}`);
+    if (d.error_codes?.length) lines.push(`- **Error codes:** ${d.error_codes.map((c) => `\`${c}\``).join(", ")}`);
     if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
     lines.push("");
   }
   return lines.join("\n");
 }
 
+// Bundled at build time: the same catalog Lovable's More → Agent integrations panel
+// reads. Import-safe (pure JSON) so the entry-eval and cold-start rules hold.
+import manifest from "../../../../.lovable/mcp/manifest.json" with { type: "json" };
+
 export default defineTool({
   name: "list_tool_docs",
   title: "List tool documentation",
   description:
-    "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public — no auth required.",
+    "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public — no auth required.",
   inputSchema: {
-    format: z.enum(["json", "markdown"]).default("markdown").describe("Output format."),
+    format: z.enum(["json", "markdown", "json-schema"]).default("markdown").describe("Output format."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ format }) => {
+    if (format === "json-schema") {
+      const payload = manifest as unknown as Record<string, unknown>;
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload,
+      };
+    }
     if (format === "json") {
       return {
         content: [{ type: "text", text: JSON.stringify({ tools: DOCS }) }],

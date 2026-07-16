@@ -1326,6 +1326,629 @@ var watchlist_updates_default = defineTool13({
 // src/lib/mcp/tools/list-tool-docs.ts
 import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z11 } from "npm:zod@^4.4.3";
+
+// .lovable/mcp/manifest.json
+var manifest_default = {
+  version: 1,
+  sdk_version: "0.22.2",
+  path: "/functions/v1/mcp",
+  auth: {
+    type: "oauth",
+    issuer: "https://pcisxjfgdrgpxzfzfscf.supabase.co/auth/v1",
+    accepted_audiences: [
+      "authenticated"
+    ]
+  },
+  mcp: {
+    server: {
+      name: "vela",
+      version: "1.0.0",
+      title: "Vela \u2014 Trading Strategy Platform"
+    },
+    tools: [
+      {
+        name: "get_quote",
+        title: "Get quote",
+        description: "Latest price and daily change for a Yahoo-style ticker (e.g. AAPL, ENI.MI, ASML.AS). Public market data \u2014 no auth required.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            symbol: {
+              type: "string",
+              minLength: 1,
+              description: "Yahoo-style ticker symbol, e.g. AAPL, ENI.MI"
+            }
+          },
+          required: [
+            "symbol"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "search_strategies",
+        title: "Search strategies",
+        description: "Search Vela's strategy library by free-text query (name, category, risk, horizon). Public \u2014 no auth required.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            query: {
+              default: "",
+              description: 'Free-text query, e.g. "momentum", "mean reversion", "low risk"',
+              type: "string"
+            },
+            limit: {
+              default: 10,
+              description: "Max results (1\u201350)",
+              type: "integer",
+              minimum: 1,
+              maximum: 50
+            }
+          }
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_watchlist",
+        title: "Get watchlist",
+        description: "Return the signed-in Vela user's watchlist items (symbol, name, added-at).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {}
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_portfolio",
+        title: "Get portfolio",
+        description: "Return the signed-in Vela user's portfolio holdings (symbol, shares, avg price, currency).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {}
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_net_worth",
+        title: "Get net worth summary",
+        description: "Return the signed-in Vela user's net-worth accounts with totals for assets, liabilities and net. Values are in each account's stored currency (no FX conversion).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {}
+        },
+        outputSchema: null
+      },
+      {
+        name: "list_cash_flow",
+        title: "List cash flow entries",
+        description: "Return the signed-in user's cash flow entries (income/expense), most recent first. Optional `limit` (default 100, max 500).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            limit: {
+              type: "integer",
+              exclusiveMinimum: 0,
+              maximum: 9007199254740991,
+              description: "Max entries to return (default 100, capped at 500)."
+            }
+          }
+        },
+        outputSchema: null
+      },
+      {
+        name: "add_cash_flow_entry",
+        title: "Add cash flow entry",
+        description: "Record an income or expense for the signed-in user. Use `recurring_monthly: true` for fixed monthly bills or salary \u2014 Vela will project it forward automatically.",
+        annotations: {
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            direction: {
+              type: "string",
+              enum: [
+                "income",
+                "expense"
+              ],
+              description: "Whether this is income or an expense."
+            },
+            category: {
+              type: "string",
+              description: "Category label (e.g. Salary, Housing, Food, Subscriptions)."
+            },
+            amount: {
+              type: "number",
+              exclusiveMinimum: 0,
+              description: "Positive amount in the entry's currency."
+            },
+            entry_date: {
+              type: "string",
+              description: "Date in YYYY-MM-DD; defaults to today when omitted."
+            },
+            currency: {
+              type: "string",
+              description: "3-letter currency code (default EUR)."
+            },
+            label: {
+              type: "string",
+              description: "Optional short note, e.g. 'Rent', 'Employer'."
+            },
+            recurring_monthly: {
+              type: "boolean",
+              description: "True if this repeats every month."
+            }
+          },
+          required: [
+            "direction",
+            "category",
+            "amount"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "project_dividends",
+        title: "Project future dividend income",
+        description: "Model annual dividend income for a given horizon using contributions, dividend yield, dividend growth, price appreciation, tax rate and optional DRIP. Accepts an optional `positions` array to seed the starting value and blended yield from real holdings. Returns per-year rows (portfolio value, gross/net dividends, yield on cost) plus totals.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            starting_value: {
+              type: "number",
+              description: "Starting portfolio value in the projection currency."
+            },
+            monthly_contribution: {
+              type: "number",
+              description: "Monthly cash added to the portfolio."
+            },
+            contribution_growth_pct: {
+              type: "number",
+              description: "Annual growth of monthly contributions in percent."
+            },
+            dividend_yield_pct: {
+              type: "number",
+              description: "Starting annual dividend yield in percent."
+            },
+            dividend_growth_pct: {
+              type: "number",
+              description: "Annual dividend growth rate in percent (DGR)."
+            },
+            price_growth_pct: {
+              type: "number",
+              description: "Annual price appreciation in percent."
+            },
+            tax_pct: {
+              type: "number",
+              description: "Dividend withholding/income tax rate in percent."
+            },
+            years: {
+              type: "number",
+              description: "Projection horizon in years."
+            },
+            reinvest: {
+              type: "boolean",
+              description: "If true, net dividends buy new shares (DRIP)."
+            },
+            payout_frequency: {
+              type: "number",
+              description: "Payouts per year: 1, 2, 4 or 12."
+            },
+            reinvest_rate_pct: {
+              description: "Optional global DRIP rate 0-100 overriding `reinvest`. Ignored if any position sets `drip_pct`.",
+              type: "number"
+            },
+            positions: {
+              description: "Optional real holdings. When provided, seed the starting value and blended yield from these positions.",
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  symbol: {
+                    type: "string"
+                  },
+                  shares: {
+                    type: "number"
+                  },
+                  price: {
+                    type: "number"
+                  },
+                  yield_pct: {
+                    type: "number"
+                  },
+                  next_payout_month: {
+                    type: "number"
+                  },
+                  drip_pct: {
+                    type: "number"
+                  }
+                },
+                required: [
+                  "symbol",
+                  "shares",
+                  "price",
+                  "yield_pct"
+                ]
+              }
+            }
+          },
+          required: [
+            "starting_value",
+            "monthly_contribution",
+            "contribution_growth_pct",
+            "dividend_yield_pct",
+            "dividend_growth_pct",
+            "price_growth_pct",
+            "tax_pct",
+            "years",
+            "reinvest",
+            "payout_frequency"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "run_backtest",
+        title: "Run backtest",
+        description: "Run a fast historical backtest on a Yahoo-style ticker with a preset strategy (buy_hold, sma_cross, rsi). Returns CAGR, total return, max drawdown, Sharpe, hit rate, and trade count. Requires authentication (rate-limited).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            symbol: {
+              type: "string",
+              minLength: 1,
+              description: "Yahoo ticker, e.g. AAPL, ENI.MI, BTC-USD"
+            },
+            preset: {
+              default: "sma_cross",
+              description: "Strategy preset",
+              type: "string",
+              enum: [
+                "buy_hold",
+                "sma_cross",
+                "rsi"
+              ]
+            },
+            range: {
+              default: "2y",
+              description: "Historical window",
+              type: "string",
+              enum: [
+                "6mo",
+                "1y",
+                "2y",
+                "5y",
+                "10y",
+                "max"
+              ]
+            },
+            initial_capital: {
+              default: 1e4,
+              description: "Starting cash for the sim",
+              type: "number",
+              exclusiveMinimum: 0,
+              maximum: 1e7
+            },
+            fast: {
+              description: "Fast SMA (sma_cross only)",
+              type: "integer",
+              minimum: 2,
+              maximum: 200
+            },
+            slow: {
+              description: "Slow SMA (sma_cross only)",
+              type: "integer",
+              minimum: 3,
+              maximum: 400
+            },
+            rsi_period: {
+              description: "RSI lookback (rsi only)",
+              type: "integer",
+              minimum: 2,
+              maximum: 50
+            },
+            rsi_buy: {
+              description: "RSI oversold threshold",
+              type: "number",
+              minimum: 1,
+              maximum: 99
+            },
+            rsi_sell: {
+              description: "RSI overbought threshold",
+              type: "number",
+              minimum: 1,
+              maximum: 99
+            },
+            stop_pct: {
+              description: "Stop-loss %",
+              type: "number",
+              minimum: 0,
+              maximum: 100
+            },
+            target_pct: {
+              description: "Take-profit %",
+              type: "number",
+              minimum: 0,
+              maximum: 500
+            }
+          },
+          required: [
+            "symbol"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "start_run",
+        title: "Start a backtest or sensitivity run",
+        description: "Kick off a `backtest` (single-config) or `sensitivity` (parameter sweep) simulation and return a run_id. Follow up with `get_run_status`, `get_run_result`, or `get_run_logs`. Requires authentication.",
+        annotations: {
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            kind: {
+              type: "string",
+              enum: [
+                "backtest",
+                "sensitivity"
+              ],
+              description: "What to run"
+            },
+            input: {
+              type: "object",
+              propertyNames: {
+                type: "string"
+              },
+              additionalProperties: {},
+              description: "For kind='backtest': BacktestInput { symbol, preset, range, initial_capital, fast, slow, rsi_period, rsi_buy, rsi_sell, stop_pct, target_pct }. For kind='sensitivity': BacktestInput + `sweep` object with arrays of values for fast/slow/rsi_period/rsi_buy/rsi_sell (max 64 combinations)."
+            }
+          },
+          required: [
+            "kind",
+            "input"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_run_status",
+        title: "Get run status",
+        description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished/canceled timestamps, error string if failed). On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_run_result",
+        title: "Get run result",
+        description: "Return the full result JSON of a completed simulation run. Errors with a typed envelope `{ error: { code, message, status?, progress? } }` when the run is not ready. Codes: not_authenticated, not_found, db_error, run_running, run_failed, run_canceled. Requires authentication; only the run owner can read it.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_run_logs",
+        title: "Get run worker logs",
+        description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "cancel_run",
+        title: "Cancel a simulation run",
+        description: "Request cancellation of an in-flight backtest or sensitivity run started with `start_run`. Sets `cancel_requested=true` on the run; the worker checks the flag between iterations and stops cleanly, writing `status='canceled'`. If the run is already `succeeded`, `failed`, or `canceled`, the call is a no-op. Requires authentication; only the run owner can cancel.",
+        annotations: {
+          readOnlyHint: false,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "watchlist_updates",
+        title: "Poll watchlist updates",
+        description: "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` \u2014 page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            since: {
+              description: "ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h.",
+              type: "string",
+              format: "date-time",
+              pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            include_dividends: {
+              default: true,
+              description: "Include dividend fields per symbol.",
+              type: "boolean"
+            },
+            max_symbols: {
+              default: 25,
+              description: "Cap on symbols to quote.",
+              type: "integer",
+              minimum: 1,
+              maximum: 50
+            },
+            limit: {
+              default: 100,
+              description: "Max alerts per page. `has_more` indicates more pages.",
+              type: "integer",
+              minimum: 1,
+              maximum: 500
+            },
+            include_quotes: {
+              default: true,
+              description: "Skip quote fetches for pure alert-tail polling (faster).",
+              type: "boolean"
+            }
+          }
+        },
+        outputSchema: null
+      },
+      {
+        name: "list_tool_docs",
+        title: "List tool documentation",
+        description: "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public \u2014 no auth required.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            format: {
+              default: "markdown",
+              description: "Output format.",
+              type: "string",
+              enum: [
+                "json",
+                "markdown",
+                "json-schema"
+              ]
+            }
+          }
+        },
+        outputSchema: null
+      }
+    ]
+  }
+};
+
+// src/lib/mcp/tools/list-tool-docs.ts
 var DOCS = [
   {
     name: "get_quote",
@@ -1418,7 +2041,8 @@ var DOCS = [
     auth: "oauth-user",
     rate_limit: "120 / 60s",
     inputs: { run_id: "UUID from start_run" },
-    outputs: "{ status, progress, started_at, finished_at, error }"
+    outputs: "{ status, progress, started_at, finished_at, canceled_at, cancel_requested, error }",
+    error_codes: ["not_authenticated", "not_found", "db_error"]
   },
   {
     name: "get_run_result",
@@ -1426,7 +2050,8 @@ var DOCS = [
     auth: "oauth-user",
     rate_limit: "60 / 60s",
     inputs: { run_id: "UUID from start_run" },
-    outputs: "Full result JSON of a succeeded run."
+    outputs: "Full result JSON of a succeeded run. On error: { error: { code, message, status?, progress? } }.",
+    error_codes: ["not_authenticated", "not_found", "db_error", "run_running", "run_failed", "run_canceled"]
   },
   {
     name: "get_run_logs",
@@ -1435,24 +2060,42 @@ var DOCS = [
     rate_limit: "120 / 60s",
     inputs: { run_id: "UUID from start_run" },
     outputs: "{ logs: [{ t, level, msg }], error }",
-    notes: "Use this to debug a failed run."
+    notes: "Use this to debug a failed run.",
+    error_codes: ["not_authenticated", "not_found", "db_error"]
+  },
+  {
+    name: "cancel_run",
+    title: "Cancel a simulation run",
+    auth: "oauth-user",
+    rate_limit: "30 / 60s",
+    inputs: { run_id: "UUID from start_run" },
+    outputs: "{ run_id, status, canceled: bool, canceled_at? }. No-op when the run already finished.",
+    notes: "Cancels a running sensitivity sweep between combos. In-flight synchronous simulate() calls are not interrupted; the run is marked canceled and partial results persisted.",
+    error_codes: ["not_authenticated", "not_found", "db_error"]
   },
   {
     name: "watchlist_updates",
     title: "Poll watchlist updates",
     auth: "oauth-user",
     rate_limit: "60 / 60s",
-    inputs: { since: "ISO cursor (optional)", include_dividends: "bool", max_symbols: "1..50" },
-    outputs: "{ cursor, quotes: [...], alerts: [...] }",
-    notes: "Pass the returned cursor as `since` on the next call for incremental alerts."
+    inputs: {
+      since: "ISO cursor from prior next_since (optional; last 24h if omitted)",
+      include_dividends: "bool (default true)",
+      include_quotes: "bool (default true; false = alerts-only)",
+      max_symbols: "1..50 (default 25)",
+      limit: "1..500 (default 100) alerts per page"
+    },
+    outputs: "{ next_since, cursor, since, has_more, limit, count, symbols, quotes, alerts }",
+    notes: "Alerts are returned oldest\u2192newest. Page with the same `since` while `has_more=true`, then advance to `next_since`. Uses strict `>` on created_at, so no duplicates and no gaps.",
+    error_codes: ["not_authenticated", "db_error"]
   },
   {
     name: "list_tool_docs",
     title: "List tool documentation",
     auth: "public",
     rate_limit: null,
-    inputs: { format: "'json' | 'markdown' (default 'markdown')" },
-    outputs: "Documentation of every tool with inputs, outputs, auth, and rate limits."
+    inputs: { format: "'json' | 'markdown' | 'json-schema' (default 'markdown')" },
+    outputs: "Documentation of every tool with inputs, outputs, auth, rate limits, and error codes. `json-schema` returns the full machine-readable MCP manifest (JSON Schema for every tool input)."
   }
 ];
 function toMarkdown() {
@@ -1460,6 +2103,8 @@ function toMarkdown() {
     "# Vela MCP tools",
     "",
     "Server: `vela` \u2014 auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
+    "",
+    "Error envelope for authenticated run/watchlist tools: `{ error: { code, message, ...extra } }`. Branch on `code`.",
     ""
   ];
   for (const d of DOCS) {
@@ -1475,6 +2120,7 @@ function toMarkdown() {
       lines.push("- **Inputs:** none");
     }
     lines.push(`- **Output:** ${d.outputs}`);
+    if (d.error_codes?.length) lines.push(`- **Error codes:** ${d.error_codes.map((c) => `\`${c}\``).join(", ")}`);
     if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
     lines.push("");
   }
@@ -1483,12 +2129,19 @@ function toMarkdown() {
 var list_tool_docs_default = defineTool14({
   name: "list_tool_docs",
   title: "List tool documentation",
-  description: "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public \u2014 no auth required.",
+  description: "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public \u2014 no auth required.",
   inputSchema: {
-    format: z11.enum(["json", "markdown"]).default("markdown").describe("Output format.")
+    format: z11.enum(["json", "markdown", "json-schema"]).default("markdown").describe("Output format.")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ format }) => {
+    if (format === "json-schema") {
+      const payload = manifest_default;
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload
+      };
+    }
     if (format === "json") {
       return {
         content: [{ type: "text", text: JSON.stringify({ tools: DOCS }) }],

@@ -590,7 +590,7 @@
       {
         "name": "list_tool_docs",
         "title": "List tool documentation",
-        "description": "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public — no auth required.",
+        "description": "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public — no auth required.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -606,7 +606,8 @@
               "type": "string",
               "enum": [
                 "json",
-                "markdown"
+                "markdown",
+                "json-schema"
               ]
             }
           }

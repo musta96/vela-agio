@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import StockDetails from "./pages/StockDetails";
 import SentimentDashboard from "./pages/SentimentDashboard";
 import BacktestingModule from "./pages/BacktestingModule";
+import StrategyLab from "./pages/StrategyLab";
 import Portfolio from "./pages/Portfolio";
 import Watchlist from "./pages/Watchlist";
 import SmartPicks from "./pages/SmartPicks";
@@ -150,6 +151,7 @@ const App = () => (
             <Route path="/sentiment" element={<SentimentDashboard />} />
             <Route path="/backtest" element={<BacktestingModule />} />
             <Route path="/backtesting" element={<Navigate to="/backtest" replace />} />
+            <Route path="/strategy-lab" element={<StrategyLab />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />

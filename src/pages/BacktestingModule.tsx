@@ -23,6 +23,8 @@ import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
 import { exportBacktestCsv, exportBacktestPdf } from "@/lib/backtestExport";
 import { BacktestQuantPanel } from "@/components/BacktestQuantPanel";
 import { decodeQuantParam } from "@/lib/quantShareLink";
+import { BacktestDetailCharts } from "@/components/backtest/BacktestDetailCharts";
+import { WalkForwardCard } from "@/components/backtest/WalkForwardCard";
 
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
@@ -485,6 +487,9 @@ const BacktestingModule = () => {
                     )}
                   </CardContent>
                 </Card>
+
+                <BacktestDetailCharts equity={result.equity} trades={result.trades} />
+                <WalkForwardCard equity={result.equity} />
 
                 <BacktestQuantPanel
                   equity={result.equity}

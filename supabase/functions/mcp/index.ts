@@ -228,7 +228,7 @@ var get_portfolio_default = defineTool4({
   description: "Return the signed-in Vela user's portfolio holdings (symbol, shares, avg price, currency).",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async (_args, ctx) => {
+  handler: async (_args, ctx) => withInstrumentation("get_portfolio", ctx, async () => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
     }
@@ -242,7 +242,7 @@ var get_portfolio_default = defineTool4({
       content: [{ type: "text", text: JSON.stringify(holdings) }],
       structuredContent: { holdings }
     };
-  }
+  }, { rateLimit: { max: 60, windowSec: 60 } })
 });
 
 // src/lib/mcp/tools/get-net-worth.ts

@@ -129,7 +129,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
-  const [history, setHistory] = useState<YearRoic[]>([]);
+  const [history, setHistory] = useState<YearRow[]>([]);
   const [showDrilldown, setShowDrilldown] = useState(false);
 
   // Editable WACC assumptions (percent inputs in the UI, decimal internally).

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight, Download, LineChart as LineChartIcon, SlidersHorizontal, History } from "lucide-react";
+import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight, Download, LineChart as LineChartIcon, SlidersHorizontal, History, AlertTriangle, FileDown, ArrowDown, ArrowUp } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine,
 } from "recharts";
@@ -14,6 +14,8 @@ import { computeRoic, computeWacc, pct, roicWaccSpread, type WaccInputs } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const PROXY = "https://api.allorigins.win/raw?url=";
 
@@ -142,13 +144,26 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
   // Peer comparison.
   const [peerInput, setPeerInput] = useState("");
-  const [peers, setPeers] = useState<{ sym: string; roic: number | null; wacc: number | null; spread: number | null; loading?: boolean; err?: string }[]>([]);
+  type PeerRow = {
+    sym: string;
+    roic: number | null;
+    wacc: number | null;
+    spread: number | null;
+    trend: Array<{ year: string; spread: number | null }>;
+    trendPP: number | null; // Δ pp from oldest to newest spread in `trend`.
+    loading?: boolean;
+    err?: string;
+  };
+  const [peers, setPeers] = useState<PeerRow[]>([]);
+  const [peerSort, setPeerSort] = useState<"spread" | "trend">("spread");
 
   // Alert config UI toggle.
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertWindowDays, setAlertWindowDays] = useState(30);
   const [alertThresholdBps, setAlertThresholdBps] = useState(100);
   const [alertDirection, setAlertDirection] = useState<"either" | "improve" | "worsen">("either");
+  // Minimum bars (years, in the annual backtest) that must elapse between two triggers.
+  const [alertMinHoldYears, setAlertMinHoldYears] = useState(0);
   const [alertSaving, setAlertSaving] = useState(false);
 
   // Sensitivity ranges.
@@ -160,6 +175,44 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
   // Filing-field drilldown toggle.
   const [fieldMapOpen, setFieldMapOpen] = useState(false);
+
+  // Refs used by the PDF export to snapshot the on-screen chart SVG.
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  // ------------------------------------------------------------------
+  // Per-ticker persistence of rf / ERP / tax / β / kd slider settings.
+  // ------------------------------------------------------------------
+  const storageKey = useMemo(() => `roic-wacc:${symbol.toUpperCase()}`, [symbol]);
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    // Reset hydration flag whenever the ticker changes so we re-load its
+    // saved sliders (or fall back to filing defaults inside `load`).
+    hydratedRef.current = false;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const s = JSON.parse(raw) as {
+          rfPct?: number; erpPct?: number; kdPct?: number;
+          taxPct?: number | ""; betaIn?: number | "";
+        };
+        if (typeof s.rfPct === "number") setRfPct(s.rfPct);
+        if (typeof s.erpPct === "number") setErpPct(s.erpPct);
+        if (typeof s.kdPct === "number") setKdPct(s.kdPct);
+        if (s.taxPct === "" || typeof s.taxPct === "number") setTaxPct(s.taxPct);
+        if (s.betaIn === "" || typeof s.betaIn === "number") setBetaIn(s.betaIn);
+        // Mark dirty so `load` won't stomp the restored values with filing defaults.
+        setAssumptionsDirty(true);
+      }
+      hydratedRef.current = true;
+    } catch { hydratedRef.current = true; }
+  }, [storageKey]);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ rfPct, erpPct, kdPct, taxPct, betaIn }));
+    } catch { /* quota / private mode */ }
+  }, [storageKey, rfPct, erpPct, kdPct, taxPct, betaIn]);
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
@@ -239,6 +292,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     if (pts.length < 2) return { count: 0, events: [] as Array<{ year: string; delta: number; direction: "improve" | "worsen" }> };
     const thr = alertThresholdBps / 10000;
     const events: Array<{ year: string; delta: number; direction: "improve" | "worsen" }> = [];
+    let lastIdx = -Infinity;
     for (let i = 1; i < pts.length; i++) {
       const d = pts[i].spread - pts[i - 1].spread;
       const dir: "improve" | "worsen" = d >= 0 ? "improve" : "worsen";
@@ -246,10 +300,38 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         alertDirection === "either" ? Math.abs(d) >= thr :
         alertDirection === "improve" ? d >= thr :
         -d >= thr;
-      if (pass) events.push({ year: pts[i].year, delta: d, direction: dir });
+      // Enforce a minimum-hold window: after a trigger, skip further events
+      // until at least `alertMinHoldYears` bars have elapsed.
+      if (pass && i - lastIdx >= Math.max(1, alertMinHoldYears)) {
+        events.push({ year: pts[i].year, delta: d, direction: dir });
+        lastIdx = i;
+      }
     }
     return { count: events.length, events };
-  }, [timeSeries, alertThresholdBps, alertDirection]);
+  }, [timeSeries, alertThresholdBps, alertDirection, alertMinHoldYears]);
+
+  // ------------------------------------------------------------------
+  // Data-quality scan — flag ticker-years where any input is missing/derived.
+  // ------------------------------------------------------------------
+  const dataQuality = useMemo(() => {
+    const issues: Array<{ year: string; missing: string[]; estimated: string[] }> = [];
+    for (const r of history) {
+      const missing: string[] = [];
+      const estimated: string[] = [];
+      if (r.ebit == null) missing.push("EBIT");
+      if (r.equityBook == null) missing.push("equity");
+      if (r.ltDebt == null && r.stDebt == null) missing.push("debt");
+      if (r.cash == null) estimated.push("cash → assumed 0");
+      if (r.taxRate == null) estimated.push("tax rate → falls back to statutory");
+      if (missing.length || estimated.length) issues.push({ year: r.year, missing, estimated });
+    }
+    const affectedYears = issues.map((i) => i.year);
+    const badBacktestSteps = timeSeries
+      .map((r, i) => ({ ...r, i }))
+      .filter((r) => r.i > 0 && (r.spread == null || timeSeries[r.i - 1]?.spread == null))
+      .map((r) => r.year);
+    return { issues, affectedYears, badBacktestSteps };
+  }, [history, timeSeries]);
 
   // Sensitivity: 2^4 corner sweep + one-at-a-time driver sweep.
   const sensitivity = useMemo(() => {
@@ -307,15 +389,17 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const loadPeers = async () => {
     const syms = peerInput.split(/[,\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 8);
     if (!syms.length) { toast({ title: "Enter one or more peer tickers (comma-separated)" }); return; }
-    setPeers(syms.map((sym) => ({ sym, roic: null, wacc: null, spread: null, loading: true })));
+    setPeers(syms.map((sym) => ({ sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, loading: true })));
     const rows = await Promise.all(syms.map(async (sym) => {
       try {
         const res = await fetchSnapshot(sym);
-        if (!res) return { sym, roic: null, wacc: null, spread: null, err: "no data" };
+        if (!res) return { sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, err: "no data" } as PeerRow;
         const totalDebt = (res.snap.ltDebt ?? 0) + (res.snap.stDebt ?? 0);
+        const currentTax = taxPct === "" ? res.snap.effTaxRate : Number(taxPct) / 100;
+        const currentBeta = res.snap.beta;
         const roic = computeRoic({
           ebit: res.snap.ebit,
-          taxRate: taxPct === "" ? res.snap.effTaxRate : Number(taxPct) / 100,
+          taxRate: currentTax,
           totalEquity: res.snap.equity,
           longTermDebt: res.snap.ltDebt,
           shortLongTermDebt: res.snap.stDebt,
@@ -324,15 +408,28 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         const w = computeWacc({
           marketCap: res.snap.marketCap,
           totalDebt,
-          beta: res.snap.beta,
+          beta: currentBeta,
           riskFreeRate: rfPct / 100,
           equityRiskPremium: erpPct / 100,
           preTaxCostOfDebt: kdPct / 100,
-          taxRate: taxPct === "" ? res.snap.effTaxRate : Number(taxPct) / 100,
+          taxRate: currentTax,
         });
-        return { sym, roic: roic.roic, wacc: w.wacc, spread: roicWaccSpread(roic.roic, w.wacc) };
+        // Per-year trend (spread over the last four filings) using same assumptions.
+        const trend = res.history.map((r) => {
+          const t = taxPct === "" ? (r.taxRate ?? res.snap.effTaxRate ?? 0.21) : Number(taxPct) / 100;
+          const ww = computeWacc({
+            marketCap: r.equityBook, totalDebt: r.totalDebt,
+            beta: currentBeta ?? 1,
+            riskFreeRate: rfPct / 100, equityRiskPremium: erpPct / 100,
+            preTaxCostOfDebt: kdPct / 100, taxRate: t,
+          });
+          return { year: r.year, spread: roicWaccSpread(r.roic, ww.wacc) };
+        });
+        const spreads = trend.map((p) => p.spread).filter((v): v is number => v != null);
+        const trendPP = spreads.length >= 2 ? (spreads[spreads.length - 1] - spreads[0]) * 100 : null;
+        return { sym, roic: roic.roic, wacc: w.wacc, spread: roicWaccSpread(roic.roic, w.wacc), trend, trendPP } as PeerRow;
       } catch {
-        return { sym, roic: null, wacc: null, spread: null, err: "error" };
+        return { sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, err: "error" } as PeerRow;
       }
     }));
     setPeers(rows);
@@ -343,6 +440,38 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
     return { roic: avg(nums("roic")), wacc: avg(nums("wacc")), spread: avg(nums("spread")) };
   }, [peers]);
+
+  // Combined ranking list: `this` ticker + peers, sorted by chosen key.
+  const rankedTickers = useMemo(() => {
+    const baseTrend = timeSeries.map((r) => ({ year: r.year, spread: r.spread }));
+    const baseSpreads = baseTrend.map((p) => p.spread).filter((v): v is number => v != null);
+    const baseTrendPP = baseSpreads.length >= 2 ? (baseSpreads[baseSpreads.length - 1] - baseSpreads[0]) * 100 : null;
+    const rows: Array<{
+      sym: string; roic: number | null; wacc: number | null; spread: number | null;
+      trend: Array<{ year: string; spread: number | null }>; trendPP: number | null;
+      isBase: boolean; err?: string;
+    }> = [
+      {
+        sym: symbol.toUpperCase(),
+        roic: roicLatest?.roic ?? null,
+        wacc: wacc?.wacc ?? null,
+        spread: spread ?? null,
+        trend: baseTrend,
+        trendPP: baseTrendPP,
+        isBase: true,
+      },
+      ...peers.map((p) => ({ ...p, isBase: false })),
+    ];
+    const key: "spread" | "trendPP" = peerSort === "spread" ? "spread" : "trendPP";
+    rows.sort((a, b) => {
+      const av = a[key], bv = b[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return bv - av;
+    });
+    return rows;
+  }, [peers, peerSort, symbol, roicLatest, wacc, spread, timeSeries]);
 
   const downloadCsv = () => {
     const esc = (v: any) => {
@@ -412,6 +541,172 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     URL.revokeObjectURL(url);
   };
 
+  // Rasterize the on-screen Recharts SVG into a PNG data URL.
+  const captureChartPng = async (): Promise<string | null> => {
+    const svg = chartRef.current?.querySelector("svg");
+    if (!svg) return null;
+    const w = svg.clientWidth || 720;
+    const h = svg.clientHeight || 280;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", String(w));
+    clone.setAttribute("height", String(h));
+    // Inline a white background so the chart is readable on a PDF page.
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%"); bg.setAttribute("fill", "#ffffff");
+    clone.insertBefore(bg, clone.firstChild);
+    const xml = new XMLSerializer().serializeToString(clone);
+    const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = 2;
+        canvas.width = w * scale; canvas.height = h * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        try { resolve(canvas.toDataURL("image/png")); } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  };
+
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 40;
+      let y = margin;
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+      doc.text(`${symbol.toUpperCase()} — ROIC / WACC report`, margin, y); y += 20;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text(`Exported ${new Date().toLocaleString()} · Vela.ai`, margin, y); y += 14;
+      doc.setTextColor(20);
+
+      // Headline metrics
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text(`ROIC ${pct(roicLatest?.roic)}   ·   WACC ${pct(wacc?.wacc)}   ·   Spread ${pct(spread)}`, margin, y);
+      y += 16;
+
+      // Assumptions
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text("Assumptions", margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4, theme: "grid", styles: { fontSize: 8 },
+        head: [["rf", "ERP", "kd", "Tax", "Beta"]],
+        body: [[
+          `${rfPct.toFixed(2)}%`, `${erpPct.toFixed(2)}%`, `${kdPct.toFixed(2)}%`,
+          taxPct === "" ? (snap?.effTaxRate != null ? `${(snap.effTaxRate * 100).toFixed(2)}%` : "—") : `${Number(taxPct).toFixed(2)}%`,
+          betaIn === "" ? (snap?.beta != null ? snap.beta.toFixed(2) : "—") : Number(betaIn).toFixed(2),
+        ]],
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+      // Chart
+      const png = await captureChartPng();
+      if (png) {
+        const imgW = pageW - margin * 2;
+        const imgH = imgW * (280 / 720);
+        if (y + imgH > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        doc.text("ROIC · WACC · Spread over time", margin, y); y += 8;
+        doc.addImage(png, "PNG", margin, y, imgW, imgH);
+        y += imgH + 10;
+      }
+
+      // Time series table
+      autoTable(doc, {
+        startY: y, theme: "striped", styles: { fontSize: 8 },
+        head: [["Year", "End date", "ROIC", "WACC", "Spread"]],
+        body: timeSeries.map((r) => [
+          r.year, r.endDate,
+          r.roicPct != null ? `${r.roicPct.toFixed(2)}%` : "—",
+          r.waccPct != null ? `${r.waccPct.toFixed(2)}%` : "—",
+          r.spreadPct != null ? `${r.spreadPct.toFixed(2)}%` : "—",
+        ]),
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+      // Sensitivity
+      if (sensitivity) {
+        if (y > doc.internal.pageSize.getHeight() - 140) { doc.addPage(); y = margin; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        doc.text("Sensitivity summary", margin, y); y += 4;
+        autoTable(doc, {
+          startY: y + 4, theme: "grid", styles: { fontSize: 8 },
+          head: [["Metric", "Value"]],
+          body: [
+            ["Range low (min spread)", pct(sensitivity.min)],
+            ["Range high (max spread)", pct(sensitivity.max)],
+            ["Current spread", pct(spread)],
+            ["rf range", `${sensRf[0].toFixed(2)}% – ${sensRf[1].toFixed(2)}%`],
+            ["ERP range", `${sensErp[0].toFixed(2)}% – ${sensErp[1].toFixed(2)}%`],
+            ["Tax range", `${sensTax[0].toFixed(1)}% – ${sensTax[1].toFixed(1)}%`],
+            ["Beta range", `${sensBeta[0].toFixed(2)} – ${sensBeta[1].toFixed(2)}`],
+          ],
+        });
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+      }
+
+      // Backtest events
+      if (y > doc.internal.pageSize.getHeight() - 140) { doc.addPage(); y = margin; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text(`Backtest triggers — direction=${alertDirection}, threshold=${alertThresholdBps} bps, min-hold=${alertMinHoldYears}y`, margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4, theme: "striped", styles: { fontSize: 8 },
+        head: [["Year", "Δ spread (bps)", "Direction"]],
+        body: backtest.events.length
+          ? backtest.events.map((e) => [e.year, `${e.delta >= 0 ? "+" : ""}${(e.delta * 10000).toFixed(0)}`, e.direction])
+          : [["—", "no triggers", "—"]],
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+      // Filing drilldown
+      if (y > doc.internal.pageSize.getHeight() - 160) { doc.addPage(); y = margin; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text("Filing-field drilldown", margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4, theme: "grid", styles: { fontSize: 7 },
+        head: [["Line", "Filing field", "Unit", "Value"]],
+        body: [
+          ["EBIT", "incomeStatementHistory[0].operatingIncome", "USD", fmtB(snap?.ebit ?? null)],
+          ["× (1 − eff. tax)", "incomeTaxExpense ÷ incomeBeforeTax", "ratio", pct(roicLatest?.taxRate ?? null)],
+          ["NOPAT", "EBIT × (1 − tax)", "USD", fmtB(roicLatest?.nopat ?? null)],
+          ["Total equity", "balanceSheetHistory[0].totalStockholderEquity", "USD", fmtB(snap?.equity ?? null)],
+          ["LT debt", "balanceSheetHistory[0].longTermDebt", "USD", fmtB(snap?.ltDebt ?? null)],
+          ["ST portion LT debt", "balanceSheetHistory[0].shortLongTermDebt", "USD", fmtB(snap?.stDebt ?? null)],
+          ["Cash & equivalents", "balanceSheetHistory[0].cash", "USD", fmtB(snap?.cash ?? null)],
+          ["Invested capital", "equity + LT debt + ST debt − cash", "USD", fmtB(roicLatest?.investedCapital ?? null)],
+          ["Market cap", "price.marketCap", "USD (equity weight)", fmtB(snap?.marketCap ?? null)],
+          ["Beta", "summaryDetail.beta", "dimensionless", snap?.beta != null ? snap.beta.toFixed(2) : "—"],
+        ],
+      });
+
+      if (dataQuality.issues.length) {
+        doc.addPage(); y = margin;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        doc.text("Data quality — missing or estimated inputs", margin, y); y += 4;
+        autoTable(doc, {
+          startY: y + 4, theme: "grid", styles: { fontSize: 8 },
+          head: [["Year", "Missing", "Estimated / substituted"]],
+          body: dataQuality.issues.map((i) => [i.year, i.missing.join(", ") || "—", i.estimated.join(", ") || "—"]),
+        });
+      }
+
+      doc.save(`${symbol.toUpperCase()}_roic_wacc_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      toast({ title: "PDF export failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const saveAlert = async () => {
     if (!user) { toast({ title: "Please sign in to create alerts", variant: "destructive" }); return; }
     if (spread == null) { toast({ title: "Spread unavailable; cannot baseline the alert.", variant: "destructive" }); return; }
@@ -425,6 +720,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
       params: {
         window_days: alertWindowDays,
         direction: alertDirection,
+        min_hold_years: alertMinHoldYears,
         baseline_spread: spread,
         baseline_captured_at: new Date().toISOString(),
         assumptions: {
@@ -452,6 +748,29 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="space-y-4">
+      {dataQuality.issues.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs space-y-1.5">
+          <div className="flex items-center gap-1.5 font-semibold text-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+            Some ROIC / WACC inputs are missing or estimated
+          </div>
+          <ul className="ml-5 list-disc space-y-0.5">
+            {dataQuality.issues.map((i) => (
+              <li key={i.year}>
+                <span className="font-mono">{i.year}</span>
+                {i.missing.length > 0 && <> — missing: <span className="text-destructive">{i.missing.join(", ")}</span></>}
+                {i.estimated.length > 0 && <> — estimated: <span className="text-muted-foreground">{i.estimated.join(", ")}</span></>}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-muted-foreground">
+            Impact: affected years render as gaps in the spread chart and are skipped in the backtest
+            {dataQuality.badBacktestSteps.length ? ` (${dataQuality.badBacktestSteps.length} year-over-year step${dataQuality.badBacktestSteps.length === 1 ? "" : "s"} lost)` : ""}.
+            Estimated substitutions can shift the spread by up to a few pp.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {/* ROIC card */}
         <Card>
@@ -635,7 +954,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
             {alertOpen && (
               <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3 text-xs">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div>
                     <Label className="text-[10px]">Window (days)</Label>
                     <Input type="number" min={1} max={365} value={alertWindowDays} onChange={(e) => setAlertWindowDays(Math.max(1, Number(e.target.value) || 30))} className="h-8" />
@@ -652,9 +971,15 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                       <option value="worsen">Worsens ≥</option>
                     </select>
                   </div>
+                  <div>
+                    <Label className="text-[10px]">Min hold (years)</Label>
+                    <Input type="number" min={0} max={10} step={1} value={alertMinHoldYears} onChange={(e) => setAlertMinHoldYears(Math.max(0, Math.min(10, Number(e.target.value) || 0)))} className="h-8" />
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
                   Baselines the current spread ({pct(spread)}) and fires when |Δ| ≥ {alertThresholdBps} bps after {alertWindowDays} day(s).
+                  {alertMinHoldYears > 0 && <> Enforces a {alertMinHoldYears}-year minimum-hold gap between triggers.</>}
+                  {" "}The preview below rerun instantly on every change.
                 </p>
                 <div className="rounded border border-dashed border-border/60 p-2 space-y-1.5">
                   <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -719,7 +1044,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="w-full h-[280px]">
+            <div className="w-full h-[280px]" ref={chartRef}>
               <ResponsiveContainer>
                 <ComposedChart data={timeSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -855,11 +1180,17 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer &amp; sector comparison</CardTitle>
-              <CardDescription>Enter peer tickers (comma-separated) to compare ROIC, WACC, and the ROIC−WACC spread using the same assumptions.</CardDescription>
+              <CardDescription>Rank {symbol.toUpperCase()} and its peers by current ROIC−WACC spread or by the last-N-years trend, with a mini spread sparkline.</CardDescription>
             </div>
-            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={downloadCsv}>
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadCsv}>
+                <Download className="h-3.5 w-3.5" /> CSV
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadPdf} disabled={pdfBusy}>
+                {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+                PDF
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -868,51 +1199,63 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
               <Label className="text-[10px]">Peer symbols</Label>
               <Input value={peerInput} onChange={(e) => setPeerInput(e.target.value)} placeholder="e.g. AAPL, MSFT, GOOGL" className="h-9" />
             </div>
+            <div>
+              <Label className="text-[10px]">Rank by</Label>
+              <select value={peerSort} onChange={(e) => setPeerSort(e.target.value as "spread" | "trend")} className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs">
+                <option value="spread">Current spread</option>
+                <option value="trend">Trend (Δ pp)</option>
+              </select>
+            </div>
             <Button size="sm" onClick={loadPeers} className="gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Compare</Button>
           </div>
 
-          {peers.length > 0 && (
+          {peers.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-muted-foreground uppercase tracking-wide border-b">
+                  <th className="text-left py-1 font-medium">#</th>
                   <th className="text-left py-1 font-medium">Ticker</th>
                   <th className="text-right py-1 font-medium">ROIC</th>
                   <th className="text-right py-1 font-medium">WACC</th>
                   <th className="text-right py-1 font-medium">Spread</th>
-                  <th className="text-right py-1 font-medium">Reading</th>
+                  <th className="text-right py-1 font-medium">Trend</th>
+                  <th className="text-right py-1 font-medium">Sparkline</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b bg-muted/30">
-                  <td className="py-1 font-semibold">{symbol.toUpperCase()} <Badge variant="outline" className="ml-1 text-[9px]">this</Badge></td>
-                  <td className="text-right font-mono py-1">{pct(roicLatest.roic)}</td>
-                  <td className="text-right font-mono py-1">{pct(wacc?.wacc)}</td>
-                  <td className={`text-right font-mono py-1 ${spreadPositive ? "text-success" : "text-destructive"}`}>{pct(spread)}</td>
-                  <td className="text-right text-xs py-1">{spreadPositive ? "value-creating" : "destroying"}</td>
-                </tr>
-                {peers.map((p) => {
-                  const rel = p.spread != null && spread != null ? p.spread - spread : null;
+                {rankedTickers.map((p, idx) => {
                   return (
-                    <tr key={p.sym} className="border-b last:border-0">
-                      <td className="py-1">{p.sym}</td>
-                      <td className="text-right font-mono py-1">{p.loading ? "…" : pct(p.roic)}</td>
-                      <td className="text-right font-mono py-1">{p.loading ? "…" : pct(p.wacc)}</td>
-                      <td className={`text-right font-mono py-1 ${p.spread != null && p.spread >= 0 ? "text-success" : "text-destructive"}`}>{p.loading ? "…" : pct(p.spread)}</td>
-                      <td className="text-right text-xs py-1">
-                        {p.err ? <span className="text-muted-foreground">{p.err}</span> : rel != null ? (
-                          <span className={rel >= 0 ? "text-success" : "text-destructive"}>{rel >= 0 ? "+" : ""}{(rel * 100).toFixed(1)} pp vs {symbol}</span>
-                        ) : "—"}
+                    <tr key={p.sym} className={`border-b last:border-0 ${p.isBase ? "bg-muted/30" : ""}`}>
+                      <td className="py-1 font-mono text-xs text-muted-foreground">{idx + 1}</td>
+                      <td className="py-1">
+                        <span className={p.isBase ? "font-semibold" : ""}>{p.sym}</span>
+                        {p.isBase && <Badge variant="outline" className="ml-1 text-[9px]">this</Badge>}
+                      </td>
+                      <td className="text-right font-mono py-1">{p.err ? "—" : pct(p.roic)}</td>
+                      <td className="text-right font-mono py-1">{p.err ? "—" : pct(p.wacc)}</td>
+                      <td className={`text-right font-mono py-1 ${p.spread != null && p.spread >= 0 ? "text-success" : "text-destructive"}`}>{p.err ? p.err : pct(p.spread)}</td>
+                      <td className="text-right font-mono py-1 text-xs">
+                        {p.trendPP == null ? "—" : (
+                          <span className={`inline-flex items-center gap-0.5 ${p.trendPP >= 0 ? "text-success" : "text-destructive"}`}>
+                            {p.trendPP >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {p.trendPP >= 0 ? "+" : ""}{p.trendPP.toFixed(1)} pp
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-right py-1">
+                        <SpreadSparkline trend={p.trend} />
                       </td>
                     </tr>
                   );
                 })}
                 {peerAvg.spread != null && (
                   <tr className="border-t bg-muted/20">
+                    <td className="py-1"></td>
                     <td className="py-1 font-semibold">Peer avg</td>
                     <td className="text-right font-mono py-1">{pct(peerAvg.roic)}</td>
                     <td className="text-right font-mono py-1">{pct(peerAvg.wacc)}</td>
                     <td className={`text-right font-mono py-1 ${peerAvg.spread >= 0 ? "text-success" : "text-destructive"}`}>{pct(peerAvg.spread)}</td>
-                    <td className="text-right text-xs py-1">
+                    <td className="text-right text-xs py-1" colSpan={2}>
                       {spread != null && (
                         <span className={spread - peerAvg.spread >= 0 ? "text-success" : "text-destructive"}>
                           {symbol.toUpperCase()} {spread - peerAvg.spread >= 0 ? "leads" : "trails"} peers by {Math.abs((spread - peerAvg.spread) * 100).toFixed(1)} pp
@@ -923,8 +1266,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                 )}
               </tbody>
             </table>
-          )}
-          {peers.length === 0 && (
+          ) : (
             <p className="text-xs text-muted-foreground">Try common sector peers, e.g. banks: <code>JPM, BAC, WFC</code> · mega-cap tech: <code>AAPL, MSFT, GOOGL</code>.</p>
           )}
         </CardContent>
@@ -1011,5 +1353,30 @@ function RangeSlider({
         }}
       />
     </div>
+  );
+}
+function SpreadSparkline({ trend }: { trend: Array<{ year: string; spread: number | null }> }) {
+  const pts = trend.filter((p): p is { year: string; spread: number } => p.spread != null);
+  if (pts.length < 2) return <span className="text-[10px] text-muted-foreground">—</span>;
+  const w = 80, h = 20, pad = 2;
+  const values = pts.map((p) => p.spread);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const range = max - min || 1;
+  const zeroY = h - pad - ((0 - min) / range) * (h - pad * 2);
+  const coords = pts.map((p, i) => {
+    const x = pad + (i * (w - pad * 2)) / (pts.length - 1);
+    const y = h - pad - ((p.spread - min) / range) * (h - pad * 2);
+    return [x, y] as [number, number];
+  });
+  const path = coords.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(" ");
+  const last = pts[pts.length - 1].spread;
+  const stroke = last >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
+  return (
+    <svg width={w} height={h} className="inline-block align-middle" role="img" aria-label="spread trend">
+      <line x1={0} x2={w} y1={zeroY} y2={zeroY} stroke="hsl(var(--border))" strokeDasharray="2 2" />
+      <path d={path} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={coords[coords.length - 1][0]} cy={coords[coords.length - 1][1]} r={1.75} fill={stroke} />
+    </svg>
   );
 }

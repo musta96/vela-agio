@@ -13,7 +13,8 @@ interface Props {
 /** Compact instrument card for horizontal discovery rails. */
 export function InstrumentCard({ symbol, name, quote }: Props) {
   const navigate = useNavigate();
-  const change = quote?.change;
+  const price = typeof quote?.price === "number" && Number.isFinite(quote.price) ? quote.price : null;
+  const change = typeof quote?.change === "number" && Number.isFinite(quote.change) ? quote.change : null;
   const positive = (change ?? 0) >= 0;
   const colorClass = change == null ? "text-muted-foreground" : positive ? "text-emerald-500" : "text-red-500";
   const Arrow = positive ? ArrowUpRight : ArrowDownRight;
@@ -38,8 +39,8 @@ export function InstrumentCard({ symbol, name, quote }: Props) {
           <div className="text-[13px] font-medium truncate leading-tight">{name || symbol}</div>
           <div className="mt-1.5 flex items-baseline justify-between gap-2">
             <span className="text-sm font-semibold tabular-nums">
-              {quote && Number.isFinite(quote.price)
-                ? `${currencySign(quote.currency)}${quote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+              {price != null
+                ? `${currencySign(quote?.currency)}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
                 : "-"}
             </span>
             <span className={`inline-flex items-center gap-0.5 text-[11px] tabular-nums ${colorClass}`}>

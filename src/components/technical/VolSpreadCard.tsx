@@ -6,17 +6,17 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, TrendingUpDown } from "lucide-react";
+import { Play, Activity } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
 import { computeVolSpread, backtestVolSpread, VOL_SPREAD_PRESETS, DEFAULT_VOL_SPREAD } from "@/lib/ta/volSpread";
 import { supabase } from "@/integrations/supabase/client";
 
 function fetchBarsFor(symbol: string, range: "6mo" | "1y" | "2y" = "1y") {
-  return supabase.functions.invoke("market-history", { body: { symbol, range, interval: "1d" } })
+  return supabase.functions.invoke("market-data", { body: { action: "ohlc", symbol, range, interval: "1d" } })
     .then(({ data, error }) => {
       if (error) throw error;
-      const bars = (data as any)?.bars ?? [];
-      return bars as { t: number; close: number }[];
+      const bars = ((data as any)?.bars ?? []) as { t: number; close: number }[];
+      return bars;
     });
 }
 
@@ -68,7 +68,7 @@ export function VolSpreadCard() {
   return (
     <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
       <div className="flex items-center gap-2 mb-3">
-        <TrendingUpDown className="h-5 w-5 text-primary" />
+        <Activity className="h-5 w-5 text-primary" />
         <h3 className="text-lg font-semibold">Volatility spread</h3>
         {error && <Badge variant="destructive" className="ml-auto text-[10px]">{error}</Badge>}
       </div>

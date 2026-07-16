@@ -6,6 +6,72 @@ import { z } from "zod";
 // gives external agents a compact markdown/JSON description including auth
 // scope, rate limits, and usage notes.
 
+// Semver of the tool catalog + JSON-schema manifest. Bump on any breaking
+// change to a tool's input/output shape or an error.code contract; bump the
+// minor for additive changes. External agents can pin against this to detect
+// incompatible updates before invoking a tool.
+const MANIFEST_VERSION = "1.2.0";
+
+// Human-readable change log, newest first. Keep entries short (one line per
+// change) and reference the affected tool by name.
+const CHANGELOG: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: "1.2.0",
+    date: "2026-07-16",
+    changes: [
+      "docs: added copy/paste `curl` examples for start_run, get_run_status, get_run_result, get_run_logs, cancel_run, watchlist_updates.",
+      "docs: exposed `manifest_version` and `changelog` on json/json-schema/markdown outputs so agents can detect breaking schema updates.",
+    ],
+  },
+  {
+    version: "1.1.0",
+    date: "2026-07-16",
+    changes: [
+      "feat: `cancel_run` tool to stop an in-flight sensitivity sweep.",
+      "feat: typed `{ error: { code, message, ...extra } }` envelopes on get_run_status/get_run_result/get_run_logs/cancel_run/watchlist_updates.",
+      "feat: `watchlist_updates` now returns `next_since`, `cursor`, `has_more`, `count`; added `include_quotes` toggle.",
+      "feat: `list_tool_docs` accepts `format='json-schema'` and embeds `examples` on every tool.",
+    ],
+  },
+  {
+    version: "1.0.0",
+    date: "2026-07-16",
+    changes: [
+      "feat: initial MCP tool surface — quotes, dividends, watchlist, portfolio, net worth, cash flow, run_backtest, start_run, get_run_status, get_run_result, get_run_logs.",
+    ],
+  },
+];
+
+// The Supabase project ref is inlined by Vite at build time; the emitted MCP
+// Edge Function lives at `https://<ref>.supabase.co/functions/v1/mcp`.
+// Fallback keeps the curl template well-formed during the throwaway
+// manifest-extract eval when env is not populated.
+const PROJECT_REF =
+  (typeof import.meta !== "undefined" && (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_PROJECT_ID) ||
+  "<project-ref>";
+const MCP_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/mcp`;
+
+function curlFor(toolName: string, args: Record<string, unknown>): string {
+  // MCP JSON-RPC 2.0 `tools/call` envelope. External agents can replace
+  // <ACCESS_TOKEN> with the OAuth bearer token obtained from Supabase Auth.
+  const body = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: toolName, arguments: args },
+  };
+  const json = JSON.stringify(body);
+  // Escape single quotes for safe embedding inside a bash single-quoted string.
+  const safe = json.replace(/'/g, "'\\''");
+  return [
+    `curl -sS -X POST '${MCP_URL}' \\`,
+    `  -H 'Authorization: Bearer <ACCESS_TOKEN>' \\`,
+    `  -H 'Content-Type: application/json' \\`,
+    `  -H 'Accept: application/json' \\`,
+    `  -d '${safe}'`,
+  ].join("\n");
+}
+
 interface ToolDoc {
   name: string;
   title: string;
@@ -18,10 +84,12 @@ interface ToolDoc {
 }
 
 // Copy/paste-ready examples for the run + watchlist tools. Each entry has a
-// realistic request payload and — where applicable — a set of typed error
+// realistic request payload, a bash `curl` snippet with the required auth +
+// content-type headers, and — where applicable — a set of typed error
 // responses keyed by `error.code`, matching the envelope the handlers return.
 interface ToolExample {
   request: { name: string; arguments: Record<string, unknown> };
+  curl?: string;
   success_response?: Record<string, unknown>;
   error_responses?: Record<string, { error: { code: string; message: string; [k: string]: unknown } }>;
 }

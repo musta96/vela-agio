@@ -1949,6 +1949,8 @@ var manifest_default = {
 };
 
 // src/lib/mcp/tools/list-tool-docs.ts
+var PROJECT_REF = typeof import.meta !== "undefined" && "pcisxjfgdrgpxzfzfscf" || "<project-ref>";
+var MCP_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/mcp`;
 var EXAMPLES = {
   start_run: {
     request: {

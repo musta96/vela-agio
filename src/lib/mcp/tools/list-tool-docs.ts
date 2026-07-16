@@ -109,6 +109,16 @@ const EXAMPLES: Record<string, ToolExample> = {
         },
       },
     },
+    curl: curlFor("start_run", {
+      kind: "sensitivity",
+      input: {
+        symbol: "AAPL",
+        preset: "sma_cross",
+        range: "5y",
+        initial_capital: 10000,
+        sweep: { fast: [10, 20, 50], slow: [100, 150, 200] },
+      },
+    }),
     success_response: {
       run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       status: "running",
@@ -119,6 +129,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "get_run_status",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("get_run_status", { run_id: "<RUN_ID>" }),
     success_response: {
       id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       kind: "sensitivity",
@@ -143,6 +154,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "get_run_result",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("get_run_result", { run_id: "<RUN_ID>" }),
     success_response: {
       metrics: { cagr: 0.128, maxDrawdown: -0.213, sharpe: 1.14, hitRate: 0.56 },
       combos: 9,
@@ -184,6 +196,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "get_run_logs",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("get_run_logs", { run_id: "<RUN_ID>" }),
     success_response: {
       id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       kind: "sensitivity",
@@ -212,6 +225,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "cancel_run",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("cancel_run", { run_id: "<RUN_ID>" }),
     success_response: {
       run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       status: "canceled",
@@ -237,6 +251,13 @@ const EXAMPLES: Record<string, ToolExample> = {
         limit: 100,
       },
     },
+    curl: curlFor("watchlist_updates", {
+      since: "<ISO8601_CURSOR>",
+      include_dividends: true,
+      include_quotes: true,
+      max_symbols: 25,
+      limit: 100,
+    }),
     success_response: {
       next_since: "2026-07-16T14:33:12.005Z",
       cursor: "2026-07-16T14:33:12.005Z",

@@ -541,6 +541,172 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     URL.revokeObjectURL(url);
   };
 
+  // Rasterize the on-screen Recharts SVG into a PNG data URL.
+  const captureChartPng = async (): Promise<string | null> => {
+    const svg = chartRef.current?.querySelector("svg");
+    if (!svg) return null;
+    const w = svg.clientWidth || 720;
+    const h = svg.clientHeight || 280;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", String(w));
+    clone.setAttribute("height", String(h));
+    // Inline a white background so the chart is readable on a PDF page.
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%"); bg.setAttribute("fill", "#ffffff");
+    clone.insertBefore(bg, clone.firstChild);
+    const xml = new XMLSerializer().serializeToString(clone);
+    const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = 2;
+        canvas.width = w * scale; canvas.height = h * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        try { resolve(canvas.toDataURL("image/png")); } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  };
+
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 40;
+      let y = margin;
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+      doc.text(`${symbol.toUpperCase()} — ROIC / WACC report`, margin, y); y += 20;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text(`Exported ${new Date().toLocaleString()} · Vela.ai`, margin, y); y += 14;
+      doc.setTextColor(20);
+
+      // Headline metrics
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text(`ROIC ${pct(roicLatest?.roic)}   ·   WACC ${pct(wacc?.wacc)}   ·   Spread ${pct(spread)}`, margin, y);
+      y += 16;
+
+      // Assumptions
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text("Assumptions", margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4, theme: "grid", styles: { fontSize: 8 },
+        head: [["rf", "ERP", "kd", "Tax", "Beta"]],
+        body: [[
+          `${rfPct.toFixed(2)}%`, `${erpPct.toFixed(2)}%`, `${kdPct.toFixed(2)}%`,
+          taxPct === "" ? (snap?.effTaxRate != null ? `${(snap.effTaxRate * 100).toFixed(2)}%` : "—") : `${Number(taxPct).toFixed(2)}%`,
+          betaIn === "" ? (snap?.beta != null ? snap.beta.toFixed(2) : "—") : Number(betaIn).toFixed(2),
+        ]],
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+      // Chart
+      const png = await captureChartPng();
+      if (png) {
+        const imgW = pageW - margin * 2;
+        const imgH = imgW * (280 / 720);
+        if (y + imgH > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        doc.text("ROIC · WACC · Spread over time", margin, y); y += 8;
+        doc.addImage(png, "PNG", margin, y, imgW, imgH);
+        y += imgH + 10;
+      }
+
+      // Time series table
+      autoTable(doc, {
+        startY: y, theme: "striped", styles: { fontSize: 8 },
+        head: [["Year", "End date", "ROIC", "WACC", "Spread"]],
+        body: timeSeries.map((r) => [
+          r.year, r.endDate,
+          r.roicPct != null ? `${r.roicPct.toFixed(2)}%` : "—",
+          r.waccPct != null ? `${r.waccPct.toFixed(2)}%` : "—",
+          r.spreadPct != null ? `${r.spreadPct.toFixed(2)}%` : "—",
+        ]),
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+      // Sensitivity
+      if (sensitivity) {
+        if (y > doc.internal.pageSize.getHeight() - 140) { doc.addPage(); y = margin; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        doc.text("Sensitivity summary", margin, y); y += 4;
+        autoTable(doc, {
+          startY: y + 4, theme: "grid", styles: { fontSize: 8 },
+          head: [["Metric", "Value"]],
+          body: [
+            ["Range low (min spread)", pct(sensitivity.min)],
+            ["Range high (max spread)", pct(sensitivity.max)],
+            ["Current spread", pct(spread)],
+            ["rf range", `${sensRf[0].toFixed(2)}% – ${sensRf[1].toFixed(2)}%`],
+            ["ERP range", `${sensErp[0].toFixed(2)}% – ${sensErp[1].toFixed(2)}%`],
+            ["Tax range", `${sensTax[0].toFixed(1)}% – ${sensTax[1].toFixed(1)}%`],
+            ["Beta range", `${sensBeta[0].toFixed(2)} – ${sensBeta[1].toFixed(2)}`],
+          ],
+        });
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+      }
+
+      // Backtest events
+      if (y > doc.internal.pageSize.getHeight() - 140) { doc.addPage(); y = margin; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text(`Backtest triggers — direction=${alertDirection}, threshold=${alertThresholdBps} bps, min-hold=${alertMinHoldYears}y`, margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4, theme: "striped", styles: { fontSize: 8 },
+        head: [["Year", "Δ spread (bps)", "Direction"]],
+        body: backtest.events.length
+          ? backtest.events.map((e) => [e.year, `${e.delta >= 0 ? "+" : ""}${(e.delta * 10000).toFixed(0)}`, e.direction])
+          : [["—", "no triggers", "—"]],
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+      // Filing drilldown
+      if (y > doc.internal.pageSize.getHeight() - 160) { doc.addPage(); y = margin; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text("Filing-field drilldown", margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4, theme: "grid", styles: { fontSize: 7 },
+        head: [["Line", "Filing field", "Unit", "Value"]],
+        body: [
+          ["EBIT", "incomeStatementHistory[0].operatingIncome", "USD", fmtB(snap?.ebit ?? null)],
+          ["× (1 − eff. tax)", "incomeTaxExpense ÷ incomeBeforeTax", "ratio", pct(roicLatest?.taxRate ?? null)],
+          ["NOPAT", "EBIT × (1 − tax)", "USD", fmtB(roicLatest?.nopat ?? null)],
+          ["Total equity", "balanceSheetHistory[0].totalStockholderEquity", "USD", fmtB(snap?.equity ?? null)],
+          ["LT debt", "balanceSheetHistory[0].longTermDebt", "USD", fmtB(snap?.ltDebt ?? null)],
+          ["ST portion LT debt", "balanceSheetHistory[0].shortLongTermDebt", "USD", fmtB(snap?.stDebt ?? null)],
+          ["Cash & equivalents", "balanceSheetHistory[0].cash", "USD", fmtB(snap?.cash ?? null)],
+          ["Invested capital", "equity + LT debt + ST debt − cash", "USD", fmtB(roicLatest?.investedCapital ?? null)],
+          ["Market cap", "price.marketCap", "USD (equity weight)", fmtB(snap?.marketCap ?? null)],
+          ["Beta", "summaryDetail.beta", "dimensionless", snap?.beta != null ? snap.beta.toFixed(2) : "—"],
+        ],
+      });
+
+      if (dataQuality.issues.length) {
+        doc.addPage(); y = margin;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        doc.text("Data quality — missing or estimated inputs", margin, y); y += 4;
+        autoTable(doc, {
+          startY: y + 4, theme: "grid", styles: { fontSize: 8 },
+          head: [["Year", "Missing", "Estimated / substituted"]],
+          body: dataQuality.issues.map((i) => [i.year, i.missing.join(", ") || "—", i.estimated.join(", ") || "—"]),
+        });
+      }
+
+      doc.save(`${symbol.toUpperCase()}_roic_wacc_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      toast({ title: "PDF export failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const saveAlert = async () => {
     if (!user) { toast({ title: "Please sign in to create alerts", variant: "destructive" }); return; }
     if (spread == null) { toast({ title: "Spread unavailable; cannot baseline the alert.", variant: "destructive" }); return; }

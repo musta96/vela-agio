@@ -48,6 +48,24 @@ export interface TradingStrategyRow {
   risk_config: RiskConfig;
   created_at: string;
   updated_at: string;
+  version?: number;
+  parent_id?: string | null;
+}
+
+export interface TradingStrategyVersionRow {
+  id: string;
+  strategy_id: string;
+  user_id: string;
+  version: number;
+  name: string;
+  description: string | null;
+  symbol: string | null;
+  timeframe: string | null;
+  entry_rules: Condition[];
+  exit_rules: Condition[];
+  risk_config: RiskConfig;
+  change_note: string | null;
+  created_at: string;
 }
 
 export const CONDITION_LABELS: Record<ConditionType, string> = {

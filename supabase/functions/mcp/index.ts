@@ -304,7 +304,7 @@ var list_cash_flow_default = defineTool6({
     limit: z3.number().int().positive().describe("Max entries to return (default 100, capped at 500).").optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ limit }, ctx) => {
+  handler: async ({ limit }, ctx) => withInstrumentation("list_cash_flow", ctx, async () => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
     }
@@ -319,7 +319,7 @@ var list_cash_flow_default = defineTool6({
       content: [{ type: "text", text: JSON.stringify(entries) }],
       structuredContent: { entries }
     };
-  }
+  }, { rateLimit: { max: 60, windowSec: 60 } })
 });
 
 // src/lib/mcp/tools/add-cash-flow-entry.ts

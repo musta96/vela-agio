@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight, Download, LineChart as LineChartIcon, SlidersHorizontal, History } from "lucide-react";
+import {
+  ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine,
+} from "recharts";
 import { computeRoic, computeWacc, pct, roicWaccSpread, type WaccInputs } from "@/lib/valuation/roicWacc";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +17,20 @@ import { useToast } from "@/hooks/use-toast";
 
 const PROXY = "https://api.allorigins.win/raw?url=";
 
-type YearRoic = { year: string; roic: number | null; nopat: number | null; ic: number | null };
+type YearRow = {
+  year: string;
+  endDate: string;
+  roic: number | null;
+  nopat: number | null;
+  ic: number | null;
+  ebit: number | null;
+  taxRate: number | null;
+  equityBook: number | null;
+  ltDebt: number | null;
+  stDebt: number | null;
+  cash: number | null;
+  totalDebt: number | null;
+};
 
 interface Snapshot {
   ebit: number | null;
@@ -41,7 +58,7 @@ function fmtB(v: number | null | undefined) {
   return v.toLocaleString();
 }
 
-async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history: YearRoic[]; raw: any } | null> {
+async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history: YearRow[]; raw: any } | null> {
   const modules = "incomeStatementHistory,balanceSheetHistory,financialData,summaryDetail,defaultKeyStatistics,price,assetProfile";
   const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
   const r = await fetch(`${PROXY}${encodeURIComponent(url)}`);
@@ -68,20 +85,32 @@ async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history:
     marketCap: num(price.marketCap) ?? num(sd.marketCap),
     beta: num(sd.beta) ?? num(data.defaultKeyStatistics?.beta),
   };
-  const history: YearRoic[] = inc.slice(0, 4).map((row: any, i: number) => {
+  const history: YearRow[] = inc.slice(0, 4).map((row: any, i: number) => {
     const b = bs[i] ?? {};
     const ebit = num(row.operatingIncome) ?? num(row.ebit);
     const tax = num(row.incomeTaxExpense);
     const pretax = num(row.incomeBeforeTax);
     const rate = tax != null && pretax && pretax !== 0 ? tax / pretax : null;
+    const equityBook = num(b.totalStockholderEquity);
+    const ltDebt = num(b.longTermDebt);
+    const stDebt = num(b.shortLongTermDebt);
+    const cash = num(b.cash);
     const rr = computeRoic({
       ebit, taxRate: rate,
-      totalEquity: num(b.totalStockholderEquity),
-      longTermDebt: num(b.longTermDebt),
-      shortLongTermDebt: num(b.shortLongTermDebt),
-      cash: num(b.cash),
+      totalEquity: equityBook,
+      longTermDebt: ltDebt,
+      shortLongTermDebt: stDebt,
+      cash,
     });
-    return { year: row.endDate?.fmt?.slice(0, 4) ?? "-", roic: rr.roic, nopat: rr.nopat, ic: rr.investedCapital };
+    const totalDebt = (ltDebt ?? 0) + (stDebt ?? 0);
+    return {
+      year: row.endDate?.fmt?.slice(0, 4) ?? "-",
+      endDate: row.endDate?.fmt ?? "-",
+      roic: rr.roic, nopat: rr.nopat, ic: rr.investedCapital,
+      ebit, taxRate: rate,
+      equityBook, ltDebt, stDebt, cash,
+      totalDebt: totalDebt > 0 ? totalDebt : null,
+    };
   }).reverse();
   return { snap, history, raw: data };
 }

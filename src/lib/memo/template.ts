@@ -424,8 +424,8 @@ function instrumentBlock(i: Instrument): string {
     rows.push(`<tr><td><strong>ROIC − WACC spread</strong></td><td class="num ${(rw.spread ?? 0) >= 0 ? "pos" : "neg"}"><strong>${pctOrDash(rw.spread ?? null)}</strong></td></tr>`);
     const inp = rw.inputs;
     if (inp) {
-      if (inp.nopat != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">NOPAT</td><td class="num">${fmtCurrencyShort(inp.nopat)}</td></tr>`);
-      if (inp.invested_capital != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">Invested capital</td><td class="num">${fmtCurrencyShort(inp.invested_capital)}</td></tr>`);
+      if (inp.nopat != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">NOPAT</td><td class="num">${fmtBigNum(inp.nopat)}</td></tr>`);
+      if (inp.invested_capital != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">Invested capital</td><td class="num">${fmtBigNum(inp.invested_capital)}</td></tr>`);
       if (inp.cost_of_equity != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">Cost of equity</td><td class="num">${pctOrDash(inp.cost_of_equity)}</td></tr>`);
       if (inp.after_tax_cost_of_debt != null) rows.push(`<tr><td class="num" style="color:${tokens.color.muted}">After-tax kd</td><td class="num">${pctOrDash(inp.after_tax_cost_of_debt)}</td></tr>`);
     }

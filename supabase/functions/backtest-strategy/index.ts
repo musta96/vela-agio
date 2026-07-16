@@ -125,6 +125,22 @@ function evalCondition(c: CustomCondition, closes: number[], i: number): boolean
       const thr = c.value ?? 5;
       return thr >= 0 ? chg >= thr : chg <= thr;
     }
+    case "ema_cross_up": {
+      const f = c.fast ?? 12, s = c.slow ?? 26;
+      const a = ema(closes, f, i), b = ema(closes, s, i);
+      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
+      return !!(a && b && ap && bp && ap <= bp && a > b);
+    }
+    case "ema_cross_down": {
+      const f = c.fast ?? 12, s = c.slow ?? 26;
+      const a = ema(closes, f, i), b = ema(closes, s, i);
+      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
+      return !!(a && b && ap && bp && ap >= bp && a < b);
+    }
+    case "atr_breakout":
+    case "adx_above":
+      // OHLC-only conditions — not modeled on basket close series server-side.
+      return false;
     case "volume_spike":
       // Volume not modeled on basket bars — never triggers server-side.
       return false;

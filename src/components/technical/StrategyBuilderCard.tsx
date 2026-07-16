@@ -26,20 +26,25 @@ import { validateStrategy, summarize, type RuleIssue } from "@/lib/ta/validateSt
 interface Props {
   symbol: string;
   timeframe: string;
+  /** Optional preset seed (Strategy Lab). Populates the builder on first render. */
+  presetName?: string;
+  presetEntry?: Condition[];
+  presetExit?: Condition[];
+  presetRisk?: RiskConfig;
 }
 
 const EMPTY_ENTRY: Condition[] = [{ type: "rsi_below", value: 30 }];
 const EMPTY_EXIT: Condition[]  = [{ type: "rsi_above", value: 70 }];
 
-export function StrategyBuilderCard({ symbol, timeframe }: Props) {
+export function StrategyBuilderCard({ symbol, timeframe, presetName, presetEntry, presetExit, presetRisk }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [name, setName] = useState<string>(`${symbol} · ${timeframe} strategy`);
+  const [name, setName] = useState<string>(presetName ? `${presetName} · ${symbol}` : `${symbol} · ${timeframe} strategy`);
   const [description, setDescription] = useState<string>("");
-  const [entry, setEntry] = useState<Condition[]>(EMPTY_ENTRY);
-  const [exit, setExit] = useState<Condition[]>(EMPTY_EXIT);
-  const [risk, setRisk] = useState<RiskConfig>({ stopPct: 5, targetPct: 10, riskPct: 1 });
+  const [entry, setEntry] = useState<Condition[]>(presetEntry?.length ? presetEntry : EMPTY_ENTRY);
+  const [exit, setExit] = useState<Condition[]>(presetExit?.length ? presetExit : EMPTY_EXIT);
+  const [risk, setRisk] = useState<RiskConfig>(presetRisk ?? { stopPct: 5, targetPct: 10, riskPct: 1 });
   const [saved, setSaved] = useState<TradingStrategyRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

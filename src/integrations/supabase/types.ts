@@ -2631,6 +2631,51 @@ export type Database = {
         }
         Relationships: []
       }
+      strategy_presets: {
+        Row: {
+          created_at: string
+          description: string | null
+          entry_rules: Json
+          exit_rules: Json
+          family: string
+          id: string
+          name: string
+          risk_config: Json
+          slug: string
+          tags: string[]
+          timeframe: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entry_rules?: Json
+          exit_rules?: Json
+          family: string
+          id?: string
+          name: string
+          risk_config?: Json
+          slug: string
+          tags?: string[]
+          timeframe?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entry_rules?: Json
+          exit_rules?: Json
+          family?: string
+          id?: string
+          name?: string
+          risk_config?: Json
+          slug?: string
+          tags?: string[]
+          timeframe?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           ab_monthly_price_cents: number | null

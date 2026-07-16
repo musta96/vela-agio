@@ -1,79 +1,87 @@
-# AI-Powered Advanced Technical Analysis
 
-Scope is very large. Proposal: ship it as **four modules on `/technical`** plus a new **Strategy Builder** wired into `/backtest`, all client-side computed from existing OHLC data (no new market-data provider needed). AI narrative summary via existing Lovable AI edge function.
+# Advanced Trading Strategies & Analytics Suite
 
-## Modules
+This builds on the existing Technical Analysis + Strategy Builder + Backtest stack (already ships SMC signals, top-down, patterns, walk-forward, sensitivity, regime, cost model). It closes the ticket by adding the missing strategy families and analytics as first-class, backtestable modules.
 
-### 1. Pattern & structure engine (pure TS lib)
-New `src/lib/ta/` package computing everything from OHLC bars already returned by `useOHLCHistory`:
-- **Candlestick patterns** — all 19 requested: hammer, inverted hammer, hanging man, shooting star, engulfing (bull/bear), morning/evening star, piercing line, dark cloud cover, three white soldiers, three black crows, dragonfly/gravestone/standard doji, spinning top, marubozu.
-- **Chart patterns** — head & shoulders (+ inverse), double top/bottom, ascending/descending/symmetrical triangles, bull/bear flags, wedges, using pivot-high/low detection.
-- **Support & resistance** — dynamic (rolling pivot clusters w/ touch count) + static (round-number & prior swing highs/lows).
-- **Trendlines** — auto-fit through swing pivots with breakout flag.
-- **Smart-money concepts** — Fair Value Gaps (3-bar imbalances), Order Blocks (last opposing candle before displacement), Liquidity Grabs (sweep-and-reclaim of prior swing), Break of Structure / Change of Character.
-- **Supply/demand zones** — base-then-drop / base-then-rally clustering.
+## Scope
 
-Unit-tested with vitest.
+New library modules (`src/lib/ta/*`, `src/lib/backtest/*`) + focused cards mounted on `/technical-analysis` and `/backtest`, plus one new `/strategy-lab` page that houses the full plan framework.
 
-### 2. Chart overlay
-Upgrade the existing candle chart on `/technical` with a lightweight canvas overlay layer showing:
-- Colored zones for S/R, supply/demand, FVGs, order blocks.
-- Trendlines and their breakout markers.
-- Candle-pattern flags rendered above/below the affected bars (click → detail popover: definition, bias, invalidation level).
-- Toggle chips to show/hide each family.
+### 1. SMC deep pack (`src/lib/ta/smc.ts`)
+Extend current SMC helper with:
+- Order blocks (bullish/bearish last-opposite-candle before impulse)
+- Fair Value Gaps (3-candle imbalance) with mitigation status
+- Liquidity sweeps (equal highs/lows + wick sweep + close-back)
+- Market structure shifts (BOS / CHoCH from swing pivots)
+- Supply/demand zones (base–rally / base–drop clusters)
+Rendered in a new `SMCDeepCard` on `/technical-analysis`.
 
-### 3. Actionable indicator insights
-Beside the existing RSI / MACD / MA charts, add an **Insights** card that turns raw values into signals:
-- "RSI overbought (73) — potential mean-reversion short"
-- "Golden Cross detected 4 bars ago (SMA50 > SMA200)"
-- "MACD bull-cross with rising histogram"
-- "Volume surge 2.4× 20-day avg confirming breakout"
-- Each row: signal name, timeframe, direction, confidence, "how to trade it".
+### 2. Order & options flow (`src/lib/flow/*`, edge fn `flow-snapshot`)
+- Client: `OrderFlowCard` (bid/ask imbalance proxy from bar-by-bar delta), `VolumeAtPriceCard` (histogram from bars), `OptionsFlowCard` (unusual volume/OI + sweep-vs-block classification)
+- Edge fn `flow-snapshot` pulls options chain via existing data provider (Yahoo/Finnhub already wired) and returns aggregated metrics; caches to `market_data_cache`.
 
-### 4. Trade planner (R:R + position sizing)
-New card: user picks entry, stop, target (auto-prefilled from nearest S/R). Outputs:
-- Risk:Reward ratio, expected value.
-- Position size in shares/contracts based on **% account risk** setting (default 1%) pulled from the existing portfolio risk settings if available.
-- Distance-to-stop as ATR multiple; warn if < 1 ATR.
+### 3. Anchored VWAP + Volume Profile (`src/lib/ta/avwap.ts`, `volumeProfile.ts`)
+- Multi-anchor AVWAP with click-to-anchor timeline (session, swing high/low, event date)
+- Volume Profile with POC, VAH/VAL (70% VA), fixed range + visible range modes
+- Combined `AVWAPProfileCard` that highlights confluence bands (AVWAP within VA) and sweep-into-AVWAP events
 
-### 5. Multi-timeframe / top-down analysis
-A **Top-Down** tab showing the same asset synchronized across 1W / 1D / 4H / 1H:
-- Compact scorecards per timeframe with trend, key S/R, active patterns.
-- "Alignment score" – how many timeframes agree bullish vs bearish.
+### 4. Algorithmic trend trading
+Extend `strategyTypes.ts` with condition kinds:
+`ema_cross`, `adx_above`, `donchian_break`, `supertrend_flip`, `ma_stack_aligned`
+Each already backtestable through the existing `backtest-strategy` edge fn (add the evaluators) and client sim.
 
-### 6. Strategy Builder → backtest bridge
-- New `/technical` section: build a rule from the detected primitives (e.g. "Enter long when: RSI < 30 AND bullish engulfing AND price at support. Exit: 2R target or ATR-stop.").
-- Save to a new `trading_strategies` table (user-scoped, RLS).
-- "Backtest this strategy" button links into `/backtest` with strategy pre-loaded (extend BacktestingModule to run rule-based strategies against historical bars).
+### 5. News-driven intraday (`src/lib/news/*`, edge fn `news-events`)
+- Reuse existing sentiment pipeline; add event window backtest mode: enter N bars after headline if sentiment > threshold, exit at fixed horizon / stop
+- New `NewsEventBacktestCard` on `/backtest`
 
-### 7. AI narrative
-New edge function `technical-analysis-brief` (Lovable AI, `openai/gpt-5.5`) takes the computed pattern/indicator/structure JSON and returns a portfolio-manager style trade thesis, using the existing AI access gating & throttling pattern (mirrors `equity-research-analyst`). Cached per (symbol, timeframe, latest-bar-timestamp).
+### 6. Volatility trading (`src/lib/ta/volatility.ts`)
+- ATR-percentile, realized-vol z-score, VIX/GVZ-style ratio for the current symbol vs its benchmark
+- `VolatilityCard` with regime tag and a volatility-breakout preset strategy
 
-## Delivery in phases
+### 7. Pattern & Fibonacci enhancements (`src/lib/ta/patterns.ts`, `fib.ts`)
+- Add reversal (H&S, double top/bottom, wedges), continuation (flags, pennants, triangles), bilateral (symmetrical triangle, diamond)
+- Auto Fib retracement (0.236–0.786) and extension (1.272/1.618) from last impulse; signal when price reacts at cluster
+- Surface via existing pattern strategy card (already integrated with builder)
 
-Given the breadth I'd ship in three PRs to keep each reviewable:
+### 8. Strategy Lab page (`/strategy-lab`)
+One place to formally define, test, and ship a plan:
+```
++------------------ Strategy Lab ------------------+
+| [ Plan header: name, symbol, timeframe, tags ]   |
+| Entry rules | Exit rules | Risk (R:R, sizing)    |
+| Presets: SMC-sweep+AVWAP | Trend-EMA-stack |     |
+|          News-event | Vol-breakout | Fib-cluster |
+| [ Validate ] [ Backtest ] [ Walk-forward ] [PDF] |
+| Results tabs: Equity | Trades | Regime | Sens.   |
++---------------------------------------------------+
+```
+Reuses `StrategyBuilderCard`, `BacktestDetailCharts`, `WalkForwardCard`, `SensitivityHeatmap`, `RegimeBreakdownCard`, `TechnicalExportCard`. Presets seed the rule graph with validated defaults.
 
-**Phase 1 — Core engine + overlay + insights** (this turn if you approve)
-- `src/lib/ta/` package with all pattern & structure detectors + tests
-- Chart overlay + toggle chips
-- Actionable indicator insights card
-- Trade planner card with R:R and position sizing
-- AI narrative edge function + "AI trade thesis" panel
+## Data / backend
+- Migration: add `strategy_presets` table (id, slug, name, description, entry_rules jsonb, exit_rules jsonb, risk_config jsonb, tags text[]) with `authenticated` read + service_role admin; seed 8 presets in same migration.
+- Edge fn `flow-snapshot` and `news-events` (verify_jwt default). Reuse `TWELVE_DATA_API_KEY` / `FINNHUB_API_KEY` / `FRED_API_KEY` already saved.
+- Extend `backtest-strategy` evaluator switch to cover the new condition kinds; keep parity in `clientSim.ts`.
 
-**Phase 2 — Top-Down multi-timeframe view** (next turn)
-- Parallel fetching of 4 timeframes + alignment scoring UI
+## Files
+Create:
+- `src/lib/ta/{smc.ts,avwap.ts,volumeProfile.ts,volatility.ts,patterns.ts,fib.ts}`
+- `src/lib/flow/{orderFlow.ts,optionsFlow.ts,volumeAtPrice.ts}`
+- `src/lib/news/eventBacktest.ts`
+- `src/components/technical/{SMCDeepCard,AVWAPProfileCard,VolatilityCard,OrderFlowCard,OptionsFlowCard,VolumeAtPriceCard}.tsx`
+- `src/components/backtest/NewsEventBacktestCard.tsx`
+- `src/pages/StrategyLab.tsx` + route entry
+- `supabase/functions/flow-snapshot/index.ts`, `supabase/functions/news-events/index.ts`
+- `supabase/migrations/<ts>_strategy_presets.sql`
 
-**Phase 3 — Strategy Builder + backtest integration** (next turn)
-- `trading_strategies` table + migration
-- Rule builder UI
-- Extension of `/backtest` to execute rule-based strategies
+Edit:
+- `src/lib/ta/strategyTypes.ts`, `src/lib/backtest/clientSim.ts`, `supabase/functions/backtest-strategy/index.ts` — add new condition kinds
+- `src/pages/TechnicalAnalysis.tsx` — mount SMC deep, AVWAP+Profile, Volatility, Flow cards behind the same entitlement gate
+- `src/pages/BacktestingModule.tsx` — mount News-event card
+- `src/App.tsx` — register `/strategy-lab` route (feature-gated)
 
-## Technical notes
-- All detectors are pure functions over `OHLCBar[]`; no new market-data source.
-- Overlay uses SVG on top of the existing recharts container to keep bundle size flat; no `lightweight-charts` dependency added.
-- Position sizing reads from `profiles.risk_pct` if present, otherwise defaults to 1% with a user-editable input.
-- No breaking changes to existing `/technical` sections — everything is additive.
+## Entitlements
+All new cards gated behind existing `ai.copilot` / pro tier feature keys already used by Strategy Builder. Presets table readable by any authenticated user.
 
-## Question before I start
-
-**Do you want me to ship Phase 1 now** (engine + overlay + insights + trade planner + AI thesis), and I'll do Phases 2 & 3 in follow-up turns? Or should I re-scope (e.g., skip the smart-money concepts, or start with Strategy Builder first)?
+## Out of scope (call out)
+- True L2/L3 order book (requires paid market-data feed the project doesn't have) — we approximate with bar delta + volume-at-price and clearly label it as a proxy in the UI.
+- Live options greeks streaming — snapshot only, cached.

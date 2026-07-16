@@ -11,7 +11,11 @@ export type ConditionType =
   | "macd_cross_up"
   | "macd_cross_down"
   | "volume_spike"        // volume > multiplier × 20-bar avg
-  | "price_pct_change";   // close vs N bars ago >= value (or <= if negative)
+  | "price_pct_change"    // close vs N bars ago >= value (or <= if negative)
+  | "ema_cross_up"        // fast EMA crosses above slow (algorithmic trend)
+  | "ema_cross_down"      // fast EMA crosses below slow
+  | "atr_breakout"        // range > multiplier × ATR14 (volatility breakout)
+  | "adx_above";          // ADX(14) > threshold (trend strength filter)
 
 export interface Condition {
   type: ConditionType;
@@ -79,6 +83,10 @@ export const CONDITION_LABELS: Record<ConditionType, string> = {
   macd_cross_down: "MACD bearish cross",
   volume_spike: "Volume spike (× avg)",
   price_pct_change: "Price % change (N bars)",
+  ema_cross_up: "EMA fast crosses ABOVE slow",
+  ema_cross_down: "EMA fast crosses BELOW slow",
+  atr_breakout: "ATR breakout (bar range × ATR14)",
+  adx_above: "ADX(14) above threshold",
 };
 
 export function describeCondition(c: Condition): string {
@@ -93,5 +101,9 @@ export function describeCondition(c: Condition): string {
     case "macd_cross_down": return "MACD crosses below signal";
     case "volume_spike": return `Volume > ${c.value ?? 2}× 20-bar avg`;
     case "price_pct_change": return `Close change over ${c.period ?? 5} bars ≥ ${c.value ?? 5}%`;
+    case "ema_cross_up": return `EMA(${c.fast ?? 12}) crosses above EMA(${c.slow ?? 26})`;
+    case "ema_cross_down": return `EMA(${c.fast ?? 12}) crosses below EMA(${c.slow ?? 26})`;
+    case "atr_breakout": return `Bar range > ${c.value ?? 1.5}× ATR(14)`;
+    case "adx_above": return `ADX(14) > ${c.value ?? 25}`;
   }
 }

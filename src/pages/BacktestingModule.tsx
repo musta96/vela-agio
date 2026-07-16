@@ -25,6 +25,11 @@ import { BacktestQuantPanel } from "@/components/BacktestQuantPanel";
 import { decodeQuantParam } from "@/lib/quantShareLink";
 import { BacktestDetailCharts } from "@/components/backtest/BacktestDetailCharts";
 import { WalkForwardCard } from "@/components/backtest/WalkForwardCard";
+import { CostConfigCard } from "@/components/backtest/CostConfigCard";
+import { SensitivityHeatmap } from "@/components/backtest/SensitivityHeatmap";
+import { RegimeBreakdownCard } from "@/components/backtest/RegimeBreakdownCard";
+import { VersionCompareCard } from "@/components/backtest/VersionCompareCard";
+import { DEFAULT_COSTS, costsSummary, type CostConfig } from "@/lib/backtest/costs";
 
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
@@ -32,10 +37,12 @@ interface BacktestResult {
   benchmark?: string | null; benchmarkLabel?: string;
   equity: { t: number; value: number; benchmark: number }[];
   trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number }[];
+  bars?: { t: number; close: number }[];
+  costs?: CostConfig;
   metrics: {
     finalValue: number; totalReturn: number; benchReturn: number;
     maxDrawdown: number; sharpe: number; winRate: number;
-    totalTrades: number; winningTrades: number;
+    totalTrades: number; winningTrades: number; totalFees?: number;
   };
 }
 
@@ -87,6 +94,7 @@ const BacktestingModule = () => {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [customRules, setCustomRules] = useState<any | null>(null);
   const [customStrategyName, setCustomStrategyName] = useState<string | null>(null);
+  const [costs, setCosts] = useState<CostConfig>(DEFAULT_COSTS);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const suggestions = useMemo(() => (query ? searchCatalog(query, 6) : []), [query]);
@@ -164,6 +172,8 @@ const BacktestingModule = () => {
           strategy, range, initialCapital: Number(initialCapital),
           benchmark: benchmark === "self" ? null : benchmark,
           rules: strategy === "custom" ? customRules : undefined,
+          costs,
+          returnBars: true,
         },
       });
       if (error) throw error;

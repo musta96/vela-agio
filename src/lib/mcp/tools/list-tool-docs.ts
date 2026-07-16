@@ -379,6 +379,31 @@ function toMarkdown(): string {
     lines.push(`- **Output:** ${d.outputs}`);
     if (d.error_codes?.length) lines.push(`- **Error codes:** ${d.error_codes.map((c) => `\`${c}\``).join(", ")}`);
     if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
+    const ex = EXAMPLES[d.name];
+    if (ex) {
+      lines.push("- **Example request:**");
+      lines.push("");
+      lines.push("  ```json");
+      for (const l of JSON.stringify(ex.request, null, 2).split("\n")) lines.push(`  ${l}`);
+      lines.push("  ```");
+      if (ex.success_response) {
+        lines.push("- **Example success response:**");
+        lines.push("");
+        lines.push("  ```json");
+        for (const l of JSON.stringify(ex.success_response, null, 2).split("\n")) lines.push(`  ${l}`);
+        lines.push("  ```");
+      }
+      if (ex.error_responses) {
+        lines.push("- **Example error responses:**");
+        for (const [code, body] of Object.entries(ex.error_responses)) {
+          lines.push(`  - \`${code}\`:`);
+          lines.push("");
+          lines.push("    ```json");
+          for (const l of JSON.stringify(body, null, 2).split("\n")) lines.push(`    ${l}`);
+          lines.push("    ```");
+        }
+      }
+    }
     lines.push("");
   }
   return lines.join("\n");
@@ -399,22 +424,33 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ format }) => {
     if (format === "json-schema") {
-      const payload = manifest as unknown as Record<string, unknown>;
+      // Enrich the bundled manifest with copy/paste-ready examples and typed
+      // error envelopes so external agents can generate working clients from a
+      // single JSON artifact.
+      const base = manifest as unknown as { mcp?: { tools?: Array<Record<string, unknown>> } };
+      const enriched = JSON.parse(JSON.stringify(base)) as typeof base;
+      const tools = enriched.mcp?.tools ?? [];
+      for (const t of tools) {
+        const ex = EXAMPLES[(t as { name: string }).name];
+        if (ex) (t as Record<string, unknown>).examples = ex;
+      }
+      const payload = enriched as unknown as Record<string, unknown>;
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
         structuredContent: payload,
       };
     }
     if (format === "json") {
+      const merged = DOCS.map((d) => ({ ...d, examples: EXAMPLES[d.name] ?? null }));
       return {
-        content: [{ type: "text", text: JSON.stringify({ tools: DOCS }) }],
-        structuredContent: { tools: DOCS },
+        content: [{ type: "text", text: JSON.stringify({ tools: merged }) }],
+        structuredContent: { tools: merged },
       };
     }
     const md = toMarkdown();
     return {
       content: [{ type: "text", text: md }],
-      structuredContent: { markdown: md, tools: DOCS },
+      structuredContent: { markdown: md, tools: DOCS, examples: EXAMPLES },
     };
   },
 });

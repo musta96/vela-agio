@@ -1949,6 +1949,184 @@ var manifest_default = {
 };
 
 // src/lib/mcp/tools/list-tool-docs.ts
+var EXAMPLES = {
+  start_run: {
+    request: {
+      name: "start_run",
+      arguments: {
+        kind: "sensitivity",
+        input: {
+          symbol: "AAPL",
+          preset: "sma_cross",
+          range: "5y",
+          initial_capital: 1e4,
+          sweep: { fast: [10, 20, 50], slow: [100, 150, 200] }
+        }
+      }
+    },
+    success_response: {
+      run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      status: "running"
+    }
+  },
+  get_run_status: {
+    request: {
+      name: "get_run_status",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" }
+    },
+    success_response: {
+      id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      kind: "sensitivity",
+      status: "running",
+      progress: 42,
+      error: null,
+      started_at: "2026-07-16T14:33:09Z",
+      finished_at: null,
+      canceled_at: null,
+      cancel_requested: false
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to read a run." } },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." }
+      },
+      db_error: { error: { code: "db_error", message: "permission denied for table simulation_runs" } }
+    }
+  },
+  get_run_result: {
+    request: {
+      name: "get_run_result",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" }
+    },
+    success_response: {
+      metrics: { cagr: 0.128, maxDrawdown: -0.213, sharpe: 1.14, hitRate: 0.56 },
+      combos: 9
+    },
+    error_responses: {
+      run_running: {
+        error: {
+          code: "run_running",
+          message: "Run is still running (progress=42%). Poll get_run_status.",
+          status: "running",
+          progress: 42
+        }
+      },
+      run_failed: {
+        error: {
+          code: "run_failed",
+          message: "Yahoo history fetch returned 0 bars",
+          status: "failed",
+          progress: 15,
+          worker_error: "Yahoo history fetch returned 0 bars"
+        }
+      },
+      run_canceled: {
+        error: {
+          code: "run_canceled",
+          message: "Run was canceled before completion.",
+          status: "canceled",
+          progress: 33
+        }
+      },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." }
+      },
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to read a run result." } }
+    }
+  },
+  get_run_logs: {
+    request: {
+      name: "get_run_logs",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" }
+    },
+    success_response: {
+      id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      kind: "sensitivity",
+      status: "failed",
+      progress: 15,
+      error: "Yahoo history fetch returned 0 bars",
+      logs: [
+        { t: "2026-07-16T14:33:09.120Z", level: "info", msg: "sweep start (9 combos)" },
+        { t: "2026-07-16T14:33:10.842Z", level: "warn", msg: "combo 2/9: thin data" },
+        { t: "2026-07-16T14:33:12.005Z", level: "error", msg: "Yahoo history fetch returned 0 bars" }
+      ],
+      started_at: "2026-07-16T14:33:09Z",
+      finished_at: "2026-07-16T14:33:12Z",
+      canceled_at: null
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to read run logs." } },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." }
+      },
+      db_error: { error: { code: "db_error", message: "permission denied for table simulation_runs" } }
+    }
+  },
+  cancel_run: {
+    request: {
+      name: "cancel_run",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" }
+    },
+    success_response: {
+      run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      status: "canceled",
+      canceled: true,
+      canceled_at: "2026-07-16T14:34:01Z"
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to cancel a run." } },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." }
+      },
+      db_error: { error: { code: "db_error", message: "update failed: row locked" } }
+    }
+  },
+  watchlist_updates: {
+    request: {
+      name: "watchlist_updates",
+      arguments: {
+        since: "2026-07-16T14:00:00Z",
+        include_dividends: true,
+        include_quotes: true,
+        max_symbols: 25,
+        limit: 100
+      }
+    },
+    success_response: {
+      next_since: "2026-07-16T14:33:12.005Z",
+      cursor: "2026-07-16T14:33:12.005Z",
+      since: "2026-07-16T14:00:00Z",
+      has_more: false,
+      limit: 100,
+      count: 2,
+      symbols: ["AAPL", "MSFT"],
+      quotes: [
+        { symbol: "AAPL", price: 231.42, change_pct: 81e-4, as_of: "2026-07-16T14:33:00Z" },
+        { symbol: "MSFT", price: 512.1, change_pct: -23e-4, as_of: "2026-07-16T14:33:00Z" }
+      ],
+      alerts: [
+        {
+          id: "a1c2\u2026",
+          symbol: "AAPL",
+          kind: "spread_delta",
+          value: 1.8,
+          created_at: "2026-07-16T14:12:44Z"
+        },
+        {
+          id: "b2d3\u2026",
+          symbol: "MSFT",
+          kind: "dividend",
+          value: 0.83,
+          created_at: "2026-07-16T14:33:12.005Z"
+        }
+      ]
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to poll watchlist updates." } },
+      db_error: { error: { code: "db_error", message: "permission denied for table alerts" } }
+    }
+  }
+};
 var DOCS = [
   {
     name: "get_quote",
@@ -2122,6 +2300,31 @@ function toMarkdown() {
     lines.push(`- **Output:** ${d.outputs}`);
     if (d.error_codes?.length) lines.push(`- **Error codes:** ${d.error_codes.map((c) => `\`${c}\``).join(", ")}`);
     if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
+    const ex = EXAMPLES[d.name];
+    if (ex) {
+      lines.push("- **Example request:**");
+      lines.push("");
+      lines.push("  ```json");
+      for (const l of JSON.stringify(ex.request, null, 2).split("\n")) lines.push(`  ${l}`);
+      lines.push("  ```");
+      if (ex.success_response) {
+        lines.push("- **Example success response:**");
+        lines.push("");
+        lines.push("  ```json");
+        for (const l of JSON.stringify(ex.success_response, null, 2).split("\n")) lines.push(`  ${l}`);
+        lines.push("  ```");
+      }
+      if (ex.error_responses) {
+        lines.push("- **Example error responses:**");
+        for (const [code, body] of Object.entries(ex.error_responses)) {
+          lines.push(`  - \`${code}\`:`);
+          lines.push("");
+          lines.push("    ```json");
+          for (const l of JSON.stringify(body, null, 2).split("\n")) lines.push(`    ${l}`);
+          lines.push("    ```");
+        }
+      }
+    }
     lines.push("");
   }
   return lines.join("\n");
@@ -2136,22 +2339,30 @@ var list_tool_docs_default = defineTool14({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ format }) => {
     if (format === "json-schema") {
-      const payload = manifest_default;
+      const base = manifest_default;
+      const enriched = JSON.parse(JSON.stringify(base));
+      const tools = enriched.mcp?.tools ?? [];
+      for (const t of tools) {
+        const ex = EXAMPLES[t.name];
+        if (ex) t.examples = ex;
+      }
+      const payload = enriched;
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
         structuredContent: payload
       };
     }
     if (format === "json") {
+      const merged = DOCS.map((d) => ({ ...d, examples: EXAMPLES[d.name] ?? null }));
       return {
-        content: [{ type: "text", text: JSON.stringify({ tools: DOCS }) }],
-        structuredContent: { tools: DOCS }
+        content: [{ type: "text", text: JSON.stringify({ tools: merged }) }],
+        structuredContent: { tools: merged }
       };
     }
     const md = toMarkdown();
     return {
       content: [{ type: "text", text: md }],
-      structuredContent: { markdown: md, tools: DOCS }
+      structuredContent: { markdown: md, tools: DOCS, examples: EXAMPLES }
     };
   }
 });

@@ -26,7 +26,7 @@ export interface RateLimit {
 
 export interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
-  structuredContent?: unknown;
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }
 

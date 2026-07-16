@@ -144,7 +144,18 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
   // Peer comparison.
   const [peerInput, setPeerInput] = useState("");
-  const [peers, setPeers] = useState<{ sym: string; roic: number | null; wacc: number | null; spread: number | null; loading?: boolean; err?: string }[]>([]);
+  type PeerRow = {
+    sym: string;
+    roic: number | null;
+    wacc: number | null;
+    spread: number | null;
+    trend: Array<{ year: string; spread: number | null }>;
+    trendPP: number | null; // Δ pp from oldest to newest spread in `trend`.
+    loading?: boolean;
+    err?: string;
+  };
+  const [peers, setPeers] = useState<PeerRow[]>([]);
+  const [peerSort, setPeerSort] = useState<"spread" | "trend">("spread");
 
   // Alert config UI toggle.
   const [alertOpen, setAlertOpen] = useState(false);

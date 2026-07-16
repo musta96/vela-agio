@@ -58,12 +58,32 @@ async function findLatest13F(cikPadded: string) {
   // Try to find the information-table xml via the filing index.
   const idxJson = await edgarJson(`${base}/index.json`);
   const items: any[] = idxJson?.directory?.item ?? [];
-  const infoTable = items.find((it) => /informationtable\.xml$/i.test(it.name));
+  // 1) Prefer canonical name; 2) any xml other than primary_doc; sniff to confirm it contains <informationTable>.
+  let infoTable = items.find((it) => /informationtable\.xml$/i.test(it.name));
+  if (!infoTable) {
+    const candidates = items.filter((it) =>
+      /\.xml$/i.test(it.name) && !/primary_doc\.xml$/i.test(it.name)
+    );
+    for (const cand of candidates) {
+      try {
+        const head = await fetch(`${base}/${cand.name}`, { headers: { 'User-Agent': UA } });
+        if (!head.ok) continue;
+        const txt = await head.text();
+        if (/<(?:\w+:)?informationTable[\s>]/i.test(txt) || /<(?:\w+:)?infoTable[\s>]/i.test(txt)) {
+          infoTable = cand;
+          // Cache the fetched xml on the item to avoid a second round-trip.
+          (cand as any).__xml = txt;
+          break;
+        }
+      } catch { /* ignore and try next */ }
+    }
+  }
   return {
     accession: acc,
     filingDate: dates[idx],
     primaryDocument: primaryDocs[idx],
     infoTableUrl: infoTable ? `${base}/${infoTable.name}` : null,
+    infoTableXml: infoTable ? (infoTable as any).__xml ?? null : null,
     base,
     filerName: subs?.name ?? '',
   };
@@ -148,7 +168,7 @@ Deno.serve(async (req) => {
 
     const meta = await findLatest13F(cikPadded);
     if (!meta.infoTableUrl) throw new Error('Information table not found in filing');
-    const xml = await edgarText(meta.infoTableUrl);
+    const xml = (meta as any).infoTableXml ?? await edgarText(meta.infoTableUrl);
     const holdings = parseInfoTable(xml);
     const totalValue = holdings.reduce((s, h) => s + h.value, 0);
     const payload = {

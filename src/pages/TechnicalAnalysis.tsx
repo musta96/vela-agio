@@ -62,6 +62,9 @@ import { OrderFlowCard } from "@/components/technical/OrderFlowCard";
 import { VolumeAtPriceCard } from "@/components/technical/VolumeAtPriceCard";
 import { OptionsFlowCard } from "@/components/technical/OptionsFlowCard";
 import { FibonacciCard } from "@/components/technical/FibonacciCard";
+import { LiquiditySweepCard } from "@/components/technical/LiquiditySweepCard";
+import { SpreadFlowCard } from "@/components/technical/SpreadFlowCard";
+import { VolSpreadCard } from "@/components/technical/VolSpreadCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 
@@ -533,11 +536,14 @@ const TechnicalAnalysis = () => {
                 )}
                 <PatternStrategyCard symbol={symbol} timeframe={range} analysis={ta} />
                 {lastBar && <SMCDeepCard analysis={ta} lastPrice={lastBar.close} />}
+                <LiquiditySweepCard bars={bars} />
                 <AVWAPProfileCard bars={bars} />
                 <VolatilityCard bars={bars} />
+                <VolSpreadCard />
                 <FibonacciCard bars={bars} />
                 <VolumeAtPriceCard bars={bars} />
                 <OrderFlowCard bars={bars} />
+                <SpreadFlowCard symbol={symbol} bars={bars} />
                 <OptionsFlowCard symbol={symbol} />
                 <StrategyBuilderCard symbol={symbol} timeframe={range} />
                 {lastBar && (

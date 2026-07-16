@@ -88,7 +88,8 @@ function evalCondition(c: Condition, closes: number[], i: number): boolean {
       const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
       return !!(a && b && ap && bp && ap >= bp && a < b);
     }
-    // atr_breakout / adx_above are omitted client-side (need OHLC). Edge fn supports them via bar array.
+    // atr_breakout / adx_above / avwap_sweep_reclaim need OHLC + volume — omitted client-side.
+    // Server-side backtest evaluates them from the full bar array.
     default: return false;
   }
 }

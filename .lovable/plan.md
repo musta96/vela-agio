@@ -1,87 +1,55 @@
+# Advanced Strategies & Analytics — Round 4
 
-# Advanced Trading Strategies & Analytics Suite
+Eight related additions across TA, backtest, and infra. All frontend + existing edge functions; no new tables.
 
-This builds on the existing Technical Analysis + Strategy Builder + Backtest stack (already ships SMC signals, top-down, patterns, walk-forward, sensitivity, regime, cost model). It closes the ticket by adding the missing strategy families and analytics as first-class, backtestable modules.
+## 1. Liquidity Sweep Detector
+- `src/lib/ta/sweeps.ts`: `detectSweeps(bars, { lookback, wickRatio, minPenetrationATR, reclaimBars })` returning `{ index, bias, sweptLevel, wick, reclaimed }[]`. Reuses `findPivots` for swing highs/lows; wick ratio = wick / body; penetration measured in ATR units.
+- `src/components/technical/LiquiditySweepCard.tsx`: config sliders (lookback 10–100, wick ratio 1.5–5, penetration 0.1–1.5 ATR, reclaim window 1–5), Recharts overlay with annotated recent swings + sweep markers, table of last 10 sweeps.
+- Mounted on `/technical-analysis`.
 
-## Scope
+## 2. AVWAP + Sweep Strategy Template
+- Extend `strategyTypes.ts` with condition `avwap_sweep_reclaim` (params: anchorKind, valueAreaPct, sweepLookback).
+- `validateStrategy.ts`: validate new params.
+- `clientSim.ts` + `backtest-strategy/index.ts`: evaluate — entry when a sweep is detected AND current price is within AVWAP ± valueAreaPct*σ band from the selected anchor.
+- Seed preset "AVWAP Sweep Reclaim" in `strategy_presets` (migration adds one row).
 
-New library modules (`src/lib/ta/*`, `src/lib/backtest/*`) + focused cards mounted on `/technical-analysis` and `/backtest`, plus one new `/strategy-lab` page that houses the full plan framework.
+## 3. Spread & Volume-at-Price Visualizations
+- `src/components/technical/SpreadFlowCard.tsx`: horizontal split showing approx bid/ask spread (from Yahoo `regularMarketBid/Ask` via existing `flow-snapshot`) + sweep activity bar from order flow deltas.
+- Extend existing `VolumeAtPriceCard` with a directional-bias overlay (green/red segments per bin using signed delta from `computeOrderFlow`).
+- Mounted on `/technical-analysis` next to `OrderFlowCard`.
 
-### 1. SMC deep pack (`src/lib/ta/smc.ts`)
-Extend current SMC helper with:
-- Order blocks (bullish/bearish last-opposite-candle before impulse)
-- Fair Value Gaps (3-candle imbalance) with mitigation status
-- Liquidity sweeps (equal highs/lows + wick sweep + close-back)
-- Market structure shifts (BOS / CHoCH from swing pivots)
-- Supply/demand zones (base–rally / base–drop clusters)
-Rendered in a new `SMCDeepCard` on `/technical-analysis`.
+## 4. Event-Driven Intraday Backtest Mode
+- `src/lib/backtest/eventBacktest.ts`: given news timestamps + intraday bars, compute pre-window (N bars before) and post-window (M bars after) return/volatility, aggregated across events. Adds "volatility expansion" metric = post σ / pre σ.
+- Extend `NewsEventBacktestCard` with pre/post window inputs and expansion chart.
 
-### 2. Order & options flow (`src/lib/flow/*`, edge fn `flow-snapshot`)
-- Client: `OrderFlowCard` (bid/ask imbalance proxy from bar-by-bar delta), `VolumeAtPriceCard` (histogram from bars), `OptionsFlowCard` (unusual volume/OI + sweep-vs-block classification)
-- Edge fn `flow-snapshot` pulls options chain via existing data provider (Yahoo/Finnhub already wired) and returns aggregated metrics; caches to `market_data_cache`.
+## 5. Volatility Spread Module
+- `src/lib/ta/volSpread.ts`: given two series (e.g., ^VIX vs SPY realized vol, or GVZ vs GLD realized vol), compute z-score of the ratio, trend filter (EMA slope), and generate long/short spread signals.
+- `src/components/technical/VolSpreadCard.tsx`: symbol pair selector (presets: VIX/SPY, GVZ/GLD, VXN/QQQ), z-entry/exit sliders, EMA trend filter toggle, PnL preview using existing `simulateCustom` on the spread series.
+- Mounted on `/technical-analysis`.
 
-### 3. Anchored VWAP + Volume Profile (`src/lib/ta/avwap.ts`, `volumeProfile.ts`)
-- Multi-anchor AVWAP with click-to-anchor timeline (session, swing high/low, event date)
-- Volume Profile with POC, VAH/VAL (70% VA), fixed range + visible range modes
-- Combined `AVWAPProfileCard` that highlights confluence bands (AVWAP within VA) and sweep-into-AVWAP events
+## 6. Simulation Cache Panel
+- `src/components/backtest/SimCachePanel.tsx`: shows `cacheStats()` (entries, current bars fingerprint, max cap), buttons to clear cache and drop LS, slider for `MAX_ENTRIES` (50–1000) and `maxAgeDays` (1–90).
+- `simCache.ts`: add `setMaxEntries`, `setMaxAgeDays`, timestamp each entry, evict on hydrate when older than max age. Persist settings under `simcache:settings:v1`.
+- Mounted on `/backtest`.
 
-### 4. Algorithmic trend trading
-Extend `strategyTypes.ts` with condition kinds:
-`ema_cross`, `adx_above`, `donchian_break`, `supertrend_flip`, `ma_stack_aligned`
-Each already backtestable through the existing `backtest-strategy` edge fn (add the evaluators) and client sim.
+## 7. Progress Bar + ETA
+- `simCache.ts` `runCachedParallel`: extend `ProgressFn` signature to include `etaMs` computed from rolling completion rate. Non-breaking: existing callers ignore extra arg.
+- `SensitivityHeatmap.tsx` and `WalkForwardOptimizerCard.tsx`: render a `<Progress>` bar with `done/total`, hits ratio, and formatted ETA (mm:ss).
 
-### 5. News-driven intraday (`src/lib/news/*`, edge fn `news-events`)
-- Reuse existing sentiment pipeline; add event window backtest mode: enter N bars after headline if sentiment > threshold, exit at fixed horizon / stop
-- New `NewsEventBacktestCard` on `/backtest`
-
-### 6. Volatility trading (`src/lib/ta/volatility.ts`)
-- ATR-percentile, realized-vol z-score, VIX/GVZ-style ratio for the current symbol vs its benchmark
-- `VolatilityCard` with regime tag and a volatility-breakout preset strategy
-
-### 7. Pattern & Fibonacci enhancements (`src/lib/ta/patterns.ts`, `fib.ts`)
-- Add reversal (H&S, double top/bottom, wedges), continuation (flags, pennants, triangles), bilateral (symmetrical triangle, diamond)
-- Auto Fib retracement (0.236–0.786) and extension (1.272/1.618) from last impulse; signal when price reacts at cluster
-- Surface via existing pattern strategy card (already integrated with builder)
-
-### 8. Strategy Lab page (`/strategy-lab`)
-One place to formally define, test, and ship a plan:
-```
-+------------------ Strategy Lab ------------------+
-| [ Plan header: name, symbol, timeframe, tags ]   |
-| Entry rules | Exit rules | Risk (R:R, sizing)    |
-| Presets: SMC-sweep+AVWAP | Trend-EMA-stack |     |
-|          News-event | Vol-breakout | Fib-cluster |
-| [ Validate ] [ Backtest ] [ Walk-forward ] [PDF] |
-| Results tabs: Equity | Trades | Regime | Sens.   |
-+---------------------------------------------------+
-```
-Reuses `StrategyBuilderCard`, `BacktestDetailCharts`, `WalkForwardCard`, `SensitivityHeatmap`, `RegimeBreakdownCard`, `TechnicalExportCard`. Presets seed the rule graph with validated defaults.
-
-## Data / backend
-- Migration: add `strategy_presets` table (id, slug, name, description, entry_rules jsonb, exit_rules jsonb, risk_config jsonb, tags text[]) with `authenticated` read + service_role admin; seed 8 presets in same migration.
-- Edge fn `flow-snapshot` and `news-events` (verify_jwt default). Reuse `TWELVE_DATA_API_KEY` / `FINNHUB_API_KEY` / `FRED_API_KEY` already saved.
-- Extend `backtest-strategy` evaluator switch to cover the new condition kinds; keep parity in `clientSim.ts`.
+## 8. CPU Cap Setting
+- `simCache.ts`: `setMaxWorkers(n | "auto")`, persisted under `simcache:settings:v1`. `detectConcurrency()` honors the cap. When `n===0` or workers disabled by user, force sequential fallback.
+- Expose control in `SimCachePanel` (slider 1–hardwareConcurrency, plus "Auto" and "Disable workers" toggles).
 
 ## Files
-Create:
-- `src/lib/ta/{smc.ts,avwap.ts,volumeProfile.ts,volatility.ts,patterns.ts,fib.ts}`
-- `src/lib/flow/{orderFlow.ts,optionsFlow.ts,volumeAtPrice.ts}`
-- `src/lib/news/eventBacktest.ts`
-- `src/components/technical/{SMCDeepCard,AVWAPProfileCard,VolatilityCard,OrderFlowCard,OptionsFlowCard,VolumeAtPriceCard}.tsx`
-- `src/components/backtest/NewsEventBacktestCard.tsx`
-- `src/pages/StrategyLab.tsx` + route entry
-- `supabase/functions/flow-snapshot/index.ts`, `supabase/functions/news-events/index.ts`
-- `supabase/migrations/<ts>_strategy_presets.sql`
+Created (~7): `src/lib/ta/sweeps.ts`, `src/lib/ta/volSpread.ts`, `src/lib/backtest/eventBacktest.ts`, `src/components/technical/LiquiditySweepCard.tsx`, `src/components/technical/SpreadFlowCard.tsx`, `src/components/technical/VolSpreadCard.tsx`, `src/components/backtest/SimCachePanel.tsx`.
 
-Edit:
-- `src/lib/ta/strategyTypes.ts`, `src/lib/backtest/clientSim.ts`, `supabase/functions/backtest-strategy/index.ts` — add new condition kinds
-- `src/pages/TechnicalAnalysis.tsx` — mount SMC deep, AVWAP+Profile, Volatility, Flow cards behind the same entitlement gate
-- `src/pages/BacktestingModule.tsx` — mount News-event card
-- `src/App.tsx` — register `/strategy-lab` route (feature-gated)
+Edited: `src/lib/ta/strategyTypes.ts`, `src/lib/ta/validateStrategy.ts`, `src/lib/backtest/clientSim.ts`, `src/lib/backtest/simCache.ts`, `src/components/backtest/SensitivityHeatmap.tsx`, `src/components/backtest/WalkForwardOptimizerCard.tsx`, `src/components/technical/VolumeAtPriceCard.tsx`, `src/components/backtest/NewsEventBacktestCard.tsx`, `src/pages/TechnicalAnalysis.tsx`, `src/pages/BacktestingModule.tsx`, `supabase/functions/backtest-strategy/index.ts`.
 
-## Entitlements
-All new cards gated behind existing `ai.copilot` / pro tier feature keys already used by Strategy Builder. Presets table readable by any authenticated user.
+Migration: one new row in `strategy_presets` for the AVWAP-Sweep preset.
 
-## Out of scope (call out)
-- True L2/L3 order book (requires paid market-data feed the project doesn't have) — we approximate with bar delta + volume-at-price and clearly label it as a proxy in the UI.
-- Live options greeks streaming — snapshot only, cached.
+## Out of scope
+- True L2 tape (still approximated from OHLC + Yahoo quote snapshot).
+- Realtime streaming greeks/vol surfaces.
+- Multi-leg options spreads on the vol module (single-series spread only).
+
+Approve to build.

@@ -15,6 +15,13 @@ import type { Bar, SimResult } from "@/lib/backtest/clientSim";
 import { describeCondition } from "@/lib/ta/strategyTypes";
 import { runCached, runCachedParallel, cacheStats } from "@/lib/backtest/simCache";
 
+function formatEta(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, "0")}`;
+}
+
 interface Props {
   bars: Bar[];
   rules: { entry: Condition[]; exit: Condition[]; risk: RiskConfig };
@@ -86,7 +93,7 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
   const [xVals, setXVals] = useState<number[]>([]);
   const [yVals, setYVals] = useState<number[]>([]);
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number; hits: number }>({ done: 0, total: 0, hits: 0 });
+  const [progress, setProgress] = useState<{ done: number; total: number; hits: number; etaMs?: number }>({ done: 0, total: 0, hits: 0 });
   const [drill, setDrill] = useState<{
     x: number; y: number; xi: number; yi: number;
     metric: number; result: SimResult; rules: Props["rules"];
@@ -122,7 +129,7 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
       }
     }
     const { results, hits } = await runCachedParallel(bars, jobs, initial, costs,
-      (done, tot, h) => setProgress({ done, total: tot, hits: h }));
+      (done, tot, h, etaMs) => setProgress({ done, total: tot, hits: h, etaMs }));
     const g: number[][] = [];
     let k = 0;
     for (let yi = 0; yi < ys.length; yi++) {
@@ -130,7 +137,7 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
       for (let xi = 0; xi < xs.length; xi++) row.push(results[k++].metrics[metricKey]);
       g.push(row);
     }
-    setProgress({ done: total, total, hits });
+    setProgress({ done: total, total, hits, etaMs: 0 });
     setXVals(xs); setYVals(ys); setGrid(g); setRunning(false);
   };
 
@@ -250,6 +257,7 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
             <p className="text-[10px] text-muted-foreground">
               {progress.done}/{progress.total} simulations
               {progress.hits > 0 && <span> · {progress.hits} cache hits</span>}
+              {running && progress.etaMs !== undefined && progress.etaMs > 0 && <span> · ETA {formatEta(progress.etaMs)}</span>}
               {!running && progress.done === progress.total && <span> · done</span>}
             </p>
           </div>

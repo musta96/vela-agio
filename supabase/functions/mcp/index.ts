@@ -346,7 +346,7 @@ var add_cash_flow_entry_default = defineTool7({
     recurring_monthly: z4.boolean().describe("True if this repeats every month.").optional()
   },
   annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
-  handler: async (args, ctx) => {
+  handler: async (args, ctx) => withInstrumentation("add_cash_flow_entry", ctx, async () => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
     }
@@ -369,7 +369,7 @@ var add_cash_flow_entry_default = defineTool7({
       content: [{ type: "text", text: `Recorded ${args.direction} of ${args.amount} ${payload.currency} in ${args.category}.` }],
       structuredContent: { entry: data }
     };
-  }
+  }, { rateLimit: { max: 20, windowSec: 60 } })
 });
 
 // src/lib/mcp/tools/project-dividends.ts

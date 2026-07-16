@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { withInstrumentation } from "../lib/instrument";
 
 function supabaseForUser(ctx: ToolContext) {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
@@ -24,28 +25,29 @@ export default defineTool({
     recurring_monthly: z.boolean().describe("True if this repeats every month.").optional(),
   },
   annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
-  handler: async (args, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    }
-    const sb = supabaseForUser(ctx);
-    const payload = {
-      user_id: ctx.getUserId(),
-      direction: args.direction,
-      category: args.category,
-      amount: args.amount,
-      entry_date: args.entry_date ?? new Date().toISOString().slice(0, 10),
-      currency: (args.currency ?? "EUR").toUpperCase(),
-      label: args.label ?? null,
-      recurring_monthly: args.recurring_monthly ?? false,
-    };
-    const { data, error } = await sb.from("cash_flow_entries").insert(payload).select().single();
-    if (error) {
-      return { content: [{ type: "text", text: error.message }], isError: true };
-    }
-    return {
-      content: [{ type: "text", text: `Recorded ${args.direction} of ${args.amount} ${payload.currency} in ${args.category}.` }],
-      structuredContent: { entry: data },
-    };
-  },
+  handler: async (args, ctx) =>
+    withInstrumentation("add_cash_flow_entry", ctx, async () => {
+      if (!ctx.isAuthenticated()) {
+        return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+      }
+      const sb = supabaseForUser(ctx);
+      const payload = {
+        user_id: ctx.getUserId(),
+        direction: args.direction,
+        category: args.category,
+        amount: args.amount,
+        entry_date: args.entry_date ?? new Date().toISOString().slice(0, 10),
+        currency: (args.currency ?? "EUR").toUpperCase(),
+        label: args.label ?? null,
+        recurring_monthly: args.recurring_monthly ?? false,
+      };
+      const { data, error } = await sb.from("cash_flow_entries").insert(payload).select().single();
+      if (error) {
+        return { content: [{ type: "text", text: error.message }], isError: true };
+      }
+      return {
+        content: [{ type: "text", text: `Recorded ${args.direction} of ${args.amount} ${payload.currency} in ${args.category}.` }],
+        structuredContent: { entry: data },
+      };
+    }, { rateLimit: { max: 20, windowSec: 60 } }),
 });

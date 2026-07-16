@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Wrench, Plus, X, Play, Save, Trash2, Copy, History, BarChart3 } from "lucide-react";
+import { Wrench, Plus, X, Play, Save, Trash2, Copy, History, BarChart3, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   CONDITION_LABELS,
   describeCondition,
@@ -21,6 +21,7 @@ import {
   type TradingStrategyVersionRow,
 } from "@/lib/ta/strategyTypes";
 import { BacktestDetailCharts } from "@/components/backtest/BacktestDetailCharts";
+import { validateStrategy, summarize, type RuleIssue } from "@/lib/ta/validateStrategy";
 
 interface Props {
   symbol: string;
@@ -48,6 +49,10 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
   const [showVersions, setShowVersions] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [previewResult, setPreviewResult] = useState<{ equity: any[]; trades: any[]; metrics: any } | null>(null);
+
+  const issues = useMemo(() => validateStrategy(entry, exit, risk), [entry, exit, risk]);
+  const { errors, warnings } = useMemo(() => summarize(issues), [issues]);
+  const hasErrors = errors.length > 0;
 
   const loadSaved = async () => {
     if (!user) return;
@@ -89,8 +94,8 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
       toast({ title: "Sign in required", description: "Sign in to save trading strategies.", variant: "destructive" });
       return;
     }
-    if (entry.length === 0) {
-      toast({ title: "Add at least one entry rule", variant: "destructive" });
+    if (hasErrors) {
+      toast({ title: "Fix validation errors", description: errors[0].message, variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -173,8 +178,8 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
   };
 
   const handlePreviewBacktest = async () => {
-    if (entry.length === 0) {
-      toast({ title: "Add at least one entry rule", variant: "destructive" });
+    if (hasErrors) {
+      toast({ title: "Fix validation errors", description: errors[0].message, variant: "destructive" });
       return;
     }
     setPreviewing(true);

@@ -39,6 +39,18 @@ function rsi(closes: number[], i: number, period = 14): number | null {
   return 100 - 100 / (1 + avgG / avgL);
 }
 
+function ema(closes: number[], period: number, i: number): number | null {
+  if (i + 1 < period) return null;
+  const k = 2 / (period + 1);
+  let prev = 0;
+  for (let x = 0; x <= i; x++) {
+    if (x < period - 1) { prev += closes[x]; continue; }
+    if (x === period - 1) { prev = (prev + closes[x]) / period; continue; }
+    prev = closes[x] * k + prev * (1 - k);
+  }
+  return prev;
+}
+
 function evalCondition(c: Condition, closes: number[], i: number): boolean {
   switch (c.type) {
     case "rsi_below": { const r = rsi(closes, i); return r !== null && r < (c.value ?? 30); }
@@ -64,6 +76,19 @@ function evalCondition(c: Condition, closes: number[], i: number): boolean {
       const thr = c.value ?? 5;
       return thr >= 0 ? chg >= thr : chg <= thr;
     }
+    case "ema_cross_up": {
+      const f = c.fast ?? 12, s = c.slow ?? 26;
+      const a = ema(closes, f, i), b = ema(closes, s, i);
+      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
+      return !!(a && b && ap && bp && ap <= bp && a > b);
+    }
+    case "ema_cross_down": {
+      const f = c.fast ?? 12, s = c.slow ?? 26;
+      const a = ema(closes, f, i), b = ema(closes, s, i);
+      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
+      return !!(a && b && ap && bp && ap >= bp && a < b);
+    }
+    // atr_breakout / adx_above are omitted client-side (need OHLC). Edge fn supports them via bar array.
     default: return false;
   }
 }

@@ -12,25 +12,47 @@ export const REGIME_LABELS: Record<Regime, string> = {
   low_vol: "Low volatility",
 };
 
+export interface RegimeConfig {
+  smaFast: number;        // fast SMA window (bars)
+  smaSlow: number;        // slow SMA window (bars)
+  slopeLookback: number;  // bars used to measure slow-SMA slope
+  slopeThreshold: number; // absolute slope % (as fraction, e.g. 0.001 = 0.1%)
+  spreadThreshold: number;// absolute fast-vs-slow spread (fraction)
+  volWindow: number;      // rolling window for realized vol (bars)
+  highVolMult: number;    // realized vol > median × this ⇒ high vol
+  lowVolMult: number;     // realized vol < median × this ⇒ low vol
+}
+
+export const DEFAULT_REGIME_CONFIG: RegimeConfig = {
+  smaFast: 20,
+  smaSlow: 50,
+  slopeLookback: 5,
+  slopeThreshold: 0.001,
+  spreadThreshold: 0.005,
+  volWindow: 20,
+  highVolMult: 1.5,
+  lowVolMult: 0.66,
+};
+
 function stdev(arr: number[]): number {
   if (arr.length < 2) return 0;
   const m = arr.reduce((a, b) => a + b, 0) / arr.length;
   return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length);
 }
 
-// Trend regime uses 20/50 SMA slope + spread; volatility regime uses 20-bar realized vol vs median.
-export function classifyRegimes(bars: Bar[]): { trend: Regime[]; vol: Regime[] } {
+// Trend regime uses fast/slow SMA slope + spread; volatility regime uses realized vol vs median.
+export function classifyRegimes(bars: Bar[], config: RegimeConfig = DEFAULT_REGIME_CONFIG): { trend: Regime[]; vol: Regime[] } {
   const closes = bars.map((b) => b.close);
   const n = closes.length;
   const trend = new Array<Regime>(n).fill("range");
   const vol   = new Array<Regime>(n).fill("low_vol");
 
-  // 20-bar rolling returns and realized vol
+  // Rolling returns and realized vol
   const rets: number[] = new Array(n).fill(0);
   for (let i = 1; i < n; i++) rets[i] = closes[i - 1] > 0 ? (closes[i] - closes[i - 1]) / closes[i - 1] : 0;
 
   const vols: number[] = new Array(n).fill(0);
-  const W = 20;
+  const W = Math.max(2, config.volWindow);
   for (let i = W; i < n; i++) vols[i] = stdev(rets.slice(i - W + 1, i + 1));
 
   const nonZeroVols = vols.filter((v) => v > 0).sort((a, b) => a - b);
@@ -44,19 +66,20 @@ export function classifyRegimes(bars: Bar[]): { trend: Regime[]; vol: Regime[] }
   };
 
   for (let i = 0; i < n; i++) {
-    const s20 = sma(20, i);
-    const s50 = sma(50, i);
-    const s50p = sma(50, i - 5); // 5-bar earlier
-    if (s20 !== null && s50 !== null && s50p !== null) {
-      const slope = (s50 - s50p) / s50p;
-      const spread = (s20 - s50) / s50;
-      if (slope > 0.001 && spread > 0.005) trend[i] = "trend_up";
-      else if (slope < -0.001 && spread < -0.005) trend[i] = "trend_down";
+    const sF = sma(config.smaFast, i);
+    const sS = sma(config.smaSlow, i);
+    const sSp = sma(config.smaSlow, i - config.slopeLookback);
+    if (sF !== null && sS !== null && sSp !== null && sSp !== 0) {
+      const slope = (sS - sSp) / sSp;
+      const spread = (sF - sS) / sS;
+      if (slope > config.slopeThreshold && spread > config.spreadThreshold) trend[i] = "trend_up";
+      else if (slope < -config.slopeThreshold && spread < -config.spreadThreshold) trend[i] = "trend_down";
       else trend[i] = "range";
     }
     if (vols[i] > 0 && medianVol > 0) {
-      vol[i] = vols[i] > medianVol * 1.5 ? "high_vol" : vols[i] < medianVol * 0.66 ? "low_vol" : "low_vol";
-      if (vols[i] > medianVol) vol[i] = vols[i] > medianVol * 1.5 ? "high_vol" : "low_vol";
+      if (vols[i] > medianVol * config.highVolMult) vol[i] = "high_vol";
+      else if (vols[i] < medianVol * config.lowVolMult) vol[i] = "low_vol";
+      else vol[i] = "low_vol";
     }
   }
   return { trend, vol };

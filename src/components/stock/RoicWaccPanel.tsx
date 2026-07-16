@@ -1355,3 +1355,28 @@ function RangeSlider({
     </div>
   );
 }
+function SpreadSparkline({ trend }: { trend: Array<{ year: string; spread: number | null }> }) {
+  const pts = trend.filter((p): p is { year: string; spread: number } => p.spread != null);
+  if (pts.length < 2) return <span className="text-[10px] text-muted-foreground">—</span>;
+  const w = 80, h = 20, pad = 2;
+  const values = pts.map((p) => p.spread);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const range = max - min || 1;
+  const zeroY = h - pad - ((0 - min) / range) * (h - pad * 2);
+  const coords = pts.map((p, i) => {
+    const x = pad + (i * (w - pad * 2)) / (pts.length - 1);
+    const y = h - pad - ((p.spread - min) / range) * (h - pad * 2);
+    return [x, y] as [number, number];
+  });
+  const path = coords.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(" ");
+  const last = pts[pts.length - 1].spread;
+  const stroke = last >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
+  return (
+    <svg width={w} height={h} className="inline-block align-middle" role="img" aria-label="spread trend">
+      <line x1={0} x2={w} y1={zeroY} y2={zeroY} stroke="hsl(var(--border))" strokeDasharray="2 2" />
+      <path d={path} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={coords[coords.length - 1][0]} cy={coords[coords.length - 1][1]} r={1.75} fill={stroke} />
+    </svg>
+  );
+}

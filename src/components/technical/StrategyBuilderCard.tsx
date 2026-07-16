@@ -501,3 +501,59 @@ function NumField({ label, value, onChange, step }: { label: string; value: numb
     </div>
   );
 }
+
+function ValidationPanel({ issues }: { issues: RuleIssue[] }) {
+  const errors = issues.filter((i) => i.level === "error");
+  const warnings = issues.filter((i) => i.level === "warning");
+
+  if (errors.length === 0 && warnings.length === 0) {
+    return (
+      <div className="mt-4 flex items-center gap-2 p-2.5 rounded-md border border-success/30 bg-success/5 text-xs text-success">
+        <CheckCircle2 className="h-4 w-4" />
+        <span>Rules look consistent — ready to save & backtest.</span>
+      </div>
+    );
+  }
+
+  const scopeLabel = (s: RuleIssue["scope"]) =>
+    s === "entry" ? "Entry" : s === "exit" ? "Exit" : s === "risk" ? "Risk" : "Strategy";
+
+  return (
+    <div className="mt-4 space-y-2">
+      {errors.length > 0 && (
+        <div className="p-3 rounded-md border border-destructive/40 bg-destructive/5">
+          <div className="flex items-center gap-2 mb-1.5 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-xs font-semibold">
+              {errors.length} issue{errors.length > 1 ? "s" : ""} must be fixed before saving
+            </p>
+          </div>
+          <ul className="space-y-0.5 text-xs text-destructive/90 pl-6 list-disc">
+            {errors.map((e, i) => (
+              <li key={i}>
+                <span className="font-medium">{scopeLabel(e.scope)}:</span> {e.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {warnings.length > 0 && (
+        <div className="p-3 rounded-md border border-warning/40 bg-warning/5">
+          <div className="flex items-center gap-2 mb-1.5 text-warning">
+            <AlertTriangle className="h-4 w-4" />
+            <p className="text-xs font-semibold">
+              {warnings.length} warning{warnings.length > 1 ? "s" : ""} — review before running live
+            </p>
+          </div>
+          <ul className="space-y-0.5 text-xs text-muted-foreground pl-6 list-disc">
+            {warnings.map((w, i) => (
+              <li key={i}>
+                <span className="font-medium text-foreground">{scopeLabel(w.scope)}:</span> {w.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

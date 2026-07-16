@@ -17,6 +17,194 @@ interface ToolDoc {
   error_codes?: string[];
 }
 
+// Copy/paste-ready examples for the run + watchlist tools. Each entry has a
+// realistic request payload and — where applicable — a set of typed error
+// responses keyed by `error.code`, matching the envelope the handlers return.
+interface ToolExample {
+  request: { name: string; arguments: Record<string, unknown> };
+  success_response?: Record<string, unknown>;
+  error_responses?: Record<string, { error: { code: string; message: string; [k: string]: unknown } }>;
+}
+
+const EXAMPLES: Record<string, ToolExample> = {
+  start_run: {
+    request: {
+      name: "start_run",
+      arguments: {
+        kind: "sensitivity",
+        input: {
+          symbol: "AAPL",
+          preset: "sma_cross",
+          range: "5y",
+          initial_capital: 10000,
+          sweep: { fast: [10, 20, 50], slow: [100, 150, 200] },
+        },
+      },
+    },
+    success_response: {
+      run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      status: "running",
+    },
+  },
+  get_run_status: {
+    request: {
+      name: "get_run_status",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
+    },
+    success_response: {
+      id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      kind: "sensitivity",
+      status: "running",
+      progress: 42,
+      error: null,
+      started_at: "2026-07-16T14:33:09Z",
+      finished_at: null,
+      canceled_at: null,
+      cancel_requested: false,
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to read a run." } },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." },
+      },
+      db_error: { error: { code: "db_error", message: "permission denied for table simulation_runs" } },
+    },
+  },
+  get_run_result: {
+    request: {
+      name: "get_run_result",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
+    },
+    success_response: {
+      metrics: { cagr: 0.128, maxDrawdown: -0.213, sharpe: 1.14, hitRate: 0.56 },
+      combos: 9,
+    },
+    error_responses: {
+      run_running: {
+        error: {
+          code: "run_running",
+          message: "Run is still running (progress=42%). Poll get_run_status.",
+          status: "running",
+          progress: 42,
+        },
+      },
+      run_failed: {
+        error: {
+          code: "run_failed",
+          message: "Yahoo history fetch returned 0 bars",
+          status: "failed",
+          progress: 15,
+          worker_error: "Yahoo history fetch returned 0 bars",
+        },
+      },
+      run_canceled: {
+        error: {
+          code: "run_canceled",
+          message: "Run was canceled before completion.",
+          status: "canceled",
+          progress: 33,
+        },
+      },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." },
+      },
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to read a run result." } },
+    },
+  },
+  get_run_logs: {
+    request: {
+      name: "get_run_logs",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
+    },
+    success_response: {
+      id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      kind: "sensitivity",
+      status: "failed",
+      progress: 15,
+      error: "Yahoo history fetch returned 0 bars",
+      logs: [
+        { t: "2026-07-16T14:33:09.120Z", level: "info", msg: "sweep start (9 combos)" },
+        { t: "2026-07-16T14:33:10.842Z", level: "warn", msg: "combo 2/9: thin data" },
+        { t: "2026-07-16T14:33:12.005Z", level: "error", msg: "Yahoo history fetch returned 0 bars" },
+      ],
+      started_at: "2026-07-16T14:33:09Z",
+      finished_at: "2026-07-16T14:33:12Z",
+      canceled_at: null,
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to read run logs." } },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." },
+      },
+      db_error: { error: { code: "db_error", message: "permission denied for table simulation_runs" } },
+    },
+  },
+  cancel_run: {
+    request: {
+      name: "cancel_run",
+      arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
+    },
+    success_response: {
+      run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
+      status: "canceled",
+      canceled: true,
+      canceled_at: "2026-07-16T14:34:01Z",
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to cancel a run." } },
+      not_found: {
+        error: { code: "not_found", message: "No run 3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234 for the signed-in user." },
+      },
+      db_error: { error: { code: "db_error", message: "update failed: row locked" } },
+    },
+  },
+  watchlist_updates: {
+    request: {
+      name: "watchlist_updates",
+      arguments: {
+        since: "2026-07-16T14:00:00Z",
+        include_dividends: true,
+        include_quotes: true,
+        max_symbols: 25,
+        limit: 100,
+      },
+    },
+    success_response: {
+      next_since: "2026-07-16T14:33:12.005Z",
+      cursor: "2026-07-16T14:33:12.005Z",
+      since: "2026-07-16T14:00:00Z",
+      has_more: false,
+      limit: 100,
+      count: 2,
+      symbols: ["AAPL", "MSFT"],
+      quotes: [
+        { symbol: "AAPL", price: 231.42, change_pct: 0.0081, as_of: "2026-07-16T14:33:00Z" },
+        { symbol: "MSFT", price: 512.10, change_pct: -0.0023, as_of: "2026-07-16T14:33:00Z" },
+      ],
+      alerts: [
+        {
+          id: "a1c2…",
+          symbol: "AAPL",
+          kind: "spread_delta",
+          value: 1.8,
+          created_at: "2026-07-16T14:12:44Z",
+        },
+        {
+          id: "b2d3…",
+          symbol: "MSFT",
+          kind: "dividend",
+          value: 0.83,
+          created_at: "2026-07-16T14:33:12.005Z",
+        },
+      ],
+    },
+    error_responses: {
+      not_authenticated: { error: { code: "not_authenticated", message: "Sign in to poll watchlist updates." } },
+      db_error: { error: { code: "db_error", message: "permission denied for table alerts" } },
+    },
+  },
+};
+
 const DOCS: ToolDoc[] = [
   {
     name: "get_quote",

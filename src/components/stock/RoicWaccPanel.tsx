@@ -204,6 +204,98 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     return { roicLatest: roic, wacc: w, spread: roicWaccSpread(roic.roic, w.wacc) };
   }, [snap, inputs]);
 
+  // Per-year ROIC / WACC / spread. Historic years use book equity for the
+  // equity weight (market caps are not returned for historic snapshots), so
+  // the series is capital-structure-adjusted but the beta/rf/erp are held
+  // constant at the user's current assumptions.
+  const timeSeries = useMemo(() => {
+    const rf = rfPct / 100;
+    const erp = erpPct / 100;
+    const kd = kdPct / 100;
+    const beta = betaIn === "" ? (snap?.beta ?? 1) : Number(betaIn);
+    return history.map((r) => {
+      const tax = taxPct === "" ? (r.taxRate ?? snap?.effTaxRate ?? 0.21) : Number(taxPct) / 100;
+      const w = computeWacc({
+        marketCap: r.equityBook,
+        totalDebt: r.totalDebt,
+        beta, riskFreeRate: rf, equityRiskPremium: erp,
+        preTaxCostOfDebt: kd, taxRate: tax,
+      });
+      const spr = roicWaccSpread(r.roic, w.wacc);
+      return {
+        year: r.year,
+        endDate: r.endDate,
+        roicPct: r.roic != null ? +(r.roic * 100).toFixed(2) : null,
+        waccPct: w.wacc != null ? +(w.wacc * 100).toFixed(2) : null,
+        spreadPct: spr != null ? +(spr * 100).toFixed(2) : null,
+        spread: spr,
+      };
+    });
+  }, [history, rfPct, erpPct, kdPct, taxPct, betaIn, snap]);
+
+  // Backtest of the alert rule over the annual series.
+  const backtest = useMemo(() => {
+    const pts = timeSeries.filter((r) => r.spread != null) as Array<{ year: string; endDate: string; spread: number }>;
+    if (pts.length < 2) return { count: 0, events: [] as Array<{ year: string; delta: number; direction: "improve" | "worsen" }> };
+    const thr = alertThresholdBps / 10000;
+    const events: Array<{ year: string; delta: number; direction: "improve" | "worsen" }> = [];
+    for (let i = 1; i < pts.length; i++) {
+      const d = pts[i].spread - pts[i - 1].spread;
+      const dir: "improve" | "worsen" = d >= 0 ? "improve" : "worsen";
+      const pass =
+        alertDirection === "either" ? Math.abs(d) >= thr :
+        alertDirection === "improve" ? d >= thr :
+        -d >= thr;
+      if (pass) events.push({ year: pts[i].year, delta: d, direction: dir });
+    }
+    return { count: events.length, events };
+  }, [timeSeries, alertThresholdBps, alertDirection]);
+
+  // Sensitivity: 2^4 corner sweep + one-at-a-time driver sweep.
+  const sensitivity = useMemo(() => {
+    if (!snap) return null;
+    const totalDebt = (snap.ltDebt ?? 0) + (snap.stDebt ?? 0);
+    const compute = (rf: number, erp: number, tax: number, beta: number) => {
+      const r = computeRoic({
+        ebit: snap.ebit, taxRate: tax / 100,
+        totalEquity: snap.equity, longTermDebt: snap.ltDebt,
+        shortLongTermDebt: snap.stDebt, cash: snap.cash,
+      });
+      const w = computeWacc({
+        marketCap: snap.marketCap, totalDebt, beta,
+        riskFreeRate: rf / 100, equityRiskPremium: erp / 100,
+        preTaxCostOfDebt: kdPct / 100, taxRate: tax / 100,
+      });
+      return roicWaccSpread(r.roic, w.wacc);
+    };
+    const corners: number[] = [];
+    for (const rf of sensRf) for (const erp of sensErp) for (const tax of sensTax) for (const beta of sensBeta) {
+      const s = compute(rf, erp, tax, beta);
+      if (s != null) corners.push(s);
+    }
+    if (!corners.length) return null;
+    const min = Math.min(...corners), max = Math.max(...corners);
+    const midRf = (sensRf[0] + sensRf[1]) / 2;
+    const midErp = (sensErp[0] + sensErp[1]) / 2;
+    const midTax = (sensTax[0] + sensTax[1]) / 2;
+    const midBeta = (sensBeta[0] + sensBeta[1]) / 2;
+    const sweep = (range: [number, number], fix: (v: number) => number | null) => {
+      const steps = 5;
+      const [lo, hi] = range;
+      return Array.from({ length: steps }, (_, i) => {
+        const x = lo + ((hi - lo) * i) / (steps - 1);
+        return { x, spread: fix(x) };
+      });
+    };
+    const drivers = {
+      rf: sweep(sensRf, (v) => compute(v, midErp, midTax, midBeta)),
+      erp: sweep(sensErp, (v) => compute(midRf, v, midTax, midBeta)),
+      tax: sweep(sensTax, (v) => compute(midRf, midErp, v, midBeta)),
+      beta: sweep(sensBeta, (v) => compute(midRf, midErp, midTax, v)),
+    };
+    return { min, max, drivers };
+  }, [snap, sensRf, sensErp, sensTax, sensBeta, kdPct]);
+
   const resetAssumptions = () => {
     setRfPct(4.2); setErpPct(5.0); setKdPct(5.0);
     setTaxPct(snap?.effTaxRate != null ? +(snap.effTaxRate * 100).toFixed(2) : "");

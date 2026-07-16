@@ -4,10 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Grid3x3 } from "lucide-react";
+import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Condition, RiskConfig } from "@/lib/ta/strategyTypes";
 import type { CostConfig } from "@/lib/backtest/costs";
-import { simulateCustom, type Bar } from "@/lib/backtest/clientSim";
+import type { Bar, SimResult } from "@/lib/backtest/clientSim";
+import { describeCondition } from "@/lib/ta/strategyTypes";
+import { runCached, cacheStats } from "@/lib/backtest/simCache";
 
 interface Props {
   bars: Bar[];
@@ -80,6 +86,11 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
   const [xVals, setXVals] = useState<number[]>([]);
   const [yVals, setYVals] = useState<number[]>([]);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; hits: number }>({ done: 0, total: 0, hits: 0 });
+  const [drill, setDrill] = useState<{
+    x: number; y: number; xi: number; yi: number;
+    metric: number; result: SimResult; rules: Props["rules"];
+  } | null>(null);
 
   if (axes.length === 0) {
     return (
@@ -99,20 +110,36 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
     setRunning(true);
     const xs = linspace(xFrom, xTo, steps);
     const ys = linspace(yFrom, yTo, steps);
+    const total = xs.length * ys.length;
+    setProgress({ done: 0, total, hits: 0 });
     const g: number[][] = [];
+    let done = 0;
+    let hits = 0;
     // Non-blocking: yield to the event loop every row so the UI stays responsive.
     for (let yi = 0; yi < ys.length; yi++) {
       const row: number[] = [];
       for (let xi = 0; xi < xs.length; xi++) {
         let r = applyAxis(rules, axisX, xs[xi]);
         r = applyAxis(r, axisY, ys[yi]);
-        const res = simulateCustom(bars, r, initial, costs);
-        row.push(res.metrics[metricKey]);
+        const { result, hit } = runCached(bars, r, initial, costs);
+        row.push(result.metrics[metricKey]);
+        done++;
+        if (hit) hits++;
       }
       g.push(row);
+      setProgress({ done, total, hits });
       await new Promise((res) => setTimeout(res, 0));
     }
     setXVals(xs); setYVals(ys); setGrid(g); setRunning(false);
+  };
+
+  const openDrill = (xi: number, yi: number) => {
+    if (!grid) return;
+    const x = xVals[xi], y = yVals[yi];
+    let r = applyAxis(rules, axisX, x);
+    r = applyAxis(r, axisY, y);
+    const { result } = runCached(bars, r, initial, costs);
+    setDrill({ x, y, xi, yi, metric: grid[yi][xi], result, rules: r });
   };
 
   const metricInfo = METRICS.find((m) => m.key === metricKey)!;
@@ -195,8 +222,14 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
                   <tr key={yi}>
                     <td className="text-right pr-2 text-muted-foreground">{yVals[yi].toFixed(2)}</td>
                     {row.map((v, xi) => (
-                      <td key={xi} className="text-center px-2 py-1 rounded font-medium" style={{ backgroundColor: cellColor(v) }}>
-                        {v.toFixed(2)}
+                      <td key={xi}>
+                        <button
+                          onClick={() => openDrill(xi, yi)}
+                          className="w-full min-w-[3.5rem] text-center px-2 py-1 rounded font-medium hover:ring-2 hover:ring-primary/60 transition"
+                          style={{ backgroundColor: cellColor(v) }}
+                          title="Click to drill down">
+                          {v.toFixed(2)}
+                        </button>
                       </td>
                     ))}
                   </tr>
@@ -204,11 +237,119 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
               </tbody>
             </table>
             <p className="text-[11px] text-muted-foreground mt-2">
-              Range: {min.toFixed(2)} → {max.toFixed(2)}. A single hot cell surrounded by cool ones suggests overfitting.
+              Range: {min.toFixed(2)} → {max.toFixed(2)}. Click a cell to inspect the exact parameters, equity curve and trades.
+              <span className="ml-1">Cache: {cacheStats().size} runs.</span>
+            </p>
+          </div>
+        )}
+
+        {(running || progress.done > 0) && (
+          <div className="space-y-1">
+            <Progress value={progress.total ? (progress.done / progress.total) * 100 : 0} className="h-1.5" />
+            <p className="text-[10px] text-muted-foreground">
+              {progress.done}/{progress.total} simulations
+              {progress.hits > 0 && <span> · {progress.hits} cache hits</span>}
+              {!running && progress.done === progress.total && <span> · done</span>}
             </p>
           </div>
         )}
       </CardContent>
+
+      <DrillDialog drill={drill} onClose={() => setDrill(null)} axisXLabel={axisX.label} axisYLabel={axisY.label} initial={initial} />
     </Card>
+  );
+}
+
+function DrillDialog({
+  drill, onClose, axisXLabel, axisYLabel, initial,
+}: {
+  drill: { x: number; y: number; metric: number; result: SimResult; rules: { entry: Condition[]; exit: Condition[]; risk: RiskConfig } } | null;
+  onClose: () => void;
+  axisXLabel: string;
+  axisYLabel: string;
+  initial: number;
+}) {
+  if (!drill) return null;
+  const { result, rules } = drill;
+  const chartData = result.equity.map((e) => ({
+    date: new Date(e.t).toLocaleDateString(),
+    value: Math.round(e.value),
+  }));
+  return (
+    <Dialog open={!!drill} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base">Sensitivity cell drill-down</DialogTitle>
+          <DialogDescription className="text-xs">
+            {axisXLabel} = <span className="font-semibold text-foreground">{drill.x.toFixed(3)}</span> ·{" "}
+            {axisYLabel} = <span className="font-semibold text-foreground">{drill.y.toFixed(3)}</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+          <Kpi label="Return" value={`${result.metrics.totalReturn >= 0 ? "+" : ""}${result.metrics.totalReturn.toFixed(2)}%`} sign={result.metrics.totalReturn >= 0 ? "success" : "destructive"} />
+          <Kpi label="Max DD" value={`${result.metrics.maxDrawdown.toFixed(2)}%`} sign="destructive" />
+          <Kpi label="Sharpe" value={result.metrics.sharpe.toFixed(2)} sign="foreground" />
+          <Kpi label="Trades" value={String(result.metrics.totalTrades)} sign="foreground" />
+        </div>
+
+        <div className="mb-3 p-2 rounded border border-border bg-muted/20 text-[11px] space-y-1">
+          <p><span className="text-success font-medium">ENTRY</span>: {rules.entry.map(describeCondition).join(" AND ") || "—"}</p>
+          <p><span className="text-destructive font-medium">EXIT</span>: {rules.exit.map(describeCondition).join(" AND ") || "—"}
+            {rules.risk.stopPct ? ` · stop ${rules.risk.stopPct}%` : ""}
+            {rules.risk.targetPct ? ` · target ${rules.risk.targetPct}%` : ""}
+          </p>
+          <p className="text-[10px] text-muted-foreground">Initial capital: {initial.toLocaleString()} · Final equity: {(result.equity[result.equity.length - 1]?.value ?? initial).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+        </div>
+
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="drillEq" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={40} />
+            <YAxis tick={{ fontSize: 10 }} />
+            <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+            <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="url(#drillEq)" strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+
+        <div className="mt-3">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-xs font-semibold">Trade log</p>
+            <Badge variant="outline" className="text-[10px]">{result.trades.length} executions</Badge>
+          </div>
+          {result.trades.length === 0 ? (
+            <p className="text-xs text-muted-foreground">This parameter combination produced no trades.</p>
+          ) : (
+            <div className="max-h-52 overflow-auto space-y-0.5">
+              {result.trades.map((t, i) => (
+                <div key={i} className="flex justify-between text-[11px] border-b border-border/40 py-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={t.type === "BUY" ? "default" : "secondary"} className="text-[9px]">{t.type}</Badge>
+                    <span className="text-muted-foreground">{t.date}</span>
+                  </div>
+                  <span>@ {t.price.toFixed(2)} · {t.shares.toFixed(2)} sh</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Kpi({ label, value, sign }: { label: string; value: string; sign: "success" | "destructive" | "foreground" }) {
+  const colorClass = sign === "success" ? "text-success" : sign === "destructive" ? "text-destructive" : "text-foreground";
+  return (
+    <div className="p-2 rounded-md border border-border bg-muted/20">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className={`text-sm font-semibold ${colorClass}`}>{value}</p>
+    </div>
   );
 }

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GitCompare } from "lucide-react";
-import { simulateCustom, type Bar } from "@/lib/backtest/clientSim";
+import { type Bar } from "@/lib/backtest/clientSim";
+import { runCached } from "@/lib/backtest/simCache";
+import { Progress } from "@/components/ui/progress";
 import type { CostConfig } from "@/lib/backtest/costs";
 import type { TradingStrategyVersionRow } from "@/lib/ta/strategyTypes";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +48,7 @@ export function VersionCompareCard({ strategyId, bars, initial, costs, walkForwa
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [runs, setRuns] = useState<VersionRun[]>([]);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; hits: number }>({ done: 0, total: 0, hits: 0 });
 
   useEffect(() => {
     if (!strategyId) return;
@@ -62,25 +65,32 @@ export function VersionCompareCard({ strategyId, bars, initial, costs, walkForwa
     })();
   }, [strategyId]);
 
-  const compare = () => {
+  const compare = async () => {
     setLoading(true);
     const chosen = versions.filter((v) => selected.has(v.version));
-    const out: VersionRun[] = chosen.map((v) => {
-      const res = simulateCustom(bars, {
+    setProgress({ done: 0, total: chosen.length, hits: 0 });
+    const out: VersionRun[] = [];
+    let hits = 0;
+    for (let i = 0; i < chosen.length; i++) {
+      const v = chosen[i];
+      const { result, hit } = runCached(bars, {
         entry: v.entry_rules ?? [],
         exit:  v.exit_rules  ?? [],
         risk:  v.risk_config ?? {},
       }, initial, costs);
-      return {
+      if (hit) hits++;
+      out.push({
         version: v,
-        totalReturn: res.metrics.totalReturn,
-        maxDD: res.metrics.maxDrawdown,
-        sharpe: res.metrics.sharpe,
-        winRate: res.metrics.winRate,
-        trades: res.metrics.totalTrades,
-        wfReturns: walkForwardReturns(res.equity, walkForwardSplits),
-      };
-    });
+        totalReturn: result.metrics.totalReturn,
+        maxDD: result.metrics.maxDrawdown,
+        sharpe: result.metrics.sharpe,
+        winRate: result.metrics.winRate,
+        trades: result.metrics.totalTrades,
+        wfReturns: walkForwardReturns(result.equity, walkForwardSplits),
+      });
+      setProgress({ done: i + 1, total: chosen.length, hits });
+      await new Promise((r) => setTimeout(r, 0));
+    }
     setRuns(out);
     setLoading(false);
   };
@@ -143,6 +153,16 @@ export function VersionCompareCard({ strategyId, bars, initial, costs, walkForwa
             <p className="text-[11px] text-muted-foreground self-center">Select at least 2 versions.</p>
           )}
         </div>
+
+        {(loading || (progress.done > 0 && progress.total > 0)) && (
+          <div className="space-y-1">
+            <Progress value={progress.total ? (progress.done / progress.total) * 100 : 0} className="h-1.5" />
+            <p className="text-[10px] text-muted-foreground">
+              {progress.done}/{progress.total} versions simulated
+              {progress.hits > 0 && <span> · {progress.hits} cache hits</span>}
+            </p>
+          </div>
+        )}
 
         {runs.length > 0 && (
           <div className="overflow-auto">

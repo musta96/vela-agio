@@ -62,6 +62,9 @@ import { OrderFlowCard } from "@/components/technical/OrderFlowCard";
 import { VolumeAtPriceCard } from "@/components/technical/VolumeAtPriceCard";
 import { OptionsFlowCard } from "@/components/technical/OptionsFlowCard";
 import { FibonacciCard } from "@/components/technical/FibonacciCard";
+import { LiquiditySweepCard } from "@/components/technical/LiquiditySweepCard";
+import { SpreadFlowCard } from "@/components/technical/SpreadFlowCard";
+import { VolSpreadCard } from "@/components/technical/VolSpreadCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 

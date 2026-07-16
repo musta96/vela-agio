@@ -165,8 +165,8 @@ async function withInstrumentation(toolName, ctx, handler, opts) {
       client_id: clientId
     });
     return result;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (err3) {
+    const message = err3 instanceof Error ? err3.message : String(err3);
     void sb.from("mcp_call_log").insert({
       user_id: userId,
       tool_name: toolName,
@@ -175,7 +175,7 @@ async function withInstrumentation(toolName, ctx, handler, opts) {
       error: message.slice(0, 500),
       client_id: clientId
     });
-    throw err;
+    throw err3;
   }
 }
 function summarize(r) {
@@ -1008,6 +1008,33 @@ var start_run_default = defineTool10({
       log("info", `Loaded ${bars.length} bars \u2014 running ${combos.length} combos`);
       const rows = [];
       for (let i = 0; i < combos.length; i++) {
+        const { data: cancelRow } = await sb.from("simulation_runs").select("cancel_requested, status").eq("id", runId).eq("user_id", userId).maybeSingle();
+        if (cancelRow && (cancelRow.cancel_requested || cancelRow.status === "canceled")) {
+          log("warn", `Cancellation requested at combo ${i}/${combos.length}. Stopping.`);
+          const partial = {
+            symbol: args.symbol.toUpperCase(),
+            preset: args.preset,
+            range: args.range,
+            combinations: rows.length,
+            results: rows,
+            best: rows[0] ?? null,
+            canceled: true,
+            canceled_at_combo: i
+          };
+          await sb.from("simulation_runs").update({
+            status: "canceled",
+            cancel_requested: true,
+            canceled_at: (/* @__PURE__ */ new Date()).toISOString(),
+            finished_at: (/* @__PURE__ */ new Date()).toISOString(),
+            progress: Math.round(i / combos.length * 100),
+            logs,
+            result: partial
+          }).eq("id", runId).eq("user_id", userId);
+          return {
+            content: [{ type: "text", text: `run_id=${runId} status=canceled at ${i}/${combos.length}` }],
+            structuredContent: { run_id: runId, status: "canceled", combinations: rows.length }
+          };
+        }
         const c = combos[i];
         const p = {
           fast: c.fast ?? args.fast,
@@ -1042,8 +1069,8 @@ var start_run_default = defineTool10({
         content: [{ type: "text", text: `run_id=${runId} status=succeeded combos=${rows.length}` }],
         structuredContent: { run_id: runId, status: "succeeded", combinations: rows.length }
       };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+    } catch (err3) {
+      const msg = err3 instanceof Error ? err3.message : String(err3);
       log("error", msg);
       await finish({ status: "failed", error: msg, progress: 100 });
       return { content: [{ type: "text", text: `run_id=${runId} status=failed: ${msg}` }], structuredContent: { run_id: runId, status: "failed", error: msg }, isError: true };
@@ -1061,6 +1088,14 @@ function sbUser2(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
+function err(code, message, extra) {
+  const payload = { error: { code, message, ...extra ?? {} } };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload) }],
+    structuredContent: payload,
+    isError: true
+  };
+}
 async function loadRun(ctx, runId, columns) {
   const sb = sbUser2(ctx);
   const { data, error } = await sb.from("simulation_runs").select(columns).eq("id", runId).eq("user_id", ctx.getUserId()).maybeSingle();
@@ -1069,35 +1104,37 @@ async function loadRun(ctx, runId, columns) {
 var getRunStatus = defineTool11({
   name: "get_run_status",
   title: "Get run status",
-  description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished timestamps, error string if failed). Requires authentication; only the run owner can read it.",
+  description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished/canceled timestamps, error string if failed). On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
   inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ run_id }, ctx) => withInstrumentation("get_run_status", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, started_at, finished_at, created_at, updated_at");
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    if (!ctx.isAuthenticated()) return err("not_authenticated", "Sign in to read a run.");
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, started_at, finished_at, canceled_at, cancel_requested, created_at, updated_at");
+    if (error) return err("db_error", error.message);
+    if (!data) return err("not_found", `No run ${run_id} for the signed-in user.`);
     return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
   }, { rateLimit: { max: 120, windowSec: 60 } })
 });
 var getRunResult = defineTool11({
   name: "get_run_result",
   title: "Get run result",
-  description: "Return the full result JSON of a completed simulation run. Errors if the run is still running or failed. Requires authentication; only the run owner can read it.",
+  description: "Return the full result JSON of a completed simulation run. Errors with a typed envelope `{ error: { code, message, status?, progress? } }` when the run is not ready. Codes: not_authenticated, not_found, db_error, run_running, run_failed, run_canceled. Requires authentication; only the run owner can read it.",
   inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ run_id }, ctx) => withInstrumentation("get_run_result", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+    if (!ctx.isAuthenticated()) return err("not_authenticated", "Sign in to read a run result.");
     const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, result, error");
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    if (error) return err("db_error", error.message);
+    if (!data) return err("not_found", `No run ${run_id} for the signed-in user.`);
     const row = data;
-    if (row.status !== "succeeded") {
-      return {
-        content: [{ type: "text", text: `Run status=${row.status}${row.error ? ` error=${row.error}` : ""}` }],
-        structuredContent: data,
-        isError: row.status === "failed"
-      };
+    if (row.status === "running") {
+      return err("run_running", `Run is still running (progress=${row.progress}%). Poll get_run_status.`, { status: row.status, progress: row.progress });
+    }
+    if (row.status === "failed") {
+      return err("run_failed", row.error ?? "Run failed without an error message.", { status: row.status, progress: row.progress, worker_error: row.error });
+    }
+    if (row.status === "canceled") {
+      return err("run_canceled", "Run was canceled before completion.", { status: row.status, progress: row.progress });
     }
     return { content: [{ type: "text", text: JSON.stringify(row.result) }], structuredContent: data };
   }, { rateLimit: { max: 60, windowSec: 60 } })
@@ -1105,24 +1142,80 @@ var getRunResult = defineTool11({
 var getRunLogs = defineTool11({
   name: "get_run_logs",
   title: "Get run worker logs",
-  description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. Requires authentication; only the run owner can read it.",
+  description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
   inputSchema: { run_id: z8.string().uuid().describe("run_id returned by start_run") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ run_id }, ctx) => withInstrumentation("get_run_logs", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, logs, started_at, finished_at");
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
+    if (!ctx.isAuthenticated()) return err("not_authenticated", "Sign in to read run logs.");
+    const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, logs, started_at, finished_at, canceled_at");
+    if (error) return err("db_error", error.message);
+    if (!data) return err("not_found", `No run ${run_id} for the signed-in user.`);
     return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data };
   }, { rateLimit: { max: 120, windowSec: 60 } })
 });
 
-// src/lib/mcp/tools/watchlist-updates.ts
+// src/lib/mcp/tools/cancel-run.ts
 import { createClient as createClient9 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z9 } from "npm:zod@^4.4.3";
 function sbUser3(ctx) {
   return createClient9(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+function err2(code, message, extra) {
+  const payload = { error: { code, message, ...extra ?? {} } };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload) }],
+    structuredContent: payload,
+    isError: true
+  };
+}
+var cancel_run_default = defineTool12({
+  name: "cancel_run",
+  title: "Cancel a simulation run",
+  description: "Request cancellation of an in-flight backtest or sensitivity run started with `start_run`. Sets `cancel_requested=true` on the run; the worker checks the flag between iterations and stops cleanly, writing `status='canceled'`. If the run is already `succeeded`, `failed`, or `canceled`, the call is a no-op. Requires authentication; only the run owner can cancel.",
+  inputSchema: {
+    run_id: z9.string().uuid().describe("run_id returned by start_run")
+  },
+  annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
+  handler: async ({ run_id }, ctx) => withInstrumentation("cancel_run", ctx, async () => {
+    if (!ctx.isAuthenticated()) return err2("not_authenticated", "Sign in to cancel a run.");
+    const sb = sbUser3(ctx);
+    const uid = ctx.getUserId();
+    const { data: row, error: readErr } = await sb.from("simulation_runs").select("id, status, cancel_requested").eq("id", run_id).eq("user_id", uid).maybeSingle();
+    if (readErr) return err2("db_error", readErr.message);
+    if (!row) return err2("not_found", `No run ${run_id} for the signed-in user.`);
+    if (row.status !== "running") {
+      const payload2 = {
+        run_id,
+        status: row.status,
+        canceled: false,
+        reason: `run is already ${row.status}; nothing to cancel`
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload2) }],
+        structuredContent: payload2
+      };
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { error: updErr } = await sb.from("simulation_runs").update({ cancel_requested: true, status: "canceled", canceled_at: nowIso, finished_at: nowIso }).eq("id", run_id).eq("user_id", uid).eq("status", "running");
+    if (updErr) return err2("db_error", updErr.message);
+    const payload = { run_id, status: "canceled", canceled: true, canceled_at: nowIso };
+    return {
+      content: [{ type: "text", text: JSON.stringify(payload) }],
+      structuredContent: payload
+    };
+  }, { rateLimit: { max: 30, windowSec: 60 } })
+});
+
+// src/lib/mcp/tools/watchlist-updates.ts
+import { createClient as createClient10 } from "npm:@supabase/supabase-js@^2.106.1";
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z10 } from "npm:zod@^4.4.3";
+function sbUser4(ctx) {
+  return createClient10(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -1169,39 +1262,59 @@ async function fetchQuoteSummary(symbol) {
     return null;
   }
 }
-var watchlist_updates_default = defineTool12({
+var watchlist_updates_default = defineTool13({
   name: "watchlist_updates",
   title: "Poll watchlist updates",
-  description: "Return a polling snapshot for agents: (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date) when available, and (3) alerts (notifications from spread/ROIC/price rules) fired since the `since` cursor. Pass back the returned `cursor` on the next call for incremental delivery. Requires authentication.",
+  description: "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` \u2014 page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
   inputSchema: {
-    since: z9.string().datetime().optional().describe("ISO timestamp cursor; only alerts created after this are returned. Omit for last 24h."),
-    include_dividends: z9.boolean().default(true).describe("Include dividend fields per symbol."),
-    max_symbols: z9.number().int().min(1).max(50).default(25).describe("Cap on symbols to quote.")
+    since: z10.string().datetime().optional().describe("ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h."),
+    include_dividends: z10.boolean().default(true).describe("Include dividend fields per symbol."),
+    max_symbols: z10.number().int().min(1).max(50).default(25).describe("Cap on symbols to quote."),
+    limit: z10.number().int().min(1).max(500).default(100).describe("Max alerts per page. `has_more` indicates more pages."),
+    include_quotes: z10.boolean().default(true).describe("Skip quote fetches for pure alert-tail polling (faster).")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
-  handler: async ({ since, include_dividends, max_symbols }, ctx) => withInstrumentation("watchlist_updates", ctx, async () => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
-    const sb = sbUser3(ctx);
+  handler: async ({ since, include_dividends, max_symbols, limit, include_quotes }, ctx) => withInstrumentation("watchlist_updates", ctx, async () => {
+    if (!ctx.isAuthenticated()) {
+      const p = { error: { code: "not_authenticated", message: "Sign in to poll watchlist updates." } };
+      return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
+    }
+    const sb = sbUser4(ctx);
     const uid = ctx.getUserId();
     const { data: items, error: wErr } = await sb.from("watchlist_items").select("symbol, name, created_at").eq("user_id", uid).limit(max_symbols);
-    if (wErr) return { content: [{ type: "text", text: wErr.message }], isError: true };
+    if (wErr) {
+      const p = { error: { code: "db_error", message: wErr.message } };
+      return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
+    }
     const symbols = (items ?? []).map((i) => i.symbol.toUpperCase());
-    const quotes = await Promise.all(
+    const quotes = include_quotes ? await Promise.all(
       symbols.map(async (s) => {
         const q = include_dividends ? await fetchQuoteSummary(s) : await fetchQuoteSummary(s).then((r) => r && { ...r, dividend_yield: null, dividend_rate: null, ex_dividend_date: null });
         return { symbol: s, quote: q };
       })
-    );
+    ) : [];
     const sinceIso = since ?? new Date(Date.now() - 24 * 3600 * 1e3).toISOString();
-    const { data: alerts, error: aErr } = await sb.from("notifications").select("id, kind, symbol, title, body, payload, severity, created_at").eq("user_id", uid).gt("created_at", sinceIso).order("created_at", { ascending: false }).limit(100);
-    if (aErr) return { content: [{ type: "text", text: aErr.message }], isError: true };
-    const cursor = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: alertsAsc, error: aErr } = await sb.from("notifications").select("id, kind, symbol, title, body, payload, severity, created_at").eq("user_id", uid).gt("created_at", sinceIso).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(limit + 1);
+    if (aErr) {
+      const p = { error: { code: "db_error", message: aErr.message } };
+      return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
+    }
+    const rows = alertsAsc ?? [];
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const nextSince = page.length ? String(page[page.length - 1].created_at) : sinceIso;
     const result = {
-      cursor,
+      cursor: nextSince,
+      // legacy alias for existing clients
+      next_since: nextSince,
+      // preferred field name
       since: sinceIso,
+      has_more: hasMore,
+      limit,
+      count: page.length,
       symbols,
       quotes,
-      alerts: alerts ?? []
+      alerts: page
     };
     return {
       content: [{ type: "text", text: JSON.stringify(result) }],
@@ -1211,8 +1324,631 @@ var watchlist_updates_default = defineTool12({
 });
 
 // src/lib/mcp/tools/list-tool-docs.ts
-import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z10 } from "npm:zod@^4.4.3";
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z11 } from "npm:zod@^4.4.3";
+
+// .lovable/mcp/manifest.json
+var manifest_default = {
+  version: 1,
+  sdk_version: "0.22.2",
+  path: "/functions/v1/mcp",
+  auth: {
+    type: "oauth",
+    issuer: "https://pcisxjfgdrgpxzfzfscf.supabase.co/auth/v1",
+    accepted_audiences: [
+      "authenticated"
+    ]
+  },
+  mcp: {
+    server: {
+      name: "vela",
+      version: "1.0.0",
+      title: "Vela \u2014 Trading Strategy Platform"
+    },
+    tools: [
+      {
+        name: "get_quote",
+        title: "Get quote",
+        description: "Latest price and daily change for a Yahoo-style ticker (e.g. AAPL, ENI.MI, ASML.AS). Public market data \u2014 no auth required.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            symbol: {
+              type: "string",
+              minLength: 1,
+              description: "Yahoo-style ticker symbol, e.g. AAPL, ENI.MI"
+            }
+          },
+          required: [
+            "symbol"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "search_strategies",
+        title: "Search strategies",
+        description: "Search Vela's strategy library by free-text query (name, category, risk, horizon). Public \u2014 no auth required.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            query: {
+              default: "",
+              description: 'Free-text query, e.g. "momentum", "mean reversion", "low risk"',
+              type: "string"
+            },
+            limit: {
+              default: 10,
+              description: "Max results (1\u201350)",
+              type: "integer",
+              minimum: 1,
+              maximum: 50
+            }
+          }
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_watchlist",
+        title: "Get watchlist",
+        description: "Return the signed-in Vela user's watchlist items (symbol, name, added-at).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {}
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_portfolio",
+        title: "Get portfolio",
+        description: "Return the signed-in Vela user's portfolio holdings (symbol, shares, avg price, currency).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {}
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_net_worth",
+        title: "Get net worth summary",
+        description: "Return the signed-in Vela user's net-worth accounts with totals for assets, liabilities and net. Values are in each account's stored currency (no FX conversion).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {}
+        },
+        outputSchema: null
+      },
+      {
+        name: "list_cash_flow",
+        title: "List cash flow entries",
+        description: "Return the signed-in user's cash flow entries (income/expense), most recent first. Optional `limit` (default 100, max 500).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            limit: {
+              type: "integer",
+              exclusiveMinimum: 0,
+              maximum: 9007199254740991,
+              description: "Max entries to return (default 100, capped at 500)."
+            }
+          }
+        },
+        outputSchema: null
+      },
+      {
+        name: "add_cash_flow_entry",
+        title: "Add cash flow entry",
+        description: "Record an income or expense for the signed-in user. Use `recurring_monthly: true` for fixed monthly bills or salary \u2014 Vela will project it forward automatically.",
+        annotations: {
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            direction: {
+              type: "string",
+              enum: [
+                "income",
+                "expense"
+              ],
+              description: "Whether this is income or an expense."
+            },
+            category: {
+              type: "string",
+              description: "Category label (e.g. Salary, Housing, Food, Subscriptions)."
+            },
+            amount: {
+              type: "number",
+              exclusiveMinimum: 0,
+              description: "Positive amount in the entry's currency."
+            },
+            entry_date: {
+              type: "string",
+              description: "Date in YYYY-MM-DD; defaults to today when omitted."
+            },
+            currency: {
+              type: "string",
+              description: "3-letter currency code (default EUR)."
+            },
+            label: {
+              type: "string",
+              description: "Optional short note, e.g. 'Rent', 'Employer'."
+            },
+            recurring_monthly: {
+              type: "boolean",
+              description: "True if this repeats every month."
+            }
+          },
+          required: [
+            "direction",
+            "category",
+            "amount"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "project_dividends",
+        title: "Project future dividend income",
+        description: "Model annual dividend income for a given horizon using contributions, dividend yield, dividend growth, price appreciation, tax rate and optional DRIP. Accepts an optional `positions` array to seed the starting value and blended yield from real holdings. Returns per-year rows (portfolio value, gross/net dividends, yield on cost) plus totals.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            starting_value: {
+              type: "number",
+              description: "Starting portfolio value in the projection currency."
+            },
+            monthly_contribution: {
+              type: "number",
+              description: "Monthly cash added to the portfolio."
+            },
+            contribution_growth_pct: {
+              type: "number",
+              description: "Annual growth of monthly contributions in percent."
+            },
+            dividend_yield_pct: {
+              type: "number",
+              description: "Starting annual dividend yield in percent."
+            },
+            dividend_growth_pct: {
+              type: "number",
+              description: "Annual dividend growth rate in percent (DGR)."
+            },
+            price_growth_pct: {
+              type: "number",
+              description: "Annual price appreciation in percent."
+            },
+            tax_pct: {
+              type: "number",
+              description: "Dividend withholding/income tax rate in percent."
+            },
+            years: {
+              type: "number",
+              description: "Projection horizon in years."
+            },
+            reinvest: {
+              type: "boolean",
+              description: "If true, net dividends buy new shares (DRIP)."
+            },
+            payout_frequency: {
+              type: "number",
+              description: "Payouts per year: 1, 2, 4 or 12."
+            },
+            reinvest_rate_pct: {
+              description: "Optional global DRIP rate 0-100 overriding `reinvest`. Ignored if any position sets `drip_pct`.",
+              type: "number"
+            },
+            positions: {
+              description: "Optional real holdings. When provided, seed the starting value and blended yield from these positions.",
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  symbol: {
+                    type: "string"
+                  },
+                  shares: {
+                    type: "number"
+                  },
+                  price: {
+                    type: "number"
+                  },
+                  yield_pct: {
+                    type: "number"
+                  },
+                  next_payout_month: {
+                    type: "number"
+                  },
+                  drip_pct: {
+                    type: "number"
+                  }
+                },
+                required: [
+                  "symbol",
+                  "shares",
+                  "price",
+                  "yield_pct"
+                ]
+              }
+            }
+          },
+          required: [
+            "starting_value",
+            "monthly_contribution",
+            "contribution_growth_pct",
+            "dividend_yield_pct",
+            "dividend_growth_pct",
+            "price_growth_pct",
+            "tax_pct",
+            "years",
+            "reinvest",
+            "payout_frequency"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "run_backtest",
+        title: "Run backtest",
+        description: "Run a fast historical backtest on a Yahoo-style ticker with a preset strategy (buy_hold, sma_cross, rsi). Returns CAGR, total return, max drawdown, Sharpe, hit rate, and trade count. Requires authentication (rate-limited).",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            symbol: {
+              type: "string",
+              minLength: 1,
+              description: "Yahoo ticker, e.g. AAPL, ENI.MI, BTC-USD"
+            },
+            preset: {
+              default: "sma_cross",
+              description: "Strategy preset",
+              type: "string",
+              enum: [
+                "buy_hold",
+                "sma_cross",
+                "rsi"
+              ]
+            },
+            range: {
+              default: "2y",
+              description: "Historical window",
+              type: "string",
+              enum: [
+                "6mo",
+                "1y",
+                "2y",
+                "5y",
+                "10y",
+                "max"
+              ]
+            },
+            initial_capital: {
+              default: 1e4,
+              description: "Starting cash for the sim",
+              type: "number",
+              exclusiveMinimum: 0,
+              maximum: 1e7
+            },
+            fast: {
+              description: "Fast SMA (sma_cross only)",
+              type: "integer",
+              minimum: 2,
+              maximum: 200
+            },
+            slow: {
+              description: "Slow SMA (sma_cross only)",
+              type: "integer",
+              minimum: 3,
+              maximum: 400
+            },
+            rsi_period: {
+              description: "RSI lookback (rsi only)",
+              type: "integer",
+              minimum: 2,
+              maximum: 50
+            },
+            rsi_buy: {
+              description: "RSI oversold threshold",
+              type: "number",
+              minimum: 1,
+              maximum: 99
+            },
+            rsi_sell: {
+              description: "RSI overbought threshold",
+              type: "number",
+              minimum: 1,
+              maximum: 99
+            },
+            stop_pct: {
+              description: "Stop-loss %",
+              type: "number",
+              minimum: 0,
+              maximum: 100
+            },
+            target_pct: {
+              description: "Take-profit %",
+              type: "number",
+              minimum: 0,
+              maximum: 500
+            }
+          },
+          required: [
+            "symbol"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "start_run",
+        title: "Start a backtest or sensitivity run",
+        description: "Kick off a `backtest` (single-config) or `sensitivity` (parameter sweep) simulation and return a run_id. Follow up with `get_run_status`, `get_run_result`, or `get_run_logs`. Requires authentication.",
+        annotations: {
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            kind: {
+              type: "string",
+              enum: [
+                "backtest",
+                "sensitivity"
+              ],
+              description: "What to run"
+            },
+            input: {
+              type: "object",
+              propertyNames: {
+                type: "string"
+              },
+              additionalProperties: {},
+              description: "For kind='backtest': BacktestInput { symbol, preset, range, initial_capital, fast, slow, rsi_period, rsi_buy, rsi_sell, stop_pct, target_pct }. For kind='sensitivity': BacktestInput + `sweep` object with arrays of values for fast/slow/rsi_period/rsi_buy/rsi_sell (max 64 combinations)."
+            }
+          },
+          required: [
+            "kind",
+            "input"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_run_status",
+        title: "Get run status",
+        description: "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished/canceled timestamps, error string if failed). On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_run_result",
+        title: "Get run result",
+        description: "Return the full result JSON of a completed simulation run. Errors with a typed envelope `{ error: { code, message, status?, progress? } }` when the run is not ready. Codes: not_authenticated, not_found, db_error, run_running, run_failed, run_canceled. Requires authentication; only the run owner can read it.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "get_run_logs",
+        title: "Get run worker logs",
+        description: "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "cancel_run",
+        title: "Cancel a simulation run",
+        description: "Request cancellation of an in-flight backtest or sensitivity run started with `start_run`. Sets `cancel_requested=true` on the run; the worker checks the flag between iterations and stops cleanly, writing `status='canceled'`. If the run is already `succeeded`, `failed`, or `canceled`, the call is a no-op. Requires authentication; only the run owner can cancel.",
+        annotations: {
+          readOnlyHint: false,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            run_id: {
+              type: "string",
+              format: "uuid",
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              description: "run_id returned by start_run"
+            }
+          },
+          required: [
+            "run_id"
+          ]
+        },
+        outputSchema: null
+      },
+      {
+        name: "watchlist_updates",
+        title: "Poll watchlist updates",
+        description: "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` \u2014 page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: true
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            since: {
+              description: "ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h.",
+              type: "string",
+              format: "date-time",
+              pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            include_dividends: {
+              default: true,
+              description: "Include dividend fields per symbol.",
+              type: "boolean"
+            },
+            max_symbols: {
+              default: 25,
+              description: "Cap on symbols to quote.",
+              type: "integer",
+              minimum: 1,
+              maximum: 50
+            },
+            limit: {
+              default: 100,
+              description: "Max alerts per page. `has_more` indicates more pages.",
+              type: "integer",
+              minimum: 1,
+              maximum: 500
+            },
+            include_quotes: {
+              default: true,
+              description: "Skip quote fetches for pure alert-tail polling (faster).",
+              type: "boolean"
+            }
+          }
+        },
+        outputSchema: null
+      },
+      {
+        name: "list_tool_docs",
+        title: "List tool documentation",
+        description: "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public \u2014 no auth required.",
+        annotations: {
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            format: {
+              default: "markdown",
+              description: "Output format.",
+              type: "string",
+              enum: [
+                "json",
+                "markdown",
+                "json-schema"
+              ]
+            }
+          }
+        },
+        outputSchema: null
+      }
+    ]
+  }
+};
+
+// src/lib/mcp/tools/list-tool-docs.ts
 var DOCS = [
   {
     name: "get_quote",
@@ -1305,7 +2041,8 @@ var DOCS = [
     auth: "oauth-user",
     rate_limit: "120 / 60s",
     inputs: { run_id: "UUID from start_run" },
-    outputs: "{ status, progress, started_at, finished_at, error }"
+    outputs: "{ status, progress, started_at, finished_at, canceled_at, cancel_requested, error }",
+    error_codes: ["not_authenticated", "not_found", "db_error"]
   },
   {
     name: "get_run_result",
@@ -1313,7 +2050,8 @@ var DOCS = [
     auth: "oauth-user",
     rate_limit: "60 / 60s",
     inputs: { run_id: "UUID from start_run" },
-    outputs: "Full result JSON of a succeeded run."
+    outputs: "Full result JSON of a succeeded run. On error: { error: { code, message, status?, progress? } }.",
+    error_codes: ["not_authenticated", "not_found", "db_error", "run_running", "run_failed", "run_canceled"]
   },
   {
     name: "get_run_logs",
@@ -1322,24 +2060,42 @@ var DOCS = [
     rate_limit: "120 / 60s",
     inputs: { run_id: "UUID from start_run" },
     outputs: "{ logs: [{ t, level, msg }], error }",
-    notes: "Use this to debug a failed run."
+    notes: "Use this to debug a failed run.",
+    error_codes: ["not_authenticated", "not_found", "db_error"]
+  },
+  {
+    name: "cancel_run",
+    title: "Cancel a simulation run",
+    auth: "oauth-user",
+    rate_limit: "30 / 60s",
+    inputs: { run_id: "UUID from start_run" },
+    outputs: "{ run_id, status, canceled: bool, canceled_at? }. No-op when the run already finished.",
+    notes: "Cancels a running sensitivity sweep between combos. In-flight synchronous simulate() calls are not interrupted; the run is marked canceled and partial results persisted.",
+    error_codes: ["not_authenticated", "not_found", "db_error"]
   },
   {
     name: "watchlist_updates",
     title: "Poll watchlist updates",
     auth: "oauth-user",
     rate_limit: "60 / 60s",
-    inputs: { since: "ISO cursor (optional)", include_dividends: "bool", max_symbols: "1..50" },
-    outputs: "{ cursor, quotes: [...], alerts: [...] }",
-    notes: "Pass the returned cursor as `since` on the next call for incremental alerts."
+    inputs: {
+      since: "ISO cursor from prior next_since (optional; last 24h if omitted)",
+      include_dividends: "bool (default true)",
+      include_quotes: "bool (default true; false = alerts-only)",
+      max_symbols: "1..50 (default 25)",
+      limit: "1..500 (default 100) alerts per page"
+    },
+    outputs: "{ next_since, cursor, since, has_more, limit, count, symbols, quotes, alerts }",
+    notes: "Alerts are returned oldest\u2192newest. Page with the same `since` while `has_more=true`, then advance to `next_since`. Uses strict `>` on created_at, so no duplicates and no gaps.",
+    error_codes: ["not_authenticated", "db_error"]
   },
   {
     name: "list_tool_docs",
     title: "List tool documentation",
     auth: "public",
     rate_limit: null,
-    inputs: { format: "'json' | 'markdown' (default 'markdown')" },
-    outputs: "Documentation of every tool with inputs, outputs, auth, and rate limits."
+    inputs: { format: "'json' | 'markdown' | 'json-schema' (default 'markdown')" },
+    outputs: "Documentation of every tool with inputs, outputs, auth, rate limits, and error codes. `json-schema` returns the full machine-readable MCP manifest (JSON Schema for every tool input)."
   }
 ];
 function toMarkdown() {
@@ -1347,6 +2103,8 @@ function toMarkdown() {
     "# Vela MCP tools",
     "",
     "Server: `vela` \u2014 auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
+    "",
+    "Error envelope for authenticated run/watchlist tools: `{ error: { code, message, ...extra } }`. Branch on `code`.",
     ""
   ];
   for (const d of DOCS) {
@@ -1362,20 +2120,28 @@ function toMarkdown() {
       lines.push("- **Inputs:** none");
     }
     lines.push(`- **Output:** ${d.outputs}`);
+    if (d.error_codes?.length) lines.push(`- **Error codes:** ${d.error_codes.map((c) => `\`${c}\``).join(", ")}`);
     if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
     lines.push("");
   }
   return lines.join("\n");
 }
-var list_tool_docs_default = defineTool13({
+var list_tool_docs_default = defineTool14({
   name: "list_tool_docs",
   title: "List tool documentation",
-  description: "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public \u2014 no auth required.",
+  description: "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public \u2014 no auth required.",
   inputSchema: {
-    format: z10.enum(["json", "markdown"]).default("markdown").describe("Output format.")
+    format: z11.enum(["json", "markdown", "json-schema"]).default("markdown").describe("Output format.")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ format }) => {
+    if (format === "json-schema") {
+      const payload = manifest_default;
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload
+      };
+    }
     if (format === "json") {
       return {
         content: [{ type: "text", text: JSON.stringify({ tools: DOCS }) }],
@@ -1396,7 +2162,7 @@ var mcp_default = defineMcp({
   name: "vela",
   title: "Vela \u2014 Trading Strategy Platform",
   version: "1.0.0",
-  instructions: "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human-readable catalog of every tool with inputs/outputs/auth). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest or sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs` (worker logs / debug), and `watchlist_updates` (polling snapshot of quotes, dividends, and alerts with an incremental `since` cursor).",
+  instructions: "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human catalog + machine-readable JSON schema export of every tool). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest / sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs`, `cancel_run` (stop an in-flight sensitivity sweep cleanly), and `watchlist_updates` (paginated polling of quotes, dividends, and alerts with a `next_since` cursor and `has_more` flag). Errors from run tools use `{ error: { code, message } }` envelopes.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -1415,6 +2181,7 @@ var mcp_default = defineMcp({
     getRunStatus,
     getRunResult,
     getRunLogs,
+    cancel_run_default,
     watchlist_updates_default,
     list_tool_docs_default
   ]

@@ -439,7 +439,7 @@
       {
         "name": "get_run_status",
         "title": "Get run status",
-        "description": "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished timestamps, error string if failed). Requires authentication; only the run owner can read it.",
+        "description": "Return progress and status of a simulation run created with `start_run` (kind, status, progress 0-100, started/finished/canceled timestamps, error string if failed). On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -465,7 +465,7 @@
       {
         "name": "get_run_result",
         "title": "Get run result",
-        "description": "Return the full result JSON of a completed simulation run. Errors if the run is still running or failed. Requires authentication; only the run owner can read it.",
+        "description": "Return the full result JSON of a completed simulation run. Errors with a typed envelope `{ error: { code, message, status?, progress? } }` when the run is not ready. Codes: not_authenticated, not_found, db_error, run_running, run_failed, run_canceled. Requires authentication; only the run owner can read it.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -491,7 +491,7 @@
       {
         "name": "get_run_logs",
         "title": "Get run worker logs",
-        "description": "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. Requires authentication; only the run owner can read it.",
+        "description": "Return the worker log timeline (info/warn/error) and any error string for a simulation run. Useful for debugging failed runs. On error returns a typed envelope `{ error: { code, message } }` with codes: not_authenticated, not_found, db_error. Requires authentication; only the run owner can read it.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -515,9 +515,35 @@
         "outputSchema": null
       },
       {
+        "name": "cancel_run",
+        "title": "Cancel a simulation run",
+        "description": "Request cancellation of an in-flight backtest or sensitivity run started with `start_run`. Sets `cancel_requested=true` on the run; the worker checks the flag between iterations and stops cleanly, writing `status='canceled'`. If the run is already `succeeded`, `failed`, or `canceled`, the call is a no-op. Requires authentication; only the run owner can cancel.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "run_id returned by start_run"
+            }
+          },
+          "required": [
+            "run_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
         "name": "watchlist_updates",
         "title": "Poll watchlist updates",
-        "description": "Return a polling snapshot for agents: (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date) when available, and (3) alerts (notifications from spread/ROIC/price rules) fired since the `since` cursor. Pass back the returned `cursor` on the next call for incremental delivery. Requires authentication.",
+        "description": "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` — page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -528,7 +554,7 @@
           "type": "object",
           "properties": {
             "since": {
-              "description": "ISO timestamp cursor; only alerts created after this are returned. Omit for last 24h.",
+              "description": "ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h.",
               "type": "string",
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
@@ -544,6 +570,18 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 50
+            },
+            "limit": {
+              "default": 100,
+              "description": "Max alerts per page. `has_more` indicates more pages.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "include_quotes": {
+              "default": true,
+              "description": "Skip quote fetches for pure alert-tail polling (faster).",
+              "type": "boolean"
             }
           }
         },
@@ -552,7 +590,7 @@
       {
         "name": "list_tool_docs",
         "title": "List tool documentation",
-        "description": "Return human-readable documentation of every tool this MCP server exposes: inputs, outputs, auth scope, and rate limit. Use this to bootstrap an external agent that just connected. Public — no auth required.",
+        "description": "Return documentation of every tool this MCP server exposes. `format='markdown'` (default): human-readable catalog with inputs, outputs, auth, rate limits, and error codes. `format='json'`: the same catalog as structured data. `format='json-schema'`: the full machine-readable MCP manifest (JSON Schema per tool) so an external agent can auto-generate a typed client. Public — no auth required.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -568,7 +606,8 @@
               "type": "string",
               "enum": [
                 "json",
-                "markdown"
+                "markdown",
+                "json-schema"
               ]
             }
           }

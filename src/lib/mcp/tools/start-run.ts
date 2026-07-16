@@ -153,6 +153,34 @@ export default defineTool({
         log("info", `Loaded ${bars.length} bars — running ${combos.length} combos`);
         const rows: Array<Record<string, unknown>> = [];
         for (let i = 0; i < combos.length; i++) {
+          // Cooperative cancellation: check the flag every combo. cancel_run flips
+          // status='canceled' + cancel_requested=true; either is treated as cancel.
+          const { data: cancelRow } = await sb
+            .from("simulation_runs")
+            .select("cancel_requested, status")
+            .eq("id", runId)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (cancelRow && (cancelRow.cancel_requested || cancelRow.status === "canceled")) {
+            log("warn", `Cancellation requested at combo ${i}/${combos.length}. Stopping.`);
+            const partial = {
+              symbol: args.symbol.toUpperCase(), preset: args.preset, range: args.range,
+              combinations: rows.length, results: rows, best: rows[0] ?? null,
+              canceled: true, canceled_at_combo: i,
+            };
+            await sb.from("simulation_runs").update({
+              status: "canceled",
+              cancel_requested: true,
+              canceled_at: new Date().toISOString(),
+              finished_at: new Date().toISOString(),
+              progress: Math.round((i / combos.length) * 100),
+              logs, result: partial,
+            }).eq("id", runId).eq("user_id", userId);
+            return {
+              content: [{ type: "text", text: `run_id=${runId} status=canceled at ${i}/${combos.length}` }],
+              structuredContent: { run_id: runId, status: "canceled", combinations: rows.length },
+            };
+          }
           const c = combos[i];
           const p: BacktestParams = {
             fast: (c.fast as number | undefined) ?? args.fast,

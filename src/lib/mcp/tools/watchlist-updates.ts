@@ -57,16 +57,21 @@ export default defineTool({
   name: "watchlist_updates",
   title: "Poll watchlist updates",
   description:
-    "Return a polling snapshot for agents: (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date) when available, and (3) alerts (notifications from spread/ROIC/price rules) fired since the `since` cursor. Pass back the returned `cursor` on the next call for incremental delivery. Requires authentication.",
+    "Reliable polling for agents. Returns (1) latest quotes for every symbol on the signed-in user's watchlist, (2) dividend fields (yield / rate / ex-date), and (3) alerts fired since the `since` cursor. Pagination: pass the returned `next_since` as `since` on the next call. `has_more=true` means more alerts exist beyond `limit` — page again with the same `since` until `has_more=false`, then advance to `next_since`. Requires authentication.",
   inputSchema: {
-    since: z.string().datetime().optional().describe("ISO timestamp cursor; only alerts created after this are returned. Omit for last 24h."),
+    since: z.string().datetime().optional().describe("ISO timestamp cursor from a prior `next_since`. Only alerts strictly after this are returned. Omit for last 24h."),
     include_dividends: z.boolean().default(true).describe("Include dividend fields per symbol."),
     max_symbols: z.number().int().min(1).max(50).default(25).describe("Cap on symbols to quote."),
+    limit: z.number().int().min(1).max(500).default(100).describe("Max alerts per page. `has_more` indicates more pages."),
+    include_quotes: z.boolean().default(true).describe("Skip quote fetches for pure alert-tail polling (faster)."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
-  handler: async ({ since, include_dividends, max_symbols }, ctx: ToolContext) =>
+  handler: async ({ since, include_dividends, max_symbols, limit, include_quotes }, ctx: ToolContext) =>
     withInstrumentation("watchlist_updates", ctx, async () => {
-      if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
+      if (!ctx.isAuthenticated()) {
+        const p = { error: { code: "not_authenticated", message: "Sign in to poll watchlist updates." } };
+        return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
+      }
       const sb = sbUser(ctx);
       const uid = ctx.getUserId();
 
@@ -75,35 +80,56 @@ export default defineTool({
         .select("symbol, name, created_at")
         .eq("user_id", uid)
         .limit(max_symbols);
-      if (wErr) return { content: [{ type: "text", text: wErr.message }], isError: true };
+      if (wErr) {
+        const p = { error: { code: "db_error", message: wErr.message } };
+        return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
+      }
 
       const symbols = (items ?? []).map((i) => (i.symbol as string).toUpperCase());
-      const quotes = await Promise.all(
-        symbols.map(async (s) => {
-          const q = include_dividends
-            ? await fetchQuoteSummary(s)
-            : await fetchQuoteSummary(s).then((r) => r && ({ ...r, dividend_yield: null, dividend_rate: null, ex_dividend_date: null }));
-          return { symbol: s, quote: q };
-        }),
-      );
+      const quotes = include_quotes
+        ? await Promise.all(
+            symbols.map(async (s) => {
+              const q = include_dividends
+                ? await fetchQuoteSummary(s)
+                : await fetchQuoteSummary(s).then((r) => r && ({ ...r, dividend_yield: null, dividend_rate: null, ex_dividend_date: null }));
+              return { symbol: s, quote: q };
+            }),
+          )
+        : [];
 
       const sinceIso = since ?? new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-      const { data: alerts, error: aErr } = await sb
+      // Fetch limit+1 in ascending order so pagination is monotonic in `created_at`.
+      // The extra row (if present) tells us there is another page without a COUNT query.
+      const { data: alertsAsc, error: aErr } = await sb
         .from("notifications")
         .select("id, kind, symbol, title, body, payload, severity, created_at")
         .eq("user_id", uid)
         .gt("created_at", sinceIso)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (aErr) return { content: [{ type: "text", text: aErr.message }], isError: true };
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(limit + 1);
+      if (aErr) {
+        const p = { error: { code: "db_error", message: aErr.message } };
+        return { content: [{ type: "text", text: JSON.stringify(p) }], structuredContent: p, isError: true };
+      }
+      const rows = alertsAsc ?? [];
+      const hasMore = rows.length > limit;
+      const page = hasMore ? rows.slice(0, limit) : rows;
+      // Advance cursor to the last delivered alert's created_at (strictly monotonic
+      // with `gt`), or keep `sinceIso` when the page is empty so the caller can
+      // safely reuse it without missing writes that land at the same millisecond.
+      const nextSince = page.length ? String(page[page.length - 1].created_at) : sinceIso;
 
-      const cursor = new Date().toISOString();
       const result = {
-        cursor,
+        cursor: nextSince,       // legacy alias for existing clients
+        next_since: nextSince,   // preferred field name
         since: sinceIso,
+        has_more: hasMore,
+        limit,
+        count: page.length,
         symbols,
         quotes,
-        alerts: alerts ?? [],
+        alerts: page,
       };
       return {
         content: [{ type: "text", text: JSON.stringify(result) }],

@@ -10,6 +10,7 @@ import projectDividendsTool from "./tools/project-dividends";
 import runBacktestTool from "./tools/run-backtest";
 import startRunTool from "./tools/start-run";
 import { getRunStatus, getRunResult, getRunLogs } from "./tools/get-run";
+import cancelRunTool from "./tools/cancel-run";
 import watchlistUpdatesTool from "./tools/watchlist-updates";
 import listToolDocsTool from "./tools/list-tool-docs";
 
@@ -23,7 +24,7 @@ export default defineMcp({
   title: "Vela — Trading Strategy Platform",
   version: "1.0.0",
   instructions:
-    "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human-readable catalog of every tool with inputs/outputs/auth). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest or sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs` (worker logs / debug), and `watchlist_updates` (polling snapshot of quotes, dividends, and alerts with an incremental `since` cursor).",
+    "Tools for Vela.ai. Public tools: `get_quote`, `search_strategies`, `project_dividends`, `list_tool_docs` (human catalog + machine-readable JSON schema export of every tool). Authenticated tools operate as the signed-in Vela user under RLS: `get_watchlist`, `get_portfolio`, `get_net_worth`, `list_cash_flow`, `add_cash_flow_entry`, `run_backtest` (synchronous), `start_run` (async backtest / sensitivity sweep), `get_run_status`, `get_run_result`, `get_run_logs`, `cancel_run` (stop an in-flight sensitivity sweep cleanly), and `watchlist_updates` (paginated polling of quotes, dividends, and alerts with a `next_since` cursor and `has_more` flag). Errors from run tools use `{ error: { code, message } }` envelopes.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
@@ -42,6 +43,7 @@ export default defineMcp({
     getRunStatus,
     getRunResult,
     getRunLogs,
+    cancelRunTool,
     watchlistUpdatesTool,
     listToolDocsTool,
   ],

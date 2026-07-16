@@ -29,7 +29,14 @@ export function SpotlightStrip() {
     <div className="flex gap-3 overflow-x-auto snap-x pb-1 -mx-1 px-1 scrollbar-hide">
       {SPOTLIGHT_SYMBOLS.map(({ symbol, label, Icon }) => {
         const q = quotes[symbol];
-        const ch = q?.change;
+        const rawPrice = q?.price;
+        const rawChange = q?.change;
+        const price = typeof rawPrice === "number" && Number.isFinite(rawPrice) ? rawPrice : null;
+        const ch = typeof rawChange === "number" && Number.isFinite(rawChange) ? rawChange : null;
+        const formattedPrice =
+          price == null
+            ? "-"
+            : `${currencySign(q?.currency)}${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(price)}`;
         const positive = (ch ?? 0) >= 0;
         const color = ch == null ? "text-muted-foreground" : positive ? "text-emerald-500" : "text-red-500";
         const Arrow = positive ? ArrowUpRight : ArrowDownRight;
@@ -45,7 +52,7 @@ export function SpotlightStrip() {
             </div>
             <div className="mt-1.5 flex items-baseline justify-between gap-2">
               <span className="text-base font-semibold tabular-nums">
-                {q ? `${currencySign(q.currency)}${q.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "-"}
+                {formattedPrice}
               </span>
               <span className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${color}`}>
                 {ch != null && <Arrow className="h-3 w-3" strokeWidth={2.5} />}

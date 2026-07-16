@@ -13,8 +13,14 @@ interface Props {
 /** Compact instrument card for horizontal discovery rails. */
 export function InstrumentCard({ symbol, name, quote }: Props) {
   const navigate = useNavigate();
-  const price = typeof quote?.price === "number" && Number.isFinite(quote.price) ? quote.price : null;
-  const change = typeof quote?.change === "number" && Number.isFinite(quote.change) ? quote.change : null;
+  const rawPrice = quote?.price;
+  const rawChange = quote?.change;
+  const price = typeof rawPrice === "number" && Number.isFinite(rawPrice) ? rawPrice : null;
+  const change = typeof rawChange === "number" && Number.isFinite(rawChange) ? rawChange : null;
+  const formattedPrice =
+    price == null
+      ? "-"
+      : `${currencySign(quote?.currency)}${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(price)}`;
   const positive = (change ?? 0) >= 0;
   const colorClass = change == null ? "text-muted-foreground" : positive ? "text-emerald-500" : "text-red-500";
   const Arrow = positive ? ArrowUpRight : ArrowDownRight;
@@ -39,9 +45,7 @@ export function InstrumentCard({ symbol, name, quote }: Props) {
           <div className="text-[13px] font-medium truncate leading-tight">{name || symbol}</div>
           <div className="mt-1.5 flex items-baseline justify-between gap-2">
             <span className="text-sm font-semibold tabular-nums">
-              {price != null
-                ? `${currencySign(quote?.currency)}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                : "-"}
+              {formattedPrice}
             </span>
             <span className={`inline-flex items-center gap-0.5 text-[11px] tabular-nums ${colorClass}`}>
               {change != null && <Arrow className="h-3 w-3" strokeWidth={2.5} />}

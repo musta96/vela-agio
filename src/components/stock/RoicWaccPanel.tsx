@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight, Download, LineChart as LineChartIcon, SlidersHorizontal, History } from "lucide-react";
+import {
+  ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine,
+} from "recharts";
 import { computeRoic, computeWacc, pct, roicWaccSpread, type WaccInputs } from "@/lib/valuation/roicWacc";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +17,20 @@ import { useToast } from "@/hooks/use-toast";
 
 const PROXY = "https://api.allorigins.win/raw?url=";
 
-type YearRoic = { year: string; roic: number | null; nopat: number | null; ic: number | null };
+type YearRow = {
+  year: string;
+  endDate: string;
+  roic: number | null;
+  nopat: number | null;
+  ic: number | null;
+  ebit: number | null;
+  taxRate: number | null;
+  equityBook: number | null;
+  ltDebt: number | null;
+  stDebt: number | null;
+  cash: number | null;
+  totalDebt: number | null;
+};
 
 interface Snapshot {
   ebit: number | null;
@@ -41,7 +58,7 @@ function fmtB(v: number | null | undefined) {
   return v.toLocaleString();
 }
 
-async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history: YearRoic[]; raw: any } | null> {
+async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history: YearRow[]; raw: any } | null> {
   const modules = "incomeStatementHistory,balanceSheetHistory,financialData,summaryDetail,defaultKeyStatistics,price,assetProfile";
   const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
   const r = await fetch(`${PROXY}${encodeURIComponent(url)}`);
@@ -68,20 +85,32 @@ async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history:
     marketCap: num(price.marketCap) ?? num(sd.marketCap),
     beta: num(sd.beta) ?? num(data.defaultKeyStatistics?.beta),
   };
-  const history: YearRoic[] = inc.slice(0, 4).map((row: any, i: number) => {
+  const history: YearRow[] = inc.slice(0, 4).map((row: any, i: number) => {
     const b = bs[i] ?? {};
     const ebit = num(row.operatingIncome) ?? num(row.ebit);
     const tax = num(row.incomeTaxExpense);
     const pretax = num(row.incomeBeforeTax);
     const rate = tax != null && pretax && pretax !== 0 ? tax / pretax : null;
+    const equityBook = num(b.totalStockholderEquity);
+    const ltDebt = num(b.longTermDebt);
+    const stDebt = num(b.shortLongTermDebt);
+    const cash = num(b.cash);
     const rr = computeRoic({
       ebit, taxRate: rate,
-      totalEquity: num(b.totalStockholderEquity),
-      longTermDebt: num(b.longTermDebt),
-      shortLongTermDebt: num(b.shortLongTermDebt),
-      cash: num(b.cash),
+      totalEquity: equityBook,
+      longTermDebt: ltDebt,
+      shortLongTermDebt: stDebt,
+      cash,
     });
-    return { year: row.endDate?.fmt?.slice(0, 4) ?? "-", roic: rr.roic, nopat: rr.nopat, ic: rr.investedCapital };
+    const totalDebt = (ltDebt ?? 0) + (stDebt ?? 0);
+    return {
+      year: row.endDate?.fmt?.slice(0, 4) ?? "-",
+      endDate: row.endDate?.fmt ?? "-",
+      roic: rr.roic, nopat: rr.nopat, ic: rr.investedCapital,
+      ebit, taxRate: rate,
+      equityBook, ltDebt, stDebt, cash,
+      totalDebt: totalDebt > 0 ? totalDebt : null,
+    };
   }).reverse();
   return { snap, history, raw: data };
 }
@@ -100,7 +129,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
-  const [history, setHistory] = useState<YearRoic[]>([]);
+  const [history, setHistory] = useState<YearRow[]>([]);
   const [showDrilldown, setShowDrilldown] = useState(false);
 
   // Editable WACC assumptions (percent inputs in the UI, decimal internally).
@@ -121,6 +150,16 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const [alertThresholdBps, setAlertThresholdBps] = useState(100);
   const [alertDirection, setAlertDirection] = useState<"either" | "improve" | "worsen">("either");
   const [alertSaving, setAlertSaving] = useState(false);
+
+  // Sensitivity ranges.
+  const [sensOpen, setSensOpen] = useState(false);
+  const [sensRf, setSensRf] = useState<[number, number]>([3.5, 5.0]);
+  const [sensErp, setSensErp] = useState<[number, number]>([4.0, 6.5]);
+  const [sensTax, setSensTax] = useState<[number, number]>([18, 28]);
+  const [sensBeta, setSensBeta] = useState<[number, number]>([0.8, 1.4]);
+
+  // Filing-field drilldown toggle.
+  const [fieldMapOpen, setFieldMapOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
@@ -164,6 +203,98 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     const w = computeWacc(inputs);
     return { roicLatest: roic, wacc: w, spread: roicWaccSpread(roic.roic, w.wacc) };
   }, [snap, inputs]);
+
+  // Per-year ROIC / WACC / spread. Historic years use book equity for the
+  // equity weight (market caps are not returned for historic snapshots), so
+  // the series is capital-structure-adjusted but the beta/rf/erp are held
+  // constant at the user's current assumptions.
+  const timeSeries = useMemo(() => {
+    const rf = rfPct / 100;
+    const erp = erpPct / 100;
+    const kd = kdPct / 100;
+    const beta = betaIn === "" ? (snap?.beta ?? 1) : Number(betaIn);
+    return history.map((r) => {
+      const tax = taxPct === "" ? (r.taxRate ?? snap?.effTaxRate ?? 0.21) : Number(taxPct) / 100;
+      const w = computeWacc({
+        marketCap: r.equityBook,
+        totalDebt: r.totalDebt,
+        beta, riskFreeRate: rf, equityRiskPremium: erp,
+        preTaxCostOfDebt: kd, taxRate: tax,
+      });
+      const spr = roicWaccSpread(r.roic, w.wacc);
+      return {
+        year: r.year,
+        endDate: r.endDate,
+        roicPct: r.roic != null ? +(r.roic * 100).toFixed(2) : null,
+        waccPct: w.wacc != null ? +(w.wacc * 100).toFixed(2) : null,
+        spreadPct: spr != null ? +(spr * 100).toFixed(2) : null,
+        spread: spr,
+      };
+    });
+  }, [history, rfPct, erpPct, kdPct, taxPct, betaIn, snap]);
+
+  // Backtest of the alert rule over the annual series.
+  const backtest = useMemo(() => {
+    const pts = timeSeries.filter((r) => r.spread != null) as Array<{ year: string; endDate: string; spread: number }>;
+    if (pts.length < 2) return { count: 0, events: [] as Array<{ year: string; delta: number; direction: "improve" | "worsen" }> };
+    const thr = alertThresholdBps / 10000;
+    const events: Array<{ year: string; delta: number; direction: "improve" | "worsen" }> = [];
+    for (let i = 1; i < pts.length; i++) {
+      const d = pts[i].spread - pts[i - 1].spread;
+      const dir: "improve" | "worsen" = d >= 0 ? "improve" : "worsen";
+      const pass =
+        alertDirection === "either" ? Math.abs(d) >= thr :
+        alertDirection === "improve" ? d >= thr :
+        -d >= thr;
+      if (pass) events.push({ year: pts[i].year, delta: d, direction: dir });
+    }
+    return { count: events.length, events };
+  }, [timeSeries, alertThresholdBps, alertDirection]);
+
+  // Sensitivity: 2^4 corner sweep + one-at-a-time driver sweep.
+  const sensitivity = useMemo(() => {
+    if (!snap) return null;
+    const totalDebt = (snap.ltDebt ?? 0) + (snap.stDebt ?? 0);
+    const compute = (rf: number, erp: number, tax: number, beta: number) => {
+      const r = computeRoic({
+        ebit: snap.ebit, taxRate: tax / 100,
+        totalEquity: snap.equity, longTermDebt: snap.ltDebt,
+        shortLongTermDebt: snap.stDebt, cash: snap.cash,
+      });
+      const w = computeWacc({
+        marketCap: snap.marketCap, totalDebt, beta,
+        riskFreeRate: rf / 100, equityRiskPremium: erp / 100,
+        preTaxCostOfDebt: kdPct / 100, taxRate: tax / 100,
+      });
+      return roicWaccSpread(r.roic, w.wacc);
+    };
+    const corners: number[] = [];
+    for (const rf of sensRf) for (const erp of sensErp) for (const tax of sensTax) for (const beta of sensBeta) {
+      const s = compute(rf, erp, tax, beta);
+      if (s != null) corners.push(s);
+    }
+    if (!corners.length) return null;
+    const min = Math.min(...corners), max = Math.max(...corners);
+    const midRf = (sensRf[0] + sensRf[1]) / 2;
+    const midErp = (sensErp[0] + sensErp[1]) / 2;
+    const midTax = (sensTax[0] + sensTax[1]) / 2;
+    const midBeta = (sensBeta[0] + sensBeta[1]) / 2;
+    const sweep = (range: [number, number], fix: (v: number) => number | null) => {
+      const steps = 5;
+      const [lo, hi] = range;
+      return Array.from({ length: steps }, (_, i) => {
+        const x = lo + ((hi - lo) * i) / (steps - 1);
+        return { x, spread: fix(x) };
+      });
+    };
+    const drivers = {
+      rf: sweep(sensRf, (v) => compute(v, midErp, midTax, midBeta)),
+      erp: sweep(sensErp, (v) => compute(midRf, v, midTax, midBeta)),
+      tax: sweep(sensTax, (v) => compute(midRf, midErp, v, midBeta)),
+      beta: sweep(sensBeta, (v) => compute(midRf, midErp, midTax, v)),
+    };
+    return { min, max, drivers };
+  }, [snap, sensRf, sensErp, sensTax, sensBeta, kdPct]);
 
   const resetAssumptions = () => {
     setRfPct(4.2); setErpPct(5.0); setKdPct(5.0);
@@ -212,6 +343,74 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
     return { roic: avg(nums("roic")), wacc: avg(nums("wacc")), spread: avg(nums("spread")) };
   }, [peers]);
+
+  const downloadCsv = () => {
+    const esc = (v: any) => {
+      if (v == null) return "";
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const asDec = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? "" : x.toFixed(6));
+    const asPct = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? "" : (x * 100).toFixed(2));
+    const rf = rfPct / 100;
+    const erp = erpPct / 100;
+    const kd = kdPct / 100;
+    const tax = taxPct === "" ? (snap?.effTaxRate ?? null) : Number(taxPct) / 100;
+    const beta = betaIn === "" ? (snap?.beta ?? null) : Number(betaIn);
+    const lines: string[] = [];
+    lines.push("# ROIC / WACC / Peer comparison");
+    lines.push(`# Base symbol,${esc(symbol.toUpperCase())}`);
+    lines.push(`# Exported at,${esc(new Date().toISOString())}`);
+    lines.push("# --- Assumptions ---");
+    lines.push("field,decimal,percent");
+    lines.push(`risk_free_rate,${asDec(rf)},${asPct(rf)}`);
+    lines.push(`equity_risk_premium,${asDec(erp)},${asPct(erp)}`);
+    lines.push(`pretax_cost_of_debt,${asDec(kd)},${asPct(kd)}`);
+    lines.push(`tax_rate,${asDec(tax)},${asPct(tax)}`);
+    lines.push(`beta,${beta != null ? beta.toFixed(4) : ""},`);
+    lines.push("");
+    lines.push("# --- Comparison table ---");
+    lines.push("ticker,role,roic_pct,wacc_pct,spread_pct,spread_vs_base_pp,notes");
+    lines.push([
+      esc(symbol.toUpperCase()), "base",
+      asPct(roicLatest?.roic ?? null), asPct(wacc?.wacc ?? null), asPct(spread),
+      "", spreadPositive ? "value-creating" : "value-destroying",
+    ].join(","));
+    for (const p of peers) {
+      const rel = p.spread != null && spread != null ? p.spread - spread : null;
+      lines.push([
+        esc(p.sym), "peer",
+        asPct(p.roic), asPct(p.wacc), asPct(p.spread),
+        rel != null ? (rel * 100).toFixed(2) : "",
+        esc(p.err ?? ""),
+      ].join(","));
+    }
+    if (peerAvg.spread != null) {
+      const rel = spread != null ? spread - peerAvg.spread : null;
+      lines.push([
+        "PEER_AVG", "aggregate",
+        asPct(peerAvg.roic), asPct(peerAvg.wacc), asPct(peerAvg.spread),
+        rel != null ? (rel * 100).toFixed(2) : "",
+        "unweighted mean across peers",
+      ].join(","));
+    }
+    lines.push("");
+    lines.push("# --- Time series (annual, from filings) ---");
+    lines.push("year,end_date,roic_pct,wacc_pct,spread_pct");
+    for (const r of timeSeries) {
+      lines.push([esc(r.year), esc(r.endDate), r.roicPct ?? "", r.waccPct ?? "", r.spreadPct ?? ""].join(","));
+    }
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${symbol.toUpperCase()}_roic_wacc_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const saveAlert = async () => {
     if (!user) { toast({ title: "Please sign in to create alerts", variant: "destructive" }); return; }
@@ -274,22 +473,93 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
             </button>
             {showDrilldown && (
               <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2 text-xs">
-                <div className="font-semibold text-foreground">NOPAT build</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
-                  <span className="text-muted-foreground">EBIT (operating income)</span><span className="text-right">{fmtB(snap.ebit)}</span>
-                  <span className="text-muted-foreground">× (1 − effective tax)</span><span className="text-right">× {pct(roicLatest.taxRate)}</span>
-                  <span className="text-muted-foreground">= NOPAT</span><span className="text-right font-semibold">{fmtB(roicLatest.nopat)}</span>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-foreground">NOPAT &amp; invested-capital build</div>
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                    onClick={() => setFieldMapOpen((v) => !v)}
+                  >
+                    {fieldMapOpen ? "Hide" : "Show"} filing-field labels
+                  </button>
                 </div>
+                <FilingRow
+                  label="EBIT (operating income)"
+                  field="incomeStatementHistory[0].operatingIncome"
+                  unit="USD"
+                  value={fmtB(snap.ebit)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="× (1 − effective tax)"
+                  field="derived: incomeTaxExpense ÷ incomeBeforeTax"
+                  unit="ratio, capped 50%"
+                  value={`× ${pct(roicLatest.taxRate)}`}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="= NOPAT"
+                  field="EBIT × (1 − tax)"
+                  unit="USD"
+                  value={fmtB(roicLatest.nopat)}
+                  bold
+                  used
+                  showField={fieldMapOpen}
+                />
                 <Separator />
-                <div className="font-semibold text-foreground">Invested capital build</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
-                  <span className="text-muted-foreground">Total stockholder equity</span><span className="text-right">{fmtB(snap.equity)}</span>
-                  <span className="text-muted-foreground">+ Long-term debt</span><span className="text-right">{fmtB(snap.ltDebt)}</span>
-                  <span className="text-muted-foreground">+ Current portion of LT debt</span><span className="text-right">{fmtB(snap.stDebt)}</span>
-                  <span className="text-muted-foreground">− Cash &amp; equivalents</span><span className="text-right">{fmtB(-(snap.cash ?? 0))}</span>
-                  <span className="text-muted-foreground">= Invested capital</span><span className="text-right font-semibold">{fmtB(ic > 0 ? ic : null)}</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground pt-1">Filings sourced from latest annual balance sheet + income statement. Effective tax = tax expense ÷ pretax income; capped at 50%.</p>
+                <FilingRow
+                  label="Total stockholder equity"
+                  field="balanceSheetHistory[0].totalStockholderEquity"
+                  unit="USD"
+                  value={fmtB(snap.equity)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="+ Long-term debt"
+                  field="balanceSheetHistory[0].longTermDebt"
+                  unit="USD"
+                  value={fmtB(snap.ltDebt)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="+ Current portion of LT debt"
+                  field="balanceSheetHistory[0].shortLongTermDebt"
+                  unit="USD"
+                  value={fmtB(snap.stDebt)}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="− Cash &amp; equivalents"
+                  field="balanceSheetHistory[0].cash"
+                  unit="USD"
+                  value={fmtB(-(snap.cash ?? 0))}
+                  used
+                  showField={fieldMapOpen}
+                />
+                <FilingRow
+                  label="= Invested capital"
+                  field="equity + LT debt + ST debt − cash"
+                  unit="USD"
+                  value={fmtB(ic > 0 ? ic : null)}
+                  bold
+                  used
+                  showField={fieldMapOpen}
+                />
+                <Separator />
+                <div className="font-semibold text-foreground">WACC inputs</div>
+                <FilingRow label="Market capitalisation" field="price.marketCap" unit="USD (equity weight)" value={fmtB(snap.marketCap)} used showField={fieldMapOpen} />
+                <FilingRow label="Beta (5Y monthly)" field="summaryDetail.beta / defaultKeyStatistics.beta" unit="dimensionless" value={snap.beta != null ? snap.beta.toFixed(2) : "-"} used showField={fieldMapOpen} />
+                <FilingRow label="Risk-free rate" field="user input (10Y proxy)" unit="decimal" value={pct(rfPct / 100)} used showField={fieldMapOpen} />
+                <FilingRow label="Equity risk premium" field="user input" unit="decimal" value={pct(erpPct / 100)} used showField={fieldMapOpen} />
+                <FilingRow label="Pre-tax cost of debt" field="user input" unit="decimal" value={pct(kdPct / 100)} used showField={fieldMapOpen} />
+                <p className="text-[10px] text-muted-foreground pt-1">
+                  Highlighted rows are the exact fields fed into ROIC and WACC. Fields come from the Yahoo Finance <code>quoteSummary</code> feed (annual filings).
+                </p>
               </div>
             )}
             <table className="w-full text-sm">
@@ -386,6 +656,41 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
                 <p className="text-[10px] text-muted-foreground">
                   Baselines the current spread ({pct(spread)}) and fires when |Δ| ≥ {alertThresholdBps} bps after {alertWindowDays} day(s).
                 </p>
+                <div className="rounded border border-dashed border-border/60 p-2 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <History className="h-3 w-3" /> Backtest preview
+                  </div>
+                  {timeSeries.filter((r) => r.spread != null).length < 2 ? (
+                    <p className="text-[10px] text-muted-foreground">Need at least two annual observations to backtest.</p>
+                  ) : (
+                    <>
+                      <p className="text-[10px]">
+                        Would have triggered <span className="font-semibold">{backtest.count}</span>{" "}
+                        time{backtest.count === 1 ? "" : "s"} across{" "}
+                        {timeSeries.filter((r) => r.spread != null).length - 1} year-over-year step
+                        {timeSeries.filter((r) => r.spread != null).length - 1 === 1 ? "" : "s"}{" "}
+                        (direction: {alertDirection}, threshold {alertThresholdBps} bps).
+                      </p>
+                      {backtest.events.length > 0 && (
+                        <ul className="text-[10px] font-mono space-y-0.5">
+                          {backtest.events.map((e) => (
+                            <li key={e.year} className="flex items-center justify-between gap-2">
+                              <span>{e.year}</span>
+                              <span className={e.direction === "improve" ? "text-success" : "text-destructive"}>
+                                {e.delta >= 0 ? "+" : ""}{(e.delta * 10000).toFixed(0)} bps
+                                {" "}({e.direction})
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="text-[9px] text-muted-foreground pt-0.5">
+                        Backtest uses annual filings (year-over-year Δ). The live rule uses your chosen
+                        rolling {alertWindowDays}-day window on the same spread definition.
+                      </p>
+                    </>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={saveAlert} disabled={alertSaving}>
                     {alertSaving && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
@@ -401,11 +706,161 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         </Card>
       </div>
 
+      {/* Time-series chart */}
+      {timeSeries.some((r) => r.roicPct != null || r.waccPct != null) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <LineChartIcon className="h-4 w-4" /> ROIC · WACC · Spread over time
+            </CardTitle>
+            <CardDescription>
+              Annual filings from the last {timeSeries.length} year{timeSeries.length === 1 ? "" : "s"}.
+              WACC per year is recomputed using the current rf/ERP/kd/β and per-year book-equity + total-debt weights.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="w-full h-[280px]">
+              <ResponsiveContainer>
+                <ComposedChart data={timeSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="year" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                    tickFormatter={(v) => `${v}%`}
+                    domain={["auto", "auto"]}
+                  />
+                  <ReferenceLine y={0} stroke="hsl(var(--border))" />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))" }}
+                    formatter={(v: number | string) => (typeof v === "number" ? `${v.toFixed(2)}%` : v)}
+                    labelFormatter={(y, payload) => {
+                      const d = payload?.[0]?.payload?.endDate;
+                      return d ? `${y} (${d})` : String(y);
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="spreadPct" name="ROIC − WACC" fill="hsl(var(--primary))" opacity={0.35} />
+                  <Line type="monotone" dataKey="roicPct" stroke="hsl(var(--success))" strokeWidth={2} dot name="ROIC" />
+                  <Line type="monotone" dataKey="waccPct" stroke="hsl(var(--destructive))" strokeWidth={2} dot name="WACC" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Historic years use book equity as the equity-weight proxy (point-in-time market caps aren't in the feed), so ROIC changes drive most of the spread movement while WACC evolves with the capital structure only.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sensitivity panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4" /> Sensitivity — how inputs move the spread
+          </CardTitle>
+          <CardDescription>
+            Pick a range for each driver. We resample the ROIC − WACC spread across every corner of the range and show the resulting min/max.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <button
+            type="button"
+            className="text-xs text-primary inline-flex items-center gap-1 hover:underline"
+            onClick={() => setSensOpen((v) => !v)}
+          >
+            {sensOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {sensOpen ? "Hide" : "Show"} sensitivity ranges
+          </button>
+          {sensOpen && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <RangeSlider label="Risk-free rate" min={0} max={10} step={0.05} value={sensRf} onChange={setSensRf} unit="%" decimals={2} />
+              <RangeSlider label="Equity risk premium" min={0} max={12} step={0.1} value={sensErp} onChange={setSensErp} unit="%" decimals={2} />
+              <RangeSlider label="Tax rate" min={0} max={50} step={0.5} value={sensTax} onChange={setSensTax} unit="%" decimals={1} />
+              <RangeSlider label="Beta" min={0} max={3} step={0.05} value={sensBeta} onChange={setSensBeta} decimals={2} />
+            </div>
+          )}
+          {sensitivity && (
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-md border border-border/60 p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Current spread</div>
+                <div className={`text-2xl font-mono font-semibold ${spreadPositive ? "text-success" : "text-destructive"}`}>{pct(spread)}</div>
+              </div>
+              <div className="rounded-md border border-border/60 p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Range low</div>
+                <div className={`text-2xl font-mono font-semibold ${sensitivity.min >= 0 ? "text-success" : "text-destructive"}`}>{pct(sensitivity.min)}</div>
+                {spread != null && (
+                  <div className="text-[10px] text-muted-foreground">
+                    Δ {(spread - sensitivity.min) >= 0 ? "−" : "+"}
+                    {Math.abs((sensitivity.min - spread) * 100).toFixed(1)} pp
+                  </div>
+                )}
+              </div>
+              <div className="rounded-md border border-border/60 p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Range high</div>
+                <div className={`text-2xl font-mono font-semibold ${sensitivity.max >= 0 ? "text-success" : "text-destructive"}`}>{pct(sensitivity.max)}</div>
+                {spread != null && (
+                  <div className="text-[10px] text-muted-foreground">
+                    Δ {(sensitivity.max - spread) >= 0 ? "+" : "−"}
+                    {Math.abs((sensitivity.max - spread) * 100).toFixed(1)} pp
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {sensitivity && (
+            <div className="rounded-md border border-border/60 p-3 space-y-2">
+              <div className="text-[11px] font-semibold text-foreground">One-at-a-time sweeps</div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {(["rf", "erp", "tax", "beta"] as const).map((k) => {
+                  const rows = sensitivity.drivers[k];
+                  const label = k === "rf" ? "Risk-free rate" : k === "erp" ? "Equity risk premium" : k === "tax" ? "Tax rate" : "Beta";
+                  const unit = k === "beta" ? "" : "%";
+                  const vals = rows.map((r) => r.spread).filter((v): v is number => v != null);
+                  const lo = vals.length ? Math.min(...vals) : null;
+                  const hi = vals.length ? Math.max(...vals) : null;
+                  return (
+                    <div key={k} className="rounded border border-border/40 p-2 space-y-1 text-[10px] font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span>
+                          spread {pct(lo)} → {pct(hi)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {rows.map((r, i) => (
+                          <div key={i} className="text-center">
+                            <div className="text-[9px] text-muted-foreground">{r.x.toFixed(k === "beta" ? 2 : 1)}{unit}</div>
+                            <div className={r.spread != null && r.spread >= 0 ? "text-success" : "text-destructive"}>
+                              {r.spread != null ? `${(r.spread * 100).toFixed(1)}%` : "-"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Range results use every corner of your 4-range box (16 evaluations). One-at-a-time sweeps hold the other three drivers at the midpoint of their ranges.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Peer / sector comparison */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer &amp; sector comparison</CardTitle>
-          <CardDescription>Enter peer tickers (comma-separated) to compare ROIC, WACC, and the ROIC−WACC spread using the same assumptions.</CardDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer &amp; sector comparison</CardTitle>
+              <CardDescription>Enter peer tickers (comma-separated) to compare ROIC, WACC, and the ROIC−WACC spread using the same assumptions.</CardDescription>
+            </div>
+            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={downloadCsv}>
+              <Download className="h-3.5 w-3.5" /> CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-2">
@@ -503,6 +958,57 @@ function NumField({ label, value, onChange, step, placeholder }: { label: string
           if (Number.isFinite(n)) onChange(n);
         }}
         className="h-8"
+      />
+    </div>
+  );
+}
+
+function FilingRow({
+  label, field, unit, value, used, bold, showField,
+}: {
+  label: string; field: string; unit: string;
+  value: string; used?: boolean; bold?: boolean; showField?: boolean;
+}) {
+  return (
+    <div className={`grid grid-cols-[1fr_auto] gap-x-4 items-baseline rounded px-1 py-0.5 ${used ? "bg-primary/5 border-l-2 border-primary/40" : ""}`}>
+      <div className="min-w-0">
+        <div className={`truncate ${bold ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{label}</div>
+        {showField && (
+          <div className="text-[9px] text-muted-foreground/80 font-mono truncate">
+            <span className="text-primary/80">{field}</span>
+            <span className="mx-1">·</span>
+            <span>{unit}</span>
+          </div>
+        )}
+      </div>
+      <div className={`text-right font-mono ${bold ? "font-semibold" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function RangeSlider({
+  label, min, max, step, value, onChange, unit, decimals = 2,
+}: {
+  label: string; min: number; max: number; step: number;
+  value: [number, number]; onChange: (v: [number, number]) => void;
+  unit?: string; decimals?: number;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono">
+          {value[0].toFixed(decimals)}{unit} – {value[1].toFixed(decimals)}{unit}
+        </span>
+      </div>
+      <Slider
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onValueChange={(v) => {
+          if (v.length === 2) onChange([v[0], v[1]] as [number, number]);
+        }}
       />
     </div>
   );

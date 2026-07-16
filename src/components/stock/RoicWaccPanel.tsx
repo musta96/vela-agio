@@ -720,6 +720,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
       params: {
         window_days: alertWindowDays,
         direction: alertDirection,
+        min_hold_years: alertMinHoldYears,
         baseline_spread: spread,
         baseline_captured_at: new Date().toISOString(),
         assumptions: {

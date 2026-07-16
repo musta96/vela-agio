@@ -2639,6 +2639,8 @@ export type Database = {
       }
       simulation_runs: {
         Row: {
+          cancel_requested: boolean
+          canceled_at: string | null
           created_at: string
           error: string | null
           finished_at: string | null
@@ -2654,6 +2656,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cancel_requested?: boolean
+          canceled_at?: string | null
           created_at?: string
           error?: string | null
           finished_at?: string | null
@@ -2669,6 +2673,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cancel_requested?: boolean
+          canceled_at?: string | null
           created_at?: string
           error?: string | null
           finished_at?: string | null

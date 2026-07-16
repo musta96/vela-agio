@@ -441,6 +441,38 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     return { roic: avg(nums("roic")), wacc: avg(nums("wacc")), spread: avg(nums("spread")) };
   }, [peers]);
 
+  // Combined ranking list: `this` ticker + peers, sorted by chosen key.
+  const rankedTickers = useMemo(() => {
+    const baseTrend = timeSeries.map((r) => ({ year: r.year, spread: r.spread }));
+    const baseSpreads = baseTrend.map((p) => p.spread).filter((v): v is number => v != null);
+    const baseTrendPP = baseSpreads.length >= 2 ? (baseSpreads[baseSpreads.length - 1] - baseSpreads[0]) * 100 : null;
+    const rows: Array<{
+      sym: string; roic: number | null; wacc: number | null; spread: number | null;
+      trend: Array<{ year: string; spread: number | null }>; trendPP: number | null;
+      isBase: boolean; err?: string;
+    }> = [
+      {
+        sym: symbol.toUpperCase(),
+        roic: roicLatest?.roic ?? null,
+        wacc: wacc?.wacc ?? null,
+        spread: spread ?? null,
+        trend: baseTrend,
+        trendPP: baseTrendPP,
+        isBase: true,
+      },
+      ...peers.map((p) => ({ ...p, isBase: false })),
+    ];
+    const key: "spread" | "trendPP" = peerSort === "spread" ? "spread" : "trendPP";
+    rows.sort((a, b) => {
+      const av = a[key], bv = b[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return bv - av;
+    });
+    return rows;
+  }, [peers, peerSort, symbol, roicLatest, wacc, spread, timeSeries]);
+
   const downloadCsv = () => {
     const esc = (v: any) => {
       if (v == null) return "";

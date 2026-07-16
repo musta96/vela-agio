@@ -777,3 +777,54 @@ function NumField({ label, value, onChange, step, placeholder }: { label: string
     </div>
   );
 }
+
+function FilingRow({
+  label, field, unit, value, used, bold, showField,
+}: {
+  label: string; field: string; unit: string;
+  value: string; used?: boolean; bold?: boolean; showField?: boolean;
+}) {
+  return (
+    <div className={`grid grid-cols-[1fr_auto] gap-x-4 items-baseline rounded px-1 py-0.5 ${used ? "bg-primary/5 border-l-2 border-primary/40" : ""}`}>
+      <div className="min-w-0">
+        <div className={`truncate ${bold ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{label}</div>
+        {showField && (
+          <div className="text-[9px] text-muted-foreground/80 font-mono truncate">
+            <span className="text-primary/80">{field}</span>
+            <span className="mx-1">·</span>
+            <span>{unit}</span>
+          </div>
+        )}
+      </div>
+      <div className={`text-right font-mono ${bold ? "font-semibold" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function RangeSlider({
+  label, min, max, step, value, onChange, unit, decimals = 2,
+}: {
+  label: string; min: number; max: number; step: number;
+  value: [number, number]; onChange: (v: [number, number]) => void;
+  unit?: string; decimals?: number;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono">
+          {value[0].toFixed(decimals)}{unit} – {value[1].toFixed(decimals)}{unit}
+        </span>
+      </div>
+      <Slider
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onValueChange={(v) => {
+          if (v.length === 2) onChange([v[0], v[1]] as [number, number]);
+        }}
+      />
+    </div>
+  );
+}

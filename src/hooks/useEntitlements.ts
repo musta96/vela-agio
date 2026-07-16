@@ -131,22 +131,21 @@ export function useEntitlements() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // Refresh on subscription changes (webhook → realtime).
+  // Refresh opportunistically without opening a realtime channel from every hook
+  // consumer. Pricing renders several entitlement consumers at once, and shared
+  // realtime topics can throw if callbacks are added after a reused subscription.
   useEffect(() => {
     if (!user) return;
-    const suffix =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const ch = supabase
-      .channel(`ent-${user.id}-${suffix}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
-        () => refresh(),
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const onFocus = () => { void refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [user, refresh]);
 
   const has = useCallback((key: string) => ent.featureKeys.has(key), [ent]);

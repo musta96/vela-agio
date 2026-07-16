@@ -281,6 +281,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     if (pts.length < 2) return { count: 0, events: [] as Array<{ year: string; delta: number; direction: "improve" | "worsen" }> };
     const thr = alertThresholdBps / 10000;
     const events: Array<{ year: string; delta: number; direction: "improve" | "worsen" }> = [];
+    let lastIdx = -Infinity;
     for (let i = 1; i < pts.length; i++) {
       const d = pts[i].spread - pts[i - 1].spread;
       const dir: "improve" | "worsen" = d >= 0 ? "improve" : "worsen";
@@ -288,10 +289,38 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         alertDirection === "either" ? Math.abs(d) >= thr :
         alertDirection === "improve" ? d >= thr :
         -d >= thr;
-      if (pass) events.push({ year: pts[i].year, delta: d, direction: dir });
+      // Enforce a minimum-hold window: after a trigger, skip further events
+      // until at least `alertMinHoldYears` bars have elapsed.
+      if (pass && i - lastIdx >= Math.max(1, alertMinHoldYears)) {
+        events.push({ year: pts[i].year, delta: d, direction: dir });
+        lastIdx = i;
+      }
     }
     return { count: events.length, events };
-  }, [timeSeries, alertThresholdBps, alertDirection]);
+  }, [timeSeries, alertThresholdBps, alertDirection, alertMinHoldYears]);
+
+  // ------------------------------------------------------------------
+  // Data-quality scan — flag ticker-years where any input is missing/derived.
+  // ------------------------------------------------------------------
+  const dataQuality = useMemo(() => {
+    const issues: Array<{ year: string; missing: string[]; estimated: string[] }> = [];
+    for (const r of history) {
+      const missing: string[] = [];
+      const estimated: string[] = [];
+      if (r.ebit == null) missing.push("EBIT");
+      if (r.equityBook == null) missing.push("equity");
+      if (r.ltDebt == null && r.stDebt == null) missing.push("debt");
+      if (r.cash == null) estimated.push("cash → assumed 0");
+      if (r.taxRate == null) estimated.push("tax rate → falls back to statutory");
+      if (missing.length || estimated.length) issues.push({ year: r.year, missing, estimated });
+    }
+    const affectedYears = issues.map((i) => i.year);
+    const badBacktestSteps = timeSeries
+      .map((r, i) => ({ ...r, i }))
+      .filter((r) => r.i > 0 && (r.spread == null || timeSeries[r.i - 1]?.spread == null))
+      .map((r) => r.year);
+    return { issues, affectedYears, badBacktestSteps };
+  }, [history, timeSeries]);
 
   // Sensitivity: 2^4 corner sweep + one-at-a-time driver sweep.
   const sensitivity = useMemo(() => {

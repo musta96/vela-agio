@@ -55,6 +55,13 @@ import { StrategyBuilderCard } from "@/components/technical/StrategyBuilderCard"
 import { BreakoutAlertsCard } from "@/components/technical/BreakoutAlertsCard";
 import { PatternStrategyCard } from "@/components/technical/PatternStrategyCard";
 import { TechnicalExportCard } from "@/components/technical/TechnicalExportCard";
+import { SMCDeepCard } from "@/components/technical/SMCDeepCard";
+import { AVWAPProfileCard } from "@/components/technical/AVWAPProfileCard";
+import { VolatilityCard } from "@/components/technical/VolatilityCard";
+import { OrderFlowCard } from "@/components/technical/OrderFlowCard";
+import { VolumeAtPriceCard } from "@/components/technical/VolumeAtPriceCard";
+import { OptionsFlowCard } from "@/components/technical/OptionsFlowCard";
+import { FibonacciCard } from "@/components/technical/FibonacciCard";
 
 const RANGES: OHLCRange[] = ["1M", "3M", "6M", "YTD", "1Y", "2Y", "5Y"];
 
@@ -525,6 +532,13 @@ const TechnicalAnalysis = () => {
                   />
                 )}
                 <PatternStrategyCard symbol={symbol} timeframe={range} analysis={ta} />
+                {lastBar && <SMCDeepCard analysis={ta} lastPrice={lastBar.close} />}
+                <AVWAPProfileCard bars={bars} />
+                <VolatilityCard bars={bars} />
+                <FibonacciCard bars={bars} />
+                <VolumeAtPriceCard bars={bars} />
+                <OrderFlowCard bars={bars} />
+                <OptionsFlowCard symbol={symbol} />
                 <StrategyBuilderCard symbol={symbol} timeframe={range} />
                 {lastBar && (
                   <TechnicalExportCard

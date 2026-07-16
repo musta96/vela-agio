@@ -73,6 +73,30 @@ export function TimingCard({ symbol }: Props) {
     if (typeof window !== "undefined") window.localStorage.setItem(LOOKAHEAD_STORAGE_KEY, String(next));
   }
 
+  // NOTE: all hooks must run in the same order on every render. Keep useMemo
+  // above any conditional early returns — otherwise React throws error #310
+  // ("Rendered more hooks than during the previous render.") on load→ready.
+  const d = state.data;
+  const events = useMemo(
+    () => (d?.events ?? []).slice().sort((a, b) => a.daysUntil - b.daysUntil),
+    [d?.events],
+  );
+  const drill = useMemo(
+    () => (d?.signals ?? []).slice().sort((a, b) => b.weight - a.weight),
+    [d?.signals],
+  );
+  // Top drivers = highest signed contributions to the composite score.
+  const topDrivers = useMemo(() => {
+    return (d?.signals ?? [])
+      .map((s) => ({
+        ...s,
+        contribution: s.direction === "buy" ? s.weight : s.direction === "avoid" ? -s.weight : 0,
+      }))
+      .filter((s) => s.contribution !== 0)
+      .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+      .slice(0, 3);
+  }, [d?.signals]);
+
   if (state.loading) {
     return (
       <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
@@ -82,7 +106,7 @@ export function TimingCard({ symbol }: Props) {
       </Card>
     );
   }
-  if (state.error || !state.data) {
+  if (state.error || !d) {
     return (
       <Card className="p-4 sm:p-6 mb-6 card-gradient border-destructive/40">
         <p className="text-sm text-destructive">Entry timing unavailable: {state.error ?? "no data"}</p>
@@ -90,32 +114,12 @@ export function TimingCard({ symbol }: Props) {
     );
   }
 
-  const d = state.data;
   const v = verdictStyle[d.verdict];
   const families: Array<{ key: TimingResult["signals"][number]["family"]; title: string }> = [
     { key: "tech", title: "Technicals (RSI / MACD / DMA)" },
     { key: "fund", title: "Fundamentals" },
     { key: "macro", title: "Macro & event proximity" },
   ];
-  const events = useMemo(
-    () => (d.events ?? []).slice().sort((a, b) => a.daysUntil - b.daysUntil),
-    [d.events],
-  );
-  const drill = useMemo(
-    () => d.signals.slice().sort((a, b) => b.weight - a.weight),
-    [d.signals],
-  );
-  // Top drivers = highest signed contributions to the composite score.
-  const topDrivers = useMemo(() => {
-    return d.signals
-      .map((s) => ({
-        ...s,
-        contribution: s.direction === "buy" ? s.weight : s.direction === "avoid" ? -s.weight : 0,
-      }))
-      .filter((s) => s.contribution !== 0)
-      .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
-      .slice(0, 3);
-  }, [d.signals]);
 
   return (
     <Card className={`p-4 sm:p-6 mb-6 border ${v.bg}`}>

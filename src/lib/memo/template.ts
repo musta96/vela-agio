@@ -482,6 +482,17 @@ function implementationSteps(input: MemoInput): string {
 /* ============================== methodology, sources, disclosures ============================== */
 
 function methodologyAndDisclosures(input: MemoInput): string {
+  return methodologyAndDisclosuresImpl(input);
+}
+
+function fmtBigNum(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  return v.toLocaleString();
+}
+
+function methodologyAndDisclosuresImpl(input: MemoInput): string {
   const m = input.methodology ?? [];
   const s = input.sources ?? [];
   const d = input.disclosures;

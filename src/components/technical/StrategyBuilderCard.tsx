@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Wrench, Plus, X, Play, Save, Trash2, Copy, History, BarChart3 } from "lucide-react";
+import { Wrench, Plus, X, Play, Save, Trash2, Copy, History, BarChart3, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   CONDITION_LABELS,
   describeCondition,
@@ -21,6 +21,7 @@ import {
   type TradingStrategyVersionRow,
 } from "@/lib/ta/strategyTypes";
 import { BacktestDetailCharts } from "@/components/backtest/BacktestDetailCharts";
+import { validateStrategy, summarize, type RuleIssue } from "@/lib/ta/validateStrategy";
 
 interface Props {
   symbol: string;
@@ -48,6 +49,10 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
   const [showVersions, setShowVersions] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [previewResult, setPreviewResult] = useState<{ equity: any[]; trades: any[]; metrics: any } | null>(null);
+
+  const issues = useMemo(() => validateStrategy(entry, exit, risk), [entry, exit, risk]);
+  const { errors, warnings } = useMemo(() => summarize(issues), [issues]);
+  const hasErrors = errors.length > 0;
 
   const loadSaved = async () => {
     if (!user) return;
@@ -89,8 +94,8 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
       toast({ title: "Sign in required", description: "Sign in to save trading strategies.", variant: "destructive" });
       return;
     }
-    if (entry.length === 0) {
-      toast({ title: "Add at least one entry rule", variant: "destructive" });
+    if (hasErrors) {
+      toast({ title: "Fix validation errors", description: errors[0].message, variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -173,8 +178,8 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
   };
 
   const handlePreviewBacktest = async () => {
-    if (entry.length === 0) {
-      toast({ title: "Add at least one entry rule", variant: "destructive" });
+    if (hasErrors) {
+      toast({ title: "Fix validation errors", description: errors[0].message, variant: "destructive" });
       return;
     }
     setPreviewing(true);
@@ -288,9 +293,12 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
         ) : null}
       </div>
 
+      {/* Validation */}
+      <ValidationPanel issues={issues} />
+
       {/* Actions */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
+        <Button size="sm" onClick={handleSave} disabled={saving || hasErrors} className="gap-2">
           <Save className="h-4 w-4" /> {selectedId ? `Update (v${(currentVersion ?? 1) + 1})` : "Save"}
         </Button>
         {selectedId && (
@@ -298,7 +306,7 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
             <Copy className="h-4 w-4" /> Clone
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing} className="gap-2">
+        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing || hasErrors} className="gap-2">
           <BarChart3 className="h-4 w-4" /> {previewing ? "Running…" : "Preview backtest"}
         </Button>
         {selectedId && versions.length > 0 && (
@@ -490,6 +498,62 @@ function NumField({ label, value, onChange, step }: { label: string; value: numb
         onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
         className="h-8 w-20 text-xs"
       />
+    </div>
+  );
+}
+
+function ValidationPanel({ issues }: { issues: RuleIssue[] }) {
+  const errors = issues.filter((i) => i.level === "error");
+  const warnings = issues.filter((i) => i.level === "warning");
+
+  if (errors.length === 0 && warnings.length === 0) {
+    return (
+      <div className="mt-4 flex items-center gap-2 p-2.5 rounded-md border border-success/30 bg-success/5 text-xs text-success">
+        <CheckCircle2 className="h-4 w-4" />
+        <span>Rules look consistent — ready to save & backtest.</span>
+      </div>
+    );
+  }
+
+  const scopeLabel = (s: RuleIssue["scope"]) =>
+    s === "entry" ? "Entry" : s === "exit" ? "Exit" : s === "risk" ? "Risk" : "Strategy";
+
+  return (
+    <div className="mt-4 space-y-2">
+      {errors.length > 0 && (
+        <div className="p-3 rounded-md border border-destructive/40 bg-destructive/5">
+          <div className="flex items-center gap-2 mb-1.5 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-xs font-semibold">
+              {errors.length} issue{errors.length > 1 ? "s" : ""} must be fixed before saving
+            </p>
+          </div>
+          <ul className="space-y-0.5 text-xs text-destructive/90 pl-6 list-disc">
+            {errors.map((e, i) => (
+              <li key={i}>
+                <span className="font-medium">{scopeLabel(e.scope)}:</span> {e.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {warnings.length > 0 && (
+        <div className="p-3 rounded-md border border-warning/40 bg-warning/5">
+          <div className="flex items-center gap-2 mb-1.5 text-warning">
+            <AlertTriangle className="h-4 w-4" />
+            <p className="text-xs font-semibold">
+              {warnings.length} warning{warnings.length > 1 ? "s" : ""} — review before running live
+            </p>
+          </div>
+          <ul className="space-y-0.5 text-xs text-muted-foreground pl-6 list-disc">
+            {warnings.map((w, i) => (
+              <li key={i}>
+                <span className="font-medium text-foreground">{scopeLabel(w.scope)}:</span> {w.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

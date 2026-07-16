@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Newspaper, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { analyzeEventWindows } from "@/lib/backtest/eventBacktest";
 
 interface NewsItem { publishedAt: number; title: string; url: string | null; source: string | null; sentiment: number; }
 interface Bar { t: number; close: number; }
@@ -35,6 +36,8 @@ export function NewsEventBacktestCard({ symbol, bars }: Props) {
   const [exitBars, setExitBars] = useState(5);
   const [sentimentThr, setSentimentThr] = useState(1);
   const [days, setDays] = useState(60);
+  const [preWin, setPreWin] = useState(3);
+  const [postWin, setPostWin] = useState(5);
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -66,6 +69,10 @@ export function NewsEventBacktestCard({ symbol, bars }: Props) {
   const avg = trades.length ? trades.reduce((s, t) => s + t.pct, 0) / trades.length : 0;
   const cum = trades.reduce((s, t) => s + t.pct, 0);
 
+  const eventStats = items.length > 0
+    ? analyzeEventWindows(bars, items.filter((n) => Math.abs(n.sentiment) >= sentimentThr).map((n) => ({ publishedAt: n.publishedAt, sentiment: n.sentiment })), preWin, postWin)
+    : null;
+
   return (
     <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
       <div className="flex items-center gap-2 mb-3">
@@ -93,6 +100,16 @@ export function NewsEventBacktestCard({ symbol, bars }: Props) {
           <Input type="number" min={1} max={3} value={sentimentThr} onChange={(e) => setSentimentThr(Number(e.target.value) || 1)} />
         </div>
       </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+        <div>
+          <Label className="text-xs">Pre-event window (bars)</Label>
+          <Input type="number" min={1} max={30} value={preWin} onChange={(e) => setPreWin(Number(e.target.value) || 3)} />
+        </div>
+        <div>
+          <Label className="text-xs">Post-event window (bars)</Label>
+          <Input type="number" min={1} max={30} value={postWin} onChange={(e) => setPostWin(Number(e.target.value) || 5)} />
+        </div>
+      </div>
       <div className="flex items-center gap-2 mb-4">
         <Button size="sm" onClick={load} disabled={loading}><Play className="h-3.5 w-3.5 mr-1" />{loading ? "Loading…" : "Load headlines & simulate"}</Button>
         {items.length > 0 && <Badge variant="outline">{items.length} headlines</Badge>}
@@ -101,6 +118,19 @@ export function NewsEventBacktestCard({ symbol, bars }: Props) {
 
       {trades.length > 0 && (
         <>
+          {eventStats && eventStats.events > 0 && (
+            <div className="mb-3 p-3 rounded border border-border bg-muted/20">
+              <p className="text-xs font-semibold mb-2">Pre/post event impact ({eventStats.events} events)</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Pre avg</p><p className={`font-semibold ${eventStats.preAvgRetPct >= 0 ? "text-success" : "text-destructive"}`}>{eventStats.preAvgRetPct.toFixed(2)}%</p></div>
+                <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Post avg</p><p className={`font-semibold ${eventStats.postAvgRetPct >= 0 ? "text-success" : "text-destructive"}`}>{eventStats.postAvgRetPct.toFixed(2)}%</p></div>
+                <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Pre σ</p><p className="font-semibold">{(eventStats.preSigma * 100).toFixed(2)}%</p></div>
+                <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Post σ</p><p className="font-semibold">{(eventStats.postSigma * 100).toFixed(2)}%</p></div>
+                <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Vol expansion</p><p className={`font-semibold ${eventStats.volExpansion > 1.2 ? "text-destructive" : "text-foreground"}`}>{eventStats.volExpansion.toFixed(2)}×</p></div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">Directional hit rate (post move vs sentiment sign): {eventStats.hitRate.toFixed(0)}%.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 text-xs">
             <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Trades</p><p className="font-semibold text-base">{trades.length}</p></div>
             <div className="p-2 rounded border border-border"><p className="text-muted-foreground">Win rate</p><p className="font-semibold text-base">{winRate.toFixed(1)}%</p></div>

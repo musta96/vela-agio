@@ -8,18 +8,71 @@ import type { Condition, RiskConfig } from "@/lib/ta/strategyTypes";
 import type { CostConfig } from "./costs";
 import { simulateCustom, type Bar, type SimResult } from "./clientSim";
 
-export interface CachedRun extends SimResult {}
+export interface CachedRun extends SimResult { _cachedAt?: number }
 
 const CACHE = new Map<string, CachedRun>();
 let barsToken: string | null = null;
 
 // Persistence -----------------------------------------------------------------
 const LS_PREFIX = "simcache:v1:";
-const MAX_ENTRIES = 200; // LRU cap; keeps LS payload well under quota.
+const SETTINGS_KEY = "simcache:settings:v1";
+
+interface Settings {
+  maxEntries: number;
+  maxAgeDays: number;
+  maxWorkers: number | "auto"; // "auto" honours hardwareConcurrency; 0 = disable workers
+}
+const DEFAULT_SETTINGS: Settings = { maxEntries: 200, maxAgeDays: 14, maxWorkers: "auto" };
+let settings: Settings = { ...DEFAULT_SETTINGS };
+
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 function safeLS(): Storage | null {
   try { return typeof window !== "undefined" ? window.localStorage : null; } catch { return null; }
+}
+
+function loadSettings() {
+  const ls = safeLS(); if (!ls) return;
+  try {
+    const raw = ls.getItem(SETTINGS_KEY);
+    if (raw) settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch { /* noop */ }
+}
+function saveSettings() {
+  const ls = safeLS(); if (!ls) return;
+  try { ls.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* noop */ }
+}
+loadSettings();
+
+export function getSimCacheSettings(): Settings { return { ...settings }; }
+export function setMaxEntries(n: number) {
+  settings.maxEntries = Math.max(10, Math.min(2000, Math.floor(n)));
+  saveSettings();
+  // Evict extras.
+  while (CACHE.size > settings.maxEntries) {
+    const oldest = CACHE.keys().next().value;
+    if (oldest === undefined) break;
+    CACHE.delete(oldest);
+  }
+  schedulePersist();
+}
+export function setMaxAgeDays(days: number) {
+  settings.maxAgeDays = Math.max(0, Math.min(365, Math.floor(days)));
+  saveSettings();
+  pruneExpired();
+  schedulePersist();
+}
+export function setMaxWorkers(n: number | "auto") {
+  settings.maxWorkers = n === "auto" ? "auto" : Math.max(0, Math.min(32, Math.floor(n)));
+  saveSettings();
+}
+
+function pruneExpired() {
+  if (!settings.maxAgeDays) return;
+  const cutoff = Date.now() - settings.maxAgeDays * 86400_000;
+  for (const [k, v] of CACHE) {
+    if ((v._cachedAt ?? 0) < cutoff) CACHE.delete(k);
+  }
 }
 
 function schedulePersist() {
@@ -31,14 +84,12 @@ function schedulePersist() {
 function persistNow() {
   const ls = safeLS();
   if (!ls || !barsToken) return;
-  // Truncate to newest MAX_ENTRIES (Map preserves insertion order — we re-insert on hit).
-  const entries = Array.from(CACHE.entries()).slice(-MAX_ENTRIES);
+  const entries = Array.from(CACHE.entries()).slice(-settings.maxEntries);
   const payload = JSON.stringify(entries);
   try {
     ls.setItem(LS_PREFIX + barsToken, payload);
   } catch {
-    // Quota exceeded — drop half and try once more, then give up silently.
-    const half = entries.slice(-Math.floor(MAX_ENTRIES / 2));
+    const half = entries.slice(-Math.floor(settings.maxEntries / 2));
     try { ls.setItem(LS_PREFIX + barsToken, JSON.stringify(half)); } catch { /* noop */ }
   }
 }
@@ -51,6 +102,7 @@ function hydrate(fp: string) {
     if (!raw) return;
     const entries = JSON.parse(raw) as [string, CachedRun][];
     for (const [k, v] of entries) CACHE.set(k, v);
+    pruneExpired();
   } catch { /* corrupt entry — ignore */ }
 }
 
@@ -91,8 +143,9 @@ function keyOf(
 function store(key: string, result: CachedRun) {
   // Re-insert to bump LRU recency.
   CACHE.delete(key);
+  result._cachedAt = Date.now();
   CACHE.set(key, result);
-  if (CACHE.size > MAX_ENTRIES) {
+  if (CACHE.size > settings.maxEntries) {
     const oldest = CACHE.keys().next().value;
     if (oldest !== undefined) CACHE.delete(oldest);
   }
@@ -120,30 +173,66 @@ export function runCached(
 }
 
 export function cacheStats() {
-  return { size: CACHE.size, barsToken, maxEntries: MAX_ENTRIES };
+  let oldest: number | null = null, newest: number | null = null;
+  for (const v of CACHE.values()) {
+    const t = v._cachedAt ?? 0;
+    if (oldest == null || t < oldest) oldest = t;
+    if (newest == null || t > newest) newest = t;
+  }
+  return {
+    size: CACHE.size,
+    barsToken,
+    maxEntries: settings.maxEntries,
+    maxAgeDays: settings.maxAgeDays,
+    maxWorkers: settings.maxWorkers,
+    oldest, newest,
+  };
+}
+
+export function listCacheEntries(limit = 20): { key: string; cachedAt: number; totalReturn: number; sharpe: number; trades: number }[] {
+  const out: { key: string; cachedAt: number; totalReturn: number; sharpe: number; trades: number }[] = [];
+  const arr = Array.from(CACHE.entries()).reverse();
+  for (const [key, v] of arr.slice(0, limit)) {
+    out.push({
+      key, cachedAt: v._cachedAt ?? 0,
+      totalReturn: v.metrics.totalReturn, sharpe: v.metrics.sharpe, trades: v.metrics.totalTrades,
+    });
+  }
+  return out;
 }
 
 export function clearSimCache() {
   CACHE.clear();
   const ls = safeLS();
-  if (ls && barsToken) { try { ls.removeItem(LS_PREFIX + barsToken); } catch { /* noop */ } }
+  if (ls) {
+    try {
+      // Drop every fingerprint payload, not just current.
+      for (let i = ls.length - 1; i >= 0; i--) {
+        const k = ls.key(i);
+        if (k && k.startsWith(LS_PREFIX)) ls.removeItem(k);
+      }
+    } catch { /* noop */ }
+  }
   barsToken = null;
 }
 
 // Parallel pool ---------------------------------------------------------------
 
 export type RuleSet = { entry: Condition[]; exit: Condition[]; risk: RiskConfig };
-export type ProgressFn = (done: number, total: number, hits: number) => void;
+export type ProgressFn = (done: number, total: number, hits: number, etaMs?: number) => void;
 
 function detectConcurrency(): number {
   try {
-    const hc = typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 0;
-    return Math.max(2, Math.min(8, hc || 4));
+    const hc = typeof navigator !== "undefined" ? (navigator.hardwareConcurrency || 4) : 4;
+    const cap = settings.maxWorkers;
+    if (cap === "auto") return Math.max(1, Math.min(hc, 8));
+    if (cap === 0) return 0;
+    return Math.max(1, Math.min(cap, hc));
   } catch { return 4; }
 }
 
 function supportsWorker(): boolean {
-  return typeof window !== "undefined" && typeof Worker !== "undefined";
+  return typeof window !== "undefined" && typeof Worker !== "undefined" && settings.maxWorkers !== 0;
 }
 
 /**
@@ -174,7 +263,17 @@ export async function runCachedParallel(
     }
   }
   let done = hits;
-  onProgress?.(done, jobs.length, hits);
+  const started = Date.now();
+  const notify = () => {
+    let etaMs: number | undefined;
+    const elapsed = Date.now() - started;
+    const remaining = jobs.length - done;
+    // ETA is only meaningful once at least one miss has completed.
+    const misseDone = done - hits;
+    if (misseDone > 0 && remaining > 0) etaMs = Math.round((elapsed / misseDone) * remaining);
+    onProgress?.(done, jobs.length, hits, etaMs);
+  };
+  notify();
   if (misses.length === 0) return { results, hits };
 
   // Fallback: run sequentially on the main thread when workers are unavailable.
@@ -184,14 +283,14 @@ export async function runCachedParallel(
       store(m.key, r);
       results[m.i] = r;
       done++;
-      onProgress?.(done, jobs.length, hits);
+      notify();
       // Yield so the UI stays responsive.
       await new Promise((res) => setTimeout(res, 0));
     }
     return { results, hits };
   }
 
-  const poolSize = Math.min(detectConcurrency(), misses.length);
+  const poolSize = Math.max(1, Math.min(detectConcurrency() || 1, misses.length));
   const workers: Worker[] = [];
   for (let w = 0; w < poolSize; w++) {
     workers.push(new Worker(new URL("./simWorker.ts", import.meta.url), { type: "module" }));
@@ -207,7 +306,7 @@ export async function runCachedParallel(
         store(m.key, r);
         results[m.i] = r;
         done++;
-        onProgress?.(done, jobs.length, hits);
+        notify();
         feed();
       };
       w.onerror = () => {
@@ -216,7 +315,7 @@ export async function runCachedParallel(
         store(m.key, r);
         results[m.i] = r;
         done++;
-        onProgress?.(done, jobs.length, hits);
+        notify();
         feed();
       };
       w.postMessage({ id: m.i, bars, rules: m.rules, initial, costs });

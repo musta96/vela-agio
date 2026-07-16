@@ -151,6 +151,8 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const [alertWindowDays, setAlertWindowDays] = useState(30);
   const [alertThresholdBps, setAlertThresholdBps] = useState(100);
   const [alertDirection, setAlertDirection] = useState<"either" | "improve" | "worsen">("either");
+  // Minimum bars (years, in the annual backtest) that must elapse between two triggers.
+  const [alertMinHoldYears, setAlertMinHoldYears] = useState(0);
   const [alertSaving, setAlertSaving] = useState(false);
 
   // Sensitivity ranges.
@@ -162,6 +164,44 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
   // Filing-field drilldown toggle.
   const [fieldMapOpen, setFieldMapOpen] = useState(false);
+
+  // Refs used by the PDF export to snapshot the on-screen chart SVG.
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  // ------------------------------------------------------------------
+  // Per-ticker persistence of rf / ERP / tax / β / kd slider settings.
+  // ------------------------------------------------------------------
+  const storageKey = useMemo(() => `roic-wacc:${symbol.toUpperCase()}`, [symbol]);
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    // Reset hydration flag whenever the ticker changes so we re-load its
+    // saved sliders (or fall back to filing defaults inside `load`).
+    hydratedRef.current = false;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const s = JSON.parse(raw) as {
+          rfPct?: number; erpPct?: number; kdPct?: number;
+          taxPct?: number | ""; betaIn?: number | "";
+        };
+        if (typeof s.rfPct === "number") setRfPct(s.rfPct);
+        if (typeof s.erpPct === "number") setErpPct(s.erpPct);
+        if (typeof s.kdPct === "number") setKdPct(s.kdPct);
+        if (s.taxPct === "" || typeof s.taxPct === "number") setTaxPct(s.taxPct);
+        if (s.betaIn === "" || typeof s.betaIn === "number") setBetaIn(s.betaIn);
+        // Mark dirty so `load` won't stomp the restored values with filing defaults.
+        setAssumptionsDirty(true);
+      }
+      hydratedRef.current = true;
+    } catch { hydratedRef.current = true; }
+  }, [storageKey]);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ rfPct, erpPct, kdPct, taxPct, betaIn }));
+    } catch { /* quota / private mode */ }
+  }, [storageKey, rfPct, erpPct, kdPct, taxPct, betaIn]);
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);

@@ -1044,7 +1044,7 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="w-full h-[280px]">
+            <div className="w-full h-[280px]" ref={chartRef}>
               <ResponsiveContainer>
                 <ComposedChart data={timeSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />

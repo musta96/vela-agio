@@ -29,6 +29,23 @@ export interface InstrumentDeepDive {
     dcf?: { intrinsicPerShare?: number; upsidePct?: number } | null;
     ddm?: { intrinsicPerShare?: number; upsidePct?: number } | null;
   } | null;
+  roicWacc?: {
+    roic?: number | null;
+    wacc?: number | null;
+    spread?: number | null;
+    interpretation?: string;
+    nopat?: number | null;
+    investedCapital?: number | null;
+    effectiveTaxRate?: number | null;
+    costOfEquity?: number | null;
+    afterTaxCostOfDebt?: number | null;
+    assumptions?: {
+      riskFreeRate?: number;
+      equityRiskPremium?: number;
+      beta?: number;
+      preTaxCostOfDebt?: number;
+    };
+  } | null;
   analysis?: {
     thesis?: string;
     bullCase?: string;
@@ -234,6 +251,26 @@ export function buildInstrumentSection(
       ? { label: "Last", value: `${ccy} ${price}` }
       : undefined;
 
+  const rw = dd.roicWacc ?? undefined;
+  const roic_wacc = rw
+    ? {
+        roic: rw.roic ?? null,
+        wacc: rw.wacc ?? null,
+        spread: rw.spread ?? null,
+        interpretation: rw.interpretation,
+        inputs: {
+          nopat: rw.nopat ?? null,
+          invested_capital: rw.investedCapital ?? null,
+          effective_tax_rate: rw.effectiveTaxRate ?? null,
+          cost_of_equity: rw.costOfEquity ?? null,
+          after_tax_cost_of_debt: rw.afterTaxCostOfDebt ?? null,
+          beta: rw.assumptions?.beta ?? null,
+          risk_free_rate: rw.assumptions?.riskFreeRate ?? null,
+          equity_risk_premium: rw.assumptions?.equityRiskPremium ?? null,
+        },
+      }
+    : undefined;
+
   return {
     ...base,
     overview,
@@ -241,6 +278,7 @@ export function buildInstrumentSection(
     suitability,
     risks: risks.length ? risks : undefined,
     metric,
+    roic_wacc,
   };
 }
 

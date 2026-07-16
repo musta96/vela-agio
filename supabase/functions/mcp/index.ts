@@ -260,7 +260,7 @@ var get_net_worth_default = defineTool5({
   description: "Return the signed-in Vela user's net-worth accounts with totals for assets, liabilities and net. Values are in each account's stored currency (no FX conversion).",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async (_args, ctx) => {
+  handler: async (_args, ctx) => withInstrumentation("get_net_worth", ctx, async () => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
     }
@@ -283,7 +283,7 @@ var get_net_worth_default = defineTool5({
       content: [{ type: "text", text: JSON.stringify({ summary, accounts }) }],
       structuredContent: { summary, accounts }
     };
-  }
+  }, { rateLimit: { max: 60, windowSec: 60 } })
 });
 
 // src/lib/mcp/tools/list-cash-flow.ts

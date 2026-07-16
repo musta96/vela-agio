@@ -344,6 +344,74 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
     return { roic: avg(nums("roic")), wacc: avg(nums("wacc")), spread: avg(nums("spread")) };
   }, [peers]);
 
+  const downloadCsv = () => {
+    const esc = (v: any) => {
+      if (v == null) return "";
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const asDec = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? "" : x.toFixed(6));
+    const asPct = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? "" : (x * 100).toFixed(2));
+    const rf = rfPct / 100;
+    const erp = erpPct / 100;
+    const kd = kdPct / 100;
+    const tax = taxPct === "" ? (snap?.effTaxRate ?? null) : Number(taxPct) / 100;
+    const beta = betaIn === "" ? (snap?.beta ?? null) : Number(betaIn);
+    const lines: string[] = [];
+    lines.push("# ROIC / WACC / Peer comparison");
+    lines.push(`# Base symbol,${esc(symbol.toUpperCase())}`);
+    lines.push(`# Exported at,${esc(new Date().toISOString())}`);
+    lines.push("# --- Assumptions ---");
+    lines.push("field,decimal,percent");
+    lines.push(`risk_free_rate,${asDec(rf)},${asPct(rf)}`);
+    lines.push(`equity_risk_premium,${asDec(erp)},${asPct(erp)}`);
+    lines.push(`pretax_cost_of_debt,${asDec(kd)},${asPct(kd)}`);
+    lines.push(`tax_rate,${asDec(tax)},${asPct(tax)}`);
+    lines.push(`beta,${beta != null ? beta.toFixed(4) : ""},`);
+    lines.push("");
+    lines.push("# --- Comparison table ---");
+    lines.push("ticker,role,roic_pct,wacc_pct,spread_pct,spread_vs_base_pp,notes");
+    lines.push([
+      esc(symbol.toUpperCase()), "base",
+      asPct(roicLatest?.roic ?? null), asPct(wacc?.wacc ?? null), asPct(spread),
+      "", spreadPositive ? "value-creating" : "value-destroying",
+    ].join(","));
+    for (const p of peers) {
+      const rel = p.spread != null && spread != null ? p.spread - spread : null;
+      lines.push([
+        esc(p.sym), "peer",
+        asPct(p.roic), asPct(p.wacc), asPct(p.spread),
+        rel != null ? (rel * 100).toFixed(2) : "",
+        esc(p.err ?? ""),
+      ].join(","));
+    }
+    if (peerAvg.spread != null) {
+      const rel = spread != null ? spread - peerAvg.spread : null;
+      lines.push([
+        "PEER_AVG", "aggregate",
+        asPct(peerAvg.roic), asPct(peerAvg.wacc), asPct(peerAvg.spread),
+        rel != null ? (rel * 100).toFixed(2) : "",
+        "unweighted mean across peers",
+      ].join(","));
+    }
+    lines.push("");
+    lines.push("# --- Time series (annual, from filings) ---");
+    lines.push("year,end_date,roic_pct,wacc_pct,spread_pct");
+    for (const r of timeSeries) {
+      lines.push([esc(r.year), esc(r.endDate), r.roicPct ?? "", r.waccPct ?? "", r.spreadPct ?? ""].join(","));
+    }
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${symbol.toUpperCase()}_roic_wacc_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const saveAlert = async () => {
     if (!user) { toast({ title: "Please sign in to create alerts", variant: "destructive" }); return; }
     if (spread == null) { toast({ title: "Spread unavailable; cannot baseline the alert.", variant: "destructive" }); return; }

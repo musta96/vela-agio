@@ -112,10 +112,80 @@ var search_strategies_default = defineTool2({
 });
 
 // src/lib/mcp/tools/get-watchlist.ts
-import { createClient } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.22.2";
+
+// src/lib/mcp/lib/instrument.ts
+import { createClient } from "npm:@supabase/supabase-js@^2.106.1";
+function supabaseFor(ctx) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const authed = ctx.isAuthenticated();
+  return createClient(url, key, {
+    global: authed ? { headers: { Authorization: `Bearer ${ctx.getToken()}` } } : {},
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+async function withInstrumentation(toolName, ctx, handler, opts) {
+  const start = Date.now();
+  const authed = ctx.isAuthenticated();
+  const userId = authed ? ctx.getUserId() : null;
+  const clientId = (() => {
+    try {
+      return ctx.getClientId?.() ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const sb = supabaseFor(ctx);
+  if (authed && opts?.rateLimit) {
+    const since = new Date(Date.now() - opts.rateLimit.windowSec * 1e3).toISOString();
+    const { count, error } = await sb.from("mcp_call_log").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_name", toolName).gte("created_at", since);
+    if (!error && (count ?? 0) >= opts.rateLimit.max) {
+      const msg = `Rate limit reached: ${opts.rateLimit.max} \`${toolName}\` calls per ${opts.rateLimit.windowSec}s. Please retry shortly.`;
+      void sb.from("mcp_call_log").insert({
+        user_id: userId,
+        tool_name: toolName,
+        ok: false,
+        duration_ms: Date.now() - start,
+        error: "rate_limited",
+        client_id: clientId
+      });
+      return { content: [{ type: "text", text: msg }], isError: true };
+    }
+  }
+  try {
+    const result = await handler();
+    void sb.from("mcp_call_log").insert({
+      user_id: userId,
+      tool_name: toolName,
+      ok: !result.isError,
+      duration_ms: Date.now() - start,
+      error: result.isError ? summarize(result) : null,
+      client_id: clientId
+    });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    void sb.from("mcp_call_log").insert({
+      user_id: userId,
+      tool_name: toolName,
+      ok: false,
+      duration_ms: Date.now() - start,
+      error: message.slice(0, 500),
+      client_id: clientId
+    });
+    throw err;
+  }
+}
+function summarize(r) {
+  const txt = r.content?.[0]?.text ?? "";
+  return txt.slice(0, 500);
+}
+
+// src/lib/mcp/tools/get-watchlist.ts
 function supabaseForUser(ctx) {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+  return createClient2(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -126,7 +196,7 @@ var get_watchlist_default = defineTool3({
   description: "Return the signed-in Vela user's watchlist items (symbol, name, added-at).",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async (_args, ctx) => {
+  handler: async (_args, ctx) => withInstrumentation("get_watchlist", ctx, async () => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
     }
@@ -140,14 +210,14 @@ var get_watchlist_default = defineTool3({
       content: [{ type: "text", text: JSON.stringify(items) }],
       structuredContent: { items }
     };
-  }
+  }, { rateLimit: { max: 60, windowSec: 60 } })
 });
 
 // src/lib/mcp/tools/get-portfolio.ts
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.22.2";
 function supabaseForUser2(ctx) {
-  return createClient2(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -176,10 +246,10 @@ var get_portfolio_default = defineTool4({
 });
 
 // src/lib/mcp/tools/get-net-worth.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.22.2";
 function supabaseForUser3(ctx) {
-  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -217,11 +287,11 @@ var get_net_worth_default = defineTool5({
 });
 
 // src/lib/mcp/tools/list-cash-flow.ts
-import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z3 } from "npm:zod@^4.4.3";
 function supabaseForUser4(ctx) {
-  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+  return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -253,11 +323,11 @@ var list_cash_flow_default = defineTool6({
 });
 
 // src/lib/mcp/tools/add-cash-flow-entry.ts
-import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.106.1";
 import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z4 } from "npm:zod@^4.4.3";
 function supabaseForUser5(ctx) {
-  return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+  return createClient6(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -478,76 +548,6 @@ var project_dividends_default = defineTool8({
 // src/lib/mcp/tools/run-backtest.ts
 import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z6 } from "npm:zod@^4.4.3";
-
-// src/lib/mcp/lib/instrument.ts
-import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.106.1";
-function supabaseFor(ctx) {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
-  const authed = ctx.isAuthenticated();
-  return createClient6(url, key, {
-    global: authed ? { headers: { Authorization: `Bearer ${ctx.getToken()}` } } : {},
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
-async function withInstrumentation(toolName, ctx, handler, opts) {
-  const start = Date.now();
-  const authed = ctx.isAuthenticated();
-  const userId = authed ? ctx.getUserId() : null;
-  const clientId = (() => {
-    try {
-      return ctx.getClientId?.() ?? null;
-    } catch {
-      return null;
-    }
-  })();
-  const sb = supabaseFor(ctx);
-  if (authed && opts?.rateLimit) {
-    const since = new Date(Date.now() - opts.rateLimit.windowSec * 1e3).toISOString();
-    const { count, error } = await sb.from("mcp_call_log").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_name", toolName).gte("created_at", since);
-    if (!error && (count ?? 0) >= opts.rateLimit.max) {
-      const msg = `Rate limit reached: ${opts.rateLimit.max} \`${toolName}\` calls per ${opts.rateLimit.windowSec}s. Please retry shortly.`;
-      void sb.from("mcp_call_log").insert({
-        user_id: userId,
-        tool_name: toolName,
-        ok: false,
-        duration_ms: Date.now() - start,
-        error: "rate_limited",
-        client_id: clientId
-      });
-      return { content: [{ type: "text", text: msg }], isError: true };
-    }
-  }
-  try {
-    const result = await handler();
-    void sb.from("mcp_call_log").insert({
-      user_id: userId,
-      tool_name: toolName,
-      ok: !result.isError,
-      duration_ms: Date.now() - start,
-      error: result.isError ? summarize(result) : null,
-      client_id: clientId
-    });
-    return result;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    void sb.from("mcp_call_log").insert({
-      user_id: userId,
-      tool_name: toolName,
-      ok: false,
-      duration_ms: Date.now() - start,
-      error: message.slice(0, 500),
-      client_id: clientId
-    });
-    throw err;
-  }
-}
-function summarize(r) {
-  const txt = r.content?.[0]?.text ?? "";
-  return txt.slice(0, 500);
-}
-
-// src/lib/mcp/tools/run-backtest.ts
 async function fetchHistory(symbol, range) {
   const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
   const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`;

@@ -34,7 +34,7 @@ export const getRunStatus = defineTool({
       const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, started_at, finished_at, created_at, updated_at");
       if (error) return { content: [{ type: "text", text: error.message }], isError: true };
       if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
-      return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data as Record<string, unknown> };
+      return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data as unknown as Record<string, unknown> };
     }, { rateLimit: { max: 120, windowSec: 60 } }),
 });
 
@@ -51,15 +51,15 @@ export const getRunResult = defineTool({
       const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, result, error");
       if (error) return { content: [{ type: "text", text: error.message }], isError: true };
       if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
-      const row = data as { status: string; result: unknown; error: string | null };
+      const row = data as unknown as { status: string; result: unknown; error: string | null };
       if (row.status !== "succeeded") {
         return {
           content: [{ type: "text", text: `Run status=${row.status}${row.error ? ` error=${row.error}` : ""}` }],
-          structuredContent: data as Record<string, unknown>,
+          structuredContent: data as unknown as Record<string, unknown>,
           isError: row.status === "failed",
         };
       }
-      return { content: [{ type: "text", text: JSON.stringify(row.result) }], structuredContent: data as Record<string, unknown> };
+      return { content: [{ type: "text", text: JSON.stringify(row.result) }], structuredContent: data as unknown as Record<string, unknown> };
     }, { rateLimit: { max: 60, windowSec: 60 } }),
 });
 
@@ -76,6 +76,6 @@ export const getRunLogs = defineTool({
       const { data, error } = await loadRun(ctx, run_id, "id, kind, status, progress, error, logs, started_at, finished_at");
       if (error) return { content: [{ type: "text", text: error.message }], isError: true };
       if (!data) return { content: [{ type: "text", text: "Run not found." }], isError: true };
-      return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data as Record<string, unknown> };
+      return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data as unknown as Record<string, unknown> };
     }, { rateLimit: { max: 120, windowSec: 60 } }),
 });

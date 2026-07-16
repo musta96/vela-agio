@@ -11,6 +11,7 @@ import type { Condition, RiskConfig } from "@/lib/ta/strategyTypes";
 import type { CostConfig } from "@/lib/backtest/costs";
 import type { Bar, SimResult } from "@/lib/backtest/clientSim";
 import { simulateCustom } from "@/lib/backtest/clientSim";
+import { runCachedParallel } from "@/lib/backtest/simCache";
 
 interface Props {
   bars: Bar[];
@@ -139,20 +140,25 @@ export function WalkForwardOptimizerCard({ bars, rules, initial, costs }: Props)
         continue;
       }
 
-      // In-sample grid search
-      let best: { x: number; y: number; metric: number } | null = null;
-      for (const y of ys) {
-        for (const x of xs) {
-          let r = applyAxis(rules, axisX, x);
-          r = applyAxis(r, axisY, y);
-          const isRes = simulateCustom(isBars, r, initial, costs);
-          const m = isRes.metrics[objective];
-          if (best === null || m > best.metric) best = { x, y, metric: m };
-          done++;
-        }
-        setProgress({ done, total: folds * totalPerFold });
-        await new Promise((res) => setTimeout(res, 0));
+      // In-sample grid search — parallelized across the worker pool.
+      const jobs: { rules: Props["rules"]; x: number; y: number }[] = [];
+      for (const y of ys) for (const x of xs) {
+        let r = applyAxis(rules, axisX, x);
+        r = applyAxis(r, axisY, y);
+        jobs.push({ rules: r, x, y });
       }
+      const baseDone = done;
+      const { results: isResults } = await runCachedParallel(
+        isBars, jobs.map((j) => j.rules), initial, costs,
+        (d) => { done = baseDone + d; setProgress({ done, total: folds * totalPerFold }); },
+      );
+      let best: { x: number; y: number; metric: number } | null = null;
+      for (let k = 0; k < jobs.length; k++) {
+        const m = isResults[k].metrics[objective];
+        if (best === null || m > best.metric) best = { x: jobs[k].x, y: jobs[k].y, metric: m };
+      }
+      done = baseDone + jobs.length;
+      setProgress({ done, total: folds * totalPerFold });
       if (!best) continue;
 
       // Evaluate best on the out-of-sample slice, starting fresh capital.

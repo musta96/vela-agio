@@ -13,7 +13,7 @@ import type { Condition, RiskConfig } from "@/lib/ta/strategyTypes";
 import type { CostConfig } from "@/lib/backtest/costs";
 import type { Bar, SimResult } from "@/lib/backtest/clientSim";
 import { describeCondition } from "@/lib/ta/strategyTypes";
-import { runCached, cacheStats } from "@/lib/backtest/simCache";
+import { runCached, runCachedParallel, cacheStats } from "@/lib/backtest/simCache";
 
 interface Props {
   bars: Bar[];
@@ -112,24 +112,25 @@ export function SensitivityHeatmap({ bars, rules, initial, costs }: Props) {
     const ys = linspace(yFrom, yTo, steps);
     const total = xs.length * ys.length;
     setProgress({ done: 0, total, hits: 0 });
-    const g: number[][] = [];
-    let done = 0;
-    let hits = 0;
-    // Non-blocking: yield to the event loop every row so the UI stays responsive.
+    // Build full job list, then fan out across the worker pool.
+    const jobs: { entry: Condition[]; exit: Condition[]; risk: RiskConfig }[] = [];
     for (let yi = 0; yi < ys.length; yi++) {
-      const row: number[] = [];
       for (let xi = 0; xi < xs.length; xi++) {
         let r = applyAxis(rules, axisX, xs[xi]);
         r = applyAxis(r, axisY, ys[yi]);
-        const { result, hit } = runCached(bars, r, initial, costs);
-        row.push(result.metrics[metricKey]);
-        done++;
-        if (hit) hits++;
+        jobs.push(r);
       }
-      g.push(row);
-      setProgress({ done, total, hits });
-      await new Promise((res) => setTimeout(res, 0));
     }
+    const { results, hits } = await runCachedParallel(bars, jobs, initial, costs,
+      (done, tot, h) => setProgress({ done, total: tot, hits: h }));
+    const g: number[][] = [];
+    let k = 0;
+    for (let yi = 0; yi < ys.length; yi++) {
+      const row: number[] = [];
+      for (let xi = 0; xi < xs.length; xi++) row.push(results[k++].metrics[metricKey]);
+      g.push(row);
+    }
+    setProgress({ done: total, total, hits });
     setXVals(xs); setYVals(ys); setGrid(g); setRunning(false);
   };
 

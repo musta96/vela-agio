@@ -1949,6 +1949,34 @@ var manifest_default = {
 };
 
 // src/lib/mcp/tools/list-tool-docs.ts
+var MANIFEST_VERSION = "1.2.0";
+var CHANGELOG = [
+  {
+    version: "1.2.0",
+    date: "2026-07-16",
+    changes: [
+      "docs: added copy/paste `curl` examples for start_run, get_run_status, get_run_result, get_run_logs, cancel_run, watchlist_updates.",
+      "docs: exposed `manifest_version` and `changelog` on json/json-schema/markdown outputs so agents can detect breaking schema updates."
+    ]
+  },
+  {
+    version: "1.1.0",
+    date: "2026-07-16",
+    changes: [
+      "feat: `cancel_run` tool to stop an in-flight sensitivity sweep.",
+      "feat: typed `{ error: { code, message, ...extra } }` envelopes on get_run_status/get_run_result/get_run_logs/cancel_run/watchlist_updates.",
+      "feat: `watchlist_updates` now returns `next_since`, `cursor`, `has_more`, `count`; added `include_quotes` toggle.",
+      "feat: `list_tool_docs` accepts `format='json-schema'` and embeds `examples` on every tool."
+    ]
+  },
+  {
+    version: "1.0.0",
+    date: "2026-07-16",
+    changes: [
+      "feat: initial MCP tool surface \u2014 quotes, dividends, watchlist, portfolio, net worth, cash flow, run_backtest, start_run, get_run_status, get_run_result, get_run_logs."
+    ]
+  }
+];
 var PROJECT_REF = typeof import.meta !== "undefined" && "pcisxjfgdrgpxzfzfscf" || "<project-ref>";
 var MCP_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/mcp`;
 function curlFor(toolName, args) {
@@ -2320,11 +2348,34 @@ function toMarkdown() {
   const lines = [
     "# Vela MCP tools",
     "",
+    `Manifest version: **${MANIFEST_VERSION}**`,
+    "",
     "Server: `vela` \u2014 auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
     "",
     "Error envelope for authenticated run/watchlist tools: `{ error: { code, message, ...extra } }`. Branch on `code`.",
+    "",
+    "## Changelog",
     ""
   ];
+  for (const entry of CHANGELOG) {
+    lines.push(`### ${entry.version} \u2014 ${entry.date}`);
+    for (const c of entry.changes) lines.push(`- ${c}`);
+    lines.push("");
+  }
+  lines.push(
+    "## Tools",
+    ""
+  );
+  lines.push(
+    "Replace `<ACCESS_TOKEN>` with the OAuth 2.1 bearer token from Supabase Auth; `<RUN_ID>` with the UUID returned by `start_run`; `<ISO8601_CURSOR>` with the `next_since` value from a prior `watchlist_updates` call.",
+    ""
+  );
+  lines.push(
+    // spacer for readability
+    ""
+  );
+  const _pad = [];
+  void _pad;
   for (const d of DOCS) {
     lines.push(`## \`${d.name}\` \u2014 ${d.title}`);
     lines.push("");
@@ -2347,6 +2398,13 @@ function toMarkdown() {
       lines.push("  ```json");
       for (const l of JSON.stringify(ex.request, null, 2).split("\n")) lines.push(`  ${l}`);
       lines.push("  ```");
+      if (ex.curl) {
+        lines.push("- **Example curl:**");
+        lines.push("");
+        lines.push("  ```bash");
+        for (const l of ex.curl.split("\n")) lines.push(`  ${l}`);
+        lines.push("  ```");
+      }
       if (ex.success_response) {
         lines.push("- **Example success response:**");
         lines.push("");

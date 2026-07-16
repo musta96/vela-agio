@@ -448,11 +448,35 @@ function toMarkdown(): string {
   const lines: string[] = [
     "# Vela MCP tools",
     "",
+    `Manifest version: **${MANIFEST_VERSION}**`,
+    "",
     "Server: `vela` — auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
     "",
     "Error envelope for authenticated run/watchlist tools: `{ error: { code, message, ...extra } }`. Branch on `code`.",
     "",
+    "## Changelog",
+    "",
   ];
+  for (const entry of CHANGELOG) {
+    lines.push(`### ${entry.version} — ${entry.date}`);
+    for (const c of entry.changes) lines.push(`- ${c}`);
+    lines.push("");
+  }
+  lines.push(
+    "## Tools",
+    "",
+  );
+  lines.push(
+    "Replace `<ACCESS_TOKEN>` with the OAuth 2.1 bearer token from Supabase Auth; `<RUN_ID>` with the UUID returned by `start_run`; `<ISO8601_CURSOR>` with the `next_since` value from a prior `watchlist_updates` call.",
+    "",
+  );
+  lines.push(
+    // spacer for readability
+    "",
+  );
+  const _pad: string[] = [
+  ];
+  void _pad;
   for (const d of DOCS) {
     lines.push(`## \`${d.name}\` — ${d.title}`);
     lines.push("");
@@ -475,6 +499,13 @@ function toMarkdown(): string {
       lines.push("  ```json");
       for (const l of JSON.stringify(ex.request, null, 2).split("\n")) lines.push(`  ${l}`);
       lines.push("  ```");
+      if (ex.curl) {
+        lines.push("- **Example curl:**");
+        lines.push("");
+        lines.push("  ```bash");
+        for (const l of ex.curl.split("\n")) lines.push(`  ${l}`);
+        lines.push("  ```");
+      }
       if (ex.success_response) {
         lines.push("- **Example success response:**");
         lines.push("");

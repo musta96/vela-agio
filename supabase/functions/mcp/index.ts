@@ -2438,7 +2438,11 @@ var list_tool_docs_default = defineTool14({
         const ex = EXAMPLES[t.name];
         if (ex) t.examples = ex;
       }
-      const payload = enriched;
+      const payload = {
+        ...enriched,
+        manifest_version: MANIFEST_VERSION,
+        changelog: CHANGELOG
+      };
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
         structuredContent: payload
@@ -2446,15 +2450,22 @@ var list_tool_docs_default = defineTool14({
     }
     if (format === "json") {
       const merged = DOCS.map((d) => ({ ...d, examples: EXAMPLES[d.name] ?? null }));
+      const payload = { manifest_version: MANIFEST_VERSION, changelog: CHANGELOG, tools: merged };
       return {
-        content: [{ type: "text", text: JSON.stringify({ tools: merged }) }],
-        structuredContent: { tools: merged }
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload
       };
     }
     const md = toMarkdown();
     return {
       content: [{ type: "text", text: md }],
-      structuredContent: { markdown: md, tools: DOCS, examples: EXAMPLES }
+      structuredContent: {
+        manifest_version: MANIFEST_VERSION,
+        changelog: CHANGELOG,
+        markdown: md,
+        tools: DOCS,
+        examples: EXAMPLES
+      }
     };
   }
 });

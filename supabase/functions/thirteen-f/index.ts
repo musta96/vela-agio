@@ -83,6 +83,7 @@ async function findLatest13F(cikPadded: string) {
     filingDate: dates[idx],
     primaryDocument: primaryDocs[idx],
     infoTableUrl: infoTable ? `${base}/${infoTable.name}` : null,
+    infoTableXml: infoTable ? (infoTable as any).__xml ?? null : null,
     base,
     filerName: subs?.name ?? '',
   };

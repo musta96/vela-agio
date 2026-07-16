@@ -20,6 +20,10 @@ const REQUIRED: Record<ConditionType, { fields: (keyof Condition)[]; describe: s
   macd_cross_down:  { fields: [],                  describe: "" },
   volume_spike:     { fields: ["value"],           describe: "volume multiplier" },
   price_pct_change: { fields: ["value", "period"], describe: "% change and lookback bars" },
+  ema_cross_up:     { fields: ["fast", "slow"],    describe: "fast & slow EMA periods" },
+  ema_cross_down:   { fields: ["fast", "slow"],    describe: "fast & slow EMA periods" },
+  atr_breakout:     { fields: ["value"],           describe: "ATR multiplier" },
+  adx_above:        { fields: ["value"],           describe: "ADX threshold" },
 };
 
 // Pairs of conditions that contradict each other when combined on the same side.
@@ -28,6 +32,7 @@ const CONTRADICTIONS: Array<[ConditionType, ConditionType, string]> = [
   ["sma_cross_up", "sma_cross_down", "SMA cross up and cross down can't both fire on the same bar."],
   ["price_above_sma", "price_below_sma", "Price can't be above and below the same SMA simultaneously."],
   ["macd_cross_up", "macd_cross_down", "MACD bullish and bearish cross contradict each other."],
+  ["ema_cross_up", "ema_cross_down", "EMA cross up and down can't both fire on the same bar."],
 ];
 
 function validateCondition(c: Condition, scope: "entry" | "exit", index: number): RuleIssue[] {

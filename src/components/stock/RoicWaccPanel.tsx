@@ -747,6 +747,29 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="space-y-4">
+      {dataQuality.issues.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs space-y-1.5">
+          <div className="flex items-center gap-1.5 font-semibold text-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+            Some ROIC / WACC inputs are missing or estimated
+          </div>
+          <ul className="ml-5 list-disc space-y-0.5">
+            {dataQuality.issues.map((i) => (
+              <li key={i.year}>
+                <span className="font-mono">{i.year}</span>
+                {i.missing.length > 0 && <> — missing: <span className="text-destructive">{i.missing.join(", ")}</span></>}
+                {i.estimated.length > 0 && <> — estimated: <span className="text-muted-foreground">{i.estimated.join(", ")}</span></>}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-muted-foreground">
+            Impact: affected years render as gaps in the spread chart and are skipped in the backtest
+            {dataQuality.badBacktestSteps.length ? ` (${dataQuality.badBacktestSteps.length} year-over-year step${dataQuality.badBacktestSteps.length === 1 ? "" : "s"} lost)` : ""}.
+            Estimated substitutions can shift the spread by up to a few pp.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {/* ROIC card */}
         <Card>

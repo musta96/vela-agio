@@ -31,6 +31,7 @@ import { RegimeBreakdownCard } from "@/components/backtest/RegimeBreakdownCard";
 import { VersionCompareCard } from "@/components/backtest/VersionCompareCard";
 import { WalkForwardOptimizerCard } from "@/components/backtest/WalkForwardOptimizerCard";
 import { NewsEventBacktestCard } from "@/components/backtest/NewsEventBacktestCard";
+import { SimCachePanel } from "@/components/backtest/SimCachePanel";
 import { DEFAULT_COSTS, costsSummary, type CostConfig } from "@/lib/backtest/costs";
 
 interface Holding { symbol: string; weight: number; name?: string; }
@@ -376,6 +377,7 @@ const BacktestingModule = () => {
           </Card>
 
           <CostConfigCard costs={costs} onChange={setCosts} />
+          <SimCachePanel />
 
           {/* Results */}
           <div className="lg:col-span-2">

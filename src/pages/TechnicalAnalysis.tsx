@@ -536,11 +536,14 @@ const TechnicalAnalysis = () => {
                 )}
                 <PatternStrategyCard symbol={symbol} timeframe={range} analysis={ta} />
                 {lastBar && <SMCDeepCard analysis={ta} lastPrice={lastBar.close} />}
+                <LiquiditySweepCard bars={bars} />
                 <AVWAPProfileCard bars={bars} />
                 <VolatilityCard bars={bars} />
+                <VolSpreadCard />
                 <FibonacciCard bars={bars} />
                 <VolumeAtPriceCard bars={bars} />
                 <OrderFlowCard bars={bars} />
+                <SpreadFlowCard symbol={symbol} bars={bars} />
                 <OptionsFlowCard symbol={symbol} />
                 <StrategyBuilderCard symbol={symbol} timeframe={range} />
                 {lastBar && (

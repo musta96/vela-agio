@@ -22,6 +22,12 @@ interface CustomRules {
 interface Holding { symbol: string; weight: number; }
 interface Bar { t: number; close: number; }
 
+interface CostConfig {
+  commissionPct?: number;   // %, applied to trade notional (each side)
+  commissionFlat?: number;  // absolute currency, applied per trade (each side)
+  slippageBps?: number;     // basis points: buy fills higher, sell fills lower
+}
+
 const RANGE_MAP: Record<string, { range: string; interval: string }> = {
   "3M": { range: "3mo", interval: "1d" },
   "6M": { range: "6mo", interval: "1d" },
@@ -154,24 +160,41 @@ function macdAt(closes: number[], i: number): { macd: number; signal: number } |
   return { macd: f - s, signal: sig };
 }
 
-function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: CustomRules) {
+function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: CustomRules, costs: CostConfig = {}) {
   const closes = bars.map(b => b.close);
   let cash = initial, shares = 0;
   const equity: { t: number; value: number; benchmark: number }[] = [];
-  const trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number }[] = [];
+  const trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number; fees: number }[] = [];
   const baseShares = initial / closes[0];
+
+  const slipMult = 1 + (Math.max(0, costs.slippageBps ?? 0) / 10000);
+  const feePctFrac = Math.max(0, costs.commissionPct ?? 0) / 100;
+  const feeFlat = Math.max(0, costs.commissionFlat ?? 0);
+  let totalFees = 0;
 
   let entryPrice = 0;
   const buy = (i: number) => {
     if (shares > 0 || cash <= 0) return;
-    shares = cash / closes[i]; cash = 0;
-    entryPrice = closes[i];
-    trades.push({ date: new Date(bars[i].t).toISOString().slice(0,10), type: "BUY", price: closes[i], shares });
+    const exec = closes[i] * slipMult; // pay slippage on the way in
+    // solve: cash = shares*exec*(1+feePct) + feeFlat
+    const spendable = Math.max(0, cash - feeFlat);
+    const buyShares = spendable / (exec * (1 + feePctFrac));
+    if (buyShares <= 0) return;
+    const fee = feeFlat + buyShares * exec * feePctFrac;
+    shares = buyShares;
+    cash = 0;
+    entryPrice = exec;
+    totalFees += fee;
+    trades.push({ date: new Date(bars[i].t).toISOString().slice(0,10), type: "BUY", price: exec, shares: buyShares, fees: fee });
   };
   const sell = (i: number) => {
     if (shares <= 0) return;
-    cash = shares * closes[i];
-    trades.push({ date: new Date(bars[i].t).toISOString().slice(0,10), type: "SELL", price: closes[i], shares });
+    const exec = closes[i] * (2 - slipMult); // slippage on the way out (symmetric bps)
+    const gross = shares * exec;
+    const fee = feeFlat + gross * feePctFrac;
+    cash = Math.max(0, gross - fee);
+    totalFees += fee;
+    trades.push({ date: new Date(bars[i].t).toISOString().slice(0,10), type: "SELL", price: exec, shares, fees: fee });
     shares = 0;
   };
 
@@ -246,7 +269,7 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
 
   return { equity, trades, metrics: {
     finalValue, totalReturn, benchReturn, maxDrawdown: maxDD, sharpe, winRate,
-    totalTrades: trades.length, winningTrades: wins,
+    totalTrades: trades.length, winningTrades: wins, totalFees,
   }};
 }
 
@@ -260,6 +283,12 @@ Deno.serve(async (req) => {
     const range: string = body.range || "1Y";
     const initial: number = Number(body.initialCapital) || 100000;
     const benchmarkSymbol: string | null = typeof body.benchmark === "string" && body.benchmark.trim() ? body.benchmark.trim() : null;
+    const costs: CostConfig = (body.costs && typeof body.costs === "object") ? {
+      commissionPct:  Number(body.costs.commissionPct)  || 0,
+      commissionFlat: Number(body.costs.commissionFlat) || 0,
+      slippageBps:    Number(body.costs.slippageBps)    || 0,
+    } : {};
+    const returnBars: boolean = body.returnBars === true;
 
     if (!holdings.length) {
       return new Response(JSON.stringify({ error: "At least one holding required" }), {
@@ -316,7 +345,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const result = simulate(basketBars, strategy, initial, rules);
+    const result = simulate(basketBars, strategy, initial, rules, costs);
 
     // External benchmark (index): replace the self-basket benchmark in the equity series.
     let benchmarkLabel = "Buy & Hold (basket)";
@@ -360,6 +389,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       strategy, range, holdings: valid.map(v => v.h.symbol),
       benchmark: benchmarkSymbol, benchmarkLabel,
+      costs,
+      bars: returnBars ? basketBars : undefined,
       ...result,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

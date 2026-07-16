@@ -89,6 +89,7 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import SharedResearchNote from "./pages/SharedResearchNote";
 import OAuthConsent from "./pages/OAuthConsent";
+import AgentIntegrations from "./pages/AgentIntegrations";
 import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";

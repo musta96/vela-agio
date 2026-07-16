@@ -6,6 +6,72 @@ import { z } from "zod";
 // gives external agents a compact markdown/JSON description including auth
 // scope, rate limits, and usage notes.
 
+// Semver of the tool catalog + JSON-schema manifest. Bump on any breaking
+// change to a tool's input/output shape or an error.code contract; bump the
+// minor for additive changes. External agents can pin against this to detect
+// incompatible updates before invoking a tool.
+const MANIFEST_VERSION = "1.2.0";
+
+// Human-readable change log, newest first. Keep entries short (one line per
+// change) and reference the affected tool by name.
+const CHANGELOG: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: "1.2.0",
+    date: "2026-07-16",
+    changes: [
+      "docs: added copy/paste `curl` examples for start_run, get_run_status, get_run_result, get_run_logs, cancel_run, watchlist_updates.",
+      "docs: exposed `manifest_version` and `changelog` on json/json-schema/markdown outputs so agents can detect breaking schema updates.",
+    ],
+  },
+  {
+    version: "1.1.0",
+    date: "2026-07-16",
+    changes: [
+      "feat: `cancel_run` tool to stop an in-flight sensitivity sweep.",
+      "feat: typed `{ error: { code, message, ...extra } }` envelopes on get_run_status/get_run_result/get_run_logs/cancel_run/watchlist_updates.",
+      "feat: `watchlist_updates` now returns `next_since`, `cursor`, `has_more`, `count`; added `include_quotes` toggle.",
+      "feat: `list_tool_docs` accepts `format='json-schema'` and embeds `examples` on every tool.",
+    ],
+  },
+  {
+    version: "1.0.0",
+    date: "2026-07-16",
+    changes: [
+      "feat: initial MCP tool surface — quotes, dividends, watchlist, portfolio, net worth, cash flow, run_backtest, start_run, get_run_status, get_run_result, get_run_logs.",
+    ],
+  },
+];
+
+// The Supabase project ref is inlined by Vite at build time; the emitted MCP
+// Edge Function lives at `https://<ref>.supabase.co/functions/v1/mcp`.
+// Fallback keeps the curl template well-formed during the throwaway
+// manifest-extract eval when env is not populated.
+const PROJECT_REF =
+  (typeof import.meta !== "undefined" && (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_PROJECT_ID) ||
+  "<project-ref>";
+const MCP_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/mcp`;
+
+function curlFor(toolName: string, args: Record<string, unknown>): string {
+  // MCP JSON-RPC 2.0 `tools/call` envelope. External agents can replace
+  // <ACCESS_TOKEN> with the OAuth bearer token obtained from Supabase Auth.
+  const body = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: toolName, arguments: args },
+  };
+  const json = JSON.stringify(body);
+  // Escape single quotes for safe embedding inside a bash single-quoted string.
+  const safe = json.replace(/'/g, "'\\''");
+  return [
+    `curl -sS -X POST '${MCP_URL}' \\`,
+    `  -H 'Authorization: Bearer <ACCESS_TOKEN>' \\`,
+    `  -H 'Content-Type: application/json' \\`,
+    `  -H 'Accept: application/json' \\`,
+    `  -d '${safe}'`,
+  ].join("\n");
+}
+
 interface ToolDoc {
   name: string;
   title: string;
@@ -18,10 +84,12 @@ interface ToolDoc {
 }
 
 // Copy/paste-ready examples for the run + watchlist tools. Each entry has a
-// realistic request payload and — where applicable — a set of typed error
+// realistic request payload, a bash `curl` snippet with the required auth +
+// content-type headers, and — where applicable — a set of typed error
 // responses keyed by `error.code`, matching the envelope the handlers return.
 interface ToolExample {
   request: { name: string; arguments: Record<string, unknown> };
+  curl?: string;
   success_response?: Record<string, unknown>;
   error_responses?: Record<string, { error: { code: string; message: string; [k: string]: unknown } }>;
 }
@@ -41,6 +109,16 @@ const EXAMPLES: Record<string, ToolExample> = {
         },
       },
     },
+    curl: curlFor("start_run", {
+      kind: "sensitivity",
+      input: {
+        symbol: "AAPL",
+        preset: "sma_cross",
+        range: "5y",
+        initial_capital: 10000,
+        sweep: { fast: [10, 20, 50], slow: [100, 150, 200] },
+      },
+    }),
     success_response: {
       run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       status: "running",
@@ -51,6 +129,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "get_run_status",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("get_run_status", { run_id: "<RUN_ID>" }),
     success_response: {
       id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       kind: "sensitivity",
@@ -75,6 +154,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "get_run_result",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("get_run_result", { run_id: "<RUN_ID>" }),
     success_response: {
       metrics: { cagr: 0.128, maxDrawdown: -0.213, sharpe: 1.14, hitRate: 0.56 },
       combos: 9,
@@ -116,6 +196,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "get_run_logs",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("get_run_logs", { run_id: "<RUN_ID>" }),
     success_response: {
       id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       kind: "sensitivity",
@@ -144,6 +225,7 @@ const EXAMPLES: Record<string, ToolExample> = {
       name: "cancel_run",
       arguments: { run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234" },
     },
+    curl: curlFor("cancel_run", { run_id: "<RUN_ID>" }),
     success_response: {
       run_id: "3e3a9f7c-2b1d-4e8a-9c11-8f5a6d0b1234",
       status: "canceled",
@@ -169,6 +251,13 @@ const EXAMPLES: Record<string, ToolExample> = {
         limit: 100,
       },
     },
+    curl: curlFor("watchlist_updates", {
+      since: "<ISO8601_CURSOR>",
+      include_dividends: true,
+      include_quotes: true,
+      max_symbols: 25,
+      limit: 100,
+    }),
     success_response: {
       next_since: "2026-07-16T14:33:12.005Z",
       cursor: "2026-07-16T14:33:12.005Z",
@@ -359,11 +448,28 @@ function toMarkdown(): string {
   const lines: string[] = [
     "# Vela MCP tools",
     "",
+    `Manifest version: **${MANIFEST_VERSION}**`,
+    "",
     "Server: `vela` — auth: OAuth 2.1 (Supabase). Public tools work without a token; oauth-user tools operate as the signed-in Vela user under RLS.",
     "",
     "Error envelope for authenticated run/watchlist tools: `{ error: { code, message, ...extra } }`. Branch on `code`.",
     "",
+    "## Changelog",
+    "",
   ];
+  for (const entry of CHANGELOG) {
+    lines.push(`### ${entry.version} — ${entry.date}`);
+    for (const c of entry.changes) lines.push(`- ${c}`);
+    lines.push("");
+  }
+  lines.push(
+    "## Tools",
+    "",
+  );
+  lines.push(
+    "Replace `<ACCESS_TOKEN>` with the OAuth 2.1 bearer token from Supabase Auth; `<RUN_ID>` with the UUID returned by `start_run`; `<ISO8601_CURSOR>` with the `next_since` value from a prior `watchlist_updates` call.",
+    "",
+  );
   for (const d of DOCS) {
     lines.push(`## \`${d.name}\` — ${d.title}`);
     lines.push("");
@@ -386,6 +492,13 @@ function toMarkdown(): string {
       lines.push("  ```json");
       for (const l of JSON.stringify(ex.request, null, 2).split("\n")) lines.push(`  ${l}`);
       lines.push("  ```");
+      if (ex.curl) {
+        lines.push("- **Example curl:**");
+        lines.push("");
+        lines.push("  ```bash");
+        for (const l of ex.curl.split("\n")) lines.push(`  ${l}`);
+        lines.push("  ```");
+      }
       if (ex.success_response) {
         lines.push("- **Example success response:**");
         lines.push("");
@@ -434,7 +547,11 @@ export default defineTool({
         const ex = EXAMPLES[(t as { name: string }).name];
         if (ex) (t as Record<string, unknown>).examples = ex;
       }
-      const payload = enriched as unknown as Record<string, unknown>;
+      const payload = {
+        ...(enriched as unknown as Record<string, unknown>),
+        manifest_version: MANIFEST_VERSION,
+        changelog: CHANGELOG,
+      };
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
         structuredContent: payload,
@@ -442,15 +559,22 @@ export default defineTool({
     }
     if (format === "json") {
       const merged = DOCS.map((d) => ({ ...d, examples: EXAMPLES[d.name] ?? null }));
+      const payload = { manifest_version: MANIFEST_VERSION, changelog: CHANGELOG, tools: merged };
       return {
-        content: [{ type: "text", text: JSON.stringify({ tools: merged }) }],
-        structuredContent: { tools: merged },
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload,
       };
     }
     const md = toMarkdown();
     return {
       content: [{ type: "text", text: md }],
-      structuredContent: { markdown: md, tools: DOCS, examples: EXAMPLES },
+      structuredContent: {
+        manifest_version: MANIFEST_VERSION,
+        changelog: CHANGELOG,
+        markdown: md,
+        tools: DOCS,
+        examples: EXAMPLES,
+      },
     };
   },
 });

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Wrench, Plus, X, Play, Save, Trash2 } from "lucide-react";
+import { Wrench, Plus, X, Play, Save, Trash2, Copy, History, BarChart3 } from "lucide-react";
 import {
   CONDITION_LABELS,
   describeCondition,
@@ -18,7 +18,9 @@ import {
   type ConditionType,
   type RiskConfig,
   type TradingStrategyRow,
+  type TradingStrategyVersionRow,
 } from "@/lib/ta/strategyTypes";
+import { BacktestDetailCharts } from "@/components/backtest/BacktestDetailCharts";
 
 interface Props {
   symbol: string;
@@ -40,6 +42,12 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
   const [saved, setSaved] = useState<TradingStrategyRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<number | null>(null);
+  const [parentId, setParentId] = useState<string | null>(null);
+  const [versions, setVersions] = useState<TradingStrategyVersionRow[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewResult, setPreviewResult] = useState<{ equity: any[]; trades: any[]; metrics: any } | null>(null);
 
   const loadSaved = async () => {
     if (!user) return;
@@ -52,6 +60,15 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
   };
 
   useEffect(() => { loadSaved(); }, [user]);
+
+  const loadVersions = async (id: string) => {
+    const { data, error } = await (supabase as any)
+      .from("trading_strategy_versions")
+      .select("*")
+      .eq("strategy_id", id)
+      .order("version", { ascending: false });
+    if (!error) setVersions((data as TradingStrategyVersionRow[]) ?? []);
+  };
 
   useEffect(() => {
     setName((prev) => prev.startsWith(symbol) ? `${symbol} · ${timeframe} strategy` : prev);
@@ -97,8 +114,12 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
       toast({ title: "Save failed", description: res.error.message, variant: "destructive" });
       return;
     }
-    setSelectedId((res.data as any).id);
-    toast({ title: "Strategy saved" });
+    const row = res.data as TradingStrategyRow;
+    setSelectedId(row.id);
+    setCurrentVersion(row.version ?? null);
+    setParentId(row.parent_id ?? null);
+    toast({ title: `Strategy saved · v${row.version ?? 1}` });
+    loadVersions(row.id);
     loadSaved();
   };
 
@@ -109,6 +130,73 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
     setEntry(row.entry_rules ?? []);
     setExit(row.exit_rules ?? []);
     setRisk(row.risk_config ?? {});
+    setCurrentVersion(row.version ?? null);
+    setParentId(row.parent_id ?? null);
+    setPreviewResult(null);
+    loadVersions(row.id);
+  };
+
+  const handleClone = async () => {
+    if (!user || !selectedId) return;
+    const payload = {
+      user_id: user.id,
+      name: `${name} (copy)`,
+      description: description || null,
+      symbol, timeframe,
+      entry_rules: entry as any,
+      exit_rules: exit as any,
+      risk_config: risk as any,
+      parent_id: selectedId,
+    };
+    const { data, error } = await (supabase as any).from("trading_strategies").insert(payload).select().single();
+    if (error) {
+      toast({ title: "Clone failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = data as TradingStrategyRow;
+    toast({ title: "Cloned", description: "A new strategy was created — iterate freely on the copy." });
+    setSelectedId(row.id);
+    setName(row.name);
+    setCurrentVersion(row.version ?? 1);
+    setParentId(row.parent_id ?? null);
+    loadVersions(row.id);
+    loadSaved();
+  };
+
+  const handleRestoreVersion = (v: TradingStrategyVersionRow) => {
+    setName(v.name);
+    setDescription(v.description ?? "");
+    setEntry(v.entry_rules ?? []);
+    setExit(v.exit_rules ?? []);
+    setRisk(v.risk_config ?? {});
+    toast({ title: `Loaded v${v.version} — save to record a new version` });
+  };
+
+  const handlePreviewBacktest = async () => {
+    if (entry.length === 0) {
+      toast({ title: "Add at least one entry rule", variant: "destructive" });
+      return;
+    }
+    setPreviewing(true);
+    setPreviewResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("backtest-strategy", {
+        body: {
+          holdings: [{ symbol, weight: 1 }],
+          strategy: "custom",
+          range: "1Y",
+          initialCapital: 100000,
+          rules: { entry, exit, risk },
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setPreviewResult(data as any);
+    } catch (e: any) {
+      toast({ title: "Preview failed", description: e?.message ?? "Try again", variant: "destructive" });
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   const handleDelete = async (row: TradingStrategyRow) => {
@@ -203,8 +291,21 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
       {/* Actions */}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
-          <Save className="h-4 w-4" /> {selectedId ? "Update" : "Save"}
+          <Save className="h-4 w-4" /> {selectedId ? `Update (v${(currentVersion ?? 1) + 1})` : "Save"}
         </Button>
+        {selectedId && (
+          <Button size="sm" variant="outline" onClick={handleClone} className="gap-2">
+            <Copy className="h-4 w-4" /> Clone
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing} className="gap-2">
+          <BarChart3 className="h-4 w-4" /> {previewing ? "Running…" : "Preview backtest"}
+        </Button>
+        {selectedId && versions.length > 0 && (
+          <Button size="sm" variant="outline" onClick={() => setShowVersions((v) => !v)} className="gap-2">
+            <History className="h-4 w-4" /> Versions ({versions.length})
+          </Button>
+        )}
         {backtestHref && (
           <Button asChild size="sm" variant="secondary" className="gap-2">
             <Link to={backtestHref}><Play className="h-4 w-4" /> Backtest on /backtest</Link>
@@ -218,9 +319,65 @@ export function StrategyBuilderCard({ symbol, timeframe }: Props) {
             setEntry(EMPTY_ENTRY);
             setExit(EMPTY_EXIT);
             setRisk({ stopPct: 5, targetPct: 10, riskPct: 1 });
+            setCurrentVersion(null);
+            setParentId(null);
+            setVersions([]);
+            setPreviewResult(null);
           }}>New</Button>
         )}
       </div>
+
+      {/* Version info */}
+      {selectedId && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <Badge variant="outline" className="text-[10px]">v{currentVersion ?? 1}</Badge>
+          {parentId && (
+            <span>Cloned from a previous strategy · audit trail preserved.</span>
+          )}
+        </div>
+      )}
+
+      {/* Version history */}
+      {showVersions && versions.length > 0 && (
+        <div className="mt-4 border border-border rounded-md p-3 bg-muted/20">
+          <p className="text-xs font-semibold mb-2 text-muted-foreground">Version history</p>
+          <div className="space-y-1 max-h-48 overflow-auto">
+            {versions.map((v) => (
+              <div key={v.id} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-muted/30">
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold">v{v.version}</span>
+                  <span className="ml-2 text-muted-foreground truncate">
+                    {new Date(v.created_at).toLocaleString()} · {v.entry_rules?.length ?? 0} entry / {v.exit_rules?.length ?? 0} exit
+                  </span>
+                </div>
+                <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => handleRestoreVersion(v)}>
+                  Load
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Preview backtest results */}
+      {previewResult && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { label: "Return", v: `${previewResult.metrics.totalReturn >= 0 ? "+" : ""}${previewResult.metrics.totalReturn.toFixed(2)}%`, sign: previewResult.metrics.totalReturn >= 0 ? "text-success" : "text-destructive" },
+              { label: "Buy & Hold", v: `${previewResult.metrics.benchReturn >= 0 ? "+" : ""}${previewResult.metrics.benchReturn.toFixed(2)}%`, sign: "text-muted-foreground" },
+              { label: "Max DD", v: `${previewResult.metrics.maxDrawdown.toFixed(2)}%`, sign: "text-destructive" },
+              { label: "Sharpe", v: previewResult.metrics.sharpe.toFixed(2), sign: "text-foreground" },
+            ].map((k) => (
+              <div key={k.label} className="p-2 rounded-md border border-border bg-muted/20">
+                <p className="text-[10px] text-muted-foreground">{k.label}</p>
+                <p className={`text-sm font-semibold ${k.sign}`}>{k.v}</p>
+              </div>
+            ))}
+          </div>
+          <BacktestDetailCharts equity={previewResult.equity} trades={previewResult.trades} compact />
+        </div>
+      )}
 
       {/* Saved list */}
       {saved.length > 0 && (

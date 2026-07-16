@@ -1008,6 +1008,33 @@ var start_run_default = defineTool10({
       log("info", `Loaded ${bars.length} bars \u2014 running ${combos.length} combos`);
       const rows = [];
       for (let i = 0; i < combos.length; i++) {
+        const { data: cancelRow } = await sb.from("simulation_runs").select("cancel_requested, status").eq("id", runId).eq("user_id", userId).maybeSingle();
+        if (cancelRow && (cancelRow.cancel_requested || cancelRow.status === "canceled")) {
+          log("warn", `Cancellation requested at combo ${i}/${combos.length}. Stopping.`);
+          const partial = {
+            symbol: args.symbol.toUpperCase(),
+            preset: args.preset,
+            range: args.range,
+            combinations: rows.length,
+            results: rows,
+            best: rows[0] ?? null,
+            canceled: true,
+            canceled_at_combo: i
+          };
+          await sb.from("simulation_runs").update({
+            status: "canceled",
+            cancel_requested: true,
+            canceled_at: (/* @__PURE__ */ new Date()).toISOString(),
+            finished_at: (/* @__PURE__ */ new Date()).toISOString(),
+            progress: Math.round(i / combos.length * 100),
+            logs,
+            result: partial
+          }).eq("id", runId).eq("user_id", userId);
+          return {
+            content: [{ type: "text", text: `run_id=${runId} status=canceled at ${i}/${combos.length}` }],
+            structuredContent: { run_id: runId, status: "canceled", combinations: rows.length }
+          };
+        }
         const c = combos[i];
         const p = {
           fast: c.fast ?? args.fast,

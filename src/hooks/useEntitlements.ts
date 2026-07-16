@@ -134,8 +134,12 @@ export function useEntitlements() {
   // Refresh on subscription changes (webhook → realtime).
   useEffect(() => {
     if (!user) return;
+    const suffix =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const ch = supabase
-      .channel(`ent-${user.id}-${Math.random().toString(36).slice(2, 8)}`)
+      .channel(`ent-${user.id}-${suffix}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },

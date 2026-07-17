@@ -9,7 +9,7 @@ const sb = createClient(
 
 function auth(req: Request): boolean {
   const secret = Deno.env.get("CRON_SECRET");
-  if (!secret) return true; // dev fallback
+  if (!secret) return false;
   const provided = req.headers.get("x-cron-secret") ?? new URL(req.url).searchParams.get("secret");
   return provided === secret;
 }

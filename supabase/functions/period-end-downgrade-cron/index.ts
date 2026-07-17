@@ -15,7 +15,7 @@ const sb = createClient(
 
 function authed(req: Request): boolean {
   const secret = Deno.env.get("CRON_SECRET");
-  if (!secret) return true;
+  if (!secret) return false;
   const provided =
     req.headers.get("x-cron-secret") ??
     new URL(req.url).searchParams.get("secret");

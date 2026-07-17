@@ -101,6 +101,7 @@ import Advisor from "./pages/Advisor";
 import Household from "./pages/Household";
 import AppShell from "./components/AppShell";
 import { ProtectedRoute, OwnerRoute } from "./components/ProtectedRoute";
+import { RouteFeatureGate } from "./components/gating/RouteFeatureGate";
 import ScrollToTop from "./components/ScrollToTop";
 import Privacy from "./pages/legal/Privacy";
 import Terms from "./pages/legal/Terms";
@@ -150,10 +151,10 @@ const App = () => (
           <Route path="/research/shared/:token" element={<SharedResearchNote />} />
           <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Index />} />
-            <Route path="/sentiment" element={<SentimentDashboard />} />
-            <Route path="/backtest" element={<BacktestingModule />} />
+            <Route path="/sentiment" element={<RouteFeatureGate feature="ai.sentiment"><SentimentDashboard /></RouteFeatureGate>} />
+            <Route path="/backtest" element={<RouteFeatureGate feature="ai.backtests"><BacktestingModule /></RouteFeatureGate>} />
             <Route path="/backtesting" element={<Navigate to="/backtest" replace />} />
-            <Route path="/strategy-lab" element={<StrategyLab />} />
+            <Route path="/strategy-lab" element={<RouteFeatureGate feature="strategy.proposal_builder"><StrategyLab /></RouteFeatureGate>} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
@@ -174,7 +175,7 @@ const App = () => (
             <Route path="/stock/:symbol" element={<StockDetails />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/alerts" element={<Alerts />} />
-            <Route path="/risk" element={<Risk />} />
+            <Route path="/risk" element={<RouteFeatureGate feature="portfolio.stress_test"><Risk /></RouteFeatureGate>} />
             <Route path="/screener" element={<Screener />} />
             <Route path="/baskets" element={<Baskets />} />
             <Route path="/filings" element={<Filings />} />
@@ -190,9 +191,9 @@ const App = () => (
             <Route path="/goals" element={<Goals />} />
             <Route path="/dividends" element={<DividendPlanner />} />
             <Route path="/budget" element={<Budget />} />
-            <Route path="/simulations" element={<PortfolioSimulations />} />
-            <Route path="/event-study" element={<EventStudy />} />
-            <Route path="/tax-harvest" element={<TaxHarvest />} />
+            <Route path="/simulations" element={<RouteFeatureGate feature="portfolio.simulations"><PortfolioSimulations /></RouteFeatureGate>} />
+            <Route path="/event-study" element={<RouteFeatureGate feature="research.event_study"><EventStudy /></RouteFeatureGate>} />
+            <Route path="/tax-harvest" element={<RouteFeatureGate feature="tax.harvest"><TaxHarvest /></RouteFeatureGate>} />
             <Route path="/tax" element={<Navigate to="/tax-harvest" replace />} />
             <Route path="/net-worth/watches" element={<Navigate to="/net-worth/collectibles" replace />} />
             <Route path="/net-worth/watches_collectibles" element={<Navigate to="/net-worth/collectibles" replace />} />
@@ -200,13 +201,13 @@ const App = () => (
             <Route path="/methodology" element={<Methodology />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/learn" element={<Education />} />
-            <Route path="/api" element={<ApiDocs />} />
+            <Route path="/api" element={<RouteFeatureGate feature="enterprise.api"><ApiDocs /></RouteFeatureGate>} />
             <Route path="/intraday" element={<Intraday />} />
             <Route path="/corporate-actions" element={<CorporateActions />} />
-            <Route path="/optimizer" element={<Optimizer />} />
-            <Route path="/rebalance" element={<Rebalance />} />
+            <Route path="/optimizer" element={<RouteFeatureGate feature="portfolio.optimizer"><Optimizer /></RouteFeatureGate>} />
+            <Route path="/rebalance" element={<RouteFeatureGate feature="portfolio.rebalance"><Rebalance /></RouteFeatureGate>} />
             <Route path="/peers" element={<Peers />} />
-            <Route path="/quant" element={<QuantAlpha />} />
+            <Route path="/quant" element={<RouteFeatureGate feature="quant.alpha"><QuantAlpha /></RouteFeatureGate>} />
             <Route path="/blotter" element={<Blotter />} />
             <Route path="/orders" element={<OrderHistory />} />
             <Route path="/profile" element={<Profile />} />
@@ -221,13 +222,13 @@ const App = () => (
             <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/legal/:kind" element={<LegalDoc />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />
-            <Route path="/dealflow" element={<DealFlow />} />
+            <Route path="/dealflow" element={<RouteFeatureGate feature="dealflow.access"><DealFlow /></RouteFeatureGate>} />
             <Route path="/privacy-settings" element={<PrivacySettings />} />
             <Route path="/admin/audit" element={<OwnerRoute><AdminAuditLog /></OwnerRoute>} />
             <Route path="/admin/settings" element={<OwnerRoute><AdminSettings /></OwnerRoute>} />
             <Route path="/admin/ai-quotas" element={<OwnerRoute><AdminAiQuotas /></OwnerRoute>} />
             <Route path="/ai-usage" element={<AiUsageHistory />} />
-            <Route path="/advisor" element={<Advisor />} />
+            <Route path="/advisor" element={<RouteFeatureGate feature="portfolio.doctor"><Advisor /></RouteFeatureGate>} />
             <Route path="/household" element={<Household />} />
           </Route>
           <Route path="/owner/*" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />

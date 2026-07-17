@@ -12,7 +12,7 @@ const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 
 function auth(req: Request): boolean {
   const secret = Deno.env.get("CRON_SECRET");
-  if (!secret) return true;
+  if (!secret) return false;
   const provided = req.headers.get("x-cron-secret") ?? new URL(req.url).searchParams.get("secret");
   return provided === secret;
 }

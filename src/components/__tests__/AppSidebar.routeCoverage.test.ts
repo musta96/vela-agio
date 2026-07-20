@@ -51,7 +51,15 @@ describe("Sidebar ↔ ROUTE_FEATURE_MAP coverage", () => {
   it("every gated route in ROUTE_FEATURE_MAP has a sidebar entry", () => {
     const missing: string[] = [];
     for (const path of Object.keys(ROUTE_FEATURE_MAP)) {
-      if (!SIDEBAR_URLS.has(path)) missing.push(path);
+      if (SIDEBAR_URLS.has(path)) continue;
+      // Accept an alias: a sidebar url mapped (via ITEM_FEATURE_KEY) to
+      // the same canonical feature key. This is what /api-docs and
+      // /agent-integrations do for the /api → enterprise.api entry.
+      const key = ROUTE_FEATURE_MAP[path];
+      const hasAlias = Object.entries(ITEM_FEATURE_KEY).some(
+        ([url, k]) => k === key && SIDEBAR_URLS.has(url),
+      );
+      if (!hasAlias) missing.push(path);
     }
     expect(
       missing,

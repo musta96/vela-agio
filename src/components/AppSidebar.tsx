@@ -397,6 +397,7 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
   const { locked, planName } = useItemLock(it.url);
   const badge = useResolvedBadge(it);
   const query = useContext(SidebarSearchContext);
+  const gate = useContext(SidebarGateContext);
   if (query && !matchesSearch(query, it.title)) return null;
 
   return (
@@ -406,7 +407,17 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
           to={it.url}
           end={it.url === "/"}
           data-sidebar-nav="item"
+          data-sidebar-locked={locked ? "true" : undefined}
           aria-current={active ? "page" : undefined}
+          onClick={(e) => {
+            if (!locked) return;
+            // Gated: keep the user on the current route and surface the
+            // upgrade prompt instead of routing to a page that will just
+            // render the RouteFeatureGate upgrade card.
+            e.preventDefault();
+            const key = ITEM_FEATURE_KEY[it.url];
+            if (gate && key) gate.promptUpgrade(key);
+          }}
           className={cn(
             "flex items-center gap-2.5 rounded-none border-l-2 px-4 py-2.5 text-[13px] transition-colors",
             active

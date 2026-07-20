@@ -192,29 +192,32 @@ export default function Landing() {
             <VelaLogo size={32} />
           </Link>
           <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#3d4f66" }}>
-            <a href="#features" className="hover:text-[#042C53] transition">Features</a>
-            <a href="#who-its-for" className="hover:text-[#042C53] transition">Who it's for</a>
-            <a href="#pricing" className="hover:text-[#042C53] transition">Pricing</a>
-            <a href="#faq" className="hover:text-[#042C53] transition">FAQ</a>
-            <Link to="/blog" className="hover:text-[#042C53] transition">Blog</Link>
+            <a href="#features" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Features</a>
+            <a href="#who-its-for" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Who it's for</a>
+            <a href="#pricing" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Pricing</a>
+            <a href="#faq" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">FAQ</a>
+            <Link to="/blog" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Blog</Link>
           </nav>
           <div className="flex items-center gap-3 sm:gap-5">
-            <Link
-              to="/auth"
-              data-testid="nav-sign-in"
-              className="hidden sm:inline-flex items-center text-xs font-medium hover:underline transition"
-              style={{ color: "#3d4f66" }}
-            >
-              Sign in
-            </Link>
-            <Link
-              to="/auth"
-              data-testid="nav-get-started"
-              onClick={() => trackLandingEvent("landing_get_started_click", { source: "nav" })}
-              className="button-gradient inline-flex items-center px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap"
-            >
-              Get started free
-            </Link>
+            <Button size="sm" variant="ghost" asChild className="min-h-11 hidden sm:inline-flex">
+              <Link
+                to="/auth"
+                data-testid="nav-sign-in"
+                className="text-xs font-medium hover:underline transition"
+                style={{ color: "#3d4f66" }}
+              >
+                Sign in
+              </Link>
+            </Button>
+            <Button size="sm" asChild className="min-h-11 button-gradient rounded-full px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap">
+              <Link
+                to="/auth"
+                data-testid="nav-get-started"
+                onClick={() => trackLandingEvent("landing_get_started_click", { source: "nav" })}
+              >
+                Get started free
+              </Link>
+            </Button>
           </div>
         </div>
       </header>

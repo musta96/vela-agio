@@ -204,7 +204,7 @@ export default function Landing() {
             <Button size="sm" variant="ghost" asChild className="min-h-11 hidden sm:inline-flex text-xs font-medium hover:underline transition" style={{ color: "#3d4f66" }} data-testid="nav-sign-in">
               <Link to="/auth">Sign in</Link>
             </Button>
-            <Button size="sm" asChild className="min-h-11 button-gradient rounded-full px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap" data-testid="nav-get-started" onClick={() => trackLandingEvent("landing_get_started_click", { source: "nav" })}>
+            <Button size="sm" asChild className="min-h-11 button-gradient rounded-full px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap" data-testid="nav-get-started" onClick={trackNavGetStarted}>
               <Link to="/auth">Get started free</Link>
             </Button>
           </div>

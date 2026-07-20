@@ -16,13 +16,14 @@
 import { describe, it, expect } from "vitest";
 import { PLAN_FEATURES, type PlanSlug } from "@/lib/planFeatures";
 
-const UPGRADE_PAGE_SLUGS: PlanSlug[] = ["plus", "pro", "enterprise"];
+const UPGRADE_PAGE_SLUGS = ["plus", "pro", "enterprise"] as const satisfies readonly PlanSlug[];
+type UpgradeSlug = (typeof UPGRADE_PAGE_SLUGS)[number];
 
 // Locked expectations. `undefined` means "field must be explicitly
 // absent/falsy" — matches how Upgrade.tsx reads it (`.contactSales` /
 // `.highlighted` are truthy-checked, so `false` or `undefined` both
 // behave the same, and we accept either).
-const EXPECTED: Record<(typeof UPGRADE_PAGE_SLUGS)[number], { contactSales: boolean; highlighted: boolean }> = {
+const EXPECTED: Record<UpgradeSlug, { contactSales: boolean; highlighted: boolean }> = {
   plus:       { contactSales: false, highlighted: false },
   pro:        { contactSales: false, highlighted: true  },
   enterprise: { contactSales: true,  highlighted: false },

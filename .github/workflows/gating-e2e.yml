@@ -1,0 +1,57 @@
+name: Feature-gating checks
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: gating-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-coverage:
+    name: check:gating (catalog + plan coverage)
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Verify every RouteFeatureGate key is in feature_catalog and on a plan
+        run: bun run check:gating
+
+  e2e-gating:
+    name: e2e:gating (Plus + Pro upgrade cards)
+    runs-on: ubuntu-latest
+    needs: static-coverage
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      E2E_PLUS_EMAIL: ${{ secrets.E2E_PLUS_EMAIL }}
+      E2E_PLUS_PASSWORD: ${{ secrets.E2E_PLUS_PASSWORD }}
+      E2E_PRO_EMAIL: ${{ secrets.E2E_PRO_EMAIL }}
+      E2E_PRO_PASSWORD: ${{ secrets.E2E_PRO_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+      - name: Run gating e2e (Plus + Pro)
+        run: bunx playwright test e2e/feature-gating.spec.ts
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

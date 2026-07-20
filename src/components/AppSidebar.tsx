@@ -478,6 +478,16 @@ function PortfolioGroup() {
   const [open, setOpen] = useState(() =>
     loadGroupOpen(PORTFOLIO.title, groupActive || (PORTFOLIO.defaultOpen ?? false)),
   );
+  const query = useContext(SidebarSearchContext);
+  const visibleItems = query
+    ? PORTFOLIO.items.filter((it) => matchesSearch(query, it.title))
+    : PORTFOLIO.items;
+  const netWorthMatches = query
+    ? matchesSearch(query, "Net Worth") ||
+      NET_WORTH_SUB.some((it) => matchesSearch(query, it.title))
+    : true;
+  if (query && visibleItems.length === 0 && !netWorthMatches) return null;
+  const effectiveOpen = query ? true : open;
 
   useEffect(() => {
     if (groupActive) {
@@ -503,26 +513,26 @@ function PortfolioGroup() {
 
   return (
     <SidebarGroup>
-      <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <Collapsible open={effectiveOpen} onOpenChange={handleOpenChange}>
         <SidebarGroupLabel asChild className="px-0">
           <CollapsibleTrigger
             type="button"
-            aria-expanded={open}
+            aria-expanded={effectiveOpen}
             data-sidebar-nav="group"
             aria-controls="sidebar-group-portfolio"
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
             <span>{PORTFOLIO.title}</span>
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <CollapsibleContent id="sidebar-group-portfolio" className={COLLAPSIBLE_ANIM}>
-              {PORTFOLIO.items.map((it) => (
+              {visibleItems.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}
-              <NetWorthSubMenu />
+              {netWorthMatches && <NetWorthSubMenu />}
             </CollapsibleContent>
           </SidebarMenu>
         </SidebarGroupContent>

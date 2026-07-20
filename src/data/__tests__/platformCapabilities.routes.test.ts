@@ -17,11 +17,14 @@ for (const m of appSrc.matchAll(/<Route\s+path=["']([^"']+)["']/g)) {
   declaredRoutes.add(m[1]);
 }
 
-/** Extract `<RouteFeatureGate feature="...">` next to each route path. */
+/** Extract `<RouteFeatureGate feature="...">` on the SAME <Route> line to
+ * avoid the next route's gate leaking into this one's match window. */
 const routeGates = new Map<string, string>();
-const routeRe = /<Route\s+path=["']([^"']+)["'][^>]*>[\s\S]{0,200}?<RouteFeatureGate\s+feature=["']([^"']+)["']/g;
-for (const m of appSrc.matchAll(routeRe)) {
-  routeGates.set(m[1], m[2]);
+for (const line of appSrc.split("\n")) {
+  const path = line.match(/<Route\s+path=["']([^"']+)["']/)?.[1];
+  if (!path) continue;
+  const gate = line.match(/<RouteFeatureGate\s+feature=["']([^"']+)["']/)?.[1];
+  if (gate) routeGates.set(path, gate);
 }
 
 describe("platformCapabilities → App.tsx routes & gating", () => {

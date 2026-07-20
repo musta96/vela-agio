@@ -33,12 +33,12 @@ describe("Landing nav - focus & tap-target contract", () => {
     for (const a of navAnchors) {
       expect(a).toMatch(/min-h-11/);
     }
-    // React Router <Link> elements inside the header (logo + Blog)
-    const routerLinks = HEADER.match(/<Link to="[^"]+"[^>]*>/g) || [];
-    expect(routerLinks.length).toBeGreaterThanOrEqual(2);
-    for (const l of routerLinks) {
-      expect(l).toMatch(/min-h-11/);
-    }
+    // Standalone router <Link> elements (logo + Blog) — the /auth ones are
+    // wrapped in <Button> which owns the tap target.
+    const logoLink = HEADER.match(/<Link to="\/"[^>]*>/)?.[0] ?? "";
+    const blogLink = HEADER.match(/<Link to="\/blog"[^>]*>/)?.[0] ?? "";
+    expect(logoLink).toMatch(/min-h-11/);
+    expect(blogLink).toMatch(/min-h-11/);
   });
 
   it("auth CTAs enforce 44px minimum height on mobile", () => {

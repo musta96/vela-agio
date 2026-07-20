@@ -64,6 +64,29 @@ function matchesSearch(query: string, title: string): boolean {
   return title.toLowerCase().includes(query);
 }
 
+/**
+ * Render a nav label with the current search query highlighted. Case-
+ * insensitive; renders the original title casing untouched when there is
+ * no query or no match.
+ */
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query);
+  if (idx === -1) return <>{text}</>;
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + query.length);
+  const after = text.slice(idx + query.length);
+  return (
+    <>
+      {before}
+      <mark className="bg-accent/30 text-sidebar-foreground rounded-sm px-0.5">
+        {match}
+      </mark>
+      {after}
+    </>
+  );
+}
+
 function useItemLock(url: string): { locked: boolean; planName: string | null } {
   const gate = useContext(SidebarGateContext);
   const key = ITEM_FEATURE_KEY[url];

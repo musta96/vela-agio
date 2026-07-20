@@ -21,6 +21,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useRef, useCallback } from "react";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { Input } from "@/components/ui/input";
+import { Search as SearchIcon, X as XIcon } from "lucide-react";
+import { getActiveNewBadgeUrls } from "@/lib/sidebarBadges";
 
 /** Map nav-item URLs to their gating feature keys (from feature_catalog). */
 const ITEM_FEATURE_KEY: Record<string, string> = {
@@ -43,6 +46,23 @@ const ITEM_FEATURE_KEY: Record<string, string> = {
 
 type SidebarGate = ReturnType<typeof useFeatureGate>;
 const SidebarGateContext = createContext<SidebarGate | null>(null);
+
+/** Set of URLs that currently qualify for a "new" badge (capped + TTL). */
+const NewBadgeContext = createContext<Set<string>>(new Set());
+/** Lowercased sidebar search query. Empty string means "no filter". */
+const SidebarSearchContext = createContext<string>("");
+
+function useResolvedBadge(it: Item): string | undefined {
+  const newBadges = useContext(NewBadgeContext);
+  // "new" badges are managed centrally: only render when the manager says so.
+  if (it.badge === "new") return newBadges.has(it.url) ? "new" : undefined;
+  return it.badge;
+}
+
+function matchesSearch(query: string, title: string): boolean {
+  if (!query) return true;
+  return title.toLowerCase().includes(query);
+}
 
 function useItemLock(url: string): { locked: boolean; planName: string | null } {
   const gate = useContext(SidebarGateContext);

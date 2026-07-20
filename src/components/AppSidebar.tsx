@@ -342,6 +342,7 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const active = isRouteActive(pathname, it.url);
+  const { locked, planName } = useItemLock(it.url);
 
   return (
     <SidebarMenuItem key={it.url}>
@@ -361,11 +362,19 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
         >
           <it.icon className={cn("shrink-0", indent ? "h-3.5 w-3.5" : "h-4 w-4")} />
           {!collapsed && <span className="flex-1 truncate">{it.title}</span>}
-          {!collapsed && it.badge && (
+          {!collapsed && locked ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              title={planName ? `Requires ${planName}` : "Requires upgrade"}
+            >
+              <Lock className="h-2.5 w-2.5" />
+              {planName && <span className="truncate max-w-[64px]">{planName}</span>}
+            </span>
+          ) : !collapsed && it.badge ? (
             <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
               {it.badge}
             </span>
-          )}
+          ) : null}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>

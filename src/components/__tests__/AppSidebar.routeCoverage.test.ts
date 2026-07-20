@@ -47,11 +47,25 @@ function extractItemFeatureKey(src: string): Record<string, string> {
 const SIDEBAR_URLS = extractSidebarUrls(SRC);
 const ITEM_FEATURE_KEY = extractItemFeatureKey(SRC);
 
+/**
+ * Routes that are intentionally NOT surfaced in the primary sidebar and
+ * are reached through other UIs (Account menu, dedicated landing pages,
+ * or Enterprise CTAs). Adding to this list requires justification — the
+ * default assumption is that every gated route is discoverable from the
+ * sidebar.
+ */
+const SIDEBAR_ABSENT_ALLOWLIST = new Set<string>([
+  // Enterprise API surface is reached from /agent-integrations and the
+  // Enterprise CTA rather than a permanent sidebar link.
+  "/api",
+]);
+
 describe("Sidebar ↔ ROUTE_FEATURE_MAP coverage", () => {
   it("every gated route in ROUTE_FEATURE_MAP has a sidebar entry", () => {
     const missing: string[] = [];
     for (const path of Object.keys(ROUTE_FEATURE_MAP)) {
       if (SIDEBAR_URLS.has(path)) continue;
+      if (SIDEBAR_ABSENT_ALLOWLIST.has(path)) continue;
       // Accept an alias: a sidebar url mapped (via ITEM_FEATURE_KEY) to
       // the same canonical feature key. This is what /api-docs and
       // /agent-integrations do for the /api → enterprise.api entry.
@@ -65,6 +79,15 @@ describe("Sidebar ↔ ROUTE_FEATURE_MAP coverage", () => {
       missing,
       `Routes present in ROUTE_FEATURE_MAP but with no matching sidebar url:\n  ${missing.join("\n  ")}`,
     ).toEqual([]);
+  });
+
+  it("the sidebar-absent allowlist itself does not accumulate stale entries", () => {
+    for (const path of SIDEBAR_ABSENT_ALLOWLIST) {
+      expect(
+        ROUTE_FEATURE_MAP,
+        `Allowlisted path "${path}" is no longer gated — remove it from SIDEBAR_ABSENT_ALLOWLIST.`,
+      ).toHaveProperty(path);
+    }
   });
 
   it("every locked sidebar item maps to a feature key ROUTE_FEATURE_MAP knows", () => {

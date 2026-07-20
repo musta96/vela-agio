@@ -363,6 +363,9 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
   const { pathname } = useLocation();
   const active = isRouteActive(pathname, it.url);
   const { locked, planName } = useItemLock(it.url);
+  const badge = useResolvedBadge(it);
+  const query = useContext(SidebarSearchContext);
+  if (query && !matchesSearch(query, it.title)) return null;
 
   return (
     <SidebarMenuItem key={it.url}>
@@ -390,9 +393,9 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
               <Lock className="h-2.5 w-2.5" />
               {planName && <span className="truncate max-w-[64px]">{planName}</span>}
             </span>
-          ) : !collapsed && it.badge ? (
+          ) : !collapsed && badge ? (
             <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              {it.badge}
+              {badge}
             </span>
           ) : null}
         </NavLink>
@@ -409,6 +412,12 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
   const [open, setOpen] = useState(() =>
     loadGroupOpen(group.title, groupActive || (group.defaultOpen ?? false)),
   );
+  const query = useContext(SidebarSearchContext);
+  const visibleItems = query
+    ? group.items.filter((it) => matchesSearch(query, it.title))
+    : group.items;
+  if (query && visibleItems.length === 0) return null;
+  const effectiveOpen = query ? true : open;
 
   useEffect(() => {
     if (groupActive) {
@@ -434,23 +443,23 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
 
   return (
     <SidebarGroup>
-      <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <Collapsible open={effectiveOpen} onOpenChange={handleOpenChange}>
         <SidebarGroupLabel asChild className="px-0">
           <CollapsibleTrigger
             type="button"
-            aria-expanded={open}
+            aria-expanded={effectiveOpen}
             data-sidebar-nav="group"
             aria-controls={`sidebar-group-${group.title.toLowerCase()}`}
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
             <span>{group.title}</span>
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <CollapsibleContent id={`sidebar-group-${group.title.toLowerCase()}`} className={COLLAPSIBLE_ANIM}>
-              {group.items.map((it) => (
+              {visibleItems.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}
             </CollapsibleContent>

@@ -1,9 +1,10 @@
-import { ReactNode } from "react";
+import { Component, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { featureForPath } from "@/lib/gating/routeFeatureMap";
+import { recordGatingMismatch } from "@/lib/gating/telemetry";
 
 interface Props {
   /** Feature key from feature_catalog. */
@@ -21,6 +22,14 @@ interface Props {
  * to catch coverage gaps before merging.
  */
 export function RouteFeatureGate({ feature, children }: Props) {
+  return (
+    <RouteFeatureGateErrorBoundary>
+      <RouteFeatureGateInner feature={feature}>{children}</RouteFeatureGateInner>
+    </RouteFeatureGateErrorBoundary>
+  );
+}
+
+function RouteFeatureGateInner({ feature, children }: Props) {
   const gate = useFeatureGate();
   const location = useLocation();
 
@@ -32,14 +41,25 @@ export function RouteFeatureGate({ feature, children }: Props) {
   // showing "Deal flow · Unlocks on Enterprise" on the Simulations page.
   //
   // Behaviour:
+  //   - Always: record structured telemetry via `recordGatingMismatch`
+  //     so observability wiring can monitor cross-page leakage in prod.
   //   - In DEV / test: throw. A mismatch is a coding bug; failing loud
-  //     surfaces it in unit tests and dev builds immediately.
-  //   - In prod: log an error and let the render continue with the
-  //     provided `feature` prop (metadata is still strictly derived
-  //     from that prop, so the user never sees another feature's copy).
+  //     surfaces it in unit tests and dev builds immediately. The
+  //     surrounding <RouteFeatureGateErrorBoundary> in prod turns the
+  //     throw into a friendly fallback instead of a white screen — but
+  //     in dev/test the throw is still visible via test frameworks.
+  //   - In prod: after recording telemetry, we render a safe fallback
+  //     UI ("Access check unavailable") rather than continuing with a
+  //     possibly-wrong feature key. This is a superset of the previous
+  //     behaviour (which continued rendering silently).
   // ------------------------------------------------------------------
   const expected = featureForPath(location.pathname);
   if (expected && expected !== feature) {
+    recordGatingMismatch({
+      pathname: location.pathname,
+      expectedFeature: expected,
+      receivedFeature: feature,
+    });
     const msg =
       `[RouteFeatureGate] mismatch at "${location.pathname}": ` +
       `expected feature key "${expected}" (from ROUTE_FEATURE_MAP) ` +
@@ -48,8 +68,7 @@ export function RouteFeatureGate({ feature, children }: Props) {
     if (import.meta.env.DEV || import.meta.env.MODE === "test") {
       throw new Error(msg);
     }
-    // eslint-disable-next-line no-console
-    console.error(msg);
+    return <RouteFeatureGateFallback reason="mismatch" />;
   }
 
   // While entitlements/catalog are still loading, render a consistent
@@ -100,6 +119,79 @@ function RouteFeatureGateSkeleton() {
       </div>
     </div>
   );
+}
+
+/**
+ * User-facing fallback shown when the gate cannot make a safe decision
+ * (e.g. an internal invariant failed at runtime in production). This
+ * intentionally does NOT reveal internal diagnostics — the details are
+ * captured by telemetry — and gives the user a clear, non-technical
+ * recovery path.
+ */
+export function RouteFeatureGateFallback({ reason }: { reason?: string }) {
+  return (
+    <div
+      role="alert"
+      className="min-h-[70vh] flex items-center justify-center px-6 py-16"
+      data-gate-fallback={reason ?? "error"}
+    >
+      <div className="w-full max-w-md space-y-4 text-center">
+        <h2 className="text-xl font-semibold">This page is temporarily unavailable</h2>
+        <p className="text-sm text-muted-foreground">
+          We couldn’t verify access to this feature. Please refresh the page or
+          head back to your dashboard while we look into it.
+        </p>
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <a
+            href="/dashboard"
+            className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+          >
+            Go to dashboard
+          </a>
+          <button
+            type="button"
+            onClick={() => { if (typeof window !== "undefined") window.location.reload(); }}
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Error boundary that turns any unexpected render error inside the gate
+ * (including the sanity-check throw when it escapes in production edge
+ * paths, or a downstream `<FeatureGate>` crash) into a friendly fallback
+ * instead of a white screen.
+ *
+ * In dev/test we intentionally re-throw so tests can still assert the
+ * exact error via `expect(() => render(...)).toThrow(...)`.
+ */
+class RouteFeatureGateErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+  componentDidCatch(error: unknown) {
+    // Structured signal — telemetry for the mismatch case is already
+    // recorded before the throw; this covers other unexpected errors.
+    // eslint-disable-next-line no-console
+    console.error("[RouteFeatureGate] render error", error);
+    if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+      // Re-surface for test frameworks / dev overlay.
+      throw error as Error;
+    }
+  }
+  render() {
+    if (this.state.hasError) return <RouteFeatureGateFallback reason="error" />;
+    return this.props.children;
+  }
 }
 
 export default RouteFeatureGate;

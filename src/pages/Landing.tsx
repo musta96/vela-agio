@@ -190,15 +190,15 @@ export default function Landing() {
       {/* NAV */}
       <header className="sticky top-0 z-40 glass-nav">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 h-16 sm:h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="min-h-11 inline-flex items-center gap-3">
             <VelaLogo size={32} />
           </Link>
           <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: "#3d4f66" }}>
-            <a href="#features" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Features</a>
-            <a href="#whoitsfor" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Who it's for</a>
-            <a href="#pricing" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Pricing</a>
-            <a href="#faq" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">FAQ</a>
-            <Link to="/blog" className="hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Blog</Link>
+            <a href="#features" className="min-h-11 inline-flex items-center hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Features</a>
+            <a href="#whoitsfor" className="min-h-11 inline-flex items-center hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Who it's for</a>
+            <a href="#pricing" className="min-h-11 inline-flex items-center hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Pricing</a>
+            <a href="#faq" className="min-h-11 inline-flex items-center hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">FAQ</a>
+            <Link to="/blog" className="min-h-11 inline-flex items-center hover:text-[#042C53] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#185FA5]">Blog</Link>
           </nav>
           <div className="flex items-center gap-3 sm:gap-5">
             <Button size="sm" variant="ghost" asChild className="min-h-11 hidden sm:inline-flex text-xs font-medium hover:underline transition" style={{ color: "#3d4f66" }} data-testid="nav-sign-in">

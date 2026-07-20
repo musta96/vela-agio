@@ -24,6 +24,8 @@ type Attachment = { name: string; mime: string; dataUrl: string };
 type Msg = { role: "user" | "assistant"; content: string; tools?: ToolEvent[]; attachments?: Attachment[] };
 type Thread = { id: string; title: string; updated_at: string };
 
+const HISTORY_PAGE_SIZE = 30;
+
 async function fileToDataUrl(f: File): Promise<Attachment> {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -44,6 +46,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [ctx, setCtx] = useState<{ portfolio: any[]; watchlist: any[] }>({ portfolio: [], watchlist: [] });
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -57,6 +60,22 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
   });
   const [exporting, setExporting] = useState(false);
   const { exhausted, hasCap, remaining, limit, unlimited } = useAiCredits();
+  const [visibleCount, setVisibleCount] = useState<number>(HISTORY_PAGE_SIZE);
+
+  // Reset window when switching threads (or starting a new one)
+  useEffect(() => { setVisibleCount(HISTORY_PAGE_SIZE); }, [threadId]);
+
+  const loadEarlier = useCallback(() => {
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    const prevTop = el?.scrollTop ?? 0;
+    setVisibleCount(v => v + HISTORY_PAGE_SIZE);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      // Keep viewport anchored to the same content when older messages prepend
+      el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") window.localStorage.setItem(MEMORY_KEY, memoryOn ? "1" : "0");
@@ -418,8 +437,23 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
           </Button>
         ) : <span />}
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((m, i) => (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length > visibleCount && (
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px] text-muted-foreground"
+              onClick={loadEarlier}
+            >
+              Load earlier messages ({messages.length - visibleCount} hidden)
+            </Button>
+          </div>
+        )}
+        {messages.slice(Math.max(0, messages.length - visibleCount)).map((m, vi) => {
+          const i = Math.max(0, messages.length - visibleCount) + vi;
+          return (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>
             {m.role === "assistant" && <Bot className="h-5 w-5 text-primary shrink-0 mt-1" />}
             <div className="max-w-[85%] space-y-2">
@@ -481,7 +515,8 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
             </div>
             {m.role === "user" && <UserIcon className="h-5 w-5 text-muted-foreground shrink-0 mt-1" />}
           </div>
-        ))}
+          );
+        })}
         <div ref={endRef} />
       </div>
       {attachments.length > 0 && (

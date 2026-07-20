@@ -596,6 +596,10 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
   const gate = useFeatureGate();
+  const [searchInput, setSearchInput] = useState("");
+  const searchQuery = searchInput.trim().toLowerCase();
+  const newBadges = useMemo(() => getActiveNewBadgeUrls(), []);
+  const showDashboard = !searchQuery || matchesSearch(searchQuery, DASHBOARD_ITEM.title);
 
   // Roving keyboard navigation across every visible sidebar link + group trigger.
   // - ArrowDown/ArrowUp: move focus to next/previous item
@@ -657,6 +661,8 @@ export function AppSidebar() {
 
   return (
     <SidebarGateContext.Provider value={gate}>
+    <NewBadgeContext.Provider value={newBadges}>
+    <SidebarSearchContext.Provider value={searchQuery}>
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? (
@@ -700,11 +706,41 @@ export function AppSidebar() {
         aria-label="Primary"
         className="py-3"
       >
-        <SidebarGroup>
-          <SidebarMenu>
-            <NavItemLink it={DASHBOARD_ITEM} />
-          </SidebarMenu>
-        </SidebarGroup>
+        {!collapsed && (
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <SearchIcon
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/40"
+                aria-hidden="true"
+              />
+              <Input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search menu…"
+                aria-label="Filter sidebar items"
+                className="h-8 pl-8 pr-7 text-[12px] bg-sidebar-accent/30 border-sidebar-border/60 placeholder:text-sidebar-foreground/40"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Clear sidebar search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                >
+                  <XIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {showDashboard && (
+          <SidebarGroup>
+            <SidebarMenu>
+              <NavItemLink it={DASHBOARD_ITEM} />
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
         {NAV_GROUPS.map((group) =>
           group.title === "Portfolio" ? (
             <PortfolioGroup key={group.title} />
@@ -715,6 +751,8 @@ export function AppSidebar() {
         <OwnerGroup collapsed={collapsed} isOwner={isOwner} />
       </SidebarContent>
     </Sidebar>
+    </SidebarSearchContext.Provider>
+    </NewBadgeContext.Provider>
     </SidebarGateContext.Provider>
   );
 }

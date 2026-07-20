@@ -21,6 +21,7 @@ import Reactivate from "./pages/Reactivate";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import AdminAuditLog from "./pages/AdminAuditLog";
+import AdminGatingTelemetry from "./pages/AdminGatingTelemetry";
 import Alerts from "./pages/Alerts";
 import Risk from "./pages/Risk";
 import Screener from "./pages/Screener";
@@ -225,6 +226,7 @@ const App = () => (
             <Route path="/dealflow" element={<RouteFeatureGate feature="dealflow.access"><DealFlow /></RouteFeatureGate>} />
             <Route path="/privacy-settings" element={<PrivacySettings />} />
             <Route path="/admin/audit" element={<OwnerRoute><AdminAuditLog /></OwnerRoute>} />
+            <Route path="/admin/gating-telemetry" element={<OwnerRoute><AdminGatingTelemetry /></OwnerRoute>} />
             <Route path="/admin/settings" element={<OwnerRoute><AdminSettings /></OwnerRoute>} />
             <Route path="/admin/ai-quotas" element={<OwnerRoute><AdminAiQuotas /></OwnerRoute>} />
             <Route path="/ai-usage" element={<AiUsageHistory />} />

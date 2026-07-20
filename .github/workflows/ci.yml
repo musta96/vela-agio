@@ -37,7 +37,41 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: latest }
       - run: bun install --frozen-lockfile
-      - run: bun run test
+      - name: Run unit tests
+        id: unit-tests
+        # Tee the full Vitest output so the Upgrade visual-regression diff
+        # (expected vs actual DOM snapshot) is preserved as an artifact when
+        # the run fails. Vitest prints the diff inline, so the log IS the
+        # "expected vs actual" record for the DOM-snapshot regression suite.
+        run: |
+          set -o pipefail
+          mkdir -p test-artifacts
+          bun run test 2>&1 | tee test-artifacts/vitest.log
+      - name: Extract Upgrade snapshot diff on failure
+        if: failure()
+        # Slice just the Upgrade.variants block out of the full log so the
+        # uploaded diff artifact is scannable at a glance without opening
+        # the whole Vitest transcript.
+        run: |
+          mkdir -p test-artifacts
+          awk '/Upgrade\.variants|Upgrade\.tsx button variants|choose-pro-highlighted|choose-plus-outline|switch-plan-enterprise/{flag=1} flag{print} /^\s*$/&&flag{n++; if(n>20)flag=0}' \
+            test-artifacts/vitest.log > test-artifacts/upgrade-variants.diff.log || true
+          # Copy the committed snapshot baselines so reviewers can compare
+          # "expected" (baseline file) against "actual" (Vitest diff log).
+          if [ -d src/pages/__tests__/__snapshots__ ]; then
+            cp -R src/pages/__tests__/__snapshots__ test-artifacts/expected-snapshots
+          fi
+      - name: Upload Upgrade snapshot diff artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgrade-visual-regression-diff
+          path: |
+            test-artifacts/vitest.log
+            test-artifacts/upgrade-variants.diff.log
+            test-artifacts/expected-snapshots/
+          retention-days: 14
+          if-no-files-found: warn
 
   e2e:
     name: e2e

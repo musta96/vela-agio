@@ -35,6 +35,12 @@ export type PlanDefinition = {
   ctaHref: string;
   highlighted?: boolean;
   contactSales?: boolean;
+  /**
+   * Marks the free "Explorer" fallback tier. Upgrade.tsx uses this to render
+   * the free-tier CTA without hardcoding the "explorer" slug. Exactly one
+   * plan in PLAN_FEATURES should carry this flag.
+   */
+  explorer?: boolean;
   features: PlanFeatures;
   /** Marketing checklist shown on the pricing card. */
   featureList: string[];
@@ -52,6 +58,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     priceAnnualTotal: 0,
     cta: "Start free",
     ctaHref: "/auth",
+    explorer: true,
     features: {
       ai_questions_per_day: 5,
       live_data: false,

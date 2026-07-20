@@ -163,7 +163,7 @@ export default function Upgrade() {
                   <div className="font-semibold text-base">Vela {plan.name}</div>
                   <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
                 </div>
-                <Button asChild className="mt-auto w-full" variant={plan.slug === "pro" ? "default" : "outline"}>
+                <Button asChild className="mt-auto w-full" variant={PLAN_FEATURES[plan.slug].highlighted ? "default" : "outline"}>
                   <Link to={`/upgrade?plan=${plan.slug}${cycleQuery}`}>Choose {plan.name}</Link>
                 </Button>
               </div>

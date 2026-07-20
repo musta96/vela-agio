@@ -1,13 +1,13 @@
 import {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
-  UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt,
+  UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt, Repeat,
 } from "lucide-react";
 
 export const ICONS: Record<string, any> = {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
-  UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt,
+  UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt, Repeat,
 };
 
 export type LandingSectionRow = {

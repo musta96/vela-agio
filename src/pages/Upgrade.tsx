@@ -7,6 +7,7 @@ import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PLAN_FEATURES } from "@/lib/planFeatures";
 
 const PLAN_LABELS: Record<string, string> = {
   plus: "Plus",
@@ -86,7 +87,7 @@ export default function Upgrade() {
               <div className="flex flex-wrap gap-2">
               {SWITCHABLE_PLANS.map((p) => {
                 const isActive = p.slug === planParam;
-                if (p.slug === "enterprise") {
+                if (PLAN_FEATURES[p.slug].contactSales) {
                   return (
                     <Button
                       key={p.slug}
@@ -162,7 +163,7 @@ export default function Upgrade() {
                   <div className="font-semibold text-base">Vela {plan.name}</div>
                   <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
                 </div>
-                <Button asChild className="mt-auto w-full" variant={plan.slug === "pro" ? "default" : "outline"}>
+                <Button asChild className="mt-auto w-full" variant={PLAN_FEATURES[plan.slug].highlighted ? "default" : "outline"}>
                   <Link to={`/upgrade?plan=${plan.slug}${cycleQuery}`}>Choose {plan.name}</Link>
                 </Button>
               </div>

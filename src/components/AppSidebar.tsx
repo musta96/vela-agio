@@ -460,7 +460,12 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
           )}
           {!collapsed && locked ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
+                /enterprise/i.test(planName ?? "")
+                  ? "bg-[hsl(258_90%_66%/0.18)] text-[hsl(258_95%_82%)] ring-[hsl(258_90%_66%/0.45)]"
+                  : "bg-[hsl(38_92%_55%/0.18)] text-[hsl(38_95%_72%)] ring-[hsl(38_92%_55%/0.45)]",
+              )}
               title={planName ? `Requires ${planName}` : "Requires upgrade"}
             >
               <Lock className="h-2.5 w-2.5" />

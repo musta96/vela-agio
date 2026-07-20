@@ -92,7 +92,7 @@ describe("Upgrade.tsx derives entitlement UI from PLAN_FEATURES", () => {
     // Concretely: the free-tier link must resolve its href/label by looking
     // up the explorer-flagged plan, never by writing PLAN_FEATURES.explorer
     // or "/auth" directly next to a conditional.
-    expect(SRC).toMatch(/find\([^)]*\.explorer\b/);
+    expect(SRC).toMatch(/\.find\([\s\S]{0,120}\.explorer\b/);
     // And the free-tier link's destination must be derived, not literal:
     // no `to="/auth"` should appear in Upgrade.tsx (the explorer ctaHref
     // is "/auth" — hardcoding it here would bypass PLAN_FEATURES).

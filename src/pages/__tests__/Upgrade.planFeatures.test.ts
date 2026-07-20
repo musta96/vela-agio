@@ -22,11 +22,11 @@ const UPGRADE_PAGE_SLUGS: PlanSlug[] = ["plus", "pro", "enterprise"];
 // absent/falsy" — matches how Upgrade.tsx reads it (`.contactSales` /
 // `.highlighted` are truthy-checked, so `false` or `undefined` both
 // behave the same, and we accept either).
-const EXPECTED = {
+const EXPECTED: Record<(typeof UPGRADE_PAGE_SLUGS)[number], { contactSales: boolean; highlighted: boolean }> = {
   plus:       { contactSales: false, highlighted: false },
   pro:        { contactSales: false, highlighted: true  },
   enterprise: { contactSales: true,  highlighted: false },
-} satisfies Record<(typeof UPGRADE_PAGE_SLUGS)[number], { contactSales: boolean; highlighted: boolean }>;
+};
 
 describe("PLAN_FEATURES contract for Upgrade.tsx", () => {
   it.each(UPGRADE_PAGE_SLUGS)(

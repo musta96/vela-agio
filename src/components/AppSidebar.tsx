@@ -52,6 +52,9 @@ type NavGroup = {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   items: Item[];
+  /** When no persisted value exists in localStorage and no child route is
+   *  active, decides whether the group starts open. Defaults to `false`. */
+  defaultOpen?: boolean;
 };
 
 const RESEARCH: NavGroup = {
@@ -76,24 +79,33 @@ const MARKETS: NavGroup = {
   title: "Markets",
   url: "/explore",
   icon: Globe2,
+  defaultOpen: true,
   items: [
-    { title: "Explore", url: "/explore", icon: Compass, badge: "new" },
-    { title: "Movers", url: "/movers", icon: Activity, badge: "new" },
+    { title: "Explore", url: "/explore", icon: Compass },
+    { title: "Movers", url: "/movers", icon: Activity },
     { title: "Watchlist", url: "/watchlist", icon: Eye },
     { title: "Stock Screener", url: "/screener", icon: Filter },
-    { title: "Compare", url: "/compare", icon: Scale },
+    { title: "Macro", url: "/macro", icon: Globe2 },
     { title: "Sectors", url: "/sectors", icon: Flame },
-    { title: "Intraday", url: "/intraday", icon: Zap },
-    { title: "Baskets", url: "/baskets", icon: Boxes },
+    { title: "Compare", url: "/compare", icon: Scale },
+  ],
+};
+
+const MARKET_DATA: NavGroup = {
+  title: "Market data",
+  url: "/options",
+  icon: LineChart,
+  items: [
     { title: "Options", url: "/options", icon: LineChart },
     { title: "Futures", url: "/futures", icon: TrendingUp },
+    { title: "Intraday", url: "/intraday", icon: Zap },
+    { title: "Baskets", url: "/baskets", icon: Boxes },
     { title: "Corp. Actions", url: "/corporate-actions", icon: CalendarClock },
     { title: "Filings", url: "/filings", icon: FileText },
     { title: "Earnings", url: "/earnings", icon: BarChart3 },
     { title: "Insider", url: "/insider", icon: UserSquare },
-    { title: "Macro", url: "/macro", icon: Globe2 },
-    { title: "Credit Spreads", url: "/credit-spreads", icon: Activity, badge: "new" },
-    { title: "Bond Calculator", url: "/bonds", icon: Calculator, badge: "new" },
+    { title: "Credit Spreads", url: "/credit-spreads", icon: Activity },
+    { title: "Bond Calculator", url: "/bonds", icon: Calculator },
   ],
 };
 
@@ -115,32 +127,39 @@ const PORTFOLIO: NavGroup = {
   title: "Portfolio",
   url: "/portfolio",
   icon: Briefcase,
+  defaultOpen: true,
   items: [
     { title: "Portfolio", url: "/portfolio", icon: Briefcase },
     { title: "Orders", url: "/orders", icon: History },
     { title: "Goals", url: "/goals", icon: Target },
-    { title: "Budget", url: "/budget", icon: PiggyBank, badge: "new" },
+    { title: "Budget", url: "/budget", icon: PiggyBank },
     { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
-    { title: "Rebalance", url: "/rebalance", icon: Rows3 },
-    { title: "Optimizer", url: "/optimizer", icon: Gauge },
-    { title: "Simulations", url: "/simulations", icon: Activity },
     { title: "Household", url: "/household", icon: Users2 },
     { title: "Tax", url: "/tax-harvest", icon: Wallet },
-    { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical, badge: "new" },
-    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine, badge: "new" },
+  ],
+};
+
+const ANALYST_TOOLS: NavGroup = {
+  title: "Analyst tools",
+  url: "/backtest",
+  icon: FlaskConical,
+  items: [
     { title: "Backtesting", url: "/backtest", icon: Repeat },
     { title: "Strategy Lab", url: "/strategy-lab", icon: FlaskConical, badge: "new" },
-    { title: "Blotter", url: "/blotter", icon: ClipboardList },
-    { title: "Technical", url: "/technical", icon: LineChart },
-    { title: "Event Study", url: "/event-study", icon: CalendarClock },
-    { title: "Peers", url: "/peers", icon: Network },
-    { title: "Quant Alpha", url: "/quant", icon: Gauge },
-    { title: "Notes", url: "/notes", icon: StickyNote },
-    { title: "Documents", url: "/documents", icon: FolderOpen },
-    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat, badge: "new" },
-    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare, badge: "new" },
-    { title: "13F Replicator", url: "/replicate", icon: Users, badge: "new" },
+    { title: "Optimizer", url: "/optimizer", icon: Gauge },
+    { title: "Rebalance", url: "/rebalance", icon: Rows3 },
+    { title: "Simulations", url: "/simulations", icon: Activity },
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
+    { title: "Event Study", url: "/event-study", icon: CalendarClock },
+    { title: "Technical", url: "/technical", icon: LineChart },
+    { title: "Quant Alpha", url: "/quant", icon: Gauge },
+    { title: "Blotter", url: "/blotter", icon: ClipboardList },
+    { title: "Peers", url: "/peers", icon: Network },
+    { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical },
+    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
+    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },
+    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare },
+    { title: "13F Replicator", url: "/replicate", icon: Users },
   ],
 };
 
@@ -168,6 +187,8 @@ const ACCOUNT: NavGroup = {
   items: [
     { title: "Profile", url: "/profile", icon: User },
     { title: "Plans & billing", url: "/plans-billing", icon: CreditCard },
+    { title: "Notes", url: "/notes", icon: StickyNote },
+    { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "AI Usage", url: "/ai-usage", icon: Activity },
     { title: "Suitability (MIFID)", url: "/suitability", icon: ClipboardCheck },
     { title: "Security", url: "/security", icon: ShieldCheck },
@@ -176,7 +197,7 @@ const ACCOUNT: NavGroup = {
   ],
 };
 
-const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, PORTFOLIO, ASSISTANT, LEARN, ACCOUNT];
+const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, MARKET_DATA, PORTFOLIO, ANALYST_TOOLS, ASSISTANT, LEARN, ACCOUNT];
 
 const OWNER_ITEM: Item = { title: "Owner Console", url: "/owner", icon: Crown, badge: "you" };
 
@@ -321,7 +342,9 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const groupActive = useGroupActive(pathname, group);
-  const [open, setOpen] = useState(() => loadGroupOpen(group.title, groupActive));
+  const [open, setOpen] = useState(() =>
+    loadGroupOpen(group.title, groupActive || (group.defaultOpen ?? false)),
+  );
 
   useEffect(() => {
     if (groupActive) {
@@ -379,7 +402,9 @@ function PortfolioGroup() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const groupActive = useGroupActive(pathname, PORTFOLIO) || pathname.startsWith("/net-worth");
-  const [open, setOpen] = useState(() => loadGroupOpen(PORTFOLIO.title, groupActive));
+  const [open, setOpen] = useState(() =>
+    loadGroupOpen(PORTFOLIO.title, groupActive || (PORTFOLIO.defaultOpen ?? false)),
+  );
 
   useEffect(() => {
     if (groupActive) {

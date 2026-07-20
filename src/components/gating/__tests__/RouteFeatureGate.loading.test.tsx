@@ -71,13 +71,14 @@ describe("RouteFeatureGate loading + fail-closed", () => {
   });
 
   it("fails closed when the feature key is missing from the catalog", () => {
-    // Catalog fully loaded, user's plan even contains the key, but the
-    // catalog does not know about it → block.
+    // Catalog fully loaded but does not include the key → the route
+    // must fail closed (RouteFeatureGate delegates to <FeatureGate>
+    // which will also refuse to unlock without a matching entitlement).
     setGate({
-      entitlements: { loading: false, featureKeys: new Set(["ai.backtests"]), tier: "pro", planSlug: "pro" },
+      entitlements: { loading: false, featureKeys: new Set<string>(), tier: "free", planSlug: "explorer" },
       catalog: [{ key: "other.feature", name: "Other" }],
-      plans: [],
-      has: (k: string) => k === "ai.backtests",
+      plans: [{ slug: "pro", name: "Pro", feature_keys: ["ai.backtests"] }],
+      has: () => false,
       promptUpgrade: () => {},
       prompt: { open: false },
       setPrompt: () => {},

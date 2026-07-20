@@ -87,7 +87,7 @@ export default function Upgrade() {
               <div className="flex flex-wrap gap-2">
               {SWITCHABLE_PLANS.map((p) => {
                 const isActive = p.slug === planParam;
-                if (p.slug === "enterprise") {
+                if (PLAN_FEATURES[p.slug].contactSales) {
                   return (
                     <Button
                       key={p.slug}

@@ -342,7 +342,9 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const groupActive = useGroupActive(pathname, group);
-  const [open, setOpen] = useState(() => loadGroupOpen(group.title, groupActive));
+  const [open, setOpen] = useState(() =>
+    loadGroupOpen(group.title, groupActive || (group.defaultOpen ?? false)),
+  );
 
   useEffect(() => {
     if (groupActive) {
@@ -400,7 +402,9 @@ function PortfolioGroup() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const groupActive = useGroupActive(pathname, PORTFOLIO) || pathname.startsWith("/net-worth");
-  const [open, setOpen] = useState(() => loadGroupOpen(PORTFOLIO.title, groupActive));
+  const [open, setOpen] = useState(() =>
+    loadGroupOpen(PORTFOLIO.title, groupActive || (PORTFOLIO.defaultOpen ?? false)),
+  );
 
   useEffect(() => {
     if (groupActive) {

@@ -46,6 +46,11 @@ export default function Upgrade() {
   const cycleLabel = initialCycle === "annual" ? "Annual" : initialCycle === "monthly" ? "Monthly" : null;
   const cycleQuery = initialCycle ? `&cycle=${initialCycle}` : "";
 
+  // Free-tier CTA is derived from PLAN_FEATURES rather than hardcoding the
+  // "explorer" slug — whichever plan carries `.explorer` becomes the free
+  // fallback the chooser links to.
+  const freeTierPlan = (Object.values(PLAN_FEATURES).find((p) => p.explorer)) ?? null;
+
   const switchPlan = (slug: string) => {
     const next = new URLSearchParams(params);
     next.set("plan", slug);
@@ -172,6 +177,18 @@ export default function Upgrade() {
           <Button asChild variant="outline" className="mt-3 w-full">
             <Link to="/contact-sales?source=upgrade_enterprise">Talk to us about Enterprise</Link>
           </Button>
+          {freeTierPlan && (
+            <div className="mt-3 text-center text-xs text-muted-foreground">
+              Not ready to upgrade?{" "}
+              <Link
+                to={freeTierPlan.ctaHref}
+                data-testid="upgrade-free-tier-link"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                {freeTierPlan.cta} on {freeTierPlan.name}
+              </Link>
+            </div>
+          )}
         </Card>
       )}
     </div>

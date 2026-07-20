@@ -270,6 +270,13 @@ function NetWorthSubMenu() {
   const { pathname } = useLocation();
   const onAnyNW = pathname.startsWith("/net-worth");
   const [open, setOpen] = useState(() => loadGroupOpen("net-worth", onAnyNW));
+  const query = useContext(SidebarSearchContext);
+  const visibleSub = query
+    ? NET_WORTH_SUB.filter((it) => matchesSearch(query, it.title))
+    : NET_WORTH_SUB;
+  const parentMatches = !query || matchesSearch(query, "Net Worth");
+  if (query && !parentMatches && visibleSub.length === 0) return null;
+  const effectiveOpen = query ? true : open;
 
   useEffect(() => {
     if (onAnyNW) {
@@ -306,13 +313,13 @@ function NetWorthSubMenu() {
   }
 
   return (
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
+    <Collapsible open={effectiveOpen} onOpenChange={handleOpenChange}>
       <SidebarMenu>
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              aria-expanded={open}
+              aria-expanded={effectiveOpen}
               data-sidebar-nav="group"
               aria-controls="sidebar-group-net-worth"
               className={cn(
@@ -324,12 +331,12 @@ function NetWorthSubMenu() {
             >
               <WalletIcon className="h-4 w-4 shrink-0" />
               <span className="flex-1 truncate text-left">Net Worth</span>
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
             </button>
           </CollapsibleTrigger>
         </SidebarMenuItem>
         <CollapsibleContent id="sidebar-group-net-worth" className={COLLAPSIBLE_ANIM}>
-          {NET_WORTH_SUB.map((it) => {
+          {visibleSub.map((it) => {
             const active = isRouteActive(pathname, it.url);
             return (
               <SidebarMenuItem key={it.url}>

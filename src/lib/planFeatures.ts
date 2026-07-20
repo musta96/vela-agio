@@ -58,6 +58,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     priceAnnualTotal: 0,
     cta: "Start free",
     ctaHref: "/auth",
+    explorer: true,
     features: {
       ai_questions_per_day: 5,
       live_data: false,

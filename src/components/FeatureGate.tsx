@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Lock, Sparkles } from "lucide-react";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { deriveGateMeta } from "@/lib/gating/routeFeatureMap";
 
 interface Props {
   feature: string;
@@ -62,20 +63,27 @@ export function FeatureGate({ feature, children, fallback, silent }: Props) {
   if (silent) return null;
   if (fallback) return <>{fallback}</>;
 
-  const meta = gate.catalog.find(c => c.key === feature);
-  const target = gate.plans.find(p => (p.feature_keys ?? []).includes(feature));
+  // Metadata is derived strictly from the `feature` prop via a pure
+  // helper — never from ambient location, breadcrumb, or route state.
+  // This is the guardrail against cross-page leakage (e.g. Deal Flow
+  // copy appearing on /simulations).
+  const meta = deriveGateMeta(feature, gate.catalog, gate.plans);
+  const target = meta.targetPlan;
   return (
     <>
-      <Card className="p-5 text-center space-y-2 border-dashed">
+      <Card
+        className="p-5 text-center space-y-2 border-dashed"
+        data-feature-key={feature}
+      >
         <div className="mx-auto h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
           <Lock className="h-4 w-4" />
         </div>
-        <div className="font-semibold">{meta?.name ?? "Premium feature"}</div>
-        {meta?.description && <p className="text-xs text-muted-foreground">{meta.description}</p>}
+        <div className="font-semibold">{meta.name}</div>
+        {meta.description && <p className="text-xs text-muted-foreground">{meta.description}</p>}
         {target?.name && (
           <div className="text-xs text-muted-foreground">
             Unlocks on <strong className="text-foreground">{target.name}</strong>
-            {target.price_label && <span className="text-muted-foreground"> · {target.price_label}</span>}
+            {target.priceLabel && <span className="text-muted-foreground"> · {target.priceLabel}</span>}
           </div>
         )}
         <div className="flex justify-center gap-2 pt-2">

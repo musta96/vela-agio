@@ -26,7 +26,7 @@ export type PlatformCapability = {
 
 export const PLATFORM_CAPABILITIES: PlatformCapability[] = [
   { id: "ai-copilot",            landingTitle: "AI Research Copilot",                     matrixRowLabel: "AI summaries",                        route: "/copilot" },
-  { id: "ai-radar",              landingTitle: "AI Radar & Idea Lab",                     matrixRowLabel: "AI Radar & Idea Lab",                 route: "/radar" },
+  { id: "ai-radar",              landingTitle: "AI Radar & Idea Lab",                     matrixRowLabel: "AI Radar & Idea Lab",                 route: "/ai-scanner" },
   { id: "live-markets",          landingTitle: "Live Markets & Charts",                   matrixRowLabel: "Market data" },
   { id: "explore-movers",        landingTitle: "Explore, Movers & Sectors",               matrixRowLabel: "Explore, movers & sector heatmaps",   route: "/explore" },
   { id: "options-futures",       landingTitle: "Options & Futures",                       matrixRowLabel: "Options chains & futures curves",     route: "/options" },

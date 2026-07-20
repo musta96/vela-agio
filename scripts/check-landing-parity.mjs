@@ -41,8 +41,11 @@ const landingSrc = read("src/data/landingDefaults.ts");
 const featuresBlock = landingSrc
   .split(/key:\s*"features"/)[1]
   ?.split(/key:\s*"audiences"/)[0] ?? "";
+// Only pull titles from the `items: [ ... ]` array inside the features
+// block, so the section headline/subtitle are not counted as cards.
+const itemsBlock = featuresBlock.match(/items:\s*\[([\s\S]*?)\]\s*,?\s*\}/)?.[1] ?? "";
 const landingTitles = new Set();
-for (const t of featuresBlock.matchAll(/title:\s*"([^"]+)"/g)) landingTitles.add(t[1]);
+for (const t of itemsBlock.matchAll(/title:\s*"([^"]+)"/g)) landingTitles.add(t[1]);
 
 // --- 3. Parse comparison matrix labels ------------------------------------
 const featuresSrc = read("src/pages/Features.tsx");

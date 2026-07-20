@@ -13,12 +13,47 @@ import {
   ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users, Calculator,
   GitCompare, Scale, Flame, Zap, CalendarClock, FileText, UserSquare, LineChart, BarChart3,
   StickyNote, FolderOpen, ClipboardList, Coins, Rows3, TrendingUp, Gauge, Users2,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState, useEffect, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useRef, useCallback } from "react";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+
+/** Map nav-item URLs to their gating feature keys (from feature_catalog). */
+const ITEM_FEATURE_KEY: Record<string, string> = {
+  "/backtest": "ai.backtests",
+  "/strategy-lab": "strategy.proposal_builder",
+  "/risk": "portfolio.stress_test",
+  "/simulations": "portfolio.simulations",
+  "/sentiment": "ai.sentiment",
+  "/advisor": "portfolio.doctor",
+  "/optimizer": "portfolio.optimizer",
+  "/rebalance": "portfolio.rebalance",
+  "/event-study": "research.event_study",
+  "/tax-harvest": "tax.harvest",
+  "/quant": "quant.alpha",
+  "/dealflow": "dealflow.access",
+  "/api": "enterprise.api",
+  "/api-docs": "enterprise.api",
+  "/agent-integrations": "enterprise.api",
+};
+
+type SidebarGate = ReturnType<typeof useFeatureGate>;
+const SidebarGateContext = createContext<SidebarGate | null>(null);
+
+function useItemLock(url: string): { locked: boolean; planName: string | null } {
+  const gate = useContext(SidebarGateContext);
+  const key = ITEM_FEATURE_KEY[url];
+  if (!gate || !key) return { locked: false, planName: null };
+  const inCatalog = gate.catalog.some((c) => c.key === key);
+  if (!inCatalog) return { locked: false, planName: null };
+  if (gate.has(key)) return { locked: false, planName: null };
+  const target = gate.plans.find((p) => (p.feature_keys ?? []).includes(key));
+  return { locked: true, planName: target?.name ?? null };
+}
 
 const STORAGE_PREFIX = "vela.sidebar.group.";
 

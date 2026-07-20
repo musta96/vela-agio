@@ -11,24 +11,31 @@ interface Props {
 /**
  * Page-level wrapper around <FeatureGate> for use in App.tsx routes.
  *
- * Fails open when `feature` is not present in the loaded feature_catalog:
- * a key that exists in code but not yet in the DB must never lock a page
- * for every user (e.g. deploy lands before the catalog migration runs).
+ * FAIL CLOSED: if the feature key is missing from feature_catalog (e.g. code
+ * deployed before the catalog migration), the route stays locked and shows
+ * the upgrade card. This is the safer default — a missing catalog entry
+ * must never accidentally hand out a paid feature. Run `bun run check:gating`
+ * to catch coverage gaps before merging.
  */
 export function RouteFeatureGate({ feature, children }: Props) {
   const gate = useFeatureGate();
 
-  const catalogLoaded = gate.catalog.length > 0;
-  const keyUnknown = catalogLoaded && !gate.catalog.some((c) => c.key === feature);
-  if (keyUnknown) {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.warn(`[RouteFeatureGate] feature key "${feature}" missing from feature_catalog — rendering unlocked`);
-    }
-    return <>{children}</>;
+  // While entitlements/catalog are still loading, render nothing rather than
+  // flashing either the page or the upgrade card. Once loaded, the decision
+  // is stable.
+  if (gate.entitlements.loading || gate.catalog.length === 0) {
+    return null;
   }
 
-  const unlocked = !gate.entitlements.loading && gate.has(feature);
+  const keyKnown = gate.catalog.some((c) => c.key === feature);
+  if (!keyKnown && import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[RouteFeatureGate] feature key "${feature}" missing from feature_catalog — locking route (fail closed). Add it in a migration.`,
+    );
+  }
+
+  const unlocked = keyKnown && gate.has(feature);
   if (unlocked) return <>{children}</>;
 
   return (

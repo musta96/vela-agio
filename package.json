@@ -13,6 +13,9 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
+    "e2e:gating": "playwright test e2e/feature-gating.spec.ts",
+    "check:gating": "node scripts/check-gating.mjs",
+    "report:plan-features": "node scripts/report-plan-features.mjs",
     "test:rls": "psql \"$SUPABASE_DB_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/rls/security_regressions.sql"
   },
   "dependencies": {

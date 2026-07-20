@@ -337,7 +337,7 @@ export default function Landing() {
           The complete breakdown now lives on the dedicated /features page. */}
 
       {/* AUDIENCES - investors vs professionals */}
-      <section id="who-its-for" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+      <section id="whoitsfor" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
           {(audiences.items || []).map((a: any, i: number) => {
             const grads = [

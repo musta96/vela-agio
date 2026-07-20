@@ -38,6 +38,8 @@ function interpolate(value: any, globals: Record<string, any>): any {
   return value;
 }
 
+const trackNavGetStarted = () => trackLandingEvent("landing_get_started_click", { source: "nav" });
+
 export default function Landing() {
   const [sections, setSections] = useState<LandingSectionRow[]>(mergeWithDefaults([]));
   const [seo, setSeo] = useState<any>({});

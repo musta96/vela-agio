@@ -13,12 +13,47 @@ import {
   ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users, Calculator,
   GitCompare, Scale, Flame, Zap, CalendarClock, FileText, UserSquare, LineChart, BarChart3,
   StickyNote, FolderOpen, ClipboardList, Coins, Rows3, TrendingUp, Gauge, Users2,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VelaLogo } from "@/components/VelaLogo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState, useEffect, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useRef, useCallback } from "react";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+
+/** Map nav-item URLs to their gating feature keys (from feature_catalog). */
+const ITEM_FEATURE_KEY: Record<string, string> = {
+  "/backtest": "ai.backtests",
+  "/strategy-lab": "strategy.proposal_builder",
+  "/risk": "portfolio.stress_test",
+  "/simulations": "portfolio.simulations",
+  "/sentiment": "ai.sentiment",
+  "/advisor": "portfolio.doctor",
+  "/optimizer": "portfolio.optimizer",
+  "/rebalance": "portfolio.rebalance",
+  "/event-study": "research.event_study",
+  "/tax-harvest": "tax.harvest",
+  "/quant": "quant.alpha",
+  "/dealflow": "dealflow.access",
+  "/api": "enterprise.api",
+  "/api-docs": "enterprise.api",
+  "/agent-integrations": "enterprise.api",
+};
+
+type SidebarGate = ReturnType<typeof useFeatureGate>;
+const SidebarGateContext = createContext<SidebarGate | null>(null);
+
+function useItemLock(url: string): { locked: boolean; planName: string | null } {
+  const gate = useContext(SidebarGateContext);
+  const key = ITEM_FEATURE_KEY[url];
+  if (!gate || !key) return { locked: false, planName: null };
+  const inCatalog = gate.catalog.some((c) => c.key === key);
+  if (!inCatalog) return { locked: false, planName: null };
+  if (gate.has(key)) return { locked: false, planName: null };
+  const target = gate.plans.find((p) => (p.feature_keys ?? []).includes(key));
+  return { locked: true, planName: target?.name ?? null };
+}
 
 const STORAGE_PREFIX = "vela.sidebar.group.";
 
@@ -307,6 +342,7 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const active = isRouteActive(pathname, it.url);
+  const { locked, planName } = useItemLock(it.url);
 
   return (
     <SidebarMenuItem key={it.url}>
@@ -326,11 +362,19 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
         >
           <it.icon className={cn("shrink-0", indent ? "h-3.5 w-3.5" : "h-4 w-4")} />
           {!collapsed && <span className="flex-1 truncate">{it.title}</span>}
-          {!collapsed && it.badge && (
+          {!collapsed && locked ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              title={planName ? `Requires ${planName}` : "Requires upgrade"}
+            >
+              <Lock className="h-2.5 w-2.5" />
+              {planName && <span className="truncate max-w-[64px]">{planName}</span>}
+            </span>
+          ) : !collapsed && it.badge ? (
             <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
               {it.badge}
             </span>
-          )}
+          ) : null}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -505,6 +549,7 @@ export function AppSidebar() {
   const isOwner = (user?.email || "").toLowerCase() === "mustarelli.edoardo@gmail.com";
   const { pathname } = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
+  const gate = useFeatureGate();
 
   // Roving keyboard navigation across every visible sidebar link + group trigger.
   // - ArrowDown/ArrowUp: move focus to next/previous item
@@ -565,6 +610,7 @@ export function AppSidebar() {
   }, [pathname]);
 
   return (
+    <SidebarGateContext.Provider value={gate}>
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? (
@@ -623,6 +669,7 @@ export function AppSidebar() {
         <OwnerGroup collapsed={collapsed} isOwner={isOwner} />
       </SidebarContent>
     </Sidebar>
+    </SidebarGateContext.Provider>
   );
 }
 

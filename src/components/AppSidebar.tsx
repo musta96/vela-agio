@@ -157,7 +157,7 @@ const ANALYST_TOOLS: NavGroup = {
     { title: "Peers", url: "/peers", icon: Network },
     { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical },
     { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
-    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat, badge: "new" },
+    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },
     { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare },
     { title: "13F Replicator", url: "/replicate", icon: Users },
   ],

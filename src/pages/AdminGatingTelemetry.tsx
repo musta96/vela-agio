@@ -45,7 +45,11 @@ export default function AdminGatingTelemetry() {
 
   return (
     <div className="container mx-auto max-w-6xl p-6 space-y-6">
-      <SEO title="Gating Telemetry · Admin" description="Recent gating-mismatch events and rate-limit counters." />
+      <SEO
+        title="Gating Telemetry · Admin"
+        description="Recent gating-mismatch events and rate-limit counters."
+        path="/admin/gating-telemetry"
+      />
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">Gating telemetry</h1>
         <p className="text-sm text-muted-foreground">

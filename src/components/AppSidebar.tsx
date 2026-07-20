@@ -375,7 +375,9 @@ function NetWorthSubMenu() {
                     )}
                   >
                     <it.icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="flex-1 truncate">{it.title}</span>
+                    <span className="flex-1 truncate">
+                      <HighlightMatch text={it.title} query={query} />
+                    </span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -414,7 +416,11 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
           )}
         >
           <it.icon className={cn("shrink-0", indent ? "h-3.5 w-3.5" : "h-4 w-4")} />
-          {!collapsed && <span className="flex-1 truncate">{it.title}</span>}
+          {!collapsed && (
+            <span className="flex-1 truncate">
+              <HighlightMatch text={it.title} query={query} />
+            </span>
+          )}
           {!collapsed && locked ? (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"

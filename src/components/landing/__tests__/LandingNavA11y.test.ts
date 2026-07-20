@@ -26,6 +26,21 @@ describe("Landing nav - focus & tap-target contract", () => {
     }
   });
 
+  it("every interactive header link enforces 44px min tap-target", () => {
+    // In-page nav anchors
+    const navAnchors = HEADER.match(/<a href="#[a-z]+"[^>]*>/g) || [];
+    expect(navAnchors.length).toBeGreaterThanOrEqual(4);
+    for (const a of navAnchors) {
+      expect(a).toMatch(/min-h-11/);
+    }
+    // React Router <Link> elements inside the header (logo + Blog)
+    const routerLinks = HEADER.match(/<Link to="[^"]+"[^>]*>/g) || [];
+    expect(routerLinks.length).toBeGreaterThanOrEqual(2);
+    for (const l of routerLinks) {
+      expect(l).toMatch(/min-h-11/);
+    }
+  });
+
   it("auth CTAs enforce 44px minimum height on mobile", () => {
     const headerButtons = HEADER.match(/<Button[^>]*size="sm"[^>]*>\s*<Link to="\/auth">/g) || [];
     expect(headerButtons.length).toBeGreaterThanOrEqual(2);

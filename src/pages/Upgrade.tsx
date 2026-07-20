@@ -7,6 +7,7 @@ import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PLAN_FEATURES } from "@/lib/planFeatures";
 
 const PLAN_LABELS: Record<string, string> = {
   plus: "Plus",

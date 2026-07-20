@@ -283,6 +283,32 @@ function isRouteActive(pathname: string, url: string) {
   return url === "/" ? pathname === "/" : pathname.startsWith(url);
 }
 
+/**
+ * Pure breadcrumb resolver: given a pathname, return the sidebar group +
+ * page label that should appear at the top of the sidebar. Exported so
+ * it can be unit-tested in isolation (see AppSidebar.breadcrumb tests)
+ * without rendering the whole sidebar tree.
+ *
+ * MUST stay in sync with the routes registered under NAV_GROUPS —
+ * duplicate labels here would only mask sidebar drift, so we drive
+ * everything from the same NAV_GROUPS array the sidebar renders from.
+ */
+export function computeBreadcrumb(pathname: string): { group: string | null; page: string } | null {
+  if (isRouteActive(pathname, DASHBOARD_ITEM.url)) {
+    return { group: null, page: DASHBOARD_ITEM.title };
+  }
+  for (const g of NAV_GROUPS) {
+    if (g.title === "Portfolio" && pathname.startsWith("/net-worth")) {
+      const nwHit = NET_WORTH_SUB.find((it) => isRouteActive(pathname, it.url));
+      if (nwHit) return { group: g.title, page: `Net Worth · ${nwHit.title}` };
+    }
+    const hit = g.items.find((it) => isRouteActive(pathname, it.url));
+    if (hit) return { group: g.title, page: hit.title };
+  }
+  if (pathname.startsWith("/owner")) return { group: "Founder", page: "Owner Console" };
+  return null;
+}
+
 function useGroupActive(pathname: string, group: NavGroup) {
   return group.items.some((it) => isRouteActive(pathname, it.url));
 }
@@ -683,21 +709,7 @@ export function AppSidebar() {
     }
   }, []);
 
-  const breadcrumb = useMemo(() => {
-    if (isRouteActive(pathname, DASHBOARD_ITEM.url)) {
-      return { group: null as string | null, page: DASHBOARD_ITEM.title };
-    }
-    for (const g of NAV_GROUPS) {
-      const nwHit = g.title === "Portfolio" && pathname.startsWith("/net-worth")
-        ? NET_WORTH_SUB.find((it) => isRouteActive(pathname, it.url))
-        : undefined;
-      if (nwHit) return { group: g.title, page: `Net Worth · ${nwHit.title}` };
-      const hit = g.items.find((it) => isRouteActive(pathname, it.url));
-      if (hit) return { group: g.title, page: hit.title };
-    }
-    if (pathname.startsWith("/owner")) return { group: "Founder", page: "Owner Console" };
-    return null;
-  }, [pathname]);
+  const breadcrumb = useMemo(() => computeBreadcrumb(pathname), [pathname]);
 
   return (
     <SidebarGateContext.Provider value={gate}>

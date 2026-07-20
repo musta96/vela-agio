@@ -1,7 +1,9 @@
 import { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { Skeleton } from "@/components/ui/skeleton";
+import { featureForPath } from "@/lib/gating/routeFeatureMap";
 
 interface Props {
   /** Feature key from feature_catalog. */
@@ -20,6 +22,35 @@ interface Props {
  */
 export function RouteFeatureGate({ feature, children }: Props) {
   const gate = useFeatureGate();
+  const location = useLocation();
+
+  // ------------------------------------------------------------------
+  // Runtime sanity check: the `feature` prop MUST match the canonical
+  // feature key registered for the current pathname. This catches the
+  // class of bug where a paste-mistake in App.tsx wires (e.g.)
+  // `/simulations` to `dealflow.access` and the upgrade card starts
+  // showing "Deal flow · Unlocks on Enterprise" on the Simulations page.
+  //
+  // Behaviour:
+  //   - In DEV / test: throw. A mismatch is a coding bug; failing loud
+  //     surfaces it in unit tests and dev builds immediately.
+  //   - In prod: log an error and let the render continue with the
+  //     provided `feature` prop (metadata is still strictly derived
+  //     from that prop, so the user never sees another feature's copy).
+  // ------------------------------------------------------------------
+  const expected = featureForPath(location.pathname);
+  if (expected && expected !== feature) {
+    const msg =
+      `[RouteFeatureGate] mismatch at "${location.pathname}": ` +
+      `expected feature key "${expected}" (from ROUTE_FEATURE_MAP) ` +
+      `but got "${feature}". Fix the <RouteFeatureGate feature=…> in App.tsx ` +
+      `or update src/lib/gating/routeFeatureMap.ts.`;
+    if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+      throw new Error(msg);
+    }
+    // eslint-disable-next-line no-console
+    console.error(msg);
+  }
 
   // While entitlements/catalog are still loading, render a consistent
   // skeleton rather than flashing either the page or the upgrade card.

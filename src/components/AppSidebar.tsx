@@ -21,6 +21,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useRef, useCallback } from "react";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { Input } from "@/components/ui/input";
+import { Search as SearchIcon, X as XIcon } from "lucide-react";
+import { getActiveNewBadgeUrls } from "@/lib/sidebarBadges";
 
 /** Map nav-item URLs to their gating feature keys (from feature_catalog). */
 const ITEM_FEATURE_KEY: Record<string, string> = {
@@ -43,6 +46,23 @@ const ITEM_FEATURE_KEY: Record<string, string> = {
 
 type SidebarGate = ReturnType<typeof useFeatureGate>;
 const SidebarGateContext = createContext<SidebarGate | null>(null);
+
+/** Set of URLs that currently qualify for a "new" badge (capped + TTL). */
+const NewBadgeContext = createContext<Set<string>>(new Set());
+/** Lowercased sidebar search query. Empty string means "no filter". */
+const SidebarSearchContext = createContext<string>("");
+
+function useResolvedBadge(it: Item): string | undefined {
+  const newBadges = useContext(NewBadgeContext);
+  // "new" badges are managed centrally: only render when the manager says so.
+  if (it.badge === "new") return newBadges.has(it.url) ? "new" : undefined;
+  return it.badge;
+}
+
+function matchesSearch(query: string, title: string): boolean {
+  if (!query) return true;
+  return title.toLowerCase().includes(query);
+}
 
 function useItemLock(url: string): { locked: boolean; planName: string | null } {
   const gate = useContext(SidebarGateContext);
@@ -250,6 +270,13 @@ function NetWorthSubMenu() {
   const { pathname } = useLocation();
   const onAnyNW = pathname.startsWith("/net-worth");
   const [open, setOpen] = useState(() => loadGroupOpen("net-worth", onAnyNW));
+  const query = useContext(SidebarSearchContext);
+  const visibleSub = query
+    ? NET_WORTH_SUB.filter((it) => matchesSearch(query, it.title))
+    : NET_WORTH_SUB;
+  const parentMatches = !query || matchesSearch(query, "Net Worth");
+  if (query && !parentMatches && visibleSub.length === 0) return null;
+  const effectiveOpen = query ? true : open;
 
   useEffect(() => {
     if (onAnyNW) {
@@ -286,13 +313,13 @@ function NetWorthSubMenu() {
   }
 
   return (
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
+    <Collapsible open={effectiveOpen} onOpenChange={handleOpenChange}>
       <SidebarMenu>
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              aria-expanded={open}
+              aria-expanded={effectiveOpen}
               data-sidebar-nav="group"
               aria-controls="sidebar-group-net-worth"
               className={cn(
@@ -304,12 +331,12 @@ function NetWorthSubMenu() {
             >
               <WalletIcon className="h-4 w-4 shrink-0" />
               <span className="flex-1 truncate text-left">Net Worth</span>
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
             </button>
           </CollapsibleTrigger>
         </SidebarMenuItem>
         <CollapsibleContent id="sidebar-group-net-worth" className={COLLAPSIBLE_ANIM}>
-          {NET_WORTH_SUB.map((it) => {
+          {visibleSub.map((it) => {
             const active = isRouteActive(pathname, it.url);
             return (
               <SidebarMenuItem key={it.url}>
@@ -343,6 +370,9 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
   const { pathname } = useLocation();
   const active = isRouteActive(pathname, it.url);
   const { locked, planName } = useItemLock(it.url);
+  const badge = useResolvedBadge(it);
+  const query = useContext(SidebarSearchContext);
+  if (query && !matchesSearch(query, it.title)) return null;
 
   return (
     <SidebarMenuItem key={it.url}>
@@ -370,9 +400,9 @@ function NavItemLink({ it, indent = false }: { it: Item; indent?: boolean }) {
               <Lock className="h-2.5 w-2.5" />
               {planName && <span className="truncate max-w-[64px]">{planName}</span>}
             </span>
-          ) : !collapsed && it.badge ? (
+          ) : !collapsed && badge ? (
             <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              {it.badge}
+              {badge}
             </span>
           ) : null}
         </NavLink>
@@ -389,6 +419,12 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
   const [open, setOpen] = useState(() =>
     loadGroupOpen(group.title, groupActive || (group.defaultOpen ?? false)),
   );
+  const query = useContext(SidebarSearchContext);
+  const visibleItems = query
+    ? group.items.filter((it) => matchesSearch(query, it.title))
+    : group.items;
+  if (query && visibleItems.length === 0) return null;
+  const effectiveOpen = query ? true : open;
 
   useEffect(() => {
     if (groupActive) {
@@ -414,23 +450,23 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
 
   return (
     <SidebarGroup>
-      <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <Collapsible open={effectiveOpen} onOpenChange={handleOpenChange}>
         <SidebarGroupLabel asChild className="px-0">
           <CollapsibleTrigger
             type="button"
-            aria-expanded={open}
+            aria-expanded={effectiveOpen}
             data-sidebar-nav="group"
             aria-controls={`sidebar-group-${group.title.toLowerCase()}`}
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
             <span>{group.title}</span>
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <CollapsibleContent id={`sidebar-group-${group.title.toLowerCase()}`} className={COLLAPSIBLE_ANIM}>
-              {group.items.map((it) => (
+              {visibleItems.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}
             </CollapsibleContent>
@@ -449,6 +485,16 @@ function PortfolioGroup() {
   const [open, setOpen] = useState(() =>
     loadGroupOpen(PORTFOLIO.title, groupActive || (PORTFOLIO.defaultOpen ?? false)),
   );
+  const query = useContext(SidebarSearchContext);
+  const visibleItems = query
+    ? PORTFOLIO.items.filter((it) => matchesSearch(query, it.title))
+    : PORTFOLIO.items;
+  const netWorthMatches = query
+    ? matchesSearch(query, "Net Worth") ||
+      NET_WORTH_SUB.some((it) => matchesSearch(query, it.title))
+    : true;
+  if (query && visibleItems.length === 0 && !netWorthMatches) return null;
+  const effectiveOpen = query ? true : open;
 
   useEffect(() => {
     if (groupActive) {
@@ -474,26 +520,26 @@ function PortfolioGroup() {
 
   return (
     <SidebarGroup>
-      <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <Collapsible open={effectiveOpen} onOpenChange={handleOpenChange}>
         <SidebarGroupLabel asChild className="px-0">
           <CollapsibleTrigger
             type="button"
-            aria-expanded={open}
+            aria-expanded={effectiveOpen}
             data-sidebar-nav="group"
             aria-controls="sidebar-group-portfolio"
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
             <span>{PORTFOLIO.title}</span>
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <CollapsibleContent id="sidebar-group-portfolio" className={COLLAPSIBLE_ANIM}>
-              {PORTFOLIO.items.map((it) => (
+              {visibleItems.map((it) => (
                 <NavItemLink key={it.url} it={it} />
               ))}
-              <NetWorthSubMenu />
+              {netWorthMatches && <NetWorthSubMenu />}
             </CollapsibleContent>
           </SidebarMenu>
         </SidebarGroupContent>
@@ -550,6 +596,10 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
   const gate = useFeatureGate();
+  const [searchInput, setSearchInput] = useState("");
+  const searchQuery = searchInput.trim().toLowerCase();
+  const newBadges = useMemo(() => getActiveNewBadgeUrls(), []);
+  const showDashboard = !searchQuery || matchesSearch(searchQuery, DASHBOARD_ITEM.title);
 
   // Roving keyboard navigation across every visible sidebar link + group trigger.
   // - ArrowDown/ArrowUp: move focus to next/previous item
@@ -611,6 +661,8 @@ export function AppSidebar() {
 
   return (
     <SidebarGateContext.Provider value={gate}>
+    <NewBadgeContext.Provider value={newBadges}>
+    <SidebarSearchContext.Provider value={searchQuery}>
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? (
@@ -654,11 +706,41 @@ export function AppSidebar() {
         aria-label="Primary"
         className="py-3"
       >
-        <SidebarGroup>
-          <SidebarMenu>
-            <NavItemLink it={DASHBOARD_ITEM} />
-          </SidebarMenu>
-        </SidebarGroup>
+        {!collapsed && (
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <SearchIcon
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/40"
+                aria-hidden="true"
+              />
+              <Input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search menu…"
+                aria-label="Filter sidebar items"
+                className="h-8 pl-8 pr-7 text-[12px] bg-sidebar-accent/30 border-sidebar-border/60 placeholder:text-sidebar-foreground/40"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Clear sidebar search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                >
+                  <XIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {showDashboard && (
+          <SidebarGroup>
+            <SidebarMenu>
+              <NavItemLink it={DASHBOARD_ITEM} />
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
         {NAV_GROUPS.map((group) =>
           group.title === "Portfolio" ? (
             <PortfolioGroup key={group.title} />
@@ -669,6 +751,8 @@ export function AppSidebar() {
         <OwnerGroup collapsed={collapsed} isOwner={isOwner} />
       </SidebarContent>
     </Sidebar>
+    </SidebarSearchContext.Provider>
+    </NewBadgeContext.Provider>
     </SidebarGateContext.Provider>
   );
 }

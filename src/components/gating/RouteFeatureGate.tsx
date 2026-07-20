@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
   /** Feature key from feature_catalog. */
@@ -20,11 +21,12 @@ interface Props {
 export function RouteFeatureGate({ feature, children }: Props) {
   const gate = useFeatureGate();
 
-  // While entitlements/catalog are still loading, render nothing rather than
-  // flashing either the page or the upgrade card. Once loaded, the decision
+  // While entitlements/catalog are still loading, render a consistent
+  // skeleton rather than flashing either the page or the upgrade card.
+  // Once loaded, the decision (unlocked, locked, or fail-closed missing key)
   // is stable.
   if (gate.entitlements.loading || gate.catalog.length === 0) {
-    return null;
+    return <RouteFeatureGateSkeleton />;
   }
 
   const keyKnown = gate.catalog.some((c) => c.key === feature);
@@ -42,6 +44,28 @@ export function RouteFeatureGate({ feature, children }: Props) {
     <div className="min-h-[70vh] flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-md">
         <FeatureGate feature={feature}>{children}</FeatureGate>
+      </div>
+    </div>
+  );
+}
+
+function RouteFeatureGateSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Checking access…"
+      className="min-h-[70vh] flex items-center justify-center px-6 py-16"
+    >
+      <div className="w-full max-w-md space-y-4">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+        <Skeleton className="h-4 w-4/6" />
+        <div className="pt-4">
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <span className="sr-only">Checking access…</span>
       </div>
     </div>
   );

@@ -549,6 +549,7 @@ export function AppSidebar() {
   const isOwner = (user?.email || "").toLowerCase() === "mustarelli.edoardo@gmail.com";
   const { pathname } = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
+  const gate = useFeatureGate();
 
   // Roving keyboard navigation across every visible sidebar link + group trigger.
   // - ArrowDown/ArrowUp: move focus to next/previous item
@@ -609,6 +610,7 @@ export function AppSidebar() {
   }, [pathname]);
 
   return (
+    <SidebarGateContext.Provider value={gate}>
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? (
@@ -667,6 +669,7 @@ export function AppSidebar() {
         <OwnerGroup collapsed={collapsed} isOwner={isOwner} />
       </SidebarContent>
     </Sidebar>
+    </SidebarGateContext.Provider>
   );
 }
 

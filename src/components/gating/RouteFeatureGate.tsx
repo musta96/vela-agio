@@ -5,6 +5,7 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { featureForPath } from "@/lib/gating/routeFeatureMap";
 import { recordGatingMismatch } from "@/lib/gating/telemetry";
+import { RouteLockedScreen } from "@/components/gating/RouteLockedScreen";
 
 interface Props {
   /** Feature key from feature_catalog. */
@@ -90,13 +91,11 @@ function RouteFeatureGateInner({ feature, children }: Props) {
   const unlocked = keyKnown && gate.has(feature);
   if (unlocked) return <>{children}</>;
 
-  return (
-    <div className="min-h-[70vh] flex items-center justify-center px-6 py-16">
-      <div className="w-full max-w-md">
-        <FeatureGate feature={feature}>{children}</FeatureGate>
-      </div>
-    </div>
-  );
+  // Route-level lock: render a full marketing-style upgrade screen instead
+  // of a small inline card. The user reached this page intentionally
+  // (sidebar navigation now lets locked items through), so we owe them a
+  // real explanation of what's behind the paywall and a first-class CTA.
+  return <RouteLockedScreen feature={feature} />;
 }
 
 function RouteFeatureGateSkeleton() {

@@ -1,34 +1,21 @@
 /**
- * Integration test: for every Pro-gated route in ROUTE_FEATURE_MAP,
- * a locked sidebar click must:
- *   1. NOT navigate (the route's element does not mount),
- *   2. open the upgrade prompt with the correct feature key,
- *   3. after the plan unlocks that key, the same click must navigate
- *      through to the target route.
- *
- * We render a harness that reproduces the exact NavItemLink click
- * contract in `src/components/AppSidebar.tsx` (kept in sync via a
- * source-level guard in `AppSidebar.gatedClick.test.tsx`). This keeps
- * the assertion focused on the gating semantics without pulling the
- * whole AppSidebar mount graph.
+ * Integration test: for every gated route in ROUTE_FEATURE_MAP, a locked
+ * sidebar click MUST navigate to the target route. The destination page
+ * renders the full marketing-style upgrade screen via <RouteFeatureGate>,
+ * so intercepting the click at the sidebar would only hide value.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route, NavLink, useLocation } from "react-router-dom";
 import { ROUTE_FEATURE_MAP } from "@/lib/gating/routeFeatureMap";
 
-function Harness({
-  to,
-  featureKey,
-  locked,
-  onUpgrade,
-}: {
-  to: string;
-  featureKey: string;
-  locked: boolean;
-  onUpgrade: (key: string) => void;
-}) {
+function LocationProbe() {
+  const loc = useLocation();
+  return <div data-testid="location">{loc.pathname}</div>;
+}
+
+function Harness({ to, locked }: { to: string; locked: boolean }) {
   return (
     <MemoryRouter initialEntries={["/dashboard"]}>
       <NavLink
@@ -36,11 +23,6 @@ function Harness({
         data-testid="nav"
         data-sidebar-nav="item"
         data-sidebar-locked={locked ? "true" : undefined}
-        onClick={(e) => {
-          if (!locked) return;
-          e.preventDefault();
-          onUpgrade(featureKey);
-        }}
       >
         go
       </NavLink>
@@ -51,45 +33,23 @@ function Harness({
     </MemoryRouter>
   );
 }
-function LocationProbe() {
-  const loc = useLocation();
-  return <div data-testid="location">{loc.pathname}</div>;
-}
 
 const ROUTES = Object.entries(ROUTE_FEATURE_MAP);
 
-describe("Sidebar gated navigate — every Pro-gated route", () => {
+describe("Sidebar gated navigate — every gated route stays navigable", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it.each(ROUTES)(
-    "locked click on %s opens upgrade prompt with feature key %s and blocks navigation",
-    async (path, key) => {
-      const user = userEvent.setup();
-      const onUpgrade = vi.fn();
-      render(<Harness to={path} featureKey={key} locked onUpgrade={onUpgrade} />);
+  it.each(ROUTES)("locked click on %s navigates through", async (path) => {
+    const user = userEvent.setup();
+    render(<Harness to={path} locked />);
+    await user.click(screen.getByTestId("nav"));
+    expect(screen.getByTestId("target")).toBeInTheDocument();
+  });
 
-      await user.click(screen.getByTestId("nav"));
-
-      // Never navigated.
-      expect(screen.queryByTestId("target")).toBeNull();
-      expect(screen.getByTestId("location").textContent).toBe("/dashboard");
-      // Upgrade prompt fired with the *canonical* key for this path.
-      expect(onUpgrade).toHaveBeenCalledTimes(1);
-      expect(onUpgrade).toHaveBeenCalledWith(key);
-    },
-  );
-
-  it.each(ROUTES)(
-    "after unlocking, clicking %s navigates to the target route",
-    async (path, _key) => {
-      const user = userEvent.setup();
-      const onUpgrade = vi.fn();
-      render(<Harness to={path} featureKey={_key} locked={false} onUpgrade={onUpgrade} />);
-
-      await user.click(screen.getByTestId("nav"));
-
-      expect(onUpgrade).not.toHaveBeenCalled();
-      expect(screen.getByTestId("target")).toBeInTheDocument();
-    },
-  );
+  it.each(ROUTES)("unlocked click on %s navigates through", async (path) => {
+    const user = userEvent.setup();
+    render(<Harness to={path} locked={false} />);
+    await user.click(screen.getByTestId("nav"));
+    expect(screen.getByTestId("target")).toBeInTheDocument();
+  });
 });

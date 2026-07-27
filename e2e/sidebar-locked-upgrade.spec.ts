@@ -134,33 +134,28 @@ test.describe("Sidebar locked-item upgrade journey", () => {
 
     for (const route of locked) {
       const link = await revealSidebarLink(page, route.path);
-      // Locked items must be marked so the sidebar's onClick handler
-      // preventDefaults and opens the upgrade prompt instead of routing.
+      // Locked items stay marked so the sidebar can render the lock chip.
       await expect(link).toHaveAttribute("data-sidebar-locked", "true");
 
-      const urlBefore = page.url();
+      // Locked routes are navigable — the destination renders the full
+      // marketing-style upgrade screen via <RouteFeatureGate>.
       await link.click();
+      await expect(page).toHaveURL(new RegExp(route.path.replace(/\//g, "\\/")), { timeout: 10_000 });
 
-      const dialog = page.getByRole("dialog");
-      await expect(dialog, `dialog should open for locked ${route.path}`).toBeVisible({ timeout: 5_000 });
+      // The locked screen must be mounted and mention the correct feature.
+      const lockedScreen = page.locator(`[data-route-locked][data-feature-key="${route.feature}"]`);
+      await expect(lockedScreen, `locked screen should render for ${route.path}`).toBeVisible({ timeout: 5_000 });
 
-      // The dialog must surface the *correct* feature key's copy — this is
-      // the regression ROUTE_FEATURE_MAP was introduced to prevent (deal
-      // flow text leaking onto /simulations, etc.).
       const featureName = catalog.get(route.feature);
       if (featureName) {
         await expect(
-          dialog.getByText(featureName, { exact: false }).first(),
-          `dialog should mention "${featureName}" for ${route.path}`,
+          lockedScreen.getByText(featureName, { exact: false }).first(),
+          `locked screen should mention "${featureName}" for ${route.path}`,
         ).toBeVisible();
       }
 
-      // Navigation must be blocked while locked.
-      expect(page.url(), `URL should not change on locked click to ${route.path}`).toBe(urlBefore);
-
-      // Close via keyboard — matches the a11y contract validated in unit tests.
-      await page.keyboard.press("Escape");
-      await expect(dialog).toBeHidden({ timeout: 5_000 });
+      // Head back for the next iteration.
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     }
 
     // ── Phase 2: unlock by swapping to Pro-seeded account + hard reload ─

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Lock, Sparkles, Check, ShieldCheck, Zap, TrendingUp, Star, ArrowRight, Clock,
@@ -7,10 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
-import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { deriveGateMeta } from "@/lib/gating/routeFeatureMap";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { resolveLockedCopy, DEFAULT_LOCKED_COPY, type LockedBenefit } from "@/lib/gating/lockedRouteContent";
+import { MissingFeaturesModal } from "@/components/gating/MissingFeaturesModal";
+import {
+  trackLockedRouteView,
+  trackLockedRouteCta,
+  trackLockedRouteDwell,
+} from "@/lib/gating/gatingAnalytics";
 
 interface Props {
   feature: string;
@@ -40,6 +46,11 @@ export function RouteLockedScreen({ feature }: Props) {
     () => gate.plans.find((p) => p.slug === target?.slug) ?? null,
     [gate.plans, target?.slug],
   );
+  const copy = useMemo(
+    () => resolveLockedCopy(feature, target?.slug),
+    [feature, target?.slug],
+  );
+  const [missingOpen, setMissingOpen] = useState(false);
 
   // A short curated list of *other* premium features included in the same
   // plan — expands the perceived value beyond the one blocked feature.
@@ -52,8 +63,14 @@ export function RouteLockedScreen({ feature }: Props) {
       .slice(0, 8) as { key: string; name: string; description: string | null }[];
   }, [targetPlanFull, gate.catalog, feature]);
 
-  // Best-effort audit — fire once per mount per feature key.
+  // Best-effort audit + analytics — fire once per mount per feature key.
   useEffect(() => {
+    trackLockedRouteView({
+      feature,
+      planSlug: gate.entitlements.planSlug,
+      requiredPlanSlug: target?.slug ?? null,
+      pathname: location.pathname,
+    });
     void (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -70,9 +87,54 @@ export function RouteLockedScreen({ feature }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feature]);
 
+  // Dwell timer — captures how long the user stayed on the locked
+  // screen before navigating away or closing the tab.
+  const mountedAt = useRef<number>(Date.now());
+  useEffect(() => {
+    mountedAt.current = Date.now();
+    const fire = () => {
+      const durationMs = Date.now() - mountedAt.current;
+      if (durationMs < 250) return; // ignore accidental mounts
+      trackLockedRouteDwell({
+        feature,
+        planSlug: gate.entitlements.planSlug,
+        requiredPlanSlug: target?.slug ?? null,
+        pathname: location.pathname,
+        durationMs,
+      });
+    };
+    const onHide = () => { if (document.visibilityState === "hidden") fire(); };
+    window.addEventListener("pagehide", fire);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", fire);
+      document.removeEventListener("visibilitychange", onHide);
+      fire();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feature]);
+
   const upgradeHref = target?.slug
     ? `/upgrade?plan=${encodeURIComponent(target.slug)}&source=locked-route&feature=${encodeURIComponent(feature)}`
     : "/upgrade";
+
+  const trackCta = (cta: Parameters<typeof trackLockedRouteCta>[0]["cta"], targetHref?: string) =>
+    trackLockedRouteCta({
+      feature,
+      planSlug: gate.entitlements.planSlug,
+      requiredPlanSlug: target?.slug ?? null,
+      pathname: location.pathname,
+      cta,
+      target: targetHref,
+    });
+
+  const headline = copy.headline ?? `Unlock ${meta.name}`;
+  const subhead = copy.subhead ?? meta.description ?? undefined;
+  const benefits = (copy.benefits ?? DEFAULT_LOCKED_COPY.benefits).slice(0, 3);
+  const testimonial = copy.testimonial ?? DEFAULT_LOCKED_COPY.testimonial;
+  const stats = copy.stats ?? DEFAULT_LOCKED_COPY.stats;
+  const primaryCta = copy.primaryCta ?? (target?.name ? `Upgrade to ${target.name}` : "Upgrade");
+  const secondaryCta = copy.secondaryCta ?? DEFAULT_LOCKED_COPY.secondaryCta;
 
   const isEnterprise = /enterprise/i.test(target?.name ?? "");
   const accent = isEnterprise
@@ -111,21 +173,17 @@ export function RouteLockedScreen({ feature }: Props) {
             <Lock className="h-3 w-3" />
             {target?.name ? `${target.name} feature` : "Premium feature"}
           </span>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Unlock {meta.name}
-          </h1>
-          {meta.description && (
-            <p className="mx-auto max-w-2xl text-base text-muted-foreground">
-              {meta.description}
-            </p>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{headline}</h1>
+          {subhead && (
+            <p className="mx-auto max-w-2xl text-base text-muted-foreground">{subhead}</p>
           )}
 
           {/* Primary CTA row */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Button asChild size="lg" className="gap-2 shadow-lg">
-              <Link to={upgradeHref}>
+              <Link to={upgradeHref} onClick={() => trackCta("primary_upgrade", upgradeHref)}>
                 <Sparkles className="h-4 w-4" />
-                {target?.name ? `Upgrade to ${target.name}` : "Upgrade"}
+                {primaryCta}
                 {target?.priceLabel && (
                   <span className="ml-1 text-xs opacity-80">· {target.priceLabel}</span>
                 )}
@@ -135,9 +193,9 @@ export function RouteLockedScreen({ feature }: Props) {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => gate.promptUpgrade(feature)}
+              onClick={() => { trackCta("see_whats_inside"); setMissingOpen(true); }}
             >
-              See what's inside
+              {secondaryCta}
             </Button>
           </div>
 
@@ -151,21 +209,9 @@ export function RouteLockedScreen({ feature }: Props) {
 
         {/* Benefit tiles */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <BenefitTile
-            icon={<Zap className="h-5 w-5" />}
-            title="Institutional depth"
-            body="Purpose-built quant models, event studies and risk engines usually reserved for desks."
-          />
-          <BenefitTile
-            icon={<TrendingUp className="h-5 w-5" />}
-            title="Actionable in minutes"
-            body="Skip the setup — Vela wires your portfolio into the model and returns decisions, not homework."
-          />
-          <BenefitTile
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Backed by your data"
-            body="Every recommendation is auditable, sourced, and grounded in your own holdings and tolerance."
-          />
+          {benefits.map((b, i) => (
+            <BenefitTile key={i} icon={renderBenefitIcon(b.icon)} title={b.title} body={b.body} />
+          ))}
         </div>
 
         {/* Plan card + bundle */}
@@ -202,13 +248,13 @@ export function RouteLockedScreen({ feature }: Props) {
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button asChild size="lg" className="gap-2">
-                <Link to={upgradeHref}>
+                <Link to={upgradeHref} onClick={() => trackCta("plan_card_cta", upgradeHref)}>
                   <Sparkles className="h-4 w-4" />
                   Start on {target?.name ?? "Pro"}
                 </Link>
               </Button>
               <Button asChild size="lg" variant="ghost">
-                <Link to="/pricing">Compare plans</Link>
+                <Link to="/pricing" onClick={() => trackCta("compare_plans", "/pricing")}>Compare plans</Link>
               </Button>
             </div>
           </Card>
@@ -216,15 +262,11 @@ export function RouteLockedScreen({ feature }: Props) {
           <Card className="p-6 sm:p-8 space-y-4">
             <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Why investors upgrade</div>
             <blockquote className="text-sm leading-relaxed">
-              “Vela turned three afternoons of spreadsheet work into a five-minute
-              decision. The advanced analytics paid for the whole year on the
-              first rebalance.”
-              <footer className="mt-2 text-xs text-muted-foreground">— Active investor, private beta</footer>
+              “{testimonial.quote}”
+              <footer className="mt-2 text-xs text-muted-foreground">— {testimonial.author}</footer>
             </blockquote>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <Stat value="5×" label="Faster decisions" />
-              <Stat value="24/7" label="AI copilot" />
-              <Stat value="0€" label="Setup" />
+              {stats.map((s, i) => (<Stat key={i} value={s.value} label={s.label} />))}
             </div>
             <div className="pt-1 text-xs text-muted-foreground">
               You're currently on <span className="font-medium text-foreground">{gate.entitlements.planName ?? "Free"}</span>.
@@ -234,12 +276,22 @@ export function RouteLockedScreen({ feature }: Props) {
         </div>
       </div>
 
-      <UpgradeDialog
-        state={gate.prompt}
-        onOpenChange={(open) => gate.setPrompt({ ...gate.prompt, open })}
-      />
+      <MissingFeaturesModal open={missingOpen} onOpenChange={setMissingOpen} feature={feature} />
     </div>
   );
+}
+
+function renderBenefitIcon(icon?: LockedBenefit["icon"]) {
+  const cls = "h-5 w-5";
+  switch (icon) {
+    case "trend": return <TrendingUp className={cls} />;
+    case "shield": return <ShieldCheck className={cls} />;
+    case "spark": return <Sparkles className={cls} />;
+    case "clock": return <Clock className={cls} />;
+    case "star": return <Star className={cls} />;
+    case "zap":
+    default: return <Zap className={cls} />;
+  }
 }
 
 function BenefitTile({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {

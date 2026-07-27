@@ -1,6 +1,5 @@
 import { Component, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { featureForPath } from "@/lib/gating/routeFeatureMap";

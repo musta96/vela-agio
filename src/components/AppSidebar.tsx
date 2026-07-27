@@ -144,7 +144,7 @@ const RESEARCH: NavGroup = {
     { title: "Idea Lab", url: "/picks", icon: Sparkles },
     { title: "Signals", url: "/alerts", icon: Bell },
     { title: "Sentiment", url: "/sentiment", icon: Newspaper },
-    { title: "Portfolio Coach", url: "/advisor", icon: Lightbulb },
+    { title: "Portfolio Doctor", url: "/advisor", icon: Lightbulb },
     { title: "Related Graph", url: "/related", icon: Network },
     { title: "Deal Flow", url: "/dealflow", icon: Handshake },
     { title: "Methodology", url: "/methodology", icon: ScrollText },
@@ -213,7 +213,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Budget", url: "/budget", icon: PiggyBank },
     { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
     { title: "Household", url: "/household", icon: Users2 },
-    { title: "Tax", url: "/tax-harvest", icon: Wallet },
+    { title: "Tax-loss Harvesting", url: "/tax-harvest", icon: Wallet },
   ],
 };
 

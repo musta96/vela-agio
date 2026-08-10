@@ -630,6 +630,9 @@ export default function PlansBilling() {
                     p={p}
                     isCurrent={isCurrent}
                     frequency={billingFrequency}
+                    canDowngrade={isFreePlan && !!isActive && !sub?.cancel_at_period_end}
+                    downgradeScheduled={isFreePlan && !!sub?.cancel_at_period_end}
+                    onDowngrade={() => setDowngradeOpen(true)}
                     onChoose={(priceId) => {
                       logPaymentEvent("open_checkout", {
                         plan: p.slug || p.tier || p.id,

@@ -6,6 +6,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
 
 function money(cents: number, currency: string) {
   return { cents, currency, formatted: new Intl.NumberFormat("en-IE", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100) };
@@ -44,19 +45,10 @@ Deno.serve(async (req) => {
     // Fall back to Vela referral/discount codes stored in our own database.
     // These are created in the owner console and may only carry a percent_off.
     if (!coupon) {
-      try {
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-        const { data } = await sb.rpc("lookup_referral_code", { _code: code });
-        const r = data as any;
-        if (r?.found && r.active && !r.expired && !r.exhausted && r.kind === "discount") {
-          if (r.stripe_coupon_id) {
-            try { coupon = await stripe.coupons.retrieve(String(r.stripe_coupon_id)); } catch { /* ignore */ }
-          }
-          if (!coupon && r.percent_off) {
-            coupon = { id: `referral_${code}`, percent_off: Number(r.percent_off), amount_off: null, duration: "forever", valid: true };
-          }
-        }
-      } catch (e) { console.warn("referral fallback failed", (e as Error).message); }
+      // Mint (and cache) the real Stripe coupon now so the preview shown here
+      // is exactly the discount checkout will apply.
+      const resolved = await resolveVelaCoupon(stripe, code);
+      if (resolved) coupon = resolved.coupon;
     }
     if (!coupon || coupon.valid === false) {
       return json({ valid: false, error: "That promo code isn't valid" }, 200);

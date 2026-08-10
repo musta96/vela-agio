@@ -118,7 +118,11 @@ Deno.serve(async (req) => {
               return new Response(JSON.stringify({ error: "invalid override" }), { status: 400, headers: jsonHeaders });
             }
             const patch: Record<string, unknown> = { user_id, [key]: !!value };
-            await admin.from("profiles").upsert(patch, { onConflict: "user_id" });
+            const { error: upErr } = await admin.from("profiles").upsert(patch, { onConflict: "user_id" });
+            if (upErr) {
+              console.error("set_user_override failed", upErr.message);
+              return new Response(JSON.stringify({ error: `Could not save override: ${upErr.message}` }), { status: 500, headers: jsonHeaders });
+            }
             await logAudit("profiles", user_id, { override: key, value: !!value });
             await logIncident("user_override", { user_id, key, value: !!value }, `override ${key}=${!!value}`);
             return ok({ ok: true });

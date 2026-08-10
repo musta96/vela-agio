@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
 
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
@@ -103,36 +104,11 @@ Deno.serve(async (req) => {
     let discounts: { coupon: string }[] | undefined;
     let referralCoupon: any | null = null;
     if (referralCode && typeof referralCode === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(referralCode)) {
-      try {
-        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-        const { data } = await sb.rpc("lookup_referral_code", { _code: referralCode });
-        const r = data as any;
-        if (r?.found && r.active && !r.expired && !r.exhausted && r.kind === "discount") {
-          let couponId: string | null = r.stripe_coupon_id ? String(r.stripe_coupon_id) : null;
-          if (couponId) {
-            try { referralCoupon = await stripe.coupons.retrieve(couponId); }
-            catch { referralCoupon = null; couponId = null; }
-          }
-          // Codes created in the admin UI only carry a percent_off — mint the
-          // matching Stripe coupon on first use and cache it on the row so the
-          // discount actually reaches checkout.
-          if (!couponId && r.percent_off) {
-            try {
-              referralCoupon = await stripe.coupons.create({
-                percent_off: Number(r.percent_off),
-                duration: "forever",
-                name: `Referral ${referralCode.toUpperCase()}`,
-                metadata: { referralCode: String(referralCode).toUpperCase(), source: "vela_referral" },
-              });
-              couponId = referralCoupon.id;
-              await sb.from("referral_codes")
-                .update({ stripe_coupon_id: couponId })
-                .ilike("code", String(referralCode));
-            } catch (e) { console.warn("referral coupon create failed", (e as Error).message); }
-          }
-          if (couponId) discounts = [{ coupon: couponId }];
-        }
-      } catch (e) { console.warn("referral lookup failed", e); }
+      const resolved = await resolveVelaCoupon(stripe, referralCode);
+      if (resolved) {
+        referralCoupon = resolved.coupon;
+        discounts = [{ coupon: resolved.couponId }];
+      }
     }
 
     // Resolve optional user-entered promo code -> Stripe promotion_code / coupon.
@@ -147,8 +123,14 @@ Deno.serve(async (req) => {
           promoDiscounts = [{ promotion_code: promos.data[0].id }];
           promoCoupon = promos.data[0].coupon;
         } else {
-          const c = await stripe.coupons.retrieve(promoCode);
+          let c: any = null;
+          try { c = await stripe.coupons.retrieve(promoCode); } catch { /* not a Stripe coupon id */ }
           if (c?.valid) { promoDiscounts = [{ coupon: c.id }]; promoCoupon = c; }
+          else {
+            // Vela-issued discount code typed into the promo field.
+            const resolved = await resolveVelaCoupon(stripe, promoCode);
+            if (resolved) { promoDiscounts = [{ coupon: resolved.couponId }]; promoCoupon = resolved.coupon; }
+          }
         }
       } catch (e) { console.warn("promo lookup failed", (e as Error).message); }
     }

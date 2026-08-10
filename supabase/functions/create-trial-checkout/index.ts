@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
 
 // Public, unauthenticated: this runs BEFORE the Supabase account exists.
 // The account is created after Stripe validates the card (see finalize-trial-signup).
@@ -50,8 +51,13 @@ Deno.serve(async (req) => {
         const promos = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 });
         if (promos.data.length) promoDiscounts = [{ promotion_code: promos.data[0].id }];
         else {
-          const c = await stripe.coupons.retrieve(promoCode);
+          let c: any = null;
+          try { c = await stripe.coupons.retrieve(promoCode); } catch { /* not a Stripe coupon id */ }
           if (c?.valid) promoDiscounts = [{ coupon: c.id }];
+          else {
+            const resolved = await resolveVelaCoupon(stripe, promoCode);
+            if (resolved) promoDiscounts = [{ coupon: resolved.couponId }];
+          }
         }
       } catch (e) { console.warn("promo lookup failed", (e as Error).message); }
     }

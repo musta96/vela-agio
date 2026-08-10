@@ -3462,6 +3462,25 @@ export type Database = {
           views: number
         }[]
       }
+      admin_gating_plan_breakdown: {
+        Args: { _days?: number }
+        Returns: {
+          avg_dwell_ms: number
+          conversion_rate: number
+          cta_clicks: number
+          ctas: Json
+          ctr: number
+          feature: string
+          last_view: string
+          median_dwell_ms: number
+          required_plan: string
+          source_plan: string
+          unique_clickers: number
+          unique_viewers: number
+          upgrades: number
+          views: number
+        }[]
+      }
       admin_list_blog_leads: {
         Args: never
         Returns: {

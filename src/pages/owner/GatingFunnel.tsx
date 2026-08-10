@@ -33,6 +33,25 @@ type CtaRow = {
   last_click: string | null;
 };
 
+type PlanCta = { cta: string; clicks: number; unique_clickers: number };
+
+type PlanRow = {
+  feature: string;
+  source_plan: string;
+  required_plan: string | null;
+  views: number;
+  unique_viewers: number;
+  cta_clicks: number;
+  unique_clickers: number;
+  ctr: number | null;
+  avg_dwell_ms: number | null;
+  median_dwell_ms: number | null;
+  upgrades: number;
+  conversion_rate: number | null;
+  ctas: PlanCta[] | null;
+  last_view: string | null;
+};
+
 const ROUTE_BY_FEATURE: Record<string, string> = Object.entries(ROUTE_FEATURE_MAP)
   .reduce((acc, [route, key]) => { acc[key] ??= route; return acc; }, {} as Record<string, string>);
 
@@ -54,6 +73,14 @@ function dwell(ms: number | null) {
 function pct(v: number | null) {
   return v == null ? "—" : `${v}%`;
 }
+function planLabel(slug?: string | null) {
+  if (!slug) return "Unknown";
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+/** e.g. "Plus → Pro" */
+function pathLabel(from?: string | null, to?: string | null) {
+  return `${planLabel(from || "free")} → ${planLabel(to)}`;
+}
 function toneFor(v: number | null, good: number, ok: number) {
   if (v == null) return "text-muted-foreground";
   if (v >= good) return "text-success";
@@ -69,6 +96,7 @@ export default function GatingFunnel() {
   const [days, setDays] = useState("30");
   const [rows, setRows] = useState<FunnelRow[]>([]);
   const [ctas, setCtas] = useState<CtaRow[]>([]);
+  const [planRows, setPlanRows] = useState<PlanRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -77,14 +105,16 @@ export default function GatingFunnel() {
     setLoading(true);
     try {
       const n = Number(days);
-      const [funnelRes, ctaRes, catRes] = await Promise.all([
+      const [funnelRes, ctaRes, planRes, catRes] = await Promise.all([
         supabase.rpc("admin_gating_funnel" as any, { _days: n }),
         supabase.rpc("admin_gating_cta_breakdown" as any, { _days: n }),
+        supabase.rpc("admin_gating_plan_breakdown" as any, { _days: n }),
         supabase.from("feature_catalog").select("key,name"),
       ]);
       if (funnelRes.error) throw funnelRes.error;
       setRows((funnelRes.data as FunnelRow[]) ?? []);
       setCtas((ctaRes.data as CtaRow[]) ?? []);
+      setPlanRows((planRes.data as PlanRow[]) ?? []);
       const map: Record<string, string> = {};
       ((catRes.data as any[]) ?? []).forEach((r) => { map[r.key] = r.name; });
       setNames(map);
@@ -123,14 +153,41 @@ export default function GatingFunnel() {
   );
 
   const ctasFor = (feature: string) => ctas.filter((c) => c.feature === feature);
+  const plansFor = (feature: string) =>
+    planRows.filter((p) => p.feature === feature).sort((a, b) => Number(b.views) - Number(a.views));
+
+  /** Aggregate every route into source→target upgrade paths. */
+  const paths = useMemo(() => {
+    const map = new Map<string, { from: string; to: string | null; views: number; viewers: number; clicks: number; upgrades: number }>();
+    planRows.forEach((p) => {
+      const key = `${p.source_plan}→${p.required_plan ?? "?"}`;
+      const cur = map.get(key) ?? { from: p.source_plan, to: p.required_plan, views: 0, viewers: 0, clicks: 0, upgrades: 0 };
+      cur.views += Number(p.views || 0);
+      cur.viewers += Number(p.unique_viewers || 0);
+      cur.clicks += Number(p.cta_clicks || 0);
+      cur.upgrades += Number(p.upgrades || 0);
+      map.set(key, cur);
+    });
+    return [...map.values()]
+      .map((v) => ({
+        ...v,
+        ctr: v.views ? Math.round((v.clicks / v.views) * 1000) / 10 : null,
+        cvr: v.viewers ? Math.round((v.upgrades / v.viewers) * 1000) / 10 : null,
+      }))
+      .sort((a, b) => b.views - a.views);
+  }, [planRows]);
 
   const exportCsv = () => {
-    const head = ["feature", "route", "required_plan", "views", "unique_viewers", "cta_clicks", "ctr_pct", "avg_dwell_ms", "median_dwell_ms", "upgrades", "conversion_pct"];
+    const head = ["feature", "route", "source_plan", "required_plan", "views", "unique_viewers", "cta_clicks", "ctr_pct", "avg_dwell_ms", "median_dwell_ms", "upgrades", "conversion_pct"];
     const lines = rows.map((r) => [
-      r.feature, ROUTE_BY_FEATURE[r.feature] ?? "", r.required_plan ?? "", r.views, r.unique_viewers,
+      r.feature, ROUTE_BY_FEATURE[r.feature] ?? "", "all", r.required_plan ?? "", r.views, r.unique_viewers,
       r.cta_clicks, r.ctr ?? "", r.avg_dwell_ms ?? "", r.median_dwell_ms ?? "", r.upgrades, r.conversion_rate ?? "",
     ].join(","));
-    const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv" });
+    const planLines = planRows.map((p) => [
+      p.feature, ROUTE_BY_FEATURE[p.feature] ?? "", p.source_plan, p.required_plan ?? "", p.views, p.unique_viewers,
+      p.cta_clicks, p.ctr ?? "", p.avg_dwell_ms ?? "", p.median_dwell_ms ?? "", p.upgrades, p.conversion_rate ?? "",
+    ].join(","));
+    const blob = new Blob([[head.join(","), ...lines, ...planLines].join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `gating-funnel-${days}d.csv`;
@@ -189,6 +246,29 @@ export default function GatingFunnel() {
         </Card>
       )}
 
+      {paths.length > 0 && (
+        <Card className="p-4">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
+            Upgrade paths (all gated routes)
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {paths.map((p) => (
+              <div key={`${p.from}-${p.to}`} className="rounded-lg border border-border/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold truncate">{pathLabel(p.from, p.to)}</span>
+                  <Badge variant="outline" className="text-[9px]">{p.views} views</Badge>
+                </div>
+                <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span className={toneFor(p.ctr, 40, 15)}>{pct(p.ctr)} CTR</span>
+                  <span className={toneFor(p.cvr, 10, 3)}>{pct(p.cvr)} conversion</span>
+                  <span>{p.upgrades} upgrades</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
@@ -244,6 +324,43 @@ export default function GatingFunnel() {
                                 <span className="tabular-nums w-28 text-right text-muted-foreground">
                                   {c.clicks} clicks · {pct(c.share_of_feature_clicks)}
                                 </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+                          By source plan
+                        </div>
+                        {plansFor(r.feature).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No plan-level data in this window.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {plansFor(r.feature).map((p) => (
+                              <div key={p.source_plan} className="rounded-md border border-border/60 p-2.5">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                                  <span className="font-semibold w-40 shrink-0">
+                                    {pathLabel(p.source_plan, p.required_plan ?? r.required_plan)}
+                                  </span>
+                                  <span className="tabular-nums text-muted-foreground">
+                                    {p.views} views / {p.unique_viewers}u
+                                  </span>
+                                  <span className={`tabular-nums ${toneFor(p.ctr, 40, 15)}`}>{pct(p.ctr)} CTR</span>
+                                  <span className="tabular-nums text-muted-foreground">{dwell(p.avg_dwell_ms)} dwell</span>
+                                  <span className={`tabular-nums font-semibold ${toneFor(p.conversion_rate, 10, 3)}`}>
+                                    {pct(p.conversion_rate)} conversion
+                                  </span>
+                                  <span className="tabular-nums text-muted-foreground">{p.upgrades} upgrades</span>
+                                </div>
+                                {(p.ctas ?? []).length > 0 && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                    {(p.ctas ?? []).map((c) => (
+                                      <Badge key={c.cta} variant="secondary" className="text-[10px] font-normal">
+                                        {CTA_LABELS[c.cta] ?? c.cta}: {c.clicks}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

@@ -220,6 +220,13 @@ export default function OwnerConsole() {
     setDetailData(res);
   };
 
+  // Re-fetch the open drawer without clearing it (used after overrides toggle).
+  const refreshUserDetail = async () => {
+    if (!detailUser) return;
+    const { data: res } = await supabase.functions.invoke("owner-console", { body: { action: "user_detail", user_id: detailUser.id } });
+    if (res) setDetailData(res);
+  };
+
   // Just-in-time reveal of financial PII (holdings/brokers/orders/etc).
   // Server-side audited; defaults are minimised per GDPR.
   const revealUserPii = async (reason: string) => {

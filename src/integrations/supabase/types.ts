@@ -3434,6 +3434,34 @@ export type Database = {
               unique_users: number
             }[]
           }
+      admin_gating_cta_breakdown: {
+        Args: { _days?: number }
+        Returns: {
+          clicks: number
+          cta: string
+          feature: string
+          last_click: string
+          share_of_feature_clicks: number
+          unique_clickers: number
+        }[]
+      }
+      admin_gating_funnel: {
+        Args: { _days?: number }
+        Returns: {
+          avg_dwell_ms: number
+          conversion_rate: number
+          cta_clicks: number
+          ctr: number
+          feature: string
+          last_view: string
+          median_dwell_ms: number
+          required_plan: string
+          unique_clickers: number
+          unique_viewers: number
+          upgrades: number
+          views: number
+        }[]
+      }
       admin_list_blog_leads: {
         Args: never
         Returns: {

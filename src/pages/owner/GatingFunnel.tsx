@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -207,9 +207,8 @@ export default function GatingFunnel() {
             {rows.map((r) => {
               const open = selected === r.feature;
               return (
-                <>
+                <Fragment key={r.feature}>
                   <TableRow
-                    key={r.feature}
                     className="cursor-pointer"
                     onClick={() => setSelected(open ? null : r.feature)}
                   >
@@ -252,7 +251,7 @@ export default function GatingFunnel() {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               );
             })}
             {!loading && rows.length === 0 && (

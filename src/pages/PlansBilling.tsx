@@ -19,6 +19,7 @@ import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
+import { CancelSubscriptionDialog } from "@/components/billing/CancelSubscriptionDialog";
 
 type SubRow = {
   id: string;
@@ -133,6 +134,8 @@ export default function PlansBilling() {
   // Toggle for the "Available plans" grid so users can compare and switch
   // between monthly and annual pricing before checkout.
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
+  // Downgrade-to-free flow (cancels the paid sub at period end).
+  const [downgradeOpen, setDowngradeOpen] = useState(false);
   // Beta access only *adds* features on top of a paid sub — never replaces it.
   // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
   // `betaBonus`  = user has a real paid sub AND beta_tester role.
@@ -627,6 +630,9 @@ export default function PlansBilling() {
                     p={p}
                     isCurrent={isCurrent}
                     frequency={billingFrequency}
+                    canDowngrade={isFreePlan && !!isActive && !sub?.cancel_at_period_end}
+                    downgradeScheduled={isFreePlan && !!sub?.cancel_at_period_end}
+                    onDowngrade={() => setDowngradeOpen(true)}
                     onChoose={(priceId) => {
                       logPaymentEvent("open_checkout", {
                         plan: p.slug || p.tier || p.id,
@@ -650,6 +656,13 @@ export default function PlansBilling() {
           </CardContent>
         </Card>
       )}
+      <CancelSubscriptionDialog
+        open={downgradeOpen}
+        onOpenChange={setDowngradeOpen}
+        currentPeriodEnd={sub?.current_period_end ?? null}
+        onCanceled={loadSubscription}
+        onKept={loadSubscription}
+      />
     </div>
   );
 }
@@ -659,11 +672,17 @@ function PlanCard({
   isCurrent,
   frequency,
   onChoose,
+  canDowngrade = false,
+  downgradeScheduled = false,
+  onDowngrade,
 }: {
   p: PlanRow;
   isCurrent: boolean;
   frequency: "monthly" | "yearly";
   onChoose: (priceId: string) => void;
+  canDowngrade?: boolean;
+  downgradeScheduled?: boolean;
+  onDowngrade?: () => void;
 }) {
   const variant = useAbPriceVariant(p.id, !!p.ab_test_enabled);
   const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
@@ -675,6 +694,37 @@ function PlanCard({
   const isPaidTier = (p.monthly_price_cents ?? 0) > 0 || (p.yearly_price_cents ?? 0) > 0;
   const missingKey = isPaidTier && !lookupKey;
   const canCheckout = !isCurrent && !!lookupKey;
+  // Free tier while on a paid plan → offer an explicit downgrade path instead
+  // of a dead "Choose" link that pointed at /upgrade?plan=free.
+  if (canDowngrade || downgradeScheduled) {
+    return (
+      <div className="rounded-xl border border-border p-4 flex flex-col" data-testid={`plan-card-${p.slug || p.tier || p.id}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-semibold">{p.name}</div>
+          {downgradeScheduled && <Badge variant="outline" className="text-[10px]">Scheduled</Badge>}
+        </div>
+        <div className="text-2xl font-bold">{formatPrice(0, "mo")}</div>
+        <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
+          {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
+            <li key={i}>• {String(f)}</li>
+          ))}
+        </ul>
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-4 w-full"
+          disabled={downgradeScheduled}
+          data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
+          onClick={() => onDowngrade?.()}
+        >
+          {downgradeScheduled ? "Downgrade scheduled" : "Downgrade to Free"}
+        </Button>
+        <p className="text-[10px] text-muted-foreground mt-2">
+          You keep paid access until the end of your current billing period, then move to Free. Your data stays.
+        </p>
+      </div>
+    );
+  }
   return (
     <div
       className={`rounded-xl border p-4 flex flex-col ${

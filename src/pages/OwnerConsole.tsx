@@ -926,7 +926,7 @@ export default function OwnerConsole() {
         </header>
         <main className="flex-1 p-6 overflow-auto">{SECTIONS[section] || dashboardSection}</main>
       </div>
-      <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} onRevealPii={revealUserPii} />
+      <UserDetailDrawer user={detailUser} data={detailData} onClose={() => { setDetailUser(null); setDetailData(null); }} act={act} onRefresh={refreshUserDetail} onImpersonate={(purpose) => detailUser && act("impersonate_log", { user_id: detailUser.id, purpose })} onRequestErasure={(reason) => detailUser && act("request_erasure", { user_id: detailUser.id, reason })} onRevealPii={revealUserPii} />
       </EmailRevealProvider>
     </div>
   );
@@ -1457,7 +1457,7 @@ function PurgeDemoSeedCard({ onAfterPurge }: { onAfterPurge: () => void | Promis
   );
 }
 
-function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestErasure, onRevealPii }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void; onRevealPii: (reason: string) => Promise<void> | void }) {
+function UserDetailDrawer({ user, data, onClose, act, onRefresh, onImpersonate, onRequestErasure, onRevealPii }: { user: UserRow | null; data: any; onClose: () => void; act: (a: string, p?: Record<string, unknown>) => Promise<boolean>; onRefresh: () => Promise<void> | void; onImpersonate: (purpose: string) => void; onRequestErasure: (reason: string) => void; onRevealPii: (reason: string) => Promise<void> | void }) {
   if (!user) return null;
   const revealed = !!data?.pii_revealed;
   return (
@@ -1544,13 +1544,21 @@ function UserDetailDrawer({ user, data, onClose, act, onImpersonate, onRequestEr
                   label="Unrestricted advisor mode"
                   description="Disables the educational-research framing for this account. Copilot will give direct, personalised buy/sell advice. Owner self-use & internal testing only."
                   enabled={!!data.profile?.unrestricted_advice}
-                  onToggle={async (v) => { await act("set_user_override", { user_id: user.id, key: "unrestricted_advice", value: v }); }}
+                  onToggle={async (v) => {
+                    const okRes = await act("set_user_override", { user_id: user.id, key: "unrestricted_advice", value: v });
+                    if (okRes) await onRefresh();
+                    return okRes;
+                  }}
                 />
                 <OverrideRow
                   label="AI opt-out (privacy)"
                   description="Blocks every AI feature for this account."
                   enabled={!!data.profile?.ai_opt_out}
-                  onToggle={async (v) => { await act("set_user_override", { user_id: user.id, key: "ai_opt_out", value: v }); }}
+                  onToggle={async (v) => {
+                    const okRes = await act("set_user_override", { user_id: user.id, key: "ai_opt_out", value: v });
+                    if (okRes) await onRefresh();
+                    return okRes;
+                  }}
                 />
               </div>
             </DetailSection>
@@ -1574,14 +1582,33 @@ function DetailKv({ label, value }: { label: string; value: string }) {
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return <div><h4 className="font-semibold text-xs mb-1">{title}</h4><div className="max-h-40 overflow-auto">{children}</div></div>;
 }
-function OverrideRow({ label, description, enabled, onToggle }: { label: string; description: string; enabled: boolean; onToggle: (v: boolean) => void | Promise<unknown> }) {
+function OverrideRow({ label, description, enabled, onToggle }: { label: string; description: string; enabled: boolean; onToggle: (v: boolean) => boolean | Promise<boolean | void | unknown> }) {
+  // Optimistic local state: the server round-trip + drawer refetch takes a
+  // moment, and without it the switch snaps back and looks broken.
+  const [value, setValue] = useState(enabled);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setValue(enabled); }, [enabled]);
+
+  const handle = async (v: boolean) => {
+    setValue(v);
+    setBusy(true);
+    try {
+      const res = await onToggle(v);
+      if (res === false) setValue(!v); // action failed — revert
+    } catch {
+      setValue(!v);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border/40 py-2">
       <div className="min-w-0">
         <div className="font-medium text-xs">{label}</div>
         <div className="text-[10px] text-muted-foreground leading-snug">{description}</div>
       </div>
-      <Switch checked={enabled} onCheckedChange={(v) => onToggle(!!v)} />
+      <Switch checked={value} disabled={busy} aria-label={label} onCheckedChange={handle} />
     </div>
   );
 }

@@ -27,11 +27,20 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const userId = String(body?.userId ?? '');
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: 'Valid userId required' }, 400);
+
+    if (body?.action === 'status') {
+      const { data: subs } = await sb.from('subscriptions')
+        .select('price_id,status,current_period_end,environment,stripe_subscription_id,created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      return json({ ok: true, subscriptions: subs ?? [] });
+    }
+
     const planSlug: string | null = body?.planSlug ?? null;
     const cycle = body?.cycle === 'yearly' ? 'yearly' : 'monthly';
     const months = Math.min(120, Math.max(1, Number(body?.months ?? (cycle === 'yearly' ? 12 : 1))));
     const environment = body?.environment === 'sandbox' ? 'sandbox' : 'live';
-    if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: 'Valid userId required' }, 400);
 
     // Always clear any previous comp grant for this user + environment.
     await sb.from('subscriptions')

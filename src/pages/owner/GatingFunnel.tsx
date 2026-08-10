@@ -246,6 +246,29 @@ export default function GatingFunnel() {
         </Card>
       )}
 
+      {paths.length > 0 && (
+        <Card className="p-4">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
+            Upgrade paths (all gated routes)
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {paths.map((p) => (
+              <div key={`${p.from}-${p.to}`} className="rounded-lg border border-border/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold truncate">{pathLabel(p.from, p.to)}</span>
+                  <Badge variant="outline" className="text-[9px]">{p.views} views</Badge>
+                </div>
+                <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span className={toneFor(p.ctr, 40, 15)}>{pct(p.ctr)} CTR</span>
+                  <span className={toneFor(p.cvr, 10, 3)}>{pct(p.cvr)} conversion</span>
+                  <span>{p.upgrades} upgrades</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
@@ -301,6 +324,43 @@ export default function GatingFunnel() {
                                 <span className="tabular-nums w-28 text-right text-muted-foreground">
                                   {c.clicks} clicks · {pct(c.share_of_feature_clicks)}
                                 </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+                          By source plan
+                        </div>
+                        {plansFor(r.feature).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No plan-level data in this window.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {plansFor(r.feature).map((p) => (
+                              <div key={p.source_plan} className="rounded-md border border-border/60 p-2.5">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                                  <span className="font-semibold w-40 shrink-0">
+                                    {pathLabel(p.source_plan, p.required_plan ?? r.required_plan)}
+                                  </span>
+                                  <span className="tabular-nums text-muted-foreground">
+                                    {p.views} views / {p.unique_viewers}u
+                                  </span>
+                                  <span className={`tabular-nums ${toneFor(p.ctr, 40, 15)}`}>{pct(p.ctr)} CTR</span>
+                                  <span className="tabular-nums text-muted-foreground">{dwell(p.avg_dwell_ms)} dwell</span>
+                                  <span className={`tabular-nums font-semibold ${toneFor(p.conversion_rate, 10, 3)}`}>
+                                    {pct(p.conversion_rate)} conversion
+                                  </span>
+                                  <span className="tabular-nums text-muted-foreground">{p.upgrades} upgrades</span>
+                                </div>
+                                {(p.ctas ?? []).length > 0 && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                    {(p.ctas ?? []).map((c) => (
+                                      <Badge key={c.cta} variant="secondary" className="text-[10px] font-normal">
+                                        {CTA_LABELS[c.cta] ?? c.cta}: {c.clicks}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

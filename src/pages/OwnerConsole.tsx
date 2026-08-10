@@ -16,6 +16,7 @@ import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
 import OwnerReferralsPage from "@/pages/owner/Referrals";
 import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import OwnerOnboardingFunnel from "@/pages/owner/OnboardingFunnel";
+import OwnerGatingFunnel from "@/pages/owner/GatingFunnel";
 import SignupConversionPanel from "@/components/owner/SignupConversionPanel";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +97,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/legal": "legal",
   "/owner/security": "security",
   "/owner/onboarding-funnel": "onboarding-funnel",
+  "/owner/gating-funnel": "gating-funnel",
   "/owner/enterprise-leads": "enterprise-leads",
   "/owner/retention-audit": "retention-audit",
 };
@@ -131,6 +133,7 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 (OWNER_SECTION_ROUTES as any)["signup-conversion"] = "/owner/signup-conversion";
 (OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 (OWNER_SECTION_ROUTES as any)["retention-audit"] = "/owner/retention-audit";
+(OWNER_SECTION_ROUTES as any)["gating-funnel"] = "/owner/gating-funnel";
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
@@ -879,6 +882,7 @@ export default function OwnerConsole() {
     blog: <OwnerBlogAdmin />,
     security: <OwnerSecurityAudit />,
     "onboarding-funnel": <OwnerOnboardingFunnel />,
+    "gating-funnel": <OwnerGatingFunnel />,
     "signup-conversion": <SignupConversionPanel />,
   };
 
@@ -987,6 +991,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "ai_metrics", label: "AI funnel metrics", icon: <Sparkles className="h-3.5 w-3.5" /> },
       { key: "onboarding-funnel", label: "Onboarding funnel", icon: <Activity className="h-3.5 w-3.5" /> },
       { key: "signup-conversion", label: "Signup conversion", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+      { key: "gating-funnel", label: "Upgrade funnel", icon: <TrendingUp className="h-3.5 w-3.5" /> },
       { key: "data", label: "Data feeds", icon: <Database className="h-3.5 w-3.5" /> },
     ]},
     { label: "Compliance", items: [

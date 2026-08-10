@@ -7,6 +7,7 @@ import { Eye, Key, ArrowUp, Ban, Download, Trash2, Lock, ShieldCheck } from "luc
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { RecommendationVerdictOverrideCard } from "@/components/owner/RecommendationVerdictOverrideCard";
+import { ManualPlanCard } from "@/components/owner/ManualPlanCard";
 
 export default function OwnerUserProfile() {
   const { id } = useParams<{ id: string }>();
@@ -176,6 +177,12 @@ export default function OwnerUserProfile() {
             <Button variant="outline" className="w-full justify-start text-destructive border-destructive/30"><Trash2 className="h-4 w-4 mr-2" />Delete & anonymise</Button>
           </div>
         </div>
+
+        {id && (
+          <div className="lg:col-span-2">
+            <ManualPlanCard userId={id} />
+          </div>
+        )}
 
         {id && (
           <div className="lg:col-span-2">

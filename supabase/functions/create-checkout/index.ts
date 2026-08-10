@@ -107,9 +107,30 @@ Deno.serve(async (req) => {
         const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
         const { data } = await sb.rpc("lookup_referral_code", { _code: referralCode });
         const r = data as any;
-        if (r?.found && r.active && !r.expired && !r.exhausted && r.kind === "discount" && r.stripe_coupon_id) {
-          discounts = [{ coupon: String(r.stripe_coupon_id) }];
-          try { referralCoupon = await stripe.coupons.retrieve(String(r.stripe_coupon_id)); } catch { /* keep null */ }
+        if (r?.found && r.active && !r.expired && !r.exhausted && r.kind === "discount") {
+          let couponId: string | null = r.stripe_coupon_id ? String(r.stripe_coupon_id) : null;
+          if (couponId) {
+            try { referralCoupon = await stripe.coupons.retrieve(couponId); }
+            catch { referralCoupon = null; couponId = null; }
+          }
+          // Codes created in the admin UI only carry a percent_off — mint the
+          // matching Stripe coupon on first use and cache it on the row so the
+          // discount actually reaches checkout.
+          if (!couponId && r.percent_off) {
+            try {
+              referralCoupon = await stripe.coupons.create({
+                percent_off: Number(r.percent_off),
+                duration: "forever",
+                name: `Referral ${referralCode.toUpperCase()}`,
+                metadata: { referralCode: String(referralCode).toUpperCase(), source: "vela_referral" },
+              });
+              couponId = referralCoupon.id;
+              await sb.from("referral_codes")
+                .update({ stripe_coupon_id: couponId })
+                .ilike("code", String(referralCode));
+            } catch (e) { console.warn("referral coupon create failed", (e as Error).message); }
+          }
+          if (couponId) discounts = [{ coupon: couponId }];
         }
       } catch (e) { console.warn("referral lookup failed", e); }
     }

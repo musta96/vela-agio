@@ -42,18 +42,24 @@ export default function OwnerFeatureCatalogPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [catRes, demandRes] = await Promise.all([
-        supabase
-          .from("feature_catalog")
-          .select("key,name,description,category,sort_order")
-          .order("sort_order", { ascending: true }),
-        supabase.rpc("admin_feature_block_summary"),
-      ]);
+      const catRes = await supabase
+        .from("feature_catalog")
+        .select("key,name,description,category,sort_order")
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
       if (catRes.error) throw catRes.error;
       setRows((catRes.data as any[]) ?? []);
-      const map: Record<string, BlockSummary> = {};
-      ((demandRes.data as any[]) ?? []).forEach((r) => { map[r.feature_key] = r; });
-      setDemand(map);
+
+      // Demand stats are a nice-to-have: the RPC is overloaded, so it must be
+      // called with a named argument, and a failure here must never blank the
+      // catalog itself.
+      try {
+        const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+        const demandRes = await supabase.rpc("admin_feature_block_summary" as any, { _since: since });
+        const map: Record<string, BlockSummary> = {};
+        ((demandRes.data as any[]) ?? []).forEach((r) => { map[r.feature_key] = r; });
+        setDemand(map);
+      } catch { /* stats unavailable */ }
       setDirty({});
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to load feature catalog");
@@ -78,6 +84,13 @@ export default function OwnerFeatureCatalogPage() {
     setDirty((d) => { const { [row.key]: _, ...rest } = d; return rest; });
     toast.success(`${row.name} saved`);
     invalidateFeatureCatalogCache();
+  };
+
+  const saveAll = async () => {
+    const pending = rows.filter((r) => dirty[r.key]);
+    if (!pending.length) return;
+    for (const row of pending) await save(row);
+    void load();
   };
 
   const remove = async (key: string) => {
@@ -140,6 +153,9 @@ export default function OwnerFeatureCatalogPage() {
             />
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+            <Button size="sm" onClick={saveAll} disabled={Object.keys(dirty).length === 0}>
+              <Save className="h-4 w-4 mr-1.5" /> Save all ({Object.keys(dirty).length})
             </Button>
           </>
         }

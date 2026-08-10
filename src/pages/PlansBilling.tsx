@@ -19,6 +19,7 @@ import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
+import { CancelSubscriptionDialog } from "@/components/billing/CancelSubscriptionDialog";
 
 type SubRow = {
   id: string;
@@ -133,6 +134,8 @@ export default function PlansBilling() {
   // Toggle for the "Available plans" grid so users can compare and switch
   // between monthly and annual pricing before checkout.
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
+  // Downgrade-to-free flow (cancels the paid sub at period end).
+  const [downgradeOpen, setDowngradeOpen] = useState(false);
   // Beta access only *adds* features on top of a paid sub — never replaces it.
   // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
   // `betaBonus`  = user has a real paid sub AND beta_tester role.

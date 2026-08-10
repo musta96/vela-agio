@@ -33,6 +33,25 @@ type CtaRow = {
   last_click: string | null;
 };
 
+type PlanCta = { cta: string; clicks: number; unique_clickers: number };
+
+type PlanRow = {
+  feature: string;
+  source_plan: string;
+  required_plan: string | null;
+  views: number;
+  unique_viewers: number;
+  cta_clicks: number;
+  unique_clickers: number;
+  ctr: number | null;
+  avg_dwell_ms: number | null;
+  median_dwell_ms: number | null;
+  upgrades: number;
+  conversion_rate: number | null;
+  ctas: PlanCta[] | null;
+  last_view: string | null;
+};
+
 const ROUTE_BY_FEATURE: Record<string, string> = Object.entries(ROUTE_FEATURE_MAP)
   .reduce((acc, [route, key]) => { acc[key] ??= route; return acc; }, {} as Record<string, string>);
 
@@ -54,6 +73,14 @@ function dwell(ms: number | null) {
 function pct(v: number | null) {
   return v == null ? "—" : `${v}%`;
 }
+function planLabel(slug?: string | null) {
+  if (!slug) return "Unknown";
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+/** e.g. "Plus → Pro" */
+function pathLabel(from?: string | null, to?: string | null) {
+  return `${planLabel(from || "free")} → ${planLabel(to)}`;
+}
 function toneFor(v: number | null, good: number, ok: number) {
   if (v == null) return "text-muted-foreground";
   if (v >= good) return "text-success";
@@ -69,6 +96,7 @@ export default function GatingFunnel() {
   const [days, setDays] = useState("30");
   const [rows, setRows] = useState<FunnelRow[]>([]);
   const [ctas, setCtas] = useState<CtaRow[]>([]);
+  const [planRows, setPlanRows] = useState<PlanRow[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -77,14 +105,16 @@ export default function GatingFunnel() {
     setLoading(true);
     try {
       const n = Number(days);
-      const [funnelRes, ctaRes, catRes] = await Promise.all([
+      const [funnelRes, ctaRes, planRes, catRes] = await Promise.all([
         supabase.rpc("admin_gating_funnel" as any, { _days: n }),
         supabase.rpc("admin_gating_cta_breakdown" as any, { _days: n }),
+        supabase.rpc("admin_gating_plan_breakdown" as any, { _days: n }),
         supabase.from("feature_catalog").select("key,name"),
       ]);
       if (funnelRes.error) throw funnelRes.error;
       setRows((funnelRes.data as FunnelRow[]) ?? []);
       setCtas((ctaRes.data as CtaRow[]) ?? []);
+      setPlanRows((planRes.data as PlanRow[]) ?? []);
       const map: Record<string, string> = {};
       ((catRes.data as any[]) ?? []).forEach((r) => { map[r.key] = r.name; });
       setNames(map);
@@ -123,14 +153,41 @@ export default function GatingFunnel() {
   );
 
   const ctasFor = (feature: string) => ctas.filter((c) => c.feature === feature);
+  const plansFor = (feature: string) =>
+    planRows.filter((p) => p.feature === feature).sort((a, b) => Number(b.views) - Number(a.views));
+
+  /** Aggregate every route into source→target upgrade paths. */
+  const paths = useMemo(() => {
+    const map = new Map<string, { from: string; to: string | null; views: number; viewers: number; clicks: number; upgrades: number }>();
+    planRows.forEach((p) => {
+      const key = `${p.source_plan}→${p.required_plan ?? "?"}`;
+      const cur = map.get(key) ?? { from: p.source_plan, to: p.required_plan, views: 0, viewers: 0, clicks: 0, upgrades: 0 };
+      cur.views += Number(p.views || 0);
+      cur.viewers += Number(p.unique_viewers || 0);
+      cur.clicks += Number(p.cta_clicks || 0);
+      cur.upgrades += Number(p.upgrades || 0);
+      map.set(key, cur);
+    });
+    return [...map.values()]
+      .map((v) => ({
+        ...v,
+        ctr: v.views ? Math.round((v.clicks / v.views) * 1000) / 10 : null,
+        cvr: v.viewers ? Math.round((v.upgrades / v.viewers) * 1000) / 10 : null,
+      }))
+      .sort((a, b) => b.views - a.views);
+  }, [planRows]);
 
   const exportCsv = () => {
-    const head = ["feature", "route", "required_plan", "views", "unique_viewers", "cta_clicks", "ctr_pct", "avg_dwell_ms", "median_dwell_ms", "upgrades", "conversion_pct"];
+    const head = ["feature", "route", "source_plan", "required_plan", "views", "unique_viewers", "cta_clicks", "ctr_pct", "avg_dwell_ms", "median_dwell_ms", "upgrades", "conversion_pct"];
     const lines = rows.map((r) => [
-      r.feature, ROUTE_BY_FEATURE[r.feature] ?? "", r.required_plan ?? "", r.views, r.unique_viewers,
+      r.feature, ROUTE_BY_FEATURE[r.feature] ?? "", "all", r.required_plan ?? "", r.views, r.unique_viewers,
       r.cta_clicks, r.ctr ?? "", r.avg_dwell_ms ?? "", r.median_dwell_ms ?? "", r.upgrades, r.conversion_rate ?? "",
     ].join(","));
-    const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv" });
+    const planLines = planRows.map((p) => [
+      p.feature, ROUTE_BY_FEATURE[p.feature] ?? "", p.source_plan, p.required_plan ?? "", p.views, p.unique_viewers,
+      p.cta_clicks, p.ctr ?? "", p.avg_dwell_ms ?? "", p.median_dwell_ms ?? "", p.upgrades, p.conversion_rate ?? "",
+    ].join(","));
+    const blob = new Blob([[head.join(","), ...lines, ...planLines].join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `gating-funnel-${days}d.csv`;

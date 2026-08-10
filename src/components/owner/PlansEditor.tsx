@@ -159,8 +159,28 @@ export function PlansEditor() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {plans.map((p) => (
-          <Card key={p.id} className="p-4 space-y-3">
+        {[...plans]
+          .sort((a, b) => Number(b.is_active) - Number(a.is_active) || a.sort_order - b.sort_order)
+          .map((p) => (
+          <Card
+            key={p.id}
+            className={`p-4 space-y-3 ${p.is_active ? "" : "border-dashed opacity-75"}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold">{p.name || p.slug}</div>
+              {p.is_active ? (
+                <Badge variant="secondary" className="text-[10px]">Active</Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                  Inactive / legacy
+                </Badge>
+              )}
+            </div>
+            {!p.is_active && (
+              <p className="text-[11px] text-muted-foreground">
+                Archived plan — kept for historical subscriptions and reporting. Not shown to customers and not selectable at checkout.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-[10px]">Name</Label>

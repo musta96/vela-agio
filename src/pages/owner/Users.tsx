@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { OwnerPageHeader, KpiStrip } from "@/components/owner/OwnerLayout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, UserPlus } from "lucide-react";
+import { Download, Gift, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 
@@ -82,7 +82,13 @@ export default function OwnerUsers() {
                   <td className="text-xs">{r.country_residence || "-"}</td>
                   <td className="text-xs text-muted-foreground">{format(new Date(r.created_at), "d MMM yy")}</td>
                   <td className="text-xs text-muted-foreground">2 min ago</td>
-                  <td />
+                  <td className="pr-4 text-right">
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`/owner/users/${r.user_id}#manual-plan`}>
+                        <Gift className="h-4 w-4 mr-1.5" />Grant plan
+                      </Link>
+                    </Button>
+                  </td>
                 </tr>
               );
             })}

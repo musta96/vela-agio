@@ -71,7 +71,9 @@ export default function OwnerUserProfile() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Eye className="h-4 w-4 mr-1.5" />Impersonate</Button>
           <Button variant="outline" size="sm"><Key className="h-4 w-4 mr-1.5" />Reset password</Button>
-          <Button variant="outline" size="sm" className="border-warning/40 text-warning"><ArrowUp className="h-4 w-4 mr-1.5" />Upgrade plan</Button>
+          <Button asChild variant="outline" size="sm" className="border-warning/40 text-warning">
+            <a href="#manual-plan"><ArrowUp className="h-4 w-4 mr-1.5" />Change plan</a>
+          </Button>
           <Button variant="outline" size="sm" className="border-destructive/30 text-destructive"><Ban className="h-4 w-4 mr-1.5" />{suspended ? "Unsuspend" : "Suspend"}</Button>
         </div>
       </div>
@@ -179,7 +181,7 @@ export default function OwnerUserProfile() {
         </div>
 
         {id && (
-          <div className="lg:col-span-2">
+          <div id="manual-plan" className="lg:col-span-2 scroll-mt-6">
             <ManualPlanCard userId={id} />
           </div>
         )}

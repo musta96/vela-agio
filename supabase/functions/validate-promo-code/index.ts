@@ -6,7 +6,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
-import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
+import { lookupVelaCode, resolveVelaCoupon } from "../_shared/velaCoupon.ts";
 
 function money(cents: number, currency: string) {
   return { cents, currency, formatted: new Intl.NumberFormat("en-IE", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100) };
@@ -24,6 +24,13 @@ Deno.serve(async (req) => {
     }
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";
     const stripe = createStripeClient(env);
+
+    // Beta codes grant full access through the referral redemption route; they
+    // are valid access codes, but they must not be sent to Stripe as coupons.
+    const velaCode = await lookupVelaCode(code);
+    if (velaCode?.found && velaCode.active && !velaCode.expired && !velaCode.exhausted && velaCode.kind === "beta") {
+      return json({ valid: true, kind: "beta", code: code.toUpperCase() });
+    }
 
     // Try promotion code first (customer-facing codes), then fall back to
     // coupon id (admin-configured). Only accept active promotion codes.
@@ -76,6 +83,7 @@ Deno.serve(async (req) => {
 
     return json({
       valid: true,
+      kind: "discount",
       code,
       promotionCodeId,
       couponId: coupon.id,

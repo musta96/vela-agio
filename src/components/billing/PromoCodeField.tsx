@@ -7,6 +7,7 @@ import { Loader2, Check, X, Tag } from "lucide-react";
 
 export type PromoValidation = {
   valid: true;
+  kind: "discount";
   code: string;
   percentOff: number | null;
   amountOff: number | null;
@@ -43,6 +44,10 @@ export function PromoCodeField({ priceLookupKey, onChange, label = "Have a promo
       if (!(data as any)?.valid) {
         setError((data as any)?.error ?? "That promo code isn't valid");
         setResult(null); onChange(null);
+        return;
+      }
+      if ((data as any)?.kind === "beta") {
+        window.location.assign(`/r/${encodeURIComponent(code.trim().toUpperCase())}`);
         return;
       }
       setResult(data as PromoValidation);

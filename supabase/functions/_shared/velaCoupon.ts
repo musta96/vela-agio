@@ -5,6 +5,29 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 export type VelaCouponResult = { couponId: string; coupon: any } | null;
 
+export type VelaCodeLookup = {
+  found: boolean;
+  kind?: "beta" | "discount";
+  active?: boolean;
+  expired?: boolean;
+  exhausted?: boolean;
+  percent_off?: number | null;
+  stripe_coupon_id?: string | null;
+  plan_id?: string | null;
+  label?: string | null;
+};
+
+export async function lookupVelaCode(code: string): Promise<VelaCodeLookup | null> {
+  if (!code || !/^[A-Za-z0-9_-]{2,64}$/.test(code)) return null;
+  const sb = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const { data, error } = await sb.rpc("lookup_referral_code", { _code: code });
+  if (error) throw error;
+  return data as VelaCodeLookup;
+}
+
 export async function resolveVelaCoupon(
   stripe: any,
   code: string,
@@ -12,12 +35,7 @@ export async function resolveVelaCoupon(
 ): Promise<VelaCouponResult> {
   if (!code || !/^[A-Za-z0-9_-]{2,64}$/.test(code)) return null;
   try {
-    const sb = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-    const { data } = await sb.rpc("lookup_referral_code", { _code: code });
-    const r = data as any;
+    const r = await lookupVelaCode(code);
     if (!r?.found || !r.active || r.expired || r.exhausted) return null;
     if (r.kind !== "discount") return null;
 
@@ -35,6 +53,10 @@ export async function resolveVelaCoupon(
       name: `Referral ${code.toUpperCase()}`,
       metadata: { referralCode: code.toUpperCase(), source: "vela_referral" },
     });
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
     await sb.from("referral_codes").update({ stripe_coupon_id: created.id }).ilike("code", code);
     return { couponId: created.id, coupon: created };
   } catch (e) {

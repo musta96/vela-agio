@@ -144,7 +144,7 @@ export default function Upgrade() {
                 <div
                   key={slug}
                   className={`rounded-lg border p-4 flex flex-col gap-3 ${
-                    plan.highlighted ? "border-primary/50 bg-primary/5" : "border-border"
+                    PLAN_FEATURES[slug].highlighted ? "border-primary/50 bg-primary/5" : "border-border"
                   }`}
                 >
                   <div>

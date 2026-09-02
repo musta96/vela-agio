@@ -95,10 +95,10 @@ export default function OwnerUserProfile() {
       </div>
 
       <KpiStrip items={[
-        { label: "Plan", value: "Pro", sub: `Since ${p?.created_at ? format(new Date(p.created_at), "MMM yyyy") : "-"}` },
-        { label: "Total spend", value: "€245", sub: "5 invoices" },
-        { label: "API calls", value: "4,820", sub: "This month" },
-        { label: "Signals viewed", value: "312", sub: "Last 30 days" },
+        { label: "Plan", value: planName, sub: sub?.status ? `Status: ${sub.status}` : "No paid subscription" },
+        { label: "Billing period ends", value: periodEndText, sub: sub?.cancel_at_period_end ? "Downgrade scheduled" : "Renews automatically" },
+        { label: "Environment", value: sub?.environment ?? "-", sub: "Billing environment" },
+        { label: "Portfolios", value: String(advisoryData?.portfolios ?? "-"), sub: consent ? "Mandate active" : "Requires mandate" },
       ]} />
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">

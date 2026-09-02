@@ -146,9 +146,9 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     priceMonthly: 149,
     priceAnnualMonthly: 125,
     priceAnnualTotal: 1500,
-    cta: "Contact sales",
-    ctaHref: "/contact-sales?source=pricing_enterprise",
-    contactSales: true,
+    cta: "Choose Enterprise",
+    ctaHref: "/upgrade?plan=enterprise",
+    contactSales: false,
     features: {
       ai_questions_per_day: null,
       live_data: true,
@@ -163,12 +163,15 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     featureList: [
       "Everything in Pro",
       "Multi-client advisor seats (3 included, add more)",
+      "Team management with seat invitations",
       "Client-ready compliance and suitability documents",
-      "Bulk export and team management",
+      "Bulk export",
       "API access",
       "Priority support",
     ],
+    lookupKey: { monthly: "enterprise_monthly", annual: "enterprise_annual" },
   },
+
 };
 
 export const PLAN_ORDER: PlanSlug[] = ["explorer", "plus", "pro", "enterprise"];

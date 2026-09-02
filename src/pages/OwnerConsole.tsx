@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
 import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
+import EnterpriseTeams from "@/pages/owner/EnterpriseTeams";
 import RetentionAuditPanel from "@/components/owner/RetentionAuditPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
@@ -100,6 +101,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/onboarding-funnel": "onboarding-funnel",
   "/owner/gating-funnel": "gating-funnel",
   "/owner/enterprise-leads": "enterprise-leads",
+  "/owner/enterprise-teams": "enterprise-teams",
   "/owner/retention-audit": "retention-audit",
 };
 
@@ -134,7 +136,9 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 (OWNER_SECTION_ROUTES as any)["signup-conversion"] = "/owner/signup-conversion";
 (OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 (OWNER_SECTION_ROUTES as any)["retention-audit"] = "/owner/retention-audit";
+(OWNER_SECTION_ROUTES as any)["enterprise-teams"] = "/owner/enterprise-teams";
 (OWNER_SECTION_ROUTES as any)["gating-funnel"] = "/owner/gating-funnel";
+
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
@@ -874,8 +878,9 @@ export default function OwnerConsole() {
     apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
     "billing-settings": <BillingSettingsPanel />,
-    "enterprise-leads": <EnterpriseLeadsPanel />,
-    "retention-audit": <RetentionAuditPanel />,
+     "enterprise-leads": <EnterpriseLeadsPanel />,
+     "enterprise-teams": <EnterpriseTeams />,
+     "retention-audit": <RetentionAuditPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,
     revenue: billingSection,
@@ -988,6 +993,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "retention-audit", label: "Retention audit", icon: <TrendingUp className="h-3.5 w-3.5" /> },
       { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
+      { key: "enterprise-teams", label: "Enterprise teams", icon: <Users className="h-3.5 w-3.5" /> },
     ]},
     { label: "Platform", items: [
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },

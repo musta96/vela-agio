@@ -1124,6 +1124,77 @@ export type Database = {
         }
         Relationships: []
       }
+      enterprise_firms: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+          seat_limit: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id: string
+          seat_limit?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string
+          seat_limit?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      enterprise_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          firm_id: string
+          id: string
+          invited_by: string
+          role: string
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          firm_id: string
+          id?: string
+          invited_by: string
+          role?: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          firm_id?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_invitations_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "enterprise_firms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enterprise_leads: {
         Row: {
           company: string | null
@@ -1186,6 +1257,38 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      enterprise_memberships: {
+        Row: {
+          created_at: string
+          firm_id: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          firm_id: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          firm_id?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_memberships_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "enterprise_firms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feature_catalog: {
         Row: {

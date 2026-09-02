@@ -1,14 +1,14 @@
 /**
  * Contract test between Upgrade.tsx and PLAN_FEATURES.
  *
- * Upgrade.tsx reads `PLAN_FEATURES[slug].contactSales` (to route the
- * Enterprise switcher to sales) and `PLAN_FEATURES[slug].highlighted`
- * (to decide which self-serve card gets the filled CTA). If a supported
- * slug ever loses either field — or the field flips shape — those
- * branches silently break.
+ * Upgrade.tsx reads `PLAN_FEATURES[slug].contactSales` (a sales-routed tier
+ * renders a "Talk to sales" link instead of a checkout CTA) and
+ * `PLAN_FEATURES[slug].highlighted` (to decide which self-serve card gets
+ * the filled CTA). If a supported slug ever loses either field — or the
+ * field flips shape — those branches silently break.
  *
  * The set of slugs enforced here mirrors the plan lists in Upgrade.tsx:
- *   SELF_SERVE_PLANS   = plus, pro
+ *   SELF_SERVE_PLANS   = plus, pro, enterprise
  *   SWITCHABLE_PLANS   = plus, pro, enterprise
  *
  * Update this array in the same PR that changes Upgrade.tsx.
@@ -30,8 +30,9 @@ const ALL_PLAN_SLUGS = ["explorer", "plus", "pro", "enterprise"] as const satisf
 const EXPECTED: Record<UpgradeSlug, { contactSales: boolean; highlighted: boolean }> = {
   plus:       { contactSales: false, highlighted: false },
   pro:        { contactSales: false, highlighted: true  },
-  enterprise: { contactSales: true,  highlighted: false },
+  enterprise: { contactSales: false, highlighted: false },
 };
+
 
 // Expected `.explorer` value for every PlanSlug. Only the free-tier plan
 // carries the flag; Upgrade.tsx uses it to render the free-tier CTA
@@ -75,10 +76,17 @@ describe("PLAN_FEATURES contract for Upgrade.tsx", () => {
     expect(highlighted, "Upgrade.tsx assumes one highlighted plan").toHaveLength(1);
   });
 
-  it("exactly one plan among the Upgrade slugs routes to sales", () => {
+  it("every plan on the Upgrade page is self-serve and carries Stripe lookup keys", () => {
     const sales = UPGRADE_PAGE_SLUGS.filter((s) => PLAN_FEATURES[s].contactSales);
-    expect(sales, "Upgrade.tsx assumes one contact-sales plan").toHaveLength(1);
+    expect(sales, "Upgrade.tsx renders a checkout CTA for every listed plan").toHaveLength(0);
+    for (const slug of UPGRADE_PAGE_SLUGS) {
+      const lookup = PLAN_FEATURES[slug].lookupKey;
+      expect(lookup, `${slug} needs Stripe lookup keys to start checkout`).toBeDefined();
+      expect(lookup!.monthly).toBeTruthy();
+      expect(lookup!.annual).toBeTruthy();
+    }
   });
+
 
   // ---------------------------------------------------------------------
   // `.explorer` — free-tier flag. Contract mirrors `contactSales` /

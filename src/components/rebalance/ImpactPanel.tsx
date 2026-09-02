@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TickerSearch } from "@/components/TickerSearch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -222,11 +223,13 @@ export default function ImpactPanel() {
           </div>
           {proposed.map((row, i) => (
             <div key={i} className="grid grid-cols-12 gap-2 items-center">
-              <Input
-                className="col-span-6 h-8"
-                placeholder="Symbol (e.g. NVDA, VWCE.DE)"
+              <TickerSearch
+                className="col-span-6"
+                inputClassName="h-8"
+                placeholder="Search instrument"
                 value={row.symbol}
-                onChange={(e) => setProposed((prev) => prev.map((r, j) => j === i ? { ...r, symbol: e.target.value } : r))}
+                onValueChange={(value) => setProposed((prev) => prev.map((r, j) => j === i ? { ...r, symbol: value } : r))}
+                onSelect={(hit) => setProposed((prev) => prev.map((r, j) => j === i ? { ...r, symbol: hit.symbol.toUpperCase() } : r))}
               />
               <Input
                 className="col-span-4 h-8"

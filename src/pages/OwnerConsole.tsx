@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
+import { TickerSearch } from "@/components/TickerSearch";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
 import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
@@ -1395,7 +1396,7 @@ function BulkRetractCard({ onSubmit }: { onSubmit: (symbol: string, since: strin
       <h3 className="font-semibold text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Bulk retract by symbol</h3>
       <p className="text-[11px] text-muted-foreground">Retracts every non-retracted signal on a ticker since a given date and notifies affected users.</p>
       <div className="grid md:grid-cols-3 gap-2">
-        <Input placeholder="Symbol (e.g. UCG.MI)" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
+        <TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" />
         <Input type="date" value={since} onChange={(e) => setSince(e.target.value)} />
         <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>

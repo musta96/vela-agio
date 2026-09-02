@@ -27,6 +27,7 @@ type FirmRow = {
   country: string | null;
   notes: string | null;
   seat_limit: number;
+  included_seats?: number;
   owner_user_id: string;
   owner_email: string | null;
   owner_plan: string;
@@ -72,6 +73,7 @@ export default function EnterpriseFirmsPanel() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<FirmRow | null>(null);
   const [profile, setProfile] = useState<ProfileFields>(EMPTY_PROFILE);
+  const [seatLimit, setSeatLimit] = useState("3");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +93,7 @@ export default function EnterpriseFirmsPanel() {
   function openEditor(firm: FirmRow) {
     setEditing(firm);
     setProfile(profileFromFirm(firm));
+    setSeatLimit(String(firm.seat_limit));
   }
 
   function updateField(field: keyof ProfileFields, value: string) {

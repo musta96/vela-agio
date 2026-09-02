@@ -217,12 +217,17 @@ Deno.serve(async (req) => {
                 { status: 400, headers: { "content-type": "application/json", ...corsHeaders } },
               );
             }
-            const [{ data: prof }, { data: cons }, { data: susp }, { data: roles }] = await Promise.all([
+            const [{ data: prof }, { data: cons }, { data: susp }, { data: roles }, { data: subs }, { data: feedback }, { data: detailPlans }] = await Promise.all([
               admin.from("profiles").select("*").eq("user_id", user_id).maybeSingle(),
               admin.from("user_consents").select("*").eq("user_id", user_id).order("accepted_at", { ascending: false }),
               admin.from("user_suspensions").select("*").eq("user_id", user_id).maybeSingle(),
               admin.from("user_roles").select("role").eq("user_id", user_id),
+              admin.from("subscriptions").select("status,price_id,cancel_at_period_end,current_period_end,environment,created_at").eq("user_id", user_id).order("created_at", { ascending: false }).limit(1),
+              admin.from("cancellation_feedback").select("id,event_type,reason,feedback,accepted_offer,metadata,created_at,stripe_subscription_id").eq("user_id", user_id).order("created_at", { ascending: false }).limit(20),
+              admin.from("subscription_plans").select("name,slug,tier,stripe_monthly_price_id,stripe_yearly_price_id"),
             ]);
+            const detailSubscription = subs?.[0] ?? null;
+            const detailPlan = detailPlans?.find((p: any) => p.stripe_monthly_price_id === detailSubscription?.price_id || p.stripe_yearly_price_id === detailSubscription?.price_id);
             const { data: au } = await admin.auth.admin.getUserById(user_id);
             const base = {
               profile: prof,
@@ -230,6 +235,8 @@ Deno.serve(async (req) => {
               consents: cons,
               suspension: susp,
               roles: (roles || []).map((r: any) => r.role),
+              subscription: detailSubscription ? { ...detailSubscription, plan_name: detailPlan?.name ?? null, plan_slug: detailPlan?.slug ?? null, plan_tier: detailPlan?.tier ?? null } : null,
+              cancellation_feedback: feedback || [],
               pii_revealed: false as boolean,
               pii_reveal: null as null | { actor_email: string | null; reason: string; at: string },
             };
@@ -551,22 +558,49 @@ Deno.serve(async (req) => {
       admin.from("audit_log").select("ts, actor_email, action, entity, payload").order("ts", { ascending: false }).limit(50),
     ]);
 
-    // Per-user portfolio counts
-    const { data: portfolioRows } = await admin.from("portfolios").select("user_id");
+    // Per-user portfolio counts and billing state. Keep the newest subscription
+    // row for each user so a scheduled cancellation remains visible until the
+    // period-end webhook/cron completes the transition.
+    const [{ data: portfolioRows }, { data: subscriptionRows }, { data: planRows }] = await Promise.all([
+      admin.from("portfolios").select("user_id"),
+      admin.from("subscriptions").select("user_id,status,price_id,cancel_at_period_end,current_period_end,environment,created_at").order("created_at", { ascending: false }),
+      admin.from("subscription_plans").select("name,slug,tier,stripe_monthly_price_id,stripe_yearly_price_id"),
+    ]);
     const portfolioByUser: Record<string, number> = {};
     for (const r of portfolioRows || []) portfolioByUser[(r as any).user_id] = (portfolioByUser[(r as any).user_id] || 0) + 1;
+    const planByPrice: Record<string, { name: string; slug: string | null; tier: string | null }> = {};
+    for (const p of planRows || []) {
+      const plan = { name: (p as any).name, slug: (p as any).slug, tier: (p as any).tier };
+      if ((p as any).stripe_monthly_price_id) planByPrice[(p as any).stripe_monthly_price_id] = plan;
+      if ((p as any).stripe_yearly_price_id) planByPrice[(p as any).stripe_yearly_price_id] = plan;
+    }
+    const subscriptionByUser: Record<string, any> = {};
+    for (const s of subscriptionRows || []) {
+      const userId = (s as any).user_id;
+      if (!subscriptionByUser[userId]) subscriptionByUser[userId] = s;
+    }
 
     const users = allUsers
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .map((u) => ({
-        id: u.id,
-        email: u.email,
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at,
-        email_confirmed_at: u.email_confirmed_at,
-        provider: (u.app_metadata as any)?.provider,
-        portfolios: portfolioByUser[u.id] || 0,
-      }));
+      .map((u) => {
+        const subscription = subscriptionByUser[u.id];
+        const plan = subscription ? planByPrice[subscription.price_id] : undefined;
+        return {
+          id: u.id,
+          email: u.email,
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at,
+          email_confirmed_at: u.email_confirmed_at,
+          provider: (u.app_metadata as any)?.provider,
+          portfolios: portfolioByUser[u.id] || 0,
+          plan_name: plan?.name ?? null,
+          plan_tier: plan?.tier ?? null,
+          subscription_status: subscription?.status ?? null,
+          subscription_cancel_at_period_end: subscription?.cancel_at_period_end ?? false,
+          subscription_current_period_end: subscription?.current_period_end ?? null,
+          subscription_environment: subscription?.environment ?? null,
+        };
+      });
 
     const [{ data: controls }, { data: banners }, { data: signals }, { data: incidents }, { data: flags }, { data: suspensions }, { data: consents }, { data: auditFull }] = await Promise.all([
       admin.from("platform_controls").select("*").order("key"),

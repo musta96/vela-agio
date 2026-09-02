@@ -13,6 +13,7 @@ import { AIMetricsAdmin } from "@/components/owner/AIMetricsAdmin";
 import OwnerTickets from "@/pages/owner/Tickets";
 import OwnerBlogAdmin from "@/pages/owner/BlogAdmin";
 import OwnerFeatureCatalogPage from "@/pages/owner/FeatureCatalogPage";
+import { ManualPlanCard } from "@/components/owner/ManualPlanCard";
 import OwnerReferralsPage from "@/pages/owner/Referrals";
 import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import OwnerOnboardingFunnel from "@/pages/owner/OnboardingFunnel";
@@ -41,7 +42,7 @@ import {
 } from "lucide-react";
 
 type Stats = { total: number; confirmed: number; signedInLast24h: number; signedInLast7d: number; newLast7d: number; portfolios: number; holdings: number; netWorthAccounts: number };
-type UserRow = { id: string; email: string; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null; provider?: string; portfolios: number; suspended?: boolean; roles?: string[]; display_name?: string | null; avatar_url?: string | null };
+type UserRow = { id: string; email: string; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null; provider?: string; portfolios: number; suspended?: boolean; roles?: string[]; display_name?: string | null; avatar_url?: string | null; plan_name?: string | null; plan_tier?: string | null; subscription_status?: string | null; subscription_cancel_at_period_end?: boolean; subscription_current_period_end?: string | null; subscription_environment?: string | null };
 type Control = { key: string; enabled: boolean; reason: string | null; updated_at: string };
 type Banner = { id: string; message: string; severity: "info"|"warning"|"critical"; active: boolean; created_at: string; expires_at: string | null };
 type Signal = { id: string; user_id: string | null; signal_type: string; symbol: string | null; status: string; confidence: number | null; created_at: string; disclaimer: string | null; retracted_reason: string | null };
@@ -402,21 +403,25 @@ export default function OwnerConsole() {
             <Card>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>User</TableHead><TableHead>Roles</TableHead><TableHead>Joined</TableHead>
-                  <TableHead>Last sign-in</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {filteredUsers.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium text-sm">
-                        <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>
-                          <div>{u.display_name || <MaskedEmail email={u.email} />}</div>
-                          {u.display_name && <div className="text-[10px] text-muted-foreground font-normal"><MaskedEmail email={u.email} /></div>}
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-xs space-x-1">
-                        {(u.roles || []).map((r) => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
-                        {!u.roles?.length && <span className="text-muted-foreground">viewer</span>}
+                   <TableHead>User</TableHead><TableHead>Plan</TableHead><TableHead>Roles</TableHead><TableHead>Joined</TableHead>
+                   <TableHead>Last sign-in</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
+                 </TableRow></TableHeader>
+                 <TableBody>
+                   {filteredUsers.map((u) => (
+                     <TableRow key={u.id}>
+                       <TableCell className="font-medium text-sm">
+                         <button className="hover:underline text-left" onClick={() => openUserDetail(u)}>
+                           <div>{u.display_name || <MaskedEmail email={u.email} />}</div>
+                           {u.display_name && <div className="text-[10px] text-muted-foreground font-normal"><MaskedEmail email={u.email} /></div>}
+                         </button>
+                       </TableCell>
+                       <TableCell>
+                         <div className="text-xs font-medium">{u.plan_name || "Explorer"}</div>
+                         {u.subscription_cancel_at_period_end && <Badge variant="outline" className="mt-1 text-[9px] border-amber-500/40 text-amber-600">Ends {u.subscription_current_period_end ? new Date(u.subscription_current_period_end).toLocaleDateString() : "at period end"}</Badge>}
+                       </TableCell>
+                       <TableCell className="text-xs space-x-1">
+                         {(u.roles || []).map((r) => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
+                         {!u.roles?.length && <span className="text-muted-foreground">viewer</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : "-"}</TableCell>
@@ -430,7 +435,7 @@ export default function OwnerConsole() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {filteredUsers.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10 text-sm">No users match those filters.</TableCell></TableRow>}
+                  {filteredUsers.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10 text-sm">No users match those filters.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </Card>
@@ -1479,6 +1484,7 @@ function UserDetailDrawer({ user, data, onClose, act, onRefresh, onImpersonate, 
               <DetailKv label="Last sign-in" value={data.auth?.last_sign_in_at ? new Date(data.auth.last_sign_in_at).toLocaleString() : "-"} />
               <DetailKv label="Provider" value={(data.auth?.app_metadata?.provider) || "-"} />
               <DetailKv label="Roles" value={(data.roles || []).join(", ") || "viewer"} />
+              <DetailKv label="Plan" value={data.subscription?.plan_name || "Explorer (Free)"} />
               <DetailKv label="Country" value={data.profile?.country_residence || "-"} />
               <DetailKv label="Suspended" value={data.suspension ? "yes" : "no"} />
             </div>
@@ -1538,29 +1544,47 @@ function UserDetailDrawer({ user, data, onClose, act, onRefresh, onImpersonate, 
                 </Button>
               </div>
             )}
-            <DetailSection title="Account overrides">
-              <div className="space-y-2 py-1">
-                <OverrideRow
-                  label="Unrestricted advisor mode"
-                  description="Disables the educational-research framing for this account. Copilot will give direct, personalised buy/sell advice. Owner self-use & internal testing only."
-                  enabled={!!data.profile?.unrestricted_advice}
-                  onToggle={async (v) => {
-                    const okRes = await act("set_user_override", { user_id: user.id, key: "unrestricted_advice", value: v });
-                    if (okRes) await onRefresh();
-                    return okRes;
-                  }}
-                />
-                <OverrideRow
-                  label="AI opt-out (privacy)"
-                  description="Blocks every AI feature for this account."
-                  enabled={!!data.profile?.ai_opt_out}
-                  onToggle={async (v) => {
-                    const okRes = await act("set_user_override", { user_id: user.id, key: "ai_opt_out", value: v });
-                    if (okRes) await onRefresh();
-                    return okRes;
-                  }}
-                />
+             <DetailSection title="Account overrides">
+               <div className="space-y-2 py-1">
+                 <OverrideRow
+                   label="Unrestricted advisor mode"
+                   description="Disables the educational-research framing for this account. Copilot will give direct, personalised buy/sell advice. Owner self-use & internal testing only."
+                   enabled={!!data.profile?.unrestricted_advice}
+                   onToggle={async (v) => {
+                     const okRes = await act("set_user_override", { user_id: user.id, key: "unrestricted_advice", value: v });
+                     if (okRes) await onRefresh();
+                     return okRes;
+                   }}
+                 />
+                 <OverrideRow
+                   label="AI opt-out (privacy)"
+                   description="Blocks every AI feature for this account."
+                   enabled={!!data.profile?.ai_opt_out}
+                   onToggle={async (v) => {
+                     const okRes = await act("set_user_override", { user_id: user.id, key: "ai_opt_out", value: v });
+                     if (okRes) await onRefresh();
+                     return okRes;
+                   }}
+                 />
+               </div>
+             </DetailSection>
+             <ManualPlanCard userId={user.id} />
+             {data.subscription?.cancel_at_period_end && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+                <div className="font-semibold text-amber-700 dark:text-amber-300">Downgrade scheduled</div>
+                <div className="text-[11px] text-muted-foreground">{data.subscription.plan_name || "Paid plan"} access ends {data.subscription.current_period_end ? new Date(data.subscription.current_period_end).toLocaleString() : "at the end of the paid period"}. The account will then return to Explorer.</div>
               </div>
+            )}
+            <DetailSection title={`Cancellation feedback (${data.cancellation_feedback?.length || 0})`}>
+              {(data.cancellation_feedback || []).length === 0 ? (
+                <div className="text-[11px] text-muted-foreground py-1">No cancellation feedback recorded.</div>
+              ) : (data.cancellation_feedback || []).slice(0, 5).map((entry: any) => (
+                <div key={entry.id} className="border-b border-border/40 py-2 space-y-0.5">
+                  <div className="flex items-center justify-between gap-2"><span className="font-medium">{entry.event_type === "cancellation" ? "Cancellation" : String(entry.event_type).split("_").join(" ")}</span><span className="text-[10px] text-muted-foreground">{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : "-"}</span></div>
+                  {entry.reason && <div className="text-muted-foreground">Reason: {String(entry.reason).split("_").join(" ")}</div>}
+                  {entry.feedback && <div className="text-muted-foreground italic">“{entry.feedback}”</div>}
+                </div>
+              ))}
             </DetailSection>
             <DetailSection title={`Consents (${data.consents?.length || 0})`}>
               {(data.consents || []).slice(0,5).map((c: any) => <div key={c.id} className="flex justify-between border-b border-border/40 py-1"><span>{new Date(c.accepted_at).toLocaleDateString()}</span><span className="font-mono text-muted-foreground">T&C {c.tos_version} / Priv {c.privacy_version}</span></div>)}

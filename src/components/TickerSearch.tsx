@@ -109,6 +109,7 @@ export function TickerSearch({
   inputClassName,
   hideAi,
   clearOnSelect,
+  id,
 }: Props) {
   const [internal, setInternal] = useState("");
   const query = value ?? internal;
@@ -273,6 +274,7 @@ export function TickerSearch({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
+          id={id}
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}

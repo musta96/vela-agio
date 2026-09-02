@@ -66,13 +66,13 @@ export function TickerMultiSelect({
   return (
     <div className={cn("space-y-2", className)}>
       <TickerSearch
+        id={id}
         value={query}
         onValueChange={setQuery}
         onSelect={add}
         clearOnSelect
         disabled={disabled || atMax}
         placeholder={atMax ? `Maximum ${max} instruments selected` : placeholder}
-        inputClassName={id ? undefined : undefined}
       />
       {symbols.length > 0 && (
         <div className="flex flex-wrap gap-1.5" aria-label="Selected instruments">

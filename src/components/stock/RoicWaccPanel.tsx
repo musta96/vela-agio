@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { TickerMultiSelect, parseSymbols } from "@/components/TickerMultiSelect";
 import { Slider } from "@/components/ui/slider";
 import { Gauge, Loader2, TrendingUp, TrendingDown, RefreshCw, BellPlus, Users, ChevronDown, ChevronRight, Download, LineChart as LineChartIcon, SlidersHorizontal, History, AlertTriangle, FileDown, ArrowDown, ArrowUp } from "lucide-react";
 import {
@@ -1195,9 +1196,9 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-2">
-            <div className="flex-1 min-w-[200px]">
-              <Label className="text-[10px]">Peer symbols</Label>
-              <Input value={peerInput} onChange={(e) => setPeerInput(e.target.value)} placeholder="e.g. AAPL, MSFT, GOOGL" className="h-9" />
+            <div className="flex-1 min-w-[240px]">
+              <Label className="text-[10px]">Peer instruments</Label>
+              <TickerMultiSelect value={peerInput} onChange={setPeerInput} max={8} placeholder="Search and add peer companies…" />
             </div>
             <div>
               <Label className="text-[10px]">Rank by</Label>

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TickerMultiSelect, parseSymbols } from "@/components/TickerMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { Sigma } from "lucide-react";
 
@@ -22,7 +22,7 @@ export default function QuantAlpha() {
 
   const run = async () => {
     setLoading(true);
-    const list = tickers.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+    const list = parseSymbols(tickers);
     const raw: { symbol: string; pe: number; roe: number; mom: number; vol: number }[] = [];
     for (const s of list) {
       const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${s}?modules=summaryDetail,defaultKeyStatistics,financialData`;
@@ -64,8 +64,8 @@ export default function QuantAlpha() {
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Sigma className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Quant Alpha - Composite Score</h1></div>
-        <div className="flex gap-2">
-          <Input value={tickers} onChange={(e) => setTickers(e.target.value)} />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <TickerMultiSelect value={tickers} onChange={setTickers} max={25} className="flex-1" placeholder="Search by name or ticker — AAPL, Apple, Bitcoin…" />
           <Button onClick={run} disabled={loading}>{loading ? "Scoring…" : "Score"}</Button>
         </div>
         {scores.length > 0 && (

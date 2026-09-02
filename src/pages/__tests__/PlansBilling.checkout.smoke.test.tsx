@@ -104,33 +104,33 @@ describe("PlansBilling → Stripe checkout (smoke)", () => {
     });
   });
 
-  it("clicking the Pro plan calls create-checkout with stripe_monthly_price_id and mounts the provider", async () => {
-    render(<HelmetProvider><MemoryRouter><PlansBilling /></MemoryRouter></HelmetProvider>);
+  it("clicking the Pro plan routes into the unified /upgrade flow with plan + cycle preselected", async () => {
+    function LocationProbe() {
+      const loc = useLocation();
+      return <div data-testid="location">{`${loc.pathname}${loc.search}`}</div>;
+    }
+
+    render(
+      <HelmetProvider>
+        <MemoryRouter initialEntries={["/plans-billing"]}>
+          <LocationProbe />
+          <Routes>
+            <Route path="/plans-billing" element={<PlansBilling />} />
+            <Route path="/upgrade" element={<div data-testid="upgrade-page" />} />
+          </Routes>
+        </MemoryRouter>
+      </HelmetProvider>,
+    );
 
     const cta = await screen.findByTestId("plan-cta-pro");
     fireEvent.click(cta);
 
-    await waitFor(() => expect(providerSpy).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("upgrade-page")).toBeInTheDocument());
+    expect(screen.getByTestId("location").textContent).toBe("/upgrade?plan=pro&cycle=monthly");
 
-    // Execute the provider's fetchClientSecret to trigger the edge call.
-    const opts = providerSpy.mock.calls[0][0].options;
-    expect(typeof opts.fetchClientSecret).toBe("function");
-    const secret = await opts.fetchClientSecret();
-    expect(secret).toBe("cs_test_plans_123");
-
-    expect(invokeMock).toHaveBeenCalledWith(
-      "create-checkout",
-      expect.objectContaining({
-        body: expect.objectContaining({
-          priceId: "pro_monthly",     // = PRO_PLAN.stripe_monthly_price_id
-          userId: "u_1",
-          customerEmail: "u@vela.ai",
-          environment: "sandbox",
-        }),
-      }),
-    );
-
-    expect(screen.getByTestId("embedded-checkout-mounted")).toBeInTheDocument();
+    // Checkout is mounted by the /upgrade flow, never inline on this page.
+    expect(providerSpy).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith("create-checkout", expect.anything());
   });
 
   it("shows a missing-key banner and disables checkout when the plan lacks stripe price IDs", async () => {

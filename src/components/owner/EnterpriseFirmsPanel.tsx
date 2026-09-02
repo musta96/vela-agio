@@ -102,9 +102,14 @@ export default function EnterpriseFirmsPanel() {
 
   async function saveProfile() {
     if (!editing) return;
+    const seats = Number(seatLimit);
+    if (!Number.isInteger(seats) || seats < 1 || seats > 1000) {
+      toast.error("Seat limit must be a whole number between 1 and 1000.");
+      return;
+    }
     setSaving(true);
     const { data, error } = await supabase.functions.invoke("manage-enterprise-team", {
-      body: { action: "admin_update_firm_profile", firm_id: editing.id, ...profile },
+      body: { action: "admin_update_firm_profile", firm_id: editing.id, ...profile, seat_limit: seats },
     });
     setSaving(false);
     if (error || (data as any)?.error) {
@@ -194,6 +199,11 @@ export default function EnterpriseFirmsPanel() {
             <div className="space-y-1.5"><Label htmlFor="contact-name">Primary contact</Label><Input id="contact-name" value={profile.contact_name} onChange={(e) => updateField("contact_name", e.target.value)} maxLength={200} /></div>
             <div className="space-y-1.5"><Label htmlFor="contact-email">Contact email</Label><Input id="contact-email" type="email" value={profile.contact_email} onChange={(e) => updateField("contact_email", e.target.value)} maxLength={200} /></div>
             <div className="space-y-1.5"><Label htmlFor="contact-phone">Contact phone</Label><Input id="contact-phone" value={profile.contact_phone} onChange={(e) => updateField("contact_phone", e.target.value)} maxLength={200} /></div>
+            <div className="space-y-1.5">
+              <Label htmlFor="seat-limit">Seat limit</Label>
+              <Input id="seat-limit" type="number" min={1} max={1000} value={seatLimit} onChange={(e) => setSeatLimit(e.target.value)} />
+              <p className="text-[11px] text-muted-foreground">3 seats are included with Enterprise. Raise this to sell extra advisor seats; it cannot go below seats already in use.</p>
+            </div>
             <div className="space-y-1.5"><Label htmlFor="website">Website</Label><Input id="website" type="url" value={profile.website} onChange={(e) => updateField("website", e.target.value)} maxLength={200} /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="address-line1">Address</Label><Input id="address-line1" value={profile.address_line1} onChange={(e) => updateField("address_line1", e.target.value)} maxLength={200} /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="address-line2">Address line 2</Label><Input id="address-line2" value={profile.address_line2} onChange={(e) => updateField("address_line2", e.target.value)} maxLength={200} /></div>

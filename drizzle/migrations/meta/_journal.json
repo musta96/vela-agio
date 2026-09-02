@@ -29,6 +29,13 @@
       "when": 1788362087478,
       "tag": "0003_enterprise_firm_profile_and_seat_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788362266381,
+      "tag": "0004_fix_enterprise_firms_membership_policy",
+      "breakpoints": true
     }
   ]
 }

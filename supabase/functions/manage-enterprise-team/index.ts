@@ -225,25 +225,27 @@ Deno.serve(async (req) => {
       const { data: plan } = await db.from("subscription_plans")
         .select("slug,name,stripe_monthly_price_id").eq("slug", "enterprise").maybeSingle();
       const priceId = (plan as any)?.stripe_monthly_price_id ?? null;
-      if (priceId) {
-        await db.from("subscriptions").delete()
-          .eq("user_id", ownerId).eq("environment", "live").like("stripe_subscription_id", "comp_%");
-        const start = new Date();
-        const end = new Date(start); end.setMonth(end.getMonth() + 1);
-        await db.from("subscriptions").insert({
-          user_id: ownerId,
-          stripe_subscription_id: `comp_${crypto.randomUUID()}`,
-          stripe_customer_id: `comp_${ownerId}`,
-          product_id: "comp_enterprise",
-          price_id: priceId,
-          status: "active",
-          current_period_start: start.toISOString(),
-          current_period_end: end.toISOString(),
-          cancel_at_period_end: false,
-          environment: "live",
-        });
-      }
-      await db.from("profiles").update({ plan: "enterprise" }).eq("user_id", ownerId);
+      if (!priceId) return json({ error: "Enterprise does not have a live monthly price configured." }, 409);
+
+      await db.from("subscriptions").delete()
+        .eq("user_id", ownerId).eq("environment", "live").like("stripe_subscription_id", "comp_%");
+      const start = new Date();
+      const end = new Date(start); end.setMonth(end.getMonth() + 1);
+      const { error: grantError } = await db.from("subscriptions").insert({
+        user_id: ownerId,
+        stripe_subscription_id: `comp_${crypto.randomUUID()}`,
+        stripe_customer_id: `comp_${ownerId}`,
+        product_id: "comp_enterprise",
+        price_id: priceId,
+        status: "active",
+        current_period_start: start.toISOString(),
+        current_period_end: end.toISOString(),
+        cancel_at_period_end: false,
+        environment: "live",
+      });
+      if (grantError) return json({ error: "Could not grant Enterprise access." }, 500);
+      const { error: profileError } = await db.from("profiles").update({ plan: "enterprise" }).eq("user_id", ownerId);
+      if (profileError) return json({ error: "Enterprise access was granted but the profile could not be updated." }, 500);
 
       // 2) Provision the firm and its owner seat.
       let { data: firm } = await db.from("enterprise_firms")

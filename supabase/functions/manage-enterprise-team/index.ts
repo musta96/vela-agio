@@ -253,15 +253,15 @@ Deno.serve(async (req) => {
       if (!firm) {
         const insert: Record<string, unknown> = { owner_user_id: ownerId, seat_limit: 3 };
         if ((lead as any).company) insert.name = String((lead as any).company).slice(0, 120);
-        const { data: created } = await db.from("enterprise_firms").insert(insert).select("*").maybeSingle();
+        const { data: created, error: firmError } = await db.from("enterprise_firms").insert(insert).select("*").maybeSingle();
+        if (firmError || !created) return json({ error: "Enterprise access was granted but the firm could not be provisioned." }, 500);
         firm = created;
       }
-      if (firm) {
-        await db.from("enterprise_memberships").upsert(
-          { firm_id: (firm as any).id, user_id: ownerId, role: "firm_admin" },
-          { onConflict: "firm_id,user_id" },
-        );
-      }
+      const { error: membershipError } = await db.from("enterprise_memberships").upsert(
+        { firm_id: (firm as any).id, user_id: ownerId, role: "firm_admin" },
+        { onConflict: "firm_id,user_id" },
+      );
+      if (membershipError) return json({ error: "Enterprise firm created but the owner seat could not be provisioned." }, 500);
 
       await db.from("enterprise_leads").update({ status: "converted" }).eq("id", leadId);
       await db.from("audit_log").insert({

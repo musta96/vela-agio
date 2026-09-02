@@ -47,6 +47,7 @@ const SECTIONS: { label: string; items: Item[] }[] = [
   { label: "AI & data", items: [
     { title: "Signal governance", url: "/owner/signals", icon: Bot, badge: 2, tone: "warn" },
     { title: "Data feeds", url: "/owner/data-feeds", icon: Database },
+    { title: "Enterprise teams", url: "/owner/enterprise-teams", icon: Users },
   ]},
   { label: "Compliance", items: [
     { title: "GDPR requests", url: "/owner/gdpr", icon: Scale, badge: 5, tone: "warn" },

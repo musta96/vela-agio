@@ -85,6 +85,8 @@ import AIStocksToWatch from "./pages/AIStocksToWatch";
 import PaperTrading from "./pages/PaperTrading";
 import ShortSelling from "./pages/ShortSelling";
 import OwnerConsole from "./pages/OwnerConsole";
+import EnterpriseTeams from "./pages/owner/EnterpriseTeams";
+import JoinEnterpriseTeam from "./pages/JoinEnterpriseTeam";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";

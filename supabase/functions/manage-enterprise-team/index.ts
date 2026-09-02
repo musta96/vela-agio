@@ -12,6 +12,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ROLES = new Set(["firm_admin", "advisor", "analyst", "viewer"]);
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Editable firm-profile columns. Anything else in the payload is ignored. */
 const PROFILE_FIELDS = [
@@ -142,7 +143,7 @@ Deno.serve(async (req) => {
 
     if (action === "admin_update_firm_profile") {
       const firmId = String((body as any)?.firm_id ?? "").trim();
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firmId)) {
+      if (!UUID_RE.test(firmId)) {
         return json({ error: "A valid firm is required." }, 400);
       }
       const { data: adminRole } = await db
@@ -150,12 +151,123 @@ Deno.serve(async (req) => {
       if (!adminRole) return json({ error: "Forbidden" }, 403);
       const result = profilePatch(body);
       if ("error" in result) return json({ error: result.error }, 400);
-      if (!Object.keys(result.patch).length) return json({ error: "No profile changes supplied." }, 400);
+      const patch: Record<string, unknown> = { ...result.patch };
+
+      // Seat override: admins can sell seats beyond the three included with
+      // Enterprise, but never below the seats a firm is already using.
+      if ("seat_limit" in (body as any) && (body as any).seat_limit !== null && (body as any).seat_limit !== "") {
+        const seats = Number((body as any).seat_limit);
+        if (!Number.isInteger(seats) || seats < 1 || seats > 1000) {
+          return json({ error: "Seat limit must be a whole number between 1 and 1000." }, 400);
+        }
+        const [{ count: members }, { count: pending }] = await Promise.all([
+          db.from("enterprise_memberships").select("id", { count: "exact", head: true }).eq("firm_id", firmId),
+          db.from("enterprise_invitations").select("id", { count: "exact", head: true })
+            .eq("firm_id", firmId).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
+        ]);
+        const used = (members ?? 0) + (pending ?? 0);
+        if (seats < used) {
+          return json({ error: `This firm already uses ${used} seats. Remove members or invitations first.` }, 409);
+        }
+        patch.seat_limit = seats;
+      }
+
+      if (!Object.keys(patch).length) return json({ error: "No profile changes supplied." }, 400);
       const { data: firm, error } = await db.from("enterprise_firms")
-        .update(result.patch).eq("id", firmId).select("*").maybeSingle();
+        .update(patch).eq("id", firmId).select("*").maybeSingle();
       if (error) return json({ error: "Could not update firm profile." }, 500);
       if (!firm) return json({ error: "Firm not found." }, 404);
+      await db.from("audit_log").insert({
+        actor_id: userId, action: "admin.firm.profile_updated",
+        entity: "enterprise_firms", entity_id: firmId, payload: patch,
+      });
       return json({ ok: true, firm });
+    }
+
+    // ---- Admin-only: Enterprise lead review + provisioning.
+    if (action === "admin_list_leads" || action === "admin_approve_lead") {
+      const { data: adminRole } = await db
+        .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
+      if (!adminRole) return json({ error: "Forbidden" }, 403);
+
+      if (action === "admin_list_leads") {
+        const { data: leads } = await db.from("enterprise_leads")
+          .select("id,first_name,last_name,email,role,company,status,user_id,created_at")
+          .order("created_at", { ascending: false }).limit(200);
+        const rows = [] as any[];
+        for (const lead of leads ?? []) {
+          let firmId: string | null = null;
+          if ((lead as any).user_id) {
+            const { data: firm } = await db.from("enterprise_firms")
+              .select("id").eq("owner_user_id", (lead as any).user_id).maybeSingle();
+            firmId = (firm as any)?.id ?? null;
+          }
+          rows.push({
+            ...lead,
+            firm_name: (lead as any).company ?? null,
+            firm_id: firmId,
+            approved: (lead as any).status === "converted",
+          });
+        }
+        return json({ leads: rows });
+      }
+
+      const leadId = String((body as any)?.lead_id ?? "").trim();
+      if (!UUID_RE.test(leadId)) return json({ error: "A valid lead is required." }, 400);
+      const { data: lead } = await db.from("enterprise_leads").select("*").eq("id", leadId).maybeSingle();
+      if (!lead) return json({ error: "Lead not found." }, 404);
+      const ownerId = (lead as any).user_id as string | null;
+      if (!ownerId) {
+        return json({ error: "This applicant has no account yet, so seats cannot be provisioned." }, 409);
+      }
+
+      // 1) Grant Enterprise access (comp subscription + profile tier).
+      const { data: plan } = await db.from("subscription_plans")
+        .select("slug,name,stripe_monthly_price_id").eq("slug", "enterprise").maybeSingle();
+      const priceId = (plan as any)?.stripe_monthly_price_id ?? null;
+      if (priceId) {
+        await db.from("subscriptions").delete()
+          .eq("user_id", ownerId).eq("environment", "live").like("stripe_subscription_id", "comp_%");
+        const start = new Date();
+        const end = new Date(start); end.setMonth(end.getMonth() + 1);
+        await db.from("subscriptions").insert({
+          user_id: ownerId,
+          stripe_subscription_id: `comp_${crypto.randomUUID()}`,
+          stripe_customer_id: `comp_${ownerId}`,
+          product_id: "comp_enterprise",
+          price_id: priceId,
+          status: "active",
+          current_period_start: start.toISOString(),
+          current_period_end: end.toISOString(),
+          cancel_at_period_end: false,
+          environment: "live",
+        });
+      }
+      await db.from("profiles").update({ plan: "enterprise" }).eq("user_id", ownerId);
+
+      // 2) Provision the firm and its owner seat.
+      let { data: firm } = await db.from("enterprise_firms")
+        .select("*").eq("owner_user_id", ownerId).maybeSingle();
+      if (!firm) {
+        const insert: Record<string, unknown> = { owner_user_id: ownerId, seat_limit: 3 };
+        if ((lead as any).company) insert.name = String((lead as any).company).slice(0, 120);
+        const { data: created } = await db.from("enterprise_firms").insert(insert).select("*").maybeSingle();
+        firm = created;
+      }
+      if (firm) {
+        await db.from("enterprise_memberships").upsert(
+          { firm_id: (firm as any).id, user_id: ownerId, role: "firm_admin" },
+          { onConflict: "firm_id,user_id" },
+        );
+      }
+
+      await db.from("enterprise_leads").update({ status: "converted" }).eq("id", leadId);
+      await db.from("audit_log").insert({
+        actor_id: userId, action: "admin.enterprise_lead.approved",
+        entity: "enterprise_leads", entity_id: leadId,
+        payload: { owner_user_id: ownerId, firm_id: (firm as any)?.id ?? null, comped: Boolean(priceId) },
+      });
+      return json({ ok: true, firm_id: (firm as any)?.id ?? null });
     }
 
     // ---- Everything below acts on the caller's own firm.

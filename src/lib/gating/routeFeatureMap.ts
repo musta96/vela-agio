@@ -26,6 +26,7 @@ export const ROUTE_FEATURE_MAP: Record<string, string> = {
   "/quant": "quant.alpha",
   "/dealflow": "dealflow.access",
   "/advisor": "portfolio.doctor",
+  "/enterprise/team": "enterprise.team_management",
 };
 
 /** Return the canonical feature key for a pathname, or `null` when the

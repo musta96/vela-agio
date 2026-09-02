@@ -145,7 +145,8 @@ export default function EnterpriseLeadsPanel() {
         <div>
           <h2 className="text-xl font-bold tracking-tight">Enterprise leads</h2>
           <p className="text-sm text-muted-foreground">
-            Sales-assisted intake — Enterprise activation is always manual.
+            Sales-assisted intake. Enterprise is also self-serve at €149/mo — use this queue for
+            firms that need a quote, a rollout plan or manual activation.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load}>

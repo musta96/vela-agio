@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
 import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
-import EnterpriseTeams from "@/pages/owner/EnterpriseTeams";
+import EnterpriseFirmsPanel from "@/components/owner/EnterpriseFirmsPanel";
 import RetentionAuditPanel from "@/components/owner/RetentionAuditPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
@@ -879,7 +879,7 @@ export default function OwnerConsole() {
     plans: <PlansEditor />,
     "billing-settings": <BillingSettingsPanel />,
      "enterprise-leads": <EnterpriseLeadsPanel />,
-     "enterprise-teams": <EnterpriseTeams />,
+     "enterprise-teams": <EnterpriseFirmsPanel />,
      "retention-audit": <RetentionAuditPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,

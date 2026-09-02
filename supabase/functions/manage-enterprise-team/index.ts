@@ -89,6 +89,36 @@ Deno.serve(async (req) => {
       return json({ ok: true, firm_id: firmId });
     }
 
+    // ---- Admin-only: list every firm on the platform with its seat usage.
+    if (action === "admin_list_firms") {
+      const { data: roles } = await db
+        .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
+      if (!roles) return json({ error: "Forbidden" }, 403);
+
+      const { data: firms } = await db
+        .from("enterprise_firms").select("*").order("created_at", { ascending: false }).limit(200);
+      const rows = [] as any[];
+      for (const f of firms ?? []) {
+        const [{ count: members }, { count: pending }] = await Promise.all([
+          db.from("enterprise_memberships").select("id", { count: "exact", head: true }).eq("firm_id", (f as any).id),
+          db.from("enterprise_invitations").select("id", { count: "exact", head: true })
+            .eq("firm_id", (f as any).id).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
+        ]);
+        const { data: au } = await db.auth.admin.getUserById((f as any).owner_user_id);
+        const { data: prof } = await db.from("profiles")
+          .select("plan,subscription_status").eq("user_id", (f as any).owner_user_id).maybeSingle();
+        rows.push({
+          ...f,
+          owner_email: au?.user?.email ?? null,
+          owner_plan: (prof as any)?.plan ?? "explorer",
+          owner_status: (prof as any)?.subscription_status ?? null,
+          members: members ?? 0,
+          pending_invites: pending ?? 0,
+        });
+      }
+      return json({ firms: rows });
+    }
+
     // ---- Everything below acts on the caller's own firm.
     const plan = await planSlugFor(db, userId);
 

@@ -62,7 +62,7 @@ export default function Blotter() {
           <CardHeader><CardTitle>New Trade</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <TickerSearch value={sym} onValueChange={setSym} onSelect={(hit) => setSym(hit.symbol.toUpperCase())} placeholder="Search instrument" />
-            <Select value={side} onValueChange={(v) => setSide(v as any)>
+            <Select value={side} onValueChange={(v) => setSide(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="BUY">BUY</SelectItem><SelectItem value="SELL">SELL</SelectItem></SelectContent>
             </Select>

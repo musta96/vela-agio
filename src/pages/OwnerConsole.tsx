@@ -5,6 +5,8 @@ import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
 import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
 import EnterpriseFirmsPanel from "@/components/owner/EnterpriseFirmsPanel";
+import EnterpriseApprovalPanel from "@/components/owner/EnterpriseApprovalPanel";
+import OwnerPricingOverview from "@/components/owner/OwnerPricingOverview";
 import RetentionAuditPanel from "@/components/owner/RetentionAuditPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
@@ -102,6 +104,8 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/gating-funnel": "gating-funnel",
   "/owner/enterprise-leads": "enterprise-leads",
   "/owner/enterprise-teams": "enterprise-teams",
+  "/owner/enterprise-approvals": "enterprise-approvals",
+  "/owner/pricing-overview": "pricing-overview",
   "/owner/retention-audit": "retention-audit",
 };
 
@@ -138,6 +142,8 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 (OWNER_SECTION_ROUTES as any)["retention-audit"] = "/owner/retention-audit";
 (OWNER_SECTION_ROUTES as any)["enterprise-teams"] = "/owner/enterprise-teams";
 (OWNER_SECTION_ROUTES as any)["gating-funnel"] = "/owner/gating-funnel";
+(OWNER_SECTION_ROUTES as any)["enterprise-approvals"] = "/owner/enterprise-approvals";
+(OWNER_SECTION_ROUTES as any)["pricing-overview"] = "/owner/pricing-overview";
 
 
 export default function OwnerConsole() {
@@ -880,6 +886,8 @@ export default function OwnerConsole() {
     "billing-settings": <BillingSettingsPanel />,
      "enterprise-leads": <EnterpriseLeadsPanel />,
      "enterprise-teams": <EnterpriseFirmsPanel />,
+     "enterprise-approvals": <EnterpriseApprovalPanel />,
+     "pricing-overview": <OwnerPricingOverview />,
      "retention-audit": <RetentionAuditPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,
@@ -986,6 +994,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
     ]},
     { label: "Billing", items: [
       { key: "plans", label: "Plans & pricing", icon: <CreditCard className="h-3.5 w-3.5" /> },
+      { key: "pricing-overview", label: "Pricing overview", icon: <Crown className="h-3.5 w-3.5" /> },
       { key: "feature-catalog", label: "Feature catalog", icon: <ListChecks className="h-3.5 w-3.5" /> },
       { key: "referrals", label: "Referrals & beta", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "revenue", label: "Revenue", icon: <Wallet className="h-3.5 w-3.5" /> },
@@ -993,6 +1002,7 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "retention-audit", label: "Retention audit", icon: <TrendingUp className="h-3.5 w-3.5" /> },
       { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
+      { key: "enterprise-approvals", label: "Enterprise approvals", icon: <ShieldCheck className="h-3.5 w-3.5" /> },
       { key: "enterprise-teams", label: "Enterprise teams", icon: <Users className="h-3.5 w-3.5" /> },
     ]},
     { label: "Platform", items: [

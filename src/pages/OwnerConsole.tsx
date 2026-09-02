@@ -993,8 +993,9 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
       { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "retention-audit", label: "Retention audit", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-       { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
-       { key: "enterprise-teams", label: "Enterprise teams", icon: <Users className="h-3.5 w-3.5" /> },
+      { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
+      { key: "enterprise-teams", label: "Enterprise teams", icon: <Users className="h-3.5 w-3.5" /> },
+    ]},
     { label: "Platform", items: [
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },
       { key: "audit", label: "Audit logs", icon: <ScrollText className="h-3.5 w-3.5" /> },

@@ -43,20 +43,18 @@ function renderAt(path: string) {
 }
 
 describe("Upgrade.tsx button variants (visual regression)", () => {
-  it("enterprise switch button (contactSales=true) — snapshot", () => {
-    // Preconditions the test relies on. If these ever drift, PLAN_FEATURES
-    // no longer matches Upgrade.tsx's expectations and the snapshot below
-    // is meaningless — fail loudly first.
-    expect(PLAN_FEATURES.enterprise.contactSales).toBe(true);
+  it("enterprise switch button (self-serve) — snapshot", () => {
+    // Enterprise is self-serve, so the switcher renders a real tier button
+    // rather than a sales link. Assert intent first.
+    expect(PLAN_FEATURES.enterprise.contactSales ?? false).toBe(false);
 
     renderAt("/upgrade?plan=plus");
     const btn = screen.getByTestId("switch-plan-enterprise");
-    // A real anchor rendered by Button asChild + Link, wrapping the copy.
-    expect(btn.tagName.toLowerCase()).toBe("a");
-    expect(btn.getAttribute("href")).toBe("/contact-sales?source=upgrade_switcher");
-    expect(btn.textContent).toMatch(/Talk to sales.*Enterprise/);
+    expect(btn.tagName.toLowerCase()).toBe("button");
+    expect(btn.textContent).toMatch(/Enterprise/);
     expect(btn.outerHTML).toMatchSnapshot("switch-plan-enterprise");
   });
+
 
   it("highlighted plan CTA (highlighted=true → default variant) — snapshot", () => {
     // If Pro loses `highlighted`, Upgrade.tsx would render an outlined CTA

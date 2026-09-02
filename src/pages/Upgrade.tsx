@@ -121,29 +121,6 @@ export default function Upgrade() {
               })}
               </div>
             </div>
-            <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border pt-3">
-              <div className="text-xs text-muted-foreground">Billing cycle:</div>
-              <div className="flex flex-wrap gap-2" data-testid="upgrade-cycle-switcher">
-                {(["monthly", "annual"] as const).map((c) => {
-                  const isActive = initialCycle === c;
-                  return (
-                    <Button
-                      key={c}
-                      type="button"
-                      size="sm"
-                      variant={isActive ? "default" : "outline"}
-                      onClick={() => switchCycle(c)}
-                      data-testid={`switch-cycle-${c}`}
-                      aria-pressed={isActive}
-                      className="gap-1 capitalize"
-                    >
-                      {isActive && <Check className="h-3.5 w-3.5" />}
-                      {c === "annual" ? "Annual · save ~20%" : "Monthly"}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         </Card>
       )}

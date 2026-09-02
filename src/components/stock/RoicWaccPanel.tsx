@@ -388,8 +388,8 @@ export function RoicWaccPanel({ symbol }: { symbol: string }) {
   const markDirty = () => setAssumptionsDirty(true);
 
   const loadPeers = async () => {
-    const syms = peerInput.split(/[,\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 8);
-    if (!syms.length) { toast({ title: "Enter one or more peer tickers (comma-separated)" }); return; }
+    const syms = parseSymbols(peerInput).slice(0, 8);
+    if (!syms.length) { toast({ title: "Select one or more peer instruments" }); return; }
     setPeers(syms.map((sym) => ({ sym, roic: null, wacc: null, spread: null, trend: [], trendPP: null, loading: true })));
     const rows = await Promise.all(syms.map(async (sym) => {
       try {

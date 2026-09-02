@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { TickerSearch } from "@/components/TickerSearch";
 import { FileText, Trash2 } from "lucide-react";
 
 interface Note { id: string; ts: number; symbol: string; title: string; body: string; tags: string[] }
@@ -35,9 +36,15 @@ export default function Notes() {
         <Card>
           <CardHeader><CardTitle>New Note</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <div className="grid grid-cols-3 gap-2">
-              <Input placeholder="Symbol" value={sym} onChange={(e) => setSym(e.target.value)} />
-              <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-2" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <TickerSearch
+                value={sym}
+                onValueChange={setSym}
+                onSelect={(hit) => setSym(hit.symbol.toUpperCase())}
+                placeholder="Search instrument"
+                clearOnSelect
+              />
+              <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="md:col-span-2" />
             </div>
             <Input placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
             <Textarea rows={5} placeholder="Body - supports markdown-like text" value={body} onChange={(e) => setBody(e.target.value)} />

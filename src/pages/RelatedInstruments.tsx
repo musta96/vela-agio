@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TickerSearch } from "@/components/TickerSearch";
 import { Network, Loader2, Search } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,8 +57,8 @@ export default function RelatedInstruments() {
           <p className="text-sm text-muted-foreground">Peers, sector ETFs and thematic neighbours discovered by AI.</p>
         </div>
 
-        <form onSubmit={onSearch} className="flex gap-2 max-w-md">
-          <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="Symbol (AAPL, ENI.MI, …)" />
+        <form onSubmit={onSearch} className="flex gap-2 max-w-md items-end">
+          <div className="flex-1"><TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" clearOnSelect /></div>
           <Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Explore</Button>
         </form>
 

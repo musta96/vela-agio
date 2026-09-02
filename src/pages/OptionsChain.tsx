@@ -4,6 +4,7 @@ import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TickerSearch } from "@/components/TickerSearch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -133,11 +134,8 @@ export default function OptionsChain() {
       <Card className="p-4">
         <form onSubmit={submit} className="flex gap-2 items-end flex-wrap">
           <div className="flex-1 min-w-[220px]">
-            <Label className="text-xs">Underlying (Yahoo ticker)</Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="AAPL, MSFT, ^SPX…" />
-            </div>
+            <Label className="text-xs">Underlying instrument</Label>
+            <div className="mt-1"><TickerSearch value={input} onValueChange={setInput} onSelect={(hit) => setInput(hit.symbol.toUpperCase())} placeholder="Search stock or index" clearOnSelect /></div>
           </div>
           <Button type="submit" disabled={!input.trim()}>Load chain</Button>
           {data && (

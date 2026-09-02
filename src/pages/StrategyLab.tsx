@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TickerSearch } from "@/components/TickerSearch";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,8 +75,8 @@ const StrategyLab = () => {
           <Card className="p-4 sm:p-6 mb-6 card-gradient border-border">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               <div>
-                <Label className="text-xs">Symbol</Label>
-                <Input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="e.g. AAPL, ENEL.MI, BTC-USD" />
+                <Label className="text-xs">Instrument</Label>
+                <TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" clearOnSelect />
               </div>
               <div>
                 <Label className="text-xs">Timeframe</Label>

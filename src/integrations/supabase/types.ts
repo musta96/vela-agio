@@ -1126,28 +1126,64 @@ export type Database = {
       }
       enterprise_firms: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          country: string | null
           created_at: string
           id: string
+          legal_name: string | null
           name: string
+          notes: string | null
           owner_user_id: string
+          postal_code: string | null
           seat_limit: number
           updated_at: string
+          vat_number: string | null
+          website: string | null
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
           created_at?: string
           id?: string
+          legal_name?: string | null
           name?: string
+          notes?: string | null
           owner_user_id: string
+          postal_code?: string | null
           seat_limit?: number
           updated_at?: string
+          vat_number?: string | null
+          website?: string | null
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
           created_at?: string
           id?: string
+          legal_name?: string | null
           name?: string
+          notes?: string | null
           owner_user_id?: string
+          postal_code?: string | null
           seat_limit?: number
           updated_at?: string
+          vat_number?: string | null
+          website?: string | null
         }
         Relationships: []
       }

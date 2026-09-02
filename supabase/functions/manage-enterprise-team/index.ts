@@ -200,6 +200,15 @@ Deno.serve(async (req) => {
     if (!isEnterprise(plan)) return json({ error: "An active Enterprise plan is required." }, 403);
     const firmId = (ownedFirm as any).id;
 
+    if (action === "update_profile") {
+      const result = profilePatch(body);
+      if ("error" in result) return json({ error: result.error }, 400);
+      if (!Object.keys(result.patch).length) return json({ error: "No profile changes supplied." }, 400);
+      const { error } = await db.from("enterprise_firms").update(result.patch).eq("id", firmId);
+      if (error) return json({ error: "Could not update firm profile." }, 500);
+      return json({ ok: true, firm: { ...ownedFirm, ...result.patch } });
+    }
+
     if (action === "rename_firm") {
       const name = String((body as any)?.name ?? "").trim().slice(0, 120);
       if (!name) return json({ error: "Firm name is required." }, 400);

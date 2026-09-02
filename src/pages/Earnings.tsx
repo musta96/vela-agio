@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { AIEquityAnalystDialog, type AnalystInput } from "@/components/research/AIEquityAnalystDialog";
 import { SavedResearchNotes, type SavedNote } from "@/components/research/SavedResearchNotes";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { TickerSearch } from "@/components/TickerSearch";
 
 export default function Earnings() {
   const { t } = useTranslation();
@@ -108,7 +108,7 @@ export default function Earnings() {
               Paste an earnings call transcript. The AI equity research analyst extracts key metrics, guidance direction, risks, management tone, notable quotes, and drafts a research note.
             </p>
             <div className="grid md:grid-cols-4 gap-2">
-              <Input value={callSymbol} onChange={(e) => setCallSymbol(e.target.value.toUpperCase())} placeholder="Ticker (e.g. AAPL)" />
+              <TickerSearch value={callSymbol} onValueChange={setCallSymbol} onSelect={(hit) => setCallSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" />
               <div className="md:col-span-3" />
             </div>
             <Textarea

@@ -3,7 +3,7 @@ import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { TickerSearch } from "@/components/TickerSearch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -187,8 +187,8 @@ export default function Insider() {
               <p className="text-sm text-muted-foreground">SEC Form 4 buys & sells, cluster detection, and post-purchase performance.</p>
             </div>
           </div>
-          <div className="flex gap-2 max-w-sm">
-            <Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="Ticker (e.g. AAPL)" onKeyDown={(e) => { if (e.key === "Enter") load(); }} />
+          <div className="flex gap-2 max-w-sm items-end">
+            <div className="flex-1"><TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" /></div>
             <Button onClick={load} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load"}
             </Button>

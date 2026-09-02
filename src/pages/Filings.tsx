@@ -3,8 +3,8 @@ import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TickerSearch } from "@/components/TickerSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -63,8 +63,8 @@ export default function Filings() {
           <h1 className="text-3xl font-bold">{t("pages.filings.title")}</h1>
         </div>
         <p className="text-muted-foreground">{t("pages.filings.subtitle")}</p>
-        <div className="flex gap-2 max-w-md">
-          <Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder={t("pages.filings.ticker")} />
+        <div className="flex gap-2 max-w-md items-end">
+          <div className="flex-1"><TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" /></div>
           <Button onClick={load} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("pages.filings.load")}</Button>
         </div>
         {note && <p className="text-sm text-muted-foreground">{note}</p>}

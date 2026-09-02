@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TickerMultiSelect, parseSymbols } from "@/components/TickerMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
@@ -57,8 +58,8 @@ export default function PortfolioSimulations() {
     setLoading(true);
     setError(null);
     try {
-      const symbols = tickers.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
-      if (!symbols.length) throw new Error("Enter at least one ticker.");
+      const symbols = parseSymbols(tickers);
+      if (!symbols.length) throw new Error("Select at least one instrument.");
       if (symbols.length > 12) throw new Error("Up to 12 instruments are supported in the browser engine.");
       let weights = weightsStr.split(",").map((s) => Number(s.trim())).filter((x) => Number.isFinite(x));
       if (!weights.length || weights.length !== symbols.length) {
@@ -158,8 +159,8 @@ export default function PortfolioSimulations() {
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2 lg:col-span-2">
-              <Label htmlFor="tickers" className="text-xs uppercase tracking-wider text-muted-foreground">Instruments (comma-separated)</Label>
-              <Input id="tickers" value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="SPY,QQQ,GLD,TLT,EFA" />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Instruments</Label>
+              <TickerMultiSelect value={tickers} onChange={setTickers} max={12} placeholder="Search by name or ticker — SPY, Apple, Gold…" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="weights" className="text-xs uppercase tracking-wider text-muted-foreground">Weights (optional, auto-normalised)</Label>

@@ -2,9 +2,9 @@ import { useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TickerMultiSelect, parseSymbols } from "@/components/TickerMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { meanVariance, riskParity, hrp, covMatrix, portfolioStats } from "@/lib/optimizer";
 import { CorrelationMatrix } from "@/components/CorrelationMatrix";
@@ -27,7 +27,7 @@ export default function Optimizer() {
 
   const run = async () => {
     setLoading(true);
-    const list = tickers.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+    const list = parseSymbols(tickers);
     const series: number[][] = [];
     for (const s of list) {
       const { data } = await supabase.functions.invoke("market-data", { body: { action: "ohlc", symbol: s, range: lookback, interval: "1d" } });
@@ -76,8 +76,8 @@ export default function Optimizer() {
             </Card>
           }
         >
-        <div className="flex gap-2">
-          <Input value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="SPY,QQQ,GLD,TLT" />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <TickerMultiSelect value={tickers} onChange={setTickers} max={12} className="flex-1" placeholder="Search by name or ticker — SPY, Apple, Gold…" />
           <Select value={lookback} onValueChange={(v) => setLookback(v as Lookback)}>
             <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
             <SelectContent>

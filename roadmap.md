@@ -1,0 +1,3 @@
+- [ ] Auto-approve Enterprise leads after verified firm payment and show only pending leads in admin.
+- [ ] Populate the Enterprise client portal with real compliance documents/reports and white-label delivery.
+- [ ] Resolve the Blotter JSX syntax error and re-verify instrument selector changes.

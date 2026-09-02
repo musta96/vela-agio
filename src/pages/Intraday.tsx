@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TickerSearch } from "@/components/TickerSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Activity } from "lucide-react";
@@ -52,8 +52,8 @@ export default function Intraday() {
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><Activity className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Intraday & Microstructure</h1></div>
-        <div className="flex gap-2">
-          <Input value={input} onChange={(e) => setInput(e.target.value.toUpperCase())} placeholder="Symbol" className="max-w-xs" />
+        <div className="flex gap-2 items-end">
+          <div className="max-w-xs flex-1"><TickerSearch value={input} onValueChange={setInput} onSelect={(hit) => setInput(hit.symbol.toUpperCase())} placeholder="Search instrument" /></div>
           <Button onClick={() => setSymbol(input.trim())}>Load</Button>
         </div>
         <div className="grid lg:grid-cols-3 gap-4">

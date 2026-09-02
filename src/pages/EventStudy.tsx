@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { TickerSearch } from "@/components/TickerSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { TrendingUp, Loader2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
@@ -51,7 +52,7 @@ export default function EventStudy() {
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><TrendingUp className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.eventStudy.title")}</h1></div>
         <Card><CardContent className="p-4 grid md:grid-cols-4 gap-3">
-          <div><Label>Ticker</Label><Input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} /></div>
+          <div><Label>Instrument</Label><TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" /></div>
           <div className="md:col-span-2"><Label>{t("pages.eventStudy.dates")}</Label><Input value={dates} onChange={e => setDates(e.target.value)} /></div>
           <div><Label>{t("pages.eventStudy.window")}</Label><Input type="number" value={window} onChange={e => setWindow(+e.target.value)} /></div>
         </CardContent></Card>

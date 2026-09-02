@@ -4,6 +4,7 @@ import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TickerSearch } from "@/components/TickerSearch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList, Trash2 } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -60,7 +61,7 @@ export default function Blotter() {
         <Card>
           <CardHeader><CardTitle>New Trade</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <Input placeholder="Symbol" value={sym} onChange={(e) => setSym(e.target.value)} />
+            <TickerSearch value={sym} onValueChange={setSym} onSelect={(hit) => setSym(hit.symbol.toUpperCase())} placeholder="Search instrument" />
             <Select value={side} onValueChange={(v) => setSide(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="BUY">BUY</SelectItem><SelectItem value="SELL">SELL</SelectItem></SelectContent>

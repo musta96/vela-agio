@@ -5,6 +5,7 @@ import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TickerSearch } from "@/components/TickerSearch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -123,7 +124,7 @@ export default function OrderHistory() {
             <CardTitle className="text-base">Filters</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-6 gap-3">
-            <Input placeholder="Symbol (e.g. AAPL)" value={symbol} onChange={(e) => setSymbol(e.target.value)} className="md:col-span-1" />
+            <TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Filter by instrument" className="md:col-span-1" />
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>

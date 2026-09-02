@@ -7,6 +7,7 @@ import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
 import EnterpriseFirmsPanel from "@/components/owner/EnterpriseFirmsPanel";
 import EnterpriseApprovalPanel from "@/components/owner/EnterpriseApprovalPanel";
 import OwnerPricingOverview from "@/components/owner/OwnerPricingOverview";
+import { TickerMultiSelect, parseSymbols } from "@/components/TickerMultiSelect";
 import RetentionAuditPanel from "@/components/owner/RetentionAuditPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
@@ -1285,7 +1286,7 @@ function AiGovernanceConfig({ config, onSave }: { config: AiConfig; onSave: (val
     try { parsedDisclaimers = JSON.parse(disclaimers); } catch { toast.error("Disclaimers must be valid JSON"); return; }
     onSave({
       min_confidence: Number(minConf) || 0,
-      ticker_blacklist: blacklist.split(",").map(t => t.trim().toUpperCase()).filter(Boolean),
+      ticker_blacklist: parseSymbols(blacklist),
       mandatory_disclaimers: parsedDisclaimers,
       rate_limits: { free: Number(rateFree) || 0, pro: Number(ratePro) || 0, team: Number(rateTeam) || 0 },
     });
@@ -1303,8 +1304,8 @@ function AiGovernanceConfig({ config, onSave }: { config: AiConfig; onSave: (val
           <p className="text-[10px] text-muted-foreground">Signals below this are suppressed before reaching users.</p>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Ticker blacklist (comma-separated)</label>
-          <Input value={blacklist} onChange={(e) => setBlacklist(e.target.value)} placeholder="GME, AMC, ..." />
+          <label className="text-xs font-medium">Ticker blacklist</label>
+          <TickerMultiSelect value={blacklist} onChange={setBlacklist} max={100} placeholder="Search and add instruments to block…" />
           <p className="text-[10px] text-muted-foreground">No AI signals will be generated for these instruments.</p>
         </div>
         <div className="space-y-1.5 md:col-span-2">

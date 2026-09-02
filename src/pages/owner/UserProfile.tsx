@@ -17,15 +17,31 @@ export default function OwnerUserProfile() {
   const [suspended, setSuspended] = useState(false);
   const [consent, setConsent] = useState<{ scope: string; granted_at: string; mandate_ref: string | null } | null>(null);
   const [advisoryData, setAdvisoryData] = useState<{ portfolios: number; holdings: number; nw_accounts: number } | null>(null);
+  const [sub, setSub] = useState<any>(null);
+  const [plan, setPlan] = useState<any>(null);
 
   useEffect(() => { if (!id) return; (async () => {
-    const [{ data: prof }, { data: ax }, { data: sus }] = await Promise.all([
+    const [{ data: prof }, { data: ax }, { data: sus }, { data: subRow }] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("audit_log").select("id,ts,action,entity").or(`actor_id.eq.${id},entity_id.eq.${id}`).order("ts", { ascending: false }).limit(8),
       supabase.from("user_suspensions").select("user_id").eq("user_id", id).maybeSingle(),
+      supabase.from("subscriptions")
+        .select("status,price_id,cancel_at_period_end,current_period_end,environment,created_at")
+        .eq("user_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    setP(prof); setAudit(ax || []); setSuspended(!!sus);
+    setP(prof); setAudit(ax || []); setSuspended(!!sus); setSub(subRow ?? null);
+    if (subRow?.price_id) {
+      const { data: plans } = await supabase.from("subscription_plans")
+        .select("name,slug,tier,price_label,stripe_monthly_price_id,stripe_yearly_price_id");
+      setPlan((plans || []).find((pl: any) =>
+        pl.stripe_monthly_price_id === subRow.price_id || pl.stripe_yearly_price_id === subRow.price_id) ?? null);
+    } else {
+      setPlan(null);
+    }
   })(); }, [id]);
+
+  const planName = plan?.name ?? (sub ? "Paid plan" : "Explorer (Free)");
+  const periodEndText = sub?.current_period_end ? format(new Date(sub.current_period_end), "d MMM yyyy") : "-";
 
   useEffect(() => {
     if (!id || !admin) return;

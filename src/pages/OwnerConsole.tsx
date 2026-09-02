@@ -19,6 +19,7 @@ import OwnerReferralsPage from "@/pages/owner/Referrals";
 import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import OwnerOnboardingFunnel from "@/pages/owner/OnboardingFunnel";
 import OwnerGatingFunnel from "@/pages/owner/GatingFunnel";
+import EnterpriseTeams from "@/pages/owner/EnterpriseTeams";
 import SignupConversionPanel from "@/components/owner/SignupConversionPanel";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";
@@ -136,7 +137,9 @@ const OWNER_SECTION_ROUTES: Record<string, string> = {
 (OWNER_SECTION_ROUTES as any)["signup-conversion"] = "/owner/signup-conversion";
 (OWNER_SECTION_ROUTES as any)["enterprise-leads"] = "/owner/enterprise-leads";
 (OWNER_SECTION_ROUTES as any)["retention-audit"] = "/owner/retention-audit";
+(OWNER_SECTION_ROUTES as any)["enterprise-teams"] = "/owner/enterprise-teams";
 (OWNER_SECTION_ROUTES as any)["gating-funnel"] = "/owner/gating-funnel";
+
 
 export default function OwnerConsole() {
   const [loading, setLoading] = useState(true);
@@ -876,8 +879,9 @@ export default function OwnerConsole() {
     apikeys: <ApiKeysAdmin apiKeys={apiKeys} users={users} reload={load} />,
     plans: <PlansEditor />,
     "billing-settings": <BillingSettingsPanel />,
-    "enterprise-leads": <EnterpriseLeadsPanel />,
-    "retention-audit": <RetentionAuditPanel />,
+     "enterprise-leads": <EnterpriseLeadsPanel />,
+     "enterprise-teams": <EnterpriseTeams />,
+     "retention-audit": <RetentionAuditPanel />,
     "feature-catalog": <OwnerFeatureCatalogPage />,
     referrals: <OwnerReferralsPage />,
     revenue: billingSection,
@@ -989,8 +993,8 @@ function OwnerSidebar({ section, setSection, flagsOff, signalAlerts, gdprPending
       { key: "failed", label: "Failed payments", icon: <AlertCircle className="h-3.5 w-3.5" /> },
       { key: "billing-settings", label: "Trial & retention", icon: <Gift className="h-3.5 w-3.5" /> },
       { key: "retention-audit", label: "Retention audit", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
-    ]},
+       { key: "enterprise-leads", label: "Enterprise leads", icon: <Briefcase className="h-3.5 w-3.5" />, badge: newEnterpriseLeads || undefined },
+       { key: "enterprise-teams", label: "Enterprise teams", icon: <Users className="h-3.5 w-3.5" /> },
     { label: "Platform", items: [
       { key: "flags", label: "Feature flags", icon: <Flag className="h-3.5 w-3.5" />, badge: flagsOff ? `${flagsOff} off` : undefined },
       { key: "audit", label: "Audit logs", icon: <ScrollText className="h-3.5 w-3.5" /> },

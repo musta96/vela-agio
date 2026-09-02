@@ -19,14 +19,15 @@ const PLAN_LABELS: Record<string, string> = {
 
 // Slugs only — names, prices, audiences and feature lists come from
 // PLAN_FEATURES so the chooser can never drift from the plan catalogue.
-const SELF_SERVE_PLANS = ["plus", "pro"] as const;
+const SELF_SERVE_PLANS = ["plus", "pro", "enterprise"] as const;
 
-// Tiers exposed in the on-page plan switcher. Enterprise routes to sales.
+// Tiers exposed in the on-page plan switcher.
 const SWITCHABLE_PLANS = [
   { slug: "plus", name: "Plus" },
   { slug: "pro", name: "Pro" },
   { slug: "enterprise", name: "Enterprise" },
 ] as const;
+
 
 export default function Upgrade() {
   const [params, setParams] = useSearchParams();

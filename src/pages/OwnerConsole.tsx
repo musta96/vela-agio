@@ -19,7 +19,6 @@ import OwnerReferralsPage from "@/pages/owner/Referrals";
 import OwnerSecurityAudit from "@/pages/owner/SecurityAudit";
 import OwnerOnboardingFunnel from "@/pages/owner/OnboardingFunnel";
 import OwnerGatingFunnel from "@/pages/owner/GatingFunnel";
-import EnterpriseTeams from "@/pages/owner/EnterpriseTeams";
 import SignupConversionPanel from "@/components/owner/SignupConversionPanel";
 import { EmailRevealProvider, EmailRevealToggle, MaskedEmail } from "@/components/owner/MaskedEmail";
 import { Badge } from "@/components/ui/badge";

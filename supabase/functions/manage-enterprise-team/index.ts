@@ -140,6 +140,24 @@ Deno.serve(async (req) => {
       return json({ firms: rows });
     }
 
+    if (action === "admin_update_firm_profile") {
+      const firmId = String((body as any)?.firm_id ?? "").trim();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firmId)) {
+        return json({ error: "A valid firm is required." }, 400);
+      }
+      const { data: adminRole } = await db
+        .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
+      if (!adminRole) return json({ error: "Forbidden" }, 403);
+      const result = profilePatch(body);
+      if ("error" in result) return json({ error: result.error }, 400);
+      if (!Object.keys(result.patch).length) return json({ error: "No profile changes supplied." }, 400);
+      const { data: firm, error } = await db.from("enterprise_firms")
+        .update(result.patch).eq("id", firmId).select("*").maybeSingle();
+      if (error) return json({ error: "Could not update firm profile." }, 500);
+      if (!firm) return json({ error: "Firm not found." }, 404);
+      return json({ ok: true, firm });
+    }
+
     // ---- Everything below acts on the caller's own firm.
     const plan = await planSlugFor(db, userId);
 

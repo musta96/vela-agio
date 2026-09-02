@@ -82,7 +82,7 @@ export default function OwnerUserProfile() {
         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-accent grid place-items-center text-lg font-bold text-primary-foreground">{initials}</div>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{p?.display_name || "-"}</h1>
-          <p className="text-sm text-muted-foreground">User · Pro plan since {p?.created_at ? format(new Date(p.created_at), "d MMM yyyy") : "-"}</p>
+          <p className="text-sm text-muted-foreground">User · {planName} since {p?.created_at ? format(new Date(p.created_at), "d MMM yyyy") : "-"}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Eye className="h-4 w-4 mr-1.5" />Impersonate</Button>

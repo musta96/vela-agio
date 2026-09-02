@@ -232,8 +232,10 @@ const App = () => (
             <Route path="/admin/settings" element={<OwnerRoute><AdminSettings /></OwnerRoute>} />
             <Route path="/admin/ai-quotas" element={<OwnerRoute><AdminAiQuotas /></OwnerRoute>} />
             <Route path="/ai-usage" element={<AiUsageHistory />} />
-            <Route path="/advisor" element={<RouteFeatureGate feature="portfolio.doctor"><Advisor /></RouteFeatureGate>} />
-            <Route path="/household" element={<Household />} />
+             <Route path="/advisor" element={<RouteFeatureGate feature="portfolio.doctor"><Advisor /></RouteFeatureGate>} />
+             <Route path="/enterprise/team" element={<RouteFeatureGate feature="enterprise.team_management"><EnterpriseTeams /></RouteFeatureGate>} />
+             <Route path="/join-team" element={<JoinEnterpriseTeam />} />
+             <Route path="/household" element={<Household />} />
           </Route>
           <Route path="/owner/*" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
           <Route path="*" element={<NotFound />} />

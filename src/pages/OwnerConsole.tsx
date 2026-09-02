@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { PlansEditor } from "@/components/owner/PlansEditor";
 import BillingSettingsPanel from "@/components/owner/BillingSettingsPanel";
 import EnterpriseLeadsPanel from "@/components/owner/EnterpriseLeadsPanel";
+import EnterpriseTeams from "@/pages/owner/EnterpriseTeams";
 import RetentionAuditPanel from "@/components/owner/RetentionAuditPanel";
 import { LegalDocsEditor } from "@/components/owner/LegalDocsEditor";
 import { LandingEditor } from "@/components/owner/LandingEditor";
@@ -100,6 +101,7 @@ const OWNER_ROUTE_SECTIONS: Record<string, string> = {
   "/owner/onboarding-funnel": "onboarding-funnel",
   "/owner/gating-funnel": "gating-funnel",
   "/owner/enterprise-leads": "enterprise-leads",
+  "/owner/enterprise-teams": "enterprise-teams",
   "/owner/retention-audit": "retention-audit",
 };
 

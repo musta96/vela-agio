@@ -177,15 +177,19 @@ export default function OwnerUserProfile() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <h3 className="text-sm font-semibold mb-4">Subscription & billing</h3>
           <dl className="text-sm space-y-2">
-            <div className="flex justify-between"><dt className="text-muted-foreground">Current plan</dt><dd>PRO · €49/mo</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Next billing</dt><dd>26 Jun 2025</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Payment method</dt><dd>Visa - 4242</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Current plan</dt><dd>{planName}{plan?.price_label ? ` · ${plan.price_label}` : ""}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Status</dt><dd>{sub?.status ?? "no subscription"}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">{sub?.cancel_at_period_end ? "Access ends" : "Next billing"}</dt><dd>{periodEndText}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Environment</dt><dd>{sub?.environment ?? "-"}</dd></div>
           </dl>
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm">Issue refund</Button>
-            <Button variant="outline" size="sm">Add credit</Button>
-            <Button variant="outline" size="sm" className="text-destructive border-destructive/30">Cancel sub</Button>
-          </div>
+          {sub?.cancel_at_period_end && (
+            <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-muted-foreground">
+              Downgrade scheduled. {planName} access ends {periodEndText}, then the account returns to Explorer.
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Use the manual plan controls below to grant or revoke access without a payment.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6">

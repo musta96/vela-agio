@@ -145,6 +145,11 @@ export const LOCKED_ROUTE_COPY: Record<string, LockedRouteCopy> = {
     headline: "A private pipeline for private opportunities",
     subhead: "Curated deal flow with underwriting, memos and IC-ready packets.",
   },
+  "enterprise.team_management": {
+    headline: "Run your whole advisory team from one seat",
+    subhead: "Invite advisors, assign roles and manage firm seats — included with Enterprise.",
+    primaryCta: "Choose Enterprise",
+  },
 };
 
 /** Resolve the effective copy for a `(featureKey, planSlug)` pair. */

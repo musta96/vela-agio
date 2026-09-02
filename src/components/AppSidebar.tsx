@@ -42,6 +42,9 @@ const ITEM_FEATURE_KEY: Record<string, string> = {
   "/api": "enterprise.api",
   "/api-docs": "enterprise.api",
   "/agent-integrations": "enterprise.api",
+  "/enterprise/team": "enterprise.team_management",
+  "/enterprise/dashboard": "enterprise.team_management",
+  "/enterprise/clients": "enterprise.team_management",
 };
 
 type SidebarGate = ReturnType<typeof useFeatureGate>;
@@ -258,6 +261,17 @@ const LEARN: NavGroup = {
   ],
 };
 
+const ENTERPRISE: NavGroup = {
+  title: "Enterprise",
+  url: "/enterprise/dashboard",
+  icon: Building2,
+  items: [
+    { title: "Firm dashboard", url: "/enterprise/dashboard", icon: Building2 },
+    { title: "Team & seats", url: "/enterprise/team", icon: Users },
+    { title: "Client portal", url: "/enterprise/clients", icon: UserSquare },
+  ],
+};
+
 const ACCOUNT: NavGroup = {
   title: "Account",
   url: "/profile",
@@ -275,7 +289,7 @@ const ACCOUNT: NavGroup = {
   ],
 };
 
-const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, MARKET_DATA, PORTFOLIO, ANALYST_TOOLS, ASSISTANT, LEARN, ACCOUNT];
+const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, MARKET_DATA, PORTFOLIO, ANALYST_TOOLS, ASSISTANT, LEARN, ENTERPRISE, ACCOUNT];
 
 const OWNER_ITEM: Item = { title: "Owner Console", url: "/owner", icon: Crown, badge: "you" };
 

@@ -1,12 +1,14 @@
 /**
  * Smoke test: mount PlansBilling for a logged-in user with no active sub,
  * click Choose on the Pro plan, and assert:
- *   1. `create-checkout` is invoked with `pro_monthly` as the lookup key
- *   2. `EmbeddedCheckoutProvider` renders with a real client secret
+ *   1. the user is routed into the unified /upgrade flow with the plan and
+ *      billing cycle preselected (checkout itself is mounted there)
+ *   2. plans without Stripe price IDs surface a misconfiguration banner and
+ *      never start checkout
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 
 // --- Mocks ---------------------------------------------------------------

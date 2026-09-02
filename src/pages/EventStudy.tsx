@@ -52,7 +52,7 @@ export default function EventStudy() {
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-3"><TrendingUp className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">{t("pages.eventStudy.title")}</h1></div>
         <Card><CardContent className="p-4 grid md:grid-cols-4 gap-3">
-          <div><Label>Instrument</Label><TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" clearOnSelect /></div>
+          <div><Label>Instrument</Label><TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" /></div>
           <div className="md:col-span-2"><Label>{t("pages.eventStudy.dates")}</Label><Input value={dates} onChange={e => setDates(e.target.value)} /></div>
           <div><Label>{t("pages.eventStudy.window")}</Label><Input type="number" value={window} onChange={e => setWindow(+e.target.value)} /></div>
         </CardContent></Card>

@@ -76,7 +76,7 @@ const StrategyLab = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               <div>
                 <Label className="text-xs">Instrument</Label>
-                <TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" clearOnSelect />
+                <TickerSearch value={symbol} onValueChange={setSymbol} onSelect={(hit) => setSymbol(hit.symbol.toUpperCase())} placeholder="Search instrument" />
               </div>
               <div>
                 <Label className="text-xs">Timeframe</Label>

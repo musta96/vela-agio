@@ -42,7 +42,6 @@ export default function Notes() {
                 onValueChange={setSym}
                 onSelect={(hit) => setSym(hit.symbol.toUpperCase())}
                 placeholder="Search instrument"
-                clearOnSelect
               />
               <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="md:col-span-2" />
             </div>

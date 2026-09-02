@@ -4,7 +4,7 @@ import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { TickerSearch } from "@/components/TickerSearch";
 import { X, GitCompare, FileDown } from "lucide-react";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { useOHLCHistory } from "@/hooks/useOHLCHistory";
@@ -75,10 +75,10 @@ const Compare = () => {
     });
   }, [histories, tickers]);
 
-  const add = () => {
-    const sym = input.trim().toUpperCase();
-    if (sym && !tickers.includes(sym) && tickers.length < 4) {
-      setTickers([...tickers, sym]);
+  const add = (sym: string) => {
+    const normalized = sym.trim().toUpperCase();
+    if (normalized && !tickers.includes(normalized) && tickers.length < MAX_SLOTS) {
+      setTickers([...tickers, normalized]);
       setInput("");
     }
   };
@@ -145,15 +145,14 @@ const Compare = () => {
               </Badge>
             ))}
             {tickers.length < 4 && (
-              <div className="flex items-center gap-2">
-                <Input
-                  className="w-40 h-8"
-                  placeholder="Add ticker (e.g. AAPL)"
+              <div className="flex items-center gap-2 min-w-[240px]">
+                <TickerSearch
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && add()}
+                  onValueChange={setInput}
+                  onSelect={(hit) => add(hit.symbol)}
+                  placeholder="Search instrument"
+                  className="flex-1"
                 />
-                <Button size="sm" onClick={add}>Add</Button>
               </div>
             )}
           </CardContent>

@@ -135,7 +135,7 @@ export default function OptionsChain() {
         <form onSubmit={submit} className="flex gap-2 items-end flex-wrap">
           <div className="flex-1 min-w-[220px]">
             <Label className="text-xs">Underlying instrument</Label>
-            <div className="mt-1"><TickerSearch value={input} onValueChange={setInput} onSelect={(hit) => setInput(hit.symbol.toUpperCase())} placeholder="Search stock or index" clearOnSelect /></div>
+            <div className="mt-1"><TickerSearch value={input} onValueChange={setInput} onSelect={(hit) => setInput(hit.symbol.toUpperCase())} placeholder="Search stock or index" /></div>
           </div>
           <Button type="submit" disabled={!input.trim()}>Load chain</Button>
           {data && (

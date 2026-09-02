@@ -76,10 +76,17 @@ describe("PLAN_FEATURES contract for Upgrade.tsx", () => {
     expect(highlighted, "Upgrade.tsx assumes one highlighted plan").toHaveLength(1);
   });
 
-  it("exactly one plan among the Upgrade slugs routes to sales", () => {
+  it("every plan on the Upgrade page is self-serve and carries Stripe lookup keys", () => {
     const sales = UPGRADE_PAGE_SLUGS.filter((s) => PLAN_FEATURES[s].contactSales);
-    expect(sales, "Upgrade.tsx assumes one contact-sales plan").toHaveLength(1);
+    expect(sales, "Upgrade.tsx renders a checkout CTA for every listed plan").toHaveLength(0);
+    for (const slug of UPGRADE_PAGE_SLUGS) {
+      const lookup = PLAN_FEATURES[slug].lookupKey;
+      expect(lookup, `${slug} needs Stripe lookup keys to start checkout`).toBeDefined();
+      expect(lookup!.monthly).toBeTruthy();
+      expect(lookup!.annual).toBeTruthy();
+    }
   });
+
 
   // ---------------------------------------------------------------------
   // `.explorer` — free-tier flag. Contract mirrors `contactSales` /

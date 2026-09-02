@@ -49,6 +49,7 @@ type Props = {
   hideAi?: boolean;
   /** When true, clear the input after a successful selection. */
   clearOnSelect?: boolean;
+  id?: string;
 };
 
 // Token-overlap fuzzy score. Cheap, no deps, good enough for a catalog of

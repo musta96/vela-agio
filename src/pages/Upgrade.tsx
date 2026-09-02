@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { PageHeader } from "@/components/PageHeader";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Check } from "lucide-react";
 import { UpgradeFlow } from "@/components/upgrade/UpgradeFlow";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";

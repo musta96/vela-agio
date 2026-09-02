@@ -17,10 +17,9 @@ const PLAN_LABELS: Record<string, string> = {
   premium: "Premium",
 };
 
-const SELF_SERVE_PLANS = [
-  { slug: "plus", name: "Plus", description: "Live data, portfolio tracking, alerts, and generous AI research." },
-  { slug: "pro", name: "Pro", description: "Advanced analytics, backtesting, reports, and priority AI access." },
-] as const;
+// Slugs only — names, prices, audiences and feature lists come from
+// PLAN_FEATURES so the chooser can never drift from the plan catalogue.
+const SELF_SERVE_PLANS = ["plus", "pro"] as const;
 
 // Tiers exposed in the on-page plan switcher. Enterprise routes to sales.
 const SWITCHABLE_PLANS = [
@@ -162,17 +161,43 @@ export default function Upgrade() {
       ) : (
         <Card className="p-4 sm:p-5" data-testid="upgrade-plan-chooser">
           <div className="grid gap-3 sm:grid-cols-2">
-            {SELF_SERVE_PLANS.map((plan) => (
-              <div key={plan.slug} className="rounded-lg border border-border p-4 flex flex-col gap-3">
-                <div>
-                  <div className="font-semibold text-base">Vela {plan.name}</div>
-                  <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
+            {SELF_SERVE_PLANS.map((slug) => {
+              const plan = PLAN_FEATURES[slug];
+              return (
+                <div
+                  key={slug}
+                  className={`rounded-lg border p-4 flex flex-col gap-3 ${
+                    plan.highlighted ? "border-primary/50 bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold text-base">Vela {plan.name}</div>
+                        {plan.highlighted && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide rounded-full bg-primary/15 text-primary px-2 py-0.5">
+                            Most popular
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-lg font-semibold">€{plan.priceMonthly}</span>
+                        <span className="text-[11px] text-muted-foreground">/mo</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{plan.audience}</p>
+                    {/* Stacking line makes the tier order explicit: each card
+                        names the tier it builds on, so Pro > Plus is obvious. */}
+                    <p className="text-xs font-medium mt-2" data-testid={`upgrade-tier-stacking-${slug}`}>
+                      {plan.featureList[0]}
+                    </p>
+                  </div>
+                  <Button asChild className="mt-auto w-full" variant={plan.highlighted ? "default" : "outline"}>
+                    <Link to={`/upgrade?plan=${slug}${cycleQuery}`}>Choose {plan.name}</Link>
+                  </Button>
                 </div>
-                <Button asChild className="mt-auto w-full" variant={PLAN_FEATURES[plan.slug].highlighted ? "default" : "outline"}>
-                  <Link to={`/upgrade?plan=${plan.slug}${cycleQuery}`}>Choose {plan.name}</Link>
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <Button asChild variant="outline" className="mt-3 w-full">
             <Link to="/contact-sales?source=upgrade_enterprise">Talk to us about Enterprise</Link>

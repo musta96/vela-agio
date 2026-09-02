@@ -17,15 +17,31 @@ export default function OwnerUserProfile() {
   const [suspended, setSuspended] = useState(false);
   const [consent, setConsent] = useState<{ scope: string; granted_at: string; mandate_ref: string | null } | null>(null);
   const [advisoryData, setAdvisoryData] = useState<{ portfolios: number; holdings: number; nw_accounts: number } | null>(null);
+  const [sub, setSub] = useState<any>(null);
+  const [plan, setPlan] = useState<any>(null);
 
   useEffect(() => { if (!id) return; (async () => {
-    const [{ data: prof }, { data: ax }, { data: sus }] = await Promise.all([
+    const [{ data: prof }, { data: ax }, { data: sus }, { data: subRow }] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("audit_log").select("id,ts,action,entity").or(`actor_id.eq.${id},entity_id.eq.${id}`).order("ts", { ascending: false }).limit(8),
       supabase.from("user_suspensions").select("user_id").eq("user_id", id).maybeSingle(),
+      supabase.from("subscriptions")
+        .select("status,price_id,cancel_at_period_end,current_period_end,environment,created_at")
+        .eq("user_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    setP(prof); setAudit(ax || []); setSuspended(!!sus);
+    setP(prof); setAudit(ax || []); setSuspended(!!sus); setSub(subRow ?? null);
+    if (subRow?.price_id) {
+      const { data: plans } = await supabase.from("subscription_plans")
+        .select("name,slug,tier,price_label,stripe_monthly_price_id,stripe_yearly_price_id");
+      setPlan((plans || []).find((pl: any) =>
+        pl.stripe_monthly_price_id === subRow.price_id || pl.stripe_yearly_price_id === subRow.price_id) ?? null);
+    } else {
+      setPlan(null);
+    }
   })(); }, [id]);
+
+  const planName = plan?.name ?? (sub ? "Paid plan" : "Explorer (Free)");
+  const periodEndText = sub?.current_period_end ? format(new Date(sub.current_period_end), "d MMM yyyy") : "-";
 
   useEffect(() => {
     if (!id || !admin) return;
@@ -66,7 +82,7 @@ export default function OwnerUserProfile() {
         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-accent grid place-items-center text-lg font-bold text-primary-foreground">{initials}</div>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{p?.display_name || "-"}</h1>
-          <p className="text-sm text-muted-foreground">User · Pro plan since {p?.created_at ? format(new Date(p.created_at), "d MMM yyyy") : "-"}</p>
+          <p className="text-sm text-muted-foreground">User · {planName} since {p?.created_at ? format(new Date(p.created_at), "d MMM yyyy") : "-"}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Eye className="h-4 w-4 mr-1.5" />Impersonate</Button>
@@ -79,10 +95,10 @@ export default function OwnerUserProfile() {
       </div>
 
       <KpiStrip items={[
-        { label: "Plan", value: "Pro", sub: `Since ${p?.created_at ? format(new Date(p.created_at), "MMM yyyy") : "-"}` },
-        { label: "Total spend", value: "€245", sub: "5 invoices" },
-        { label: "API calls", value: "4,820", sub: "This month" },
-        { label: "Signals viewed", value: "312", sub: "Last 30 days" },
+        { label: "Plan", value: planName, sub: sub?.status ? `Status: ${sub.status}` : "No paid subscription" },
+        { label: "Billing period ends", value: periodEndText, sub: sub?.cancel_at_period_end ? "Downgrade scheduled" : "Renews automatically" },
+        { label: "Environment", value: sub?.environment ?? "-", sub: "Billing environment" },
+        { label: "Portfolios", value: String(advisoryData?.portfolios ?? "-"), sub: consent ? "Mandate active" : "Requires mandate" },
       ]} />
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">
@@ -161,15 +177,19 @@ export default function OwnerUserProfile() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <h3 className="text-sm font-semibold mb-4">Subscription & billing</h3>
           <dl className="text-sm space-y-2">
-            <div className="flex justify-between"><dt className="text-muted-foreground">Current plan</dt><dd>PRO · €49/mo</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Next billing</dt><dd>26 Jun 2025</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Payment method</dt><dd>Visa - 4242</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Current plan</dt><dd>{planName}{plan?.price_label ? ` · ${plan.price_label}` : ""}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Status</dt><dd>{sub?.status ?? "no subscription"}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">{sub?.cancel_at_period_end ? "Access ends" : "Next billing"}</dt><dd>{periodEndText}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Environment</dt><dd>{sub?.environment ?? "-"}</dd></div>
           </dl>
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm">Issue refund</Button>
-            <Button variant="outline" size="sm">Add credit</Button>
-            <Button variant="outline" size="sm" className="text-destructive border-destructive/30">Cancel sub</Button>
-          </div>
+          {sub?.cancel_at_period_end && (
+            <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-muted-foreground">
+              Downgrade scheduled. {planName} access ends {periodEndText}, then the account returns to Explorer.
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Use the manual plan controls below to grant or revoke access without a payment.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6">

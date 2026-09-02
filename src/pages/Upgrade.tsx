@@ -17,10 +17,9 @@ const PLAN_LABELS: Record<string, string> = {
   premium: "Premium",
 };
 
-const SELF_SERVE_PLANS = [
-  { slug: "plus", name: "Plus", description: "Live data, portfolio tracking, alerts, and generous AI research." },
-  { slug: "pro", name: "Pro", description: "Advanced analytics, backtesting, reports, and priority AI access." },
-] as const;
+// Slugs only — names, prices, audiences and feature lists come from
+// PLAN_FEATURES so the chooser can never drift from the plan catalogue.
+const SELF_SERVE_PLANS = ["plus", "pro"] as const;
 
 // Tiers exposed in the on-page plan switcher. Enterprise routes to sales.
 const SWITCHABLE_PLANS = [

@@ -138,7 +138,7 @@ export default function Upgrade() {
         />
       ) : (
         <Card className="p-4 sm:p-5" data-testid="upgrade-plan-chooser">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             {SELF_SERVE_PLANS.map((slug) => {
               const plan = PLAN_FEATURES[slug];
               return (
@@ -177,9 +177,13 @@ export default function Upgrade() {
               );
             })}
           </div>
-          <Button asChild variant="outline" className="mt-3 w-full">
-            <Link to="/contact-sales?source=upgrade_enterprise">Talk to us about Enterprise</Link>
-          </Button>
+          <div className="mt-3 text-center text-xs text-muted-foreground">
+            Need more than 3 advisor seats or a custom rollout?{" "}
+            <Link to="/contact-sales?source=upgrade_enterprise" className="font-medium text-primary underline-offset-2 hover:underline">
+              Talk to us about Enterprise
+            </Link>
+          </div>
+
           {freeTierPlan && (
             <div className="mt-3 text-center text-xs text-muted-foreground">
               Not ready to upgrade?{" "}

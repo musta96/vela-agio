@@ -13,6 +13,27 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const ROLES = new Set(["firm_admin", "advisor", "analyst", "viewer"]);
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Editable firm-profile columns. Anything else in the payload is ignored. */
+const PROFILE_FIELDS = [
+  "name", "legal_name", "vat_number", "contact_name", "contact_email", "contact_phone",
+  "website", "address_line1", "address_line2", "city", "postal_code", "country", "notes",
+] as const;
+
+function profilePatch(body: any) {
+  const patch: Record<string, string | null> = {};
+  for (const key of PROFILE_FIELDS) {
+    if (!(key in (body ?? {}))) continue;
+    const raw = body[key];
+    const value = raw == null ? "" : String(raw).trim().slice(0, key === "notes" ? 2000 : 200);
+    patch[key] = value === "" ? null : value;
+  }
+  if (patch.name === null) delete patch.name; // never blank out the display name
+  if (patch.contact_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(patch.contact_email)) {
+    return { error: "Enter a valid contact email address." as const };
+  }
+  return { patch };
+}
+
 function admin() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,

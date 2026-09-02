@@ -71,6 +71,10 @@ function RouteFeatureGateInner({ feature, children }: Props) {
     return <RouteFeatureGateFallback reason="mismatch" />;
   }
 
+  // Ungated routes do not need entitlement or catalog data. This also keeps
+  // shared wrappers usable on ordinary pages when the catalog is unavailable.
+  if (!expected) return <>{children}</>;
+
   // While entitlements/catalog are still loading, render a consistent
   // skeleton rather than flashing either the page or the upgrade card.
   // Once loaded, the decision (unlocked, locked, or fail-closed missing key)

@@ -86,6 +86,8 @@ import PaperTrading from "./pages/PaperTrading";
 import ShortSelling from "./pages/ShortSelling";
 import OwnerConsole from "./pages/OwnerConsole";
 import EnterpriseTeams from "./pages/owner/EnterpriseTeams";
+import EnterpriseFirmDashboard from "./pages/EnterpriseFirmDashboard";
+import EnterpriseClientPortal from "./pages/EnterpriseClientPortal";
 import JoinEnterpriseTeam from "./pages/JoinEnterpriseTeam";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
@@ -234,6 +236,8 @@ const App = () => (
             <Route path="/ai-usage" element={<AiUsageHistory />} />
              <Route path="/advisor" element={<RouteFeatureGate feature="portfolio.doctor"><Advisor /></RouteFeatureGate>} />
              <Route path="/enterprise/team" element={<RouteFeatureGate feature="enterprise.team_management"><EnterpriseTeams /></RouteFeatureGate>} />
+             <Route path="/enterprise/dashboard" element={<RouteFeatureGate feature="enterprise.team_management"><EnterpriseFirmDashboard /></RouteFeatureGate>} />
+             <Route path="/enterprise/clients" element={<RouteFeatureGate feature="enterprise.team_management"><EnterpriseClientPortal /></RouteFeatureGate>} />
              <Route path="/join-team" element={<JoinEnterpriseTeam />} />
              <Route path="/household" element={<Household />} />
           </Route>

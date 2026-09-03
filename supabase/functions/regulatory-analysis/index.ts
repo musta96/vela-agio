@@ -127,9 +127,7 @@ Public sources: ${JSON.stringify(SOURCES)}`;
   const response = await fetch(`${cfg.baseURL}/chat/completions`, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: 'You are a cautious regulatory-policy analyst for investment research. The output must be JSON.' }, { role: 'user', content: prompt }], response_format: { type: 'json_object' } }) });
   if (!response.ok) { const detail = (await response.text()).slice(0, 600); throw new Error(`AI gateway ${response.status}: ${detail}`); }
   const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
-  console.log('regulatory-analysis raw content preview', typeof content, JSON.stringify(content ?? '').slice(0, 300));
-  return normalizeReport(parseModelJson(content), body);
+  return normalizeReport(parseModelJson(payload?.choices?.[0]?.message?.content), body);
 }
 
 Deno.serve(async (req) => {

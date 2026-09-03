@@ -113,6 +113,7 @@ import Terms from "./pages/legal/Terms";
 import Disclaimer from "./pages/legal/Disclaimer";
 import Cookies from "./pages/legal/Cookies";
 import Install from "./pages/Install";
+import IosApp from "./pages/IosApp";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { AutoTranslate } from "./lib/autoTranslate";
 
@@ -147,6 +148,7 @@ const App = () => (
           <Route path="/disclaimer" element={<Disclaimer />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/ios" element={<IosApp />} />
           <Route path="/support" element={<Support />} />
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
           <Route path="/blog" element={<Blog />} />

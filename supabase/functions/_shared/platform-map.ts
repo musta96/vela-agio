@@ -27,6 +27,15 @@ ANALYSIS
 - /peers          Peer comparison snowflakes.
 - /quant          Quant alpha factor explorer (value/momentum/quality/low-vol).
 - /event-study    Event study around earnings, M&A, macro prints.
+- /advanced-analysis  Advanced Analysis — real OHLCV chart with candlestick patterns, support/resistance, trendlines, order blocks, liquidity sweeps, anchored VWAP, Volume Profile (POC/VAH/VAL), Fibonacci golden zone, configurable detector settings, and a full backtest report on the loaded interval. Deep-linkable with ?symbol=TICKER.
+- /strategy-lab   Strategy Lab — rule builder with validation, execution costs (commission/slippage), parameter sensitivity heatmap with drill-down, regime breakdown (trend/range/high-low vol), walk-forward optimisation, version comparison, SMC signal performance report, simulation cache & CPU controls.
+- /simulations    Portfolio Monte Carlo & scenario analysis — correlated GBM paths, fan chart, histogram, CDF, VaR/CVaR, tornado sensitivity, signal-adjusted runs.
+- /portfolio-compare  Proposed vs Current — overlap, duplication flags, sector/geography exposure, Herfindahl diversification delta, rebalance suggestions.
+- /regulatory-analysis  Predictive regulatory analysis — impact of proposed laws, directives and regulatory trends on sectors/companies with scenarios, assumptions, confidence and citations.
+- /regional-markets  Regional deep-dive — MENA, APAC, China, Korea, Japan, Latin America, North America and Africa: exchanges, currencies, market hours, macro snapshot, structural drivers, risks and tradable indices/ETFs/stocks/FX.
+- /short-selling  Short selling — borrow/short analytics, most-shorted screens, paper short orders and unlimited-loss risk framing.
+- /options        Options chain & analytics — Black-Scholes pricing, greeks, payoff diagrams, margin. Deep-link /options/TICKER.
+- /futures        Futures — contract specs, curves and quotes.
 
 INTELLIGENCE
 - /picks          AI Picks — Smart Picks edge function ranks ideas by score.
@@ -38,6 +47,7 @@ INTELLIGENCE
 
 DATA
 - /filings        SEC EDGAR filings search + AI summary.
+- /research-analyst  AI Equity Research Analyst — summarise annual reports (10-K/20-F), quarterlies and 8-Ks, analyse pasted earnings-call transcripts, extract and severity-classify risks with per-paragraph citations, tag and search saved research notes, watchlist filing alerts, and diff the latest report vs the previous one.
 - /earnings       Earnings calendar + post-earnings drift.
 - /insider        Insider trading (Form 4 + 13F).
 - /baskets        Thematic baskets (AI, blockchain, defense, etc.).
@@ -53,6 +63,16 @@ ACCOUNT
 - /settings       Settings — language, theme, BYO API keys (data + AI providers).
 - /pricing        Pricing.
 - /admin/*        Admin-only — audit log, settings.
+
+TOOLS YOU CAN CALL FOR THESE PAGES (don't just link — run them):
+- analyze_technicals → patterns, S/R, order blocks, sweeps, anchored VWAP, Volume Profile, Fibonacci for any ticker.
+- run_strategy_backtest → historical backtest with costs and benchmark.
+- run_portfolio_simulation → Monte Carlo / scenario analysis on an allocation.
+- compare_portfolio_impact → proposed vs existing holdings.
+- analyze_filing_or_transcript → AI equity research note from a SEC filing URL or earnings call transcript.
+- run_regulatory_analysis → forward-looking regulatory impact report.
+- run_thematic_deepdive / run_screener → macro, sector and thematic value-chain discovery across all global regions.
+- suggest_hedge + place_paper_order(short_sell=true) → shorting and hedging workflows (paper only).
 
 IMPORTANT FEATURE NOTES:
 - All third-party API keys are stored encrypted in Lovable Cloud (vault). Users add them under /settings → Data providers.

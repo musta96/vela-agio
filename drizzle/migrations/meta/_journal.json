@@ -43,6 +43,13 @@
       "when": 1788416356322,
       "tag": "0005_notes_blotter_and_entitlement_locks",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788436905484,
+      "tag": "0006_copilot_messages_artifacts",
+      "breakpoints": true
     }
   ]
 }

@@ -1049,6 +1049,7 @@ export type Database = {
       }
       copilot_messages: {
         Row: {
+          artifacts: Json | null
           content: string
           created_at: string
           id: string
@@ -1057,6 +1058,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          artifacts?: Json | null
           content?: string
           created_at?: string
           id?: string
@@ -1065,6 +1067,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          artifacts?: Json | null
           content?: string
           created_at?: string
           id?: string

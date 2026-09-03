@@ -41,6 +41,19 @@ interface Body {
     showResearchNote?: boolean;
   };
   expiresInDays?: number | null;
+  tags?: string[];
+}
+
+/** Normalize user tags: trimmed, lowercase, deduped, <=24 chars, max 12 per note. */
+function normalizeTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const t of raw) {
+    const v = String(t ?? '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 24);
+    if (v && !out.includes(v)) out.push(v);
+    if (out.length >= 12) break;
+  }
+  return out;
 }
 
 function htmlToText(html: string): string {
@@ -124,7 +137,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       if (!userId) return jsonResp({ notes: [], authenticated: false });
       const q = svc().from('ai_research_notes')
-        .select('id, symbol, name, mode, source_url, source_label, focus, model, generated_at, created_at, report, share_token, share_enabled, share_permissions, share_expires_at')
+        .select('id, symbol, name, mode, source_url, source_label, focus, model, generated_at, created_at, report, tags, share_token, share_enabled, share_permissions, share_expires_at')
         .eq('user_id', userId).order('generated_at', { ascending: false }).limit(200);
       if (body.symbol) q.eq('symbol', body.symbol.toUpperCase());
       const { data, error } = await q;
@@ -151,6 +164,18 @@ Deno.serve(async (req) => {
         .delete().eq('user_id', userId).eq('id', body.id);
       if (error) return jsonResp({ error: 'delete_failed', message: error.message }, 500);
       return jsonResp({ ok: true });
+    }
+
+    // ---- Update tags on a saved note ----
+    if (action === 'set_tags') {
+      if (!userId) return jsonResp({ error: 'auth_required' }, 401);
+      if (!body.id) return jsonResp({ error: 'id required' }, 400);
+      const tags = normalizeTags(body.tags);
+      const { data, error } = await svc().from('ai_research_notes')
+        .update({ tags }).eq('user_id', userId).eq('id', body.id).select('id, tags').maybeSingle();
+      if (error) return jsonResp({ error: 'update_failed', message: error.message }, 500);
+      if (!data) return jsonResp({ error: 'not_found' }, 404);
+      return jsonResp({ ok: true, tags: data.tags ?? [] });
     }
 
     // ---- Share: create/update link ----

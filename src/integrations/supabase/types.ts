@@ -319,6 +319,7 @@ export type Database = {
           source_note: string | null
           source_url: string | null
           symbol: string
+          tags: string[]
           user_id: string
         }
         Insert: {
@@ -341,6 +342,7 @@ export type Database = {
           source_note?: string | null
           source_url?: string | null
           symbol: string
+          tags?: string[]
           user_id: string
         }
         Update: {
@@ -363,6 +365,7 @@ export type Database = {
           source_note?: string | null
           source_url?: string | null
           symbol?: string
+          tags?: string[]
           user_id?: string
         }
         Relationships: []

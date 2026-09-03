@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { diffWords, diffRisks, narrativeDiffs } from "@/lib/research/diff";
 import { GitCompare, ArrowUp, ArrowDown, Minus, LineChart as LineChartIcon } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip,
@@ -80,6 +81,19 @@ const guidanceIcon: Record<string, JSX.Element> = {
 
 export function ResearchCompareDialog({ open, onOpenChange, notes }: Props) {
   const sorted = useMemo(() => [...notes].sort((a, b) => new Date(a.generated_at).getTime() - new Date(b.generated_at).getTime()), [notes]);
+
+  const latestPair = useMemo(() => ({
+    previous: sorted[sorted.length - 2],
+    latest: sorted[sorted.length - 1],
+  }), [sorted]);
+  const riskDelta = useMemo(
+    () => diffRisks(latestPair.previous?.report, latestPair.latest?.report),
+    [latestPair],
+  );
+  const narrative = useMemo(
+    () => narrativeDiffs(latestPair.previous?.report, latestPair.latest?.report),
+    [latestPair],
+  );
 
   // Build union of metric labels across all notes (case/spacing normalized).
   const metricLabels = useMemo(() => {
@@ -160,6 +174,72 @@ export function ResearchCompareDialog({ open, onOpenChange, notes }: Props) {
         ) : (
           <ScrollArea className="flex-1">
             <div className="min-w-max space-y-6">
+              {/* Latest vs previous textual diff */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <GitCompare className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">What changed — latest vs previous</h3>
+                  <Badge variant="outline" className="text-[10px]">
+                    {latestPair.previous.source_label || new Date(latestPair.previous.generated_at).toLocaleDateString()} →{" "}
+                    {latestPair.latest.source_label || new Date(latestPair.latest.generated_at).toLocaleDateString()}
+                  </Badge>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-card/40 p-3 space-y-3">
+                  <div className="flex flex-wrap gap-2 text-[11px]">
+                    <Badge variant="destructive">{riskDelta.added.length} new risks</Badge>
+                    <Badge variant="secondary">{riskDelta.escalated.length} escalated</Badge>
+                    <Badge variant="outline">{riskDelta.deescalated.length} eased</Badge>
+                    <Badge variant="outline">{riskDelta.removed.length} dropped</Badge>
+                    <Badge variant="outline">{riskDelta.unchanged} unchanged</Badge>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {[
+                      { label: "New risks", items: riskDelta.added.map((r) => `${r.title} (${r.severity})`), tone: "text-bear" },
+                      { label: "Escalated", items: riskDelta.escalated.map((e) => `${e.risk.title}: ${e.from} → ${e.to}`), tone: "text-warning" },
+                      { label: "Eased", items: riskDelta.deescalated.map((e) => `${e.risk.title}: ${e.from} → ${e.to}`), tone: "text-bull" },
+                      { label: "No longer disclosed", items: riskDelta.removed.map((r) => r.title), tone: "text-muted-foreground" },
+                    ].filter((g) => g.items.length > 0).map((g) => (
+                      <div key={g.label}>
+                        <p className={`text-xs font-medium ${g.tone}`}>{g.label}</p>
+                        <ul className="ml-4 list-disc text-xs text-muted-foreground">
+                          {g.items.map((t, i) => <li key={i}>{t}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                    {riskDelta.added.length + riskDelta.removed.length + riskDelta.escalated.length + riskDelta.deescalated.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Risk disclosure is materially unchanged between these two reports.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {narrative.map((d) => (
+                    <div key={d.field} className="rounded-lg border border-border/60 bg-card/40 p-3">
+                      <div className="mb-1 flex items-center gap-2">
+                        <p className="text-xs font-medium">{d.label}</p>
+                        <Badge variant={d.changed ? "secondary" : "outline"} className="text-[10px]">{d.changed ? "changed" : "unchanged"}</Badge>
+                      </div>
+                      <p className="max-w-[70ch] whitespace-pre-wrap text-xs leading-relaxed">
+                        {diffWords(d.before, d.after).map((t, i) => (
+                          <span
+                            key={i}
+                            className={
+                              t.op === "added" ? "rounded bg-bull/15 text-bull" :
+                              t.op === "removed" ? "rounded bg-bear/15 text-bear line-through" : ""
+                            }
+                          >{t.text}</span>
+                        ))}
+                      </p>
+                    </div>
+                  ))}
+                  {narrative.length === 0 && <p className="text-xs text-muted-foreground">No narrative sections available to diff.</p>}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Green = wording added in the latest report, struck red = wording dropped. Diff is textual — always confirm against the cited source.
+                </p>
+              </section>
+
               {/* Trend charts */}
               <section className="space-y-3">
                 <div className="flex items-center gap-2">

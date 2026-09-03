@@ -1115,11 +1115,35 @@ function sseTool(payload: unknown) {
   return `event: tool\ndata: ${JSON.stringify(payload)}\n\n`;
 }
 
+// Detects "I'll do it later / stand by" promises, which are always lies:
+// this function has no background jobs. EN + IT phrasing.
+const DEFERRAL_PATTERNS: RegExp[] = [
+  /\b(please )?stand ?by\b/i,
+  /\bi will notify you\b/i, /\bi'?ll notify you\b/i, /\bnotify you (the moment|as soon as|once)\b/i,
+  /\b(i am|i'?m) (now )?(processing|working on|proceeding with|initiating|embarking)\b/i,
+  /\bwill take (some|a few|a moment|time)\b/i, /\ballow me (a|the|some)\b/i,
+  /\b(as soon as|once) (they|it|the memos?|the analysis|this) (are|is) (ready|complete)\b/i,
+  /\bi (will|'ll) return with\b/i, /\bcoming (right )?up shortly\b/i,
+  /\bi (will|'ll) (get back|come back) to you\b/i,
+  /\b(resta|restate) in attesa\b/i, /\bti (avviser|notificher)/i, /\bappena (pronto|pronti|completat)/i,
+  /\bsto (elaborando|procedendo|lavorando)\b/i, /\bci vorr[àa] (un|qualche)\b/i,
+];
+function isDeferralText(text: unknown): boolean {
+  if (typeof text !== 'string' || text.length < 20) return false;
+  return DEFERRAL_PATTERNS.some((re) => re.test(text));
+}
+
+const DEFERRAL_CORRECTION = `SYSTEM ENFORCEMENT: your last draft promised future/background work ("stand by", "I will notify you", "this will take time"). That draft was DISCARDED and never shown to the user, because you have NO background execution: when your reply ends, nothing else runs.
+Redo this turn NOW:
+1. Call the actual tools you need in THIS turn (generate_portfolio_memo, generate_investment_memo, generate_research_brief, analyze_technicals, run_strategy_backtest, run_portfolio_simulation, run_regulatory_analysis, run_thematic_deepdive, run_screener, ...). Every one of them is live and deployed.
+2. If the request is too large for one turn, run the FIRST concrete piece now, present its real output, then ask the user to reply "continue" for the next piece.
+3. Never again write any sentence promising later delivery, notifications, or processing time.`;
+
 // One non-streaming model call that may emit tool_calls
-async function chatStep(cfg: any, messages: any[]) {
+async function chatStep(cfg: any, messages: any[], toolChoice: 'auto' | 'required' = 'auto') {
   const r = await fetch(`${cfg.baseURL}/chat/completions`, {
     method: 'POST', headers: cfg.headers,
-    body: JSON.stringify({ model: cfg.model, messages, tools: TOOLS, tool_choice: 'auto' }),
+    body: JSON.stringify({ model: cfg.model, messages, tools: TOOLS, tool_choice: toolChoice }),
   });
   if (!r.ok) {
     const text = await r.text();
@@ -1127,6 +1151,7 @@ async function chatStep(cfg: any, messages: any[]) {
   }
   return await r.json();
 }
+
 
 // Final streaming call (no more tools — model must respond in prose)
 async function chatStream(cfg: any, messages: any[]) {
@@ -1327,13 +1352,25 @@ ${PLATFORM_MAP}`;
         const enc = new TextEncoder();
         const send = (s: string) => controller.enqueue(enc.encode(s));
         try {
-          // Tool loop — up to 6 turns
-          for (let step = 0; step < 6; step++) {
-            const j = await chatStep(cfg, convo);
+          // Tool loop — up to 8 turns (extra room for deferral retries)
+          let deferralRetries = 0;
+          let forceTools = false;
+          for (let step = 0; step < 8; step++) {
+            const j = await chatStep(cfg, convo, forceTools ? 'required' : 'auto');
+            forceTools = false;
             const msg = j?.choices?.[0]?.message;
             if (!msg) break;
             const toolCalls = msg.tool_calls ?? [];
             if (toolCalls.length === 0) {
+              // Guard: never ship a "stand by / I'll notify you" promise — there is no
+              // background execution. Discard the draft and force a real tool turn.
+              if (isDeferralText(msg.content) && deferralRetries < 2) {
+                deferralRetries++;
+                convo.push({ role: 'assistant', content: String(msg.content).slice(0, 2000) });
+                convo.push({ role: 'system', content: DEFERRAL_CORRECTION });
+                forceTools = true;
+                continue;
+              }
               // No more tools — stream the final answer
               // If model already produced content here, push it then stop.
               if (msg.content) {
@@ -1351,6 +1388,7 @@ ${PLATFORM_MAP}`;
               controller.close();
               return;
             }
+
             // Push assistant message with tool_calls into convo
             convo.push({ role: 'assistant', content: msg.content ?? '', tool_calls: toolCalls });
             for (const tc of toolCalls) {

@@ -53,3 +53,5 @@ verify_jwt = false
 
 [functions.reactivate-subscription]
 verify_jwt = false
+[functions.regulatory-analysis]
+verify_jwt = true

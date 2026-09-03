@@ -10,6 +10,7 @@ import { TickerSearch } from "@/components/TickerSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { BrainCircuit, Loader2, Sparkles, FileText, ExternalLink } from "lucide-react";
 import { AIEquityAnalystDialog, type AnalystInput } from "@/components/research/AIEquityAnalystDialog";
+import { WatchlistFilingsCard, type WatchFiling } from "@/components/research/WatchlistFilingsCard";
 import { SavedResearchNotes, type SavedNote } from "@/components/research/SavedResearchNotes";
 
 interface Filing {
@@ -74,6 +75,12 @@ export default function ResearchAnalyst() {
       initialModel: n.model ?? undefined,
       initialSourceLabel: n.source_label ?? undefined,
     });
+    setAnalystOpen(true);
+  };
+
+  const analyzeWatchFiling = (f: WatchFiling) => {
+    setSymbol(f.symbol);
+    setAnalystInput({ symbol: f.symbol, mode: "filing", filingUrl: f.url, filingLabel: `${f.form} • ${f.date}` });
     setAnalystOpen(true);
   };
 
@@ -190,6 +197,8 @@ export default function ResearchAnalyst() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <WatchlistFilingsCard onAnalyze={analyzeWatchFiling} />
 
         <SavedResearchNotes symbol={symbol.toUpperCase()} onReopen={reopenNote} refreshKey={notesRefresh} />
 

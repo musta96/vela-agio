@@ -11,17 +11,82 @@ const BodySchema = z.object({
   stance: z.enum(['base', 'upside', 'downside']),
   context: z.string().trim().max(2000).optional(),
 });
+// The model is prompted for a fixed shape, but wording drifts (extra enum
+// values, a single object instead of a list, a missing section). Parsing is
+// therefore tolerant: we accept loose text and normalise it ourselves, so a
+// usable report is never discarded over a vocabulary mismatch.
+const LooseItem = z.record(z.string(), z.unknown());
 const OutputSchema = z.object({
-  headline: z.string(),
-  executiveSummary: z.string(),
-  affectedAssets: z.array(z.object({ asset: z.string(), direction: z.enum(['positive', 'negative', 'mixed', 'uncertain']), rationale: z.string() })),
-  impacts: z.array(z.object({ dimension: z.enum(['revenue', 'cost', 'capital', 'risk']), severity: z.enum(['high', 'medium', 'low']), assessment: z.string(), timeframe: z.string() })),
-  scenarios: z.array(z.object({ name: z.string(), probability: z.string(), outcome: z.string() })),
-  assumptions: z.array(z.string()),
-  confidence: z.enum(['high', 'medium', 'low']),
-  sources: z.array(z.object({ title: z.string(), url: z.string(), relevance: z.string() })),
+  headline: z.string().optional(),
+  executiveSummary: z.string().optional(),
+  affectedAssets: z.union([z.array(LooseItem), LooseItem]).optional(),
+  impacts: z.union([z.array(LooseItem), LooseItem]).optional(),
+  scenarios: z.union([z.array(LooseItem), LooseItem]).optional(),
+  assumptions: z.union([z.array(z.string()), z.string()]).optional(),
+  confidence: z.string().optional(),
+  sources: z.union([z.array(LooseItem), LooseItem]).optional(),
 });
 type Body = z.infer<typeof BodySchema>;
+
+const DIRECTIONS = ['positive', 'negative', 'mixed', 'uncertain'] as const;
+const DIMENSIONS = ['revenue', 'cost', 'capital', 'risk'] as const;
+const LEVELS = ['high', 'medium', 'low'] as const;
+
+const asList = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+    : v && typeof v === 'object' ? [v as Record<string, unknown>] : [];
+const str = (v: unknown, fallback = ''): string => typeof v === 'string' && v.trim() ? v.trim() : fallback;
+const pick = <T extends readonly string[]>(v: unknown, allowed: T, fallback: T[number]): T[number] => {
+  const value = str(v).toLowerCase();
+  return (allowed as readonly string[]).includes(value) ? value as T[number] : fallback;
+};
+
+export interface RegulatoryReport {
+  headline: string;
+  executiveSummary: string;
+  affectedAssets: { asset: string; direction: string; rationale: string }[];
+  impacts: { dimension: string; severity: string; assessment: string; timeframe: string }[];
+  scenarios: { name: string; probability: string; outcome: string }[];
+  assumptions: string[];
+  confidence: string;
+  sources: { title: string; url: string; relevance: string }[];
+}
+
+/** Normalise a loosely-shaped model response into the report the UI renders. */
+export function normalizeReport(raw: unknown, body: Body): RegulatoryReport {
+  const parsed = OutputSchema.safeParse(raw);
+  const d = parsed.success ? parsed.data : {};
+  const assumptions = Array.isArray(d.assumptions) ? d.assumptions.map((a) => str(a)).filter(Boolean)
+    : str(d.assumptions) ? [str(d.assumptions)] : [];
+  return {
+    headline: str(d.headline, `Regulatory outlook: ${body.topic}`),
+    executiveSummary: str(d.executiveSummary, 'The model did not return a summary for this scenario. Re-run the analysis or narrow the regulatory topic.'),
+    affectedAssets: asList(d.affectedAssets).map((a) => ({
+      asset: str(a.asset ?? a.name ?? a.instrument, body.focus),
+      direction: pick(a.direction ?? a.impact, DIRECTIONS, 'uncertain'),
+      rationale: str(a.rationale ?? a.reason ?? a.assessment, 'No rationale provided.'),
+    })).filter((a) => a.asset),
+    impacts: asList(d.impacts).map((i) => ({
+      dimension: pick(i.dimension ?? i.channel, DIMENSIONS, 'risk'),
+      severity: pick(i.severity ?? i.magnitude, LEVELS, 'medium'),
+      assessment: str(i.assessment ?? i.description ?? i.detail, 'No assessment provided.'),
+      timeframe: str(i.timeframe ?? i.horizon, body.horizon),
+    })),
+    scenarios: asList(d.scenarios).map((s) => ({
+      name: str(s.name ?? s.scenario, 'Scenario'),
+      probability: str(s.probability ?? s.likelihood, 'Not quantified'),
+      outcome: str(s.outcome ?? s.description ?? s.impact, 'No outcome described.'),
+    })),
+    assumptions,
+    confidence: pick(d.confidence, LEVELS, 'low'),
+    sources: asList(d.sources).map((s) => ({
+      title: str(s.title ?? s.name),
+      url: str(s.url ?? s.link),
+      relevance: str(s.relevance ?? s.description, 'Referenced by the analysis.'),
+    })).filter((s) => s.title && /^https?:\/\//.test(s.url)),
+  };
+}
+
 const SOURCES = [
   { title: 'European Commission legislative proposals', url: 'https://commission.europa.eu/law/law-making-process/types-eu-law_en', relevance: 'Primary EU legislative process reference.' },
   { title: 'U.S. Federal Register', url: 'https://www.federalregister.gov/', relevance: 'Primary U.S. proposed and final rule publication.' },
@@ -30,7 +95,7 @@ const SOURCES = [
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 async function callAI(body: Body, cfg: { baseURL: string; headers: Record<string, string>; model: string }) {
-  const prompt = `Return only valid JSON matching this shape: {"headline":"string","executiveSummary":"string","affectedAssets":[{"asset":"string","direction":"positive|negative|mixed|uncertain","rationale":"string"}],"impacts":[{"dimension":"revenue|cost|capital|risk","severity":"high|medium|low","assessment":"string","timeframe":"string"}],"scenarios":[{"name":"string","probability":"string","outcome":"string"}],"assumptions":["string"],"confidence":"high|medium|low","sources":[{"title":"string","url":"string","relevance":"string"}]}. Analyze the possible future regulatory impact, not legal certainty. Do not invent a passed law, exact probability, or unsupported company exposure. Use the supplied public source list and clearly state uncertainty.
+  const prompt = `Return only valid JSON matching this shape: {"headline":"string","executiveSummary":"string","affectedAssets":[{"asset":"string","direction":"positive|negative|mixed|uncertain","rationale":"string"}],"impacts":[{"dimension":"revenue|cost|capital|risk","severity":"high|medium|low","assessment":"string","timeframe":"string"}],"scenarios":[{"name":"string","probability":"string","outcome":"string"}],"assumptions":["string"],"confidence":"high|medium|low","sources":[{"title":"string","url":"string","relevance":"string"}]}. Every list must contain at least two entries. Analyze the possible future regulatory impact, not legal certainty. Do not invent a passed law, exact probability, or unsupported company exposure. Use the supplied public source list and clearly state uncertainty.
 
 Focus: ${body.focus}
 Jurisdiction: ${body.jurisdiction}
@@ -42,10 +107,10 @@ Public sources: ${JSON.stringify(SOURCES)}`;
   const response = await fetch(`${cfg.baseURL}/chat/completions`, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: 'You are a cautious regulatory-policy analyst for investment research. The output must be JSON.' }, { role: 'user', content: prompt }], response_format: { type: 'json_object' } }) });
   if (!response.ok) { const detail = (await response.text()).slice(0, 600); throw new Error(`AI gateway ${response.status}: ${detail}`); }
   const payload = await response.json();
-  const raw = payload?.choices?.[0]?.message?.content;
-  const parsed = OutputSchema.safeParse(JSON.parse(raw ?? '{}'));
-  if (!parsed.success) throw new Error('AI returned an invalid regulatory analysis shape.');
-  return parsed.data;
+  const content = payload?.choices?.[0]?.message?.content;
+  let raw: unknown;
+  try { raw = JSON.parse(content ?? '{}'); } catch { throw new Error('AI returned malformed JSON for the regulatory analysis.'); }
+  return normalizeReport(raw, body);
 }
 
 Deno.serve(async (req) => {

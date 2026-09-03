@@ -1,10 +1,13 @@
 {
   "appId": "app.lovable.e14264c2a9714672b2f55f9cca015f55",
-  "appName": "vela-agio",
+  "appName": "Vela",
   "webDir": "dist",
   "server": {
-    "url": "https://e14264c2-a971-4672-b2f5-5f9cca015f55.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
+    "url": "https://vela-agio.lovable.app",
+    "hostname": "vela-agio.lovable.app",
+    "androidScheme": "https",
+    "iosScheme": "https",
+    "cleartext": false
   },
   "plugins": {
     "SplashScreen": {
@@ -29,9 +32,10 @@
   },
   "ios": {
     "contentInset": "always",
-    "limitsNavigationsToAppBoundDomains": false
+    "limitsNavigationsToAppBoundDomains": false,
+    "scheme": "Vela"
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": false
   }
 }

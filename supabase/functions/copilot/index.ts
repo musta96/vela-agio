@@ -1357,10 +1357,11 @@ ${PLATFORM_MAP}`;
         const enc = new TextEncoder();
         const send = (s: string) => controller.enqueue(enc.encode(s));
         try {
-          // Tool loop — up to 8 turns (extra room for deferral retries)
+          // Tool loop — up to 12 turns (extra room for deferral retries and
+          // multi-part requests that chain several analyses)
           let deferralRetries = 0;
           let forceTools = false;
-          for (let step = 0; step < 8; step++) {
+          for (let step = 0; step < 12; step++) {
             const j = await chatStep(cfg, convo, forceTools ? 'required' : 'auto');
             forceTools = false;
             const msg = j?.choices?.[0]?.message;

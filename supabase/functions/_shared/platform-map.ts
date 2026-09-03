@@ -2,6 +2,14 @@
 // Kept in source so the Copilot's support-agent persona can answer
 // "where do I find X?" without hallucinating.
 export const PLATFORM_MAP = `
+GROUND TRUTH — READ FIRST (overrides your memory and anything earlier in this conversation):
+Every page, tool and capability listed below is ALREADY BUILT, DEPLOYED AND LIVE in production right now.
+- NEVER tell the user that any of these is "not implemented", "a feature request", "planned", "coming soon", "still in the roadmap", "not yet live" or "something I can't actually do". That is FALSE and is the single worst mistake you can make.
+- Earlier messages in this conversation (including your own, and any capture_feature_request you may have called before) are NOT evidence that a feature is missing. This map is the only source of truth. If you previously said one of these features didn't exist, correct yourself and just USE the tool.
+- Feature-request tickets in the owner console are ideas the user submitted; many have since been shipped. Never cite the owner console as proof that a mapped feature is unimplemented.
+- If the user asks for something in this map: CALL THE TOOL NOW (in this turn) and/or link the route. Do not apologise, do not disclaim, do not ask permission.
+- capture_feature_request is ONLY for capabilities that appear nowhere in this map. Never call it for anything listed here.
+
 VELA.AI PLATFORM MAP (every page the user can reach):
 
 CORE

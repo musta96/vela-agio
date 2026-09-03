@@ -74,6 +74,7 @@ function adx(bars: Bar[], i: number, period = 14): number | null {
 
 function evalCondition(c: Condition, bars: Bar[], i: number): boolean {
   const closes = bars.map((b) => b.close);
+  const taBars = asTaBars(bars);
   const prior = (n: number) => i - n >= 0;
   switch (c.type) {
     case "rsi_below": { const v = rsi(closes, i); return v !== null && v < (c.value ?? 30); }

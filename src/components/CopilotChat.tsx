@@ -622,7 +622,7 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
             </div>
           )}
         </div>
-        <Button onClick={send} disabled={busy || exhausted} size="icon" title={exhausted ? "AI credits exhausted" : "Send"}>
+        <Button onClick={() => void send()} disabled={busy || exhausted} size="icon" title={exhausted ? "AI credits exhausted" : "Send"}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>

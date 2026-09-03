@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CandlestickChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { FullAnalysis, Bias } from "@/lib/ta";
+import { TermGloss } from "@/components/TermGloss";
 
 const bgFor = (b: Bias) => b === "bullish"
   ? "bg-success/10 border-success/30"

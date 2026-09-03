@@ -5,6 +5,7 @@ import { BarChart, Bar, YAxis, XAxis, ResponsiveContainer, Cell, Tooltip } from 
 import { computeVolumeProfile } from "@/lib/ta/volumeProfile";
 import type { Bar as OhlcBar } from "@/lib/ta/types";
 import { computeOrderFlow } from "@/lib/flow/orderFlow";
+import { TermGloss } from "@/components/TermGloss";
 
 interface Props { bars: OhlcBar[]; }
 
@@ -53,9 +54,9 @@ export function VolumeAtPriceCard({ bars }: Props) {
         </ResponsiveContainer>
       </div>
       <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
-        <div className="p-2 rounded border border-primary/30 bg-primary/5">POC · <span className="font-semibold">{profile.poc.toFixed(2)}</span></div>
-        <div className="p-2 rounded border border-border">VAL · <span className="font-semibold">{profile.val.toFixed(2)}</span></div>
-        <div className="p-2 rounded border border-border">VAH · <span className="font-semibold">{profile.vah.toFixed(2)}</span></div>
+        <div className="p-2 rounded border border-primary/30 bg-primary/5"><TermGloss term="poc">POC</TermGloss> · <span className="font-semibold">{profile.poc.toFixed(2)}</span></div>
+        <div className="p-2 rounded border border-border"><TermGloss term="val">VAL</TermGloss> · <span className="font-semibold">{profile.val.toFixed(2)}</span></div>
+        <div className="p-2 rounded border border-border"><TermGloss term="vah">VAH</TermGloss> · <span className="font-semibold">{profile.vah.toFixed(2)}</span></div>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">Green bins = net buying delta at that price, red = net selling. POC stays highlighted at full opacity.</p>
       {typeof lastPrice === "number" && (

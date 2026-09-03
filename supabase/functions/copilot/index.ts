@@ -101,7 +101,7 @@ const TOOLS = [
   { type: 'function', function: { name: 'run_screener', description: 'Run a natural-language stock screener against a universe of tickers. Returns a ranked, filtered candidate list with fundamentals — NOT a recommendation. Use this when the user describes objective criteria ("high momentum small caps under 15x earnings", "EU banks with yield > 6%", "speculative growth names with revenue growth > 30%") or asks for a shortlist to research. The output is information, not advice.',
       parameters: { type: 'object', properties: {
         query: { type: 'string', description: 'The user\u2019s natural-language screening criteria.' },
-        universe: { type: 'string', enum: ['us_large', 'us_growth', 'eu_large', 'ftse_mib', 'global_mix'], description: 'Which universe to scan. Defaults to global_mix.' },
+        universe: { type: 'string', enum: ['us_large', 'us_growth', 'eu_large', 'ftse_mib', 'mena', 'apac', 'china', 'latam', 'global_mix'], description: 'Which universe to scan. Defaults to global_mix.' },
       }, required: ['query'] } } },
   { type: 'function', function: { name: 'run_thematic_deepdive', description: 'Map a megatrend/theme (e.g. "AI infrastructure", "GLP-1 drugs", "defence electronics", "grid & transmission", "small caps in nuclear") to its full value chain across raw materials, components, manufacturers, distributors and end users, then return a ranked list of listed companies — deliberately including small/micro caps. Use when the user asks "who benefits from X", "value chain of X", "hidden names in X", "small caps riding X". Output is information, not a recommendation.',
       parameters: { type: 'object', properties: {
@@ -236,6 +236,10 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
     us_growth: ['NVDA','TSLA','META','AMD','SNOW','CRWD','NET','DDOG','PLTR','MDB','SHOP','ABNB','UBER','COIN','ZS','OKTA','PANW','TEAM','NOW','HUBS','SQ','PYPL','ROKU','ARM','SMCI'],
     eu_large: ['ASML.AS','SAP.DE','NESN.SW','NOVN.SW','MC.PA','OR.PA','SAN.PA','LVMH.PA','ROG.SW','SIE.DE','ALV.DE','BAS.DE','BMW.DE','VOW3.DE','BNP.PA','ING.AS','BBVA.MC','SAN.MC','TEF.MC','VOD.L','HSBA.L','SHEL.L','BP.L','AZN.L','GSK.L','ULVR.L'],
     ftse_mib: ['ENI.MI','ENEL.MI','ISP.MI','UCG.MI','STM.MI','RACE.MI','G.MI','TIT.MI','MB.MI','FBK.MI','BAMI.MI','BPE.MI','LDO.MI','PIRC.MI','PRY.MI','MONC.MI','UNI.MI','REC.MI','SRG.MI','TRN.MI','TEN.MI','HER.MI','A2A.MI','AMP.MI','BMED.MI'],
+    mena: ['2222.SR','1120.SR','2010.SR','1180.SR','7010.SR','1211.SR','4013.SR','EMAAR.AE','FAB.AE','EAND.AE','ALDAR.AE','ADCB.AE','DEWA.AE','QNBK.QA','IQCD.QA','QIBK.QA','COMI.CA','KSA','UAE','QAT','GULF'],
+    apac: ['7203.T','6758.T','8306.T','9984.T','6861.T','8035.T','9432.T','8058.T','RELIANCE.NS','TCS.NS','HDFCBANK.NS','ICICIBANK.NS','INFY.NS','ITC.NS','005930.KS','000660.KS','005380.KS','2330.TW','2317.TW','2454.TW','BHP.AX','CBA.AX','CSL.AX','D05.SI','Z74.SI','BBCA.JK','PTT.BK'],
+    china: ['0700.HK','9988.HK','3690.HK','0939.HK','1398.HK','0941.HK','1810.HK','2318.HK','0388.HK','9618.HK','1211.HK','0883.HK','600519.SS','601318.SS','600036.SS','000858.SZ','300750.SZ','BABA','PDD','JD','NTES','BIDU','TCOM','LI','NIO','MCHI','KWEB'],
+    latam: ['PETR4.SA','VALE3.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','B3SA3.SA','WEGE3.SA','BBAS3.SA','SUZB3.SA','PRIO3.SA','WALMEX.MX','GFNORTEO.MX','AMXB.MX','FEMSAUBD.MX','GMEXICOB.MX','SQM-B.SN','MELI','NU','VIST','GGB','BSAC','CIB','EWZ','EWW','ILF'],
     global_mix: ['AAPL','MSFT','NVDA','GOOGL','AMZN','TSLA','META','JPM','ASML.AS','SAP.DE','LVMH.PA','NESN.SW','NOVN.SW','ENI.MI','ENEL.MI','ISP.MI','RACE.MI','STM.MI','SHEL.L','AZN.L','ULVR.L','SAN.MC','BNP.PA','OR.PA','SIE.DE'],
   };
 
@@ -1189,6 +1193,13 @@ NO DEFAULT TICKER:
 - Do not reuse the example tickers from this prompt as actual recommendations.
 - If the user explicitly asks "as my advisor, tell me exactly what to do with my money", clarify you're not their licensed advisor but then give them the analytical answer anyway in research framing. Don't stonewall.
 
+NO DEFERRED WORK — YOU HAVE NO BACKGROUND JOBS (MANDATORY):
+You cannot work "in the background", cannot notify the user later, and cannot deliver anything after this turn ends. Anything you promise must be produced by calling tools IN THIS REPLY.
+- NEVER say "please stand by", "I will notify you when ready", "this will take a few moments", "I am now processing", or any variant. That is a lie: nothing runs after you stop streaming.
+- If the user asks for memos/reports, CALL the relevant tool(s) now (generate_portfolio_memo, generate_investment_memo, generate_research_brief). The download cards appear in the chat as soon as the tool returns, and the user sees a live spinner per tool while it runs.
+- If a request is too large for one turn, do the FIRST concrete piece now with real tool calls, hand over the output, and tell the user to reply "continue" for the next piece. Never defer the whole thing.
+- Documents produced by tools are saved automatically and appear under Account → Documents. Do not promise to file anything anywhere else.
+
 OTHER RULES:
 - Be number-driven. Cite metrics from tool outputs. Mark uncertainty honestly. Don't hallucinate prices or fundamentals — call the tools.
 - Tailor tone, risk language and instrument complexity to the user's MiFID II suitability profile when available, but the absence of a profile is NOT a reason to refuse analysis.
@@ -1269,6 +1280,7 @@ Behave as a competent personal financial advisor + portfolio manager + sell-side
 - CROSS-ASSET TICKER MAPPING: get_quote uses Yahoo symbols. Map plain-English asset names before calling. Crypto = TICKER-USD (BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD; ETF wrappers IBIT, ETHA, COIN, MSTR). Commodities = futures with "=F" or ETF proxy (Gold GC=F / GLD / IAU, Silver SI=F / SLV, WTI oil CL=F / USO, Brent BZ=F / BNO, Nat gas NG=F / UNG, Copper HG=F / CPER). FX = PAIR=X (EURUSD=X, GBPUSD=X, USDJPY=X; DXY = DX-Y.NYB). Indices = "^TICKER" (^GSPC / SPY, ^NDX / QQQ, ^DJI / DIA, ^FTSE, ^GDAXI, FTSEMIB.MI, ^STOXX50E, ^N225, ^VIX). Rate yields = ^TNX (US 10Y), ^IRX, ^FVX, ^TYX; investable via TLT, IEF, AGG, IEAG.L. Never say "the platform doesn't support gold/bitcoin/oil" — try the futures, ETF, and EUR/USD variants before giving up, and state which contract/wrapper you quoted.
 - Mutations (portfolio/watchlist/alerts/PAPER orders) still require user confirmation in the same turn before tool-calling.
 - LIVE (real-money) order routing remains DISABLED at the platform level — if asked, point the user to their broker's app.
+- NO DEFERRED WORK: you have no background jobs. Never say "stand by", "I'll notify you when ready", or "this will take a few moments" — nothing runs after your reply ends. Produce memos/reports by calling the tools IN THIS TURN (generate_portfolio_memo, generate_investment_memo, generate_research_brief); if the request is too big, deliver the first concrete piece now and ask the user to say "continue". Tool-generated documents are saved automatically and show up under Account → Documents.
 - TICKETS — NEVER LIE: bug reports or "open a ticket" requests MUST go through open_support_ticket. Confirm only when the tool returns ok:true, quoting the ticket_id; if it fails, say so explicitly.
 
 CONTEXT:

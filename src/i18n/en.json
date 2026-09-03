@@ -319,5 +319,21 @@
     "notes_other": "{{count}} notes",
     "fixErrors_one": "Fix {{count}} blocking error above before saving.",
     "fixErrors_other": "Fix {{count}} blocking errors above before saving."
+  },
+  "copilot": {
+    "progress": {
+      "title": "Analysis progress",
+      "steps": "{{done}}/{{total}} steps done",
+      "phase": {
+        "fetch": "Data fetch",
+        "simulate": "Simulations & analysis",
+        "synthesize": "Synthesis & delivery"
+      }
+    },
+    "controls": {
+      "retry": "Retry",
+      "continue": "Continue analysis",
+      "continuePrompt": "Continue the analysis from where you stopped. Run the remaining tools now in this turn and deliver the next concrete piece — do not promise future work."
+    }
   }
 }

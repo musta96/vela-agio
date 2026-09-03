@@ -319,5 +319,21 @@
     "notes_other": "{{count}} note",
     "fixErrors_one": "Correggi {{count}} errore bloccante prima di salvare.",
     "fixErrors_other": "Correggi {{count}} errori bloccanti prima di salvare."
+  },
+  "copilot": {
+    "progress": {
+      "title": "Avanzamento dell'analisi",
+      "steps": "{{done}}/{{total}} passaggi completati",
+      "phase": {
+        "fetch": "Recupero dati",
+        "simulate": "Simulazioni e analisi",
+        "synthesize": "Sintesi e consegna"
+      }
+    },
+    "controls": {
+      "retry": "Riprova",
+      "continue": "Continua l'analisi",
+      "continuePrompt": "Riprendi l'analisi da dove ti sei fermato. Esegui subito, in questo turno, gli strumenti rimanenti e consegna il prossimo risultato concreto: non promettere lavoro futuro."
+    }
   }
 }

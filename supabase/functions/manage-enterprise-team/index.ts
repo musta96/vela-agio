@@ -191,9 +191,14 @@ Deno.serve(async (req) => {
       if (!adminRole) return json({ error: "Forbidden" }, 403);
 
       if (action === "admin_list_leads") {
-        const { data: leads } = await db.from("enterprise_leads")
+        // Paid firms are auto-provisioned by the Stripe webhook, so the
+        // approval queue only shows applicants still awaiting a decision.
+        const includeAll = Boolean((body as any)?.include_all);
+        let query = db.from("enterprise_leads")
           .select("id,first_name,last_name,email,role,company,status,user_id,created_at")
           .order("created_at", { ascending: false }).limit(200);
+        if (!includeAll) query = query.neq("status", "converted");
+        const { data: leads } = await query;
         const rows = [] as any[];
         for (const lead of leads ?? []) {
           let firmId: string | null = null;

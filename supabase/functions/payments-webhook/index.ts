@@ -1,6 +1,23 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, verifyWebhook } from "../_shared/stripe.ts";
 import { autoApplyRetentionOffer, planFromPriceLookup } from "../_shared/retention.ts";
+import { provisionEnterpriseFirm } from "../_shared/enterprise.ts";
+
+/**
+ * Verified-payment Enterprise activation. Only ever called with a plan slug
+ * derived from the Stripe price on a subscription Stripe reports as paid, so
+ * a lead alone can never unlock seats.
+ */
+async function maybeProvisionEnterprise(plan: string, status: string, userId: string | undefined, source: string) {
+  if (!userId || plan !== "enterprise") return;
+  if (status !== "active" && status !== "trialing") return;
+  try {
+    const result = await provisionEnterpriseFirm(getSupabase() as any, userId, { source });
+    console.log("[payments-webhook] enterprise provisioning", { userId, source, ...result });
+  } catch (e) {
+    console.warn("enterprise provisioning failed", (e as Error).message);
+  }
+}
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -142,6 +159,7 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
         dunning_email_sent_at: null,
         current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       }).eq("user_id", userId);
+      
     } else if (subscription.status === "past_due") {
       // Only stamp past_due_since the first time — the grace period is measured
       // from the initial failure, not from every subsequent retry event.
@@ -288,6 +306,9 @@ async function handleInvoicePaid(invoice: any, env: StripeEnv) {
     // for first-time Pro activations after trial.
     trial_welcome_shown_at: isReactivation ? new Date().toISOString() : null,
   }).eq("user_id", userId);
+
+  await maybeProvisionEnterprise(activePlan, "active", userId, "invoice_paid");
+
 
   if (isReactivation) {
     try {

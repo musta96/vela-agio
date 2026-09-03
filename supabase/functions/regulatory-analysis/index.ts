@@ -94,6 +94,26 @@ const SOURCES = [
 ];
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+/**
+ * Models return JSON in several wrappers: a bare object, a ```json fenced
+ * block, an array of content parts, or prose wrapped around the object.
+ * Extract the first JSON object rather than rejecting the whole response.
+ */
+export function parseModelJson(content: unknown): unknown {
+  const text = typeof content === 'string' ? content
+    : Array.isArray(content) ? content.map((p) => typeof p === 'string' ? p : str((p as Record<string, unknown>)?.text)).join('')
+    : '';
+  const cleaned = text.replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '').trim();
+  if (!cleaned) throw new Error('The AI returned an empty regulatory analysis. Please retry.');
+  try { return JSON.parse(cleaned); } catch { /* fall through to extraction */ }
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(cleaned.slice(start, end + 1)); } catch { /* fall through */ }
+  }
+  throw new Error('AI returned malformed JSON for the regulatory analysis.');
+}
+
 async function callAI(body: Body, cfg: { baseURL: string; headers: Record<string, string>; model: string }) {
   const prompt = `Return only valid JSON matching this shape: {"headline":"string","executiveSummary":"string","affectedAssets":[{"asset":"string","direction":"positive|negative|mixed|uncertain","rationale":"string"}],"impacts":[{"dimension":"revenue|cost|capital|risk","severity":"high|medium|low","assessment":"string","timeframe":"string"}],"scenarios":[{"name":"string","probability":"string","outcome":"string"}],"assumptions":["string"],"confidence":"high|medium|low","sources":[{"title":"string","url":"string","relevance":"string"}]}. Every list must contain at least two entries. Analyze the possible future regulatory impact, not legal certainty. Do not invent a passed law, exact probability, or unsupported company exposure. Use the supplied public source list and clearly state uncertainty.
 
@@ -108,9 +128,8 @@ Public sources: ${JSON.stringify(SOURCES)}`;
   if (!response.ok) { const detail = (await response.text()).slice(0, 600); throw new Error(`AI gateway ${response.status}: ${detail}`); }
   const payload = await response.json();
   const content = payload?.choices?.[0]?.message?.content;
-  let raw: unknown;
-  try { raw = JSON.parse(content ?? '{}'); } catch { throw new Error('AI returned malformed JSON for the regulatory analysis.'); }
-  return normalizeReport(raw, body);
+  console.log('regulatory-analysis raw content preview', typeof content, JSON.stringify(content ?? '').slice(0, 300));
+  return normalizeReport(parseModelJson(content), body);
 }
 
 Deno.serve(async (req) => {

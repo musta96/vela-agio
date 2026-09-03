@@ -46,22 +46,276 @@
     "notFinancialAdvice": "This is not financial advice."
   },
   "pages": {
-    "filings": { "title": "Regulatory Filings", "subtitle": "SEC EDGAR (US listings). Free, real-time. European filings (Consob/ESMA/AMF) coming soon.", "ticker": "Ticker (e.g. AAPL)", "load": "Load" },
-    "earnings": { "title": "Earnings Calendar", "epsEstimate": "EPS estimate", "yoyGrowth": "YoY growth est", "recentSurprises": "Recent surprises" },
-    "insider": { "title": "Insider Transactions", "subtitle": "SEC Form 3 (initial), 4 (changes), 5 (annual). Free from EDGAR." },
-    "macro": { "title": "Macro & Cross-Asset", "groups": { "Rates": "Rates", "FX": "FX", "Commodities": "Commodities", "Indices & Vol": "Indices & Vol", "Crypto / Alt": "Crypto / Alt" } },
-    "copilot": { "title": "Research Copilot", "placeholder": "Ask about your portfolio…", "intro": "I'm your investment research copilot. I have read access to your portfolio and watchlist. Ask me about concentration risk, factor tilts, sector exposure, or specific names." },
-    "goals": { "title": "Goals-Based Planning", "initial": "Initial capital (€)", "monthly": "Monthly contribution (€)", "horizon": "Horizon (years)", "target": "Target (€)", "expectedReturn": "Expected return", "volatility": "Volatility", "successProb": "Probability of success", "median": "Median", "trials": "800 Monte Carlo trials, lognormal returns." },
-    "eventStudy": { "title": "Event Study", "dates": "Event dates (comma-separated)", "window": "Window (days)", "run": "Run Study", "chartTitle": "Average cumulative return around event (%)" },
-    "taxHarvest": { "title": "Tax-Loss Harvesting", "unrealised": "Unrealised losses", "benefit": "Estimated tax benefit (26% IT)", "eligible": "Eligible positions", "candidates": "Harvest candidates", "none": "No losing positions detected.", "footer": "Heuristic only. Watch the 30-day wash-sale equivalent and Italian 'minusvalenze' 4-year window." },
-    "methodology": { "title": "Methodology & Disclosures", "subtitle": "Full transparency on every model, score and AI output. Built for institutional due-diligence.", "updated": "Last updated" },
-    "onboarding": { "title": "Build your investor profile", "see": "See my profile", "score": "Risk score", "retake": "Retake", "indicative": "Indicative allocation. Not personalised financial advice." },
-    "learn": { "title": "Learn", "subtitle": "Every metric on the platform, explained in 1-2 sentences." },
-    "api": { "title": "API & Webhooks", "subtitle": "Pull scores, screens and PDF reports into your own stack. Excel/Sheets add-in via the same endpoints.", "auth": "Authentication" }
+    "filings": {
+      "title": "Regulatory Filings",
+      "subtitle": "SEC EDGAR (US listings). Free, real-time. European filings (Consob/ESMA/AMF) coming soon.",
+      "ticker": "Ticker (e.g. AAPL)",
+      "load": "Load"
+    },
+    "earnings": {
+      "title": "Earnings Calendar",
+      "epsEstimate": "EPS estimate",
+      "yoyGrowth": "YoY growth est",
+      "recentSurprises": "Recent surprises"
+    },
+    "insider": {
+      "title": "Insider Transactions",
+      "subtitle": "SEC Form 3 (initial), 4 (changes), 5 (annual). Free from EDGAR."
+    },
+    "macro": {
+      "title": "Macro & Cross-Asset",
+      "groups": {
+        "Rates": "Rates",
+        "FX": "FX",
+        "Commodities": "Commodities",
+        "Indices & Vol": "Indices & Vol",
+        "Crypto / Alt": "Crypto / Alt"
+      }
+    },
+    "copilot": {
+      "title": "Research Copilot",
+      "placeholder": "Ask about your portfolio…",
+      "intro": "I'm your investment research copilot. I have read access to your portfolio and watchlist. Ask me about concentration risk, factor tilts, sector exposure, or specific names."
+    },
+    "goals": {
+      "title": "Goals-Based Planning",
+      "initial": "Initial capital (€)",
+      "monthly": "Monthly contribution (€)",
+      "horizon": "Horizon (years)",
+      "target": "Target (€)",
+      "expectedReturn": "Expected return",
+      "volatility": "Volatility",
+      "successProb": "Probability of success",
+      "median": "Median",
+      "trials": "800 Monte Carlo trials, lognormal returns."
+    },
+    "eventStudy": {
+      "title": "Event Study",
+      "dates": "Event dates (comma-separated)",
+      "window": "Window (days)",
+      "run": "Run Study",
+      "chartTitle": "Average cumulative return around event (%)"
+    },
+    "taxHarvest": {
+      "title": "Tax-Loss Harvesting",
+      "unrealised": "Unrealised losses",
+      "benefit": "Estimated tax benefit (26% IT)",
+      "eligible": "Eligible positions",
+      "candidates": "Harvest candidates",
+      "none": "No losing positions detected.",
+      "footer": "Heuristic only. Watch the 30-day wash-sale equivalent and Italian 'minusvalenze' 4-year window."
+    },
+    "methodology": {
+      "title": "Methodology & Disclosures",
+      "subtitle": "Full transparency on every model, score and AI output. Built for institutional due-diligence.",
+      "updated": "Last updated"
+    },
+    "onboarding": {
+      "title": "Build your investor profile",
+      "see": "See my profile",
+      "score": "Risk score",
+      "retake": "Retake",
+      "indicative": "Indicative allocation. Not personalised financial advice."
+    },
+    "learn": {
+      "title": "Learn",
+      "subtitle": "Every metric on the platform, explained in 1-2 sentences."
+    },
+    "api": {
+      "title": "API & Webhooks",
+      "subtitle": "Pull scores, screens and PDF reports into your own stack. Excel/Sheets add-in via the same endpoints.",
+      "auth": "Authentication"
+    }
   },
   "pdf": {
     "disclaimer": "Not financial advice",
     "page": "Page",
     "of": "of"
+  },
+  "footer": {
+    "noticeLabel": "Not investment advice.",
+    "notice": "Vela.ai is an information tool, not a regulated financial advisor or broker. All content is informational only. Past performance does not guarantee future results. Consult a licensed advisor before making investment decisions.",
+    "readDisclaimer": "Read full disclaimer",
+    "copyright": "© {{year}} Vela.ai - Made in Italy",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "disclaimer": "Disclaimer",
+    "cookies": "Cookies",
+    "cookieSettings": "Cookie settings"
+  },
+  "portfolio": {
+    "totalValue": "Total value",
+    "allTime": "▲ all-time",
+    "today": "Today",
+    "vsBenchmark": "vs benchmark",
+    "unrealisedGain": "Unrealised gain",
+    "breakdown": "{{winners}} winners · {{losers}} losers · {{flat}} flat · {{stale}} no live price",
+    "shares": "Shares",
+    "avgPrice": "Avg Price",
+    "avgPriceIn": "Avg Price ({{currency}})",
+    "currentPrice": "Current Price",
+    "gainLoss": "Gain/Loss",
+    "allocationBySector": "Allocation by sector",
+    "editBuySell": "Edit / Buy / Sell",
+    "remove": "Remove"
+  },
+  "plans": {
+    "status": {
+      "active": "Active",
+      "trialing": "Trialing",
+      "past_due": "Past due",
+      "canceled": "Canceled",
+      "incomplete": "Incomplete",
+      "paused": "Paused"
+    },
+    "free": "Free",
+    "current": "Current",
+    "popular": "Popular",
+    "scheduled": "Scheduled",
+    "choose": "Choose",
+    "currentPlan": "Current plan",
+    "unavailable": "Unavailable",
+    "talkEnterprise": "Talk to us about Enterprise",
+    "downgradeScheduled": "Downgrade scheduled",
+    "downgradeToFree": "Downgrade to Free",
+    "downgradeNote": "You keep paid access until the end of your current billing period, then move to Free. Your data stays.",
+    "billedYearly": "Billed {{price}}",
+    "effective": "effective",
+    "orYearly": "or {{price}} annually",
+    "aiCredits": "{{formattedCount}} AI credits / month",
+    "aiCreditsUnlimited": "Unlimited AI credits / month"
+  },
+  "suitability": {
+    "currentProfile": "Current profile",
+    "scoreLine": "Score {{score}}/{{max}} · SRI {{sri}}/7",
+    "answered": "{{done}}/{{total}} answered",
+    "completion": "Completion",
+    "errors": "{{count}} errors",
+    "errors_one": "{{count}} error",
+    "warnings": "{{count}} warnings",
+    "warnings_one": "{{count}} warning",
+    "notes": "{{count}} notes",
+    "notes_one": "{{count}} note",
+    "allChecksPassed": "All checks passed",
+    "issueSummary": "{{errors}} · {{warnings}} · {{notes}}",
+    "sections": {
+      "knowledge": {
+        "title": "1. Knowledge & Experience",
+        "description": "MiFID II appropriateness - your familiarity with financial instruments."
+      },
+      "financial": {
+        "title": "2. Financial Situation",
+        "description": "Your capacity to bear losses (MiFID II Art. 25)."
+      },
+      "objectives": {
+        "title": "3. Investment Objectives & Horizon",
+        "description": "What you want from your portfolio."
+      },
+      "risk": {
+        "title": "4. Risk Tolerance",
+        "description": "Behavioural reaction to losses."
+      }
+    },
+    "q": {
+      "edu": {
+        "label": "Highest finance/economics education",
+        "opts": [
+          "None",
+          "Self-taught / books & courses",
+          "University-level economics or finance",
+          "Postgraduate / professional (CFA, ACCA, etc.)"
+        ]
+      },
+      "knowledge": {
+        "label": "Overall investment knowledge",
+        "opts": [
+          "None",
+          "Basic (savings, term deposits)",
+          "Good (stocks, ETFs, bonds)",
+          "Expert (derivatives, structured products)"
+        ]
+      },
+      "experience": {
+        "label": "How long have you actively invested?",
+        "opts": [
+          "Never",
+          "< 2 years",
+          "2-5 years",
+          "5+ years"
+        ]
+      },
+      "frequency": {
+        "label": "Average number of trades per year",
+        "opts": [
+          "0",
+          "1-10",
+          "11-50",
+          "50+"
+        ]
+      },
+      "income": {
+        "label": "Liquid savings vs annual income",
+        "opts": [
+          "< 3 months",
+          "3-6 months",
+          "6-12 months",
+          "12+ months"
+        ]
+      },
+      "debt": {
+        "label": "Debt-to-income ratio",
+        "opts": [
+          "> 50%",
+          "30-50%",
+          "10-30%",
+          "< 10% or none"
+        ]
+      },
+      "share": {
+        "label": "% of net worth you can invest at risk",
+        "opts": [
+          "< 10%",
+          "10-25%",
+          "25-50%",
+          "> 50%"
+        ]
+      },
+      "horizon": {
+        "label": "Investment horizon",
+        "opts": [
+          "< 1 year",
+          "1-3 years",
+          "3-7 years",
+          "7+ years"
+        ]
+      },
+      "goal": {
+        "label": "Primary objective",
+        "opts": [
+          "Capital preservation",
+          "Regular income",
+          "Balanced growth",
+          "Aggressive growth"
+        ]
+      },
+      "loss": {
+        "label": "If your portfolio dropped 20% in a month you would…",
+        "opts": [
+          "Sell everything",
+          "Sell part, worry",
+          "Hold calmly",
+          "Buy more"
+        ]
+      },
+      "volatility": {
+        "label": "Acceptable annual volatility",
+        "opts": [
+          "Very low (< 5%)",
+          "Low (5-10%)",
+          "Medium (10-20%)",
+          "High (> 20%)"
+        ]
+      }
+    }
   }
 }

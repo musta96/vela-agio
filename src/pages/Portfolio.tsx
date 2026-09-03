@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -64,6 +65,7 @@ const readLocal = (): PortfolioStock[] => {
 };
 
 const Portfolio = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { portfolios, active, activeId, setActiveId, primaryId, setPrimary, create: createPortfolio, update: updatePortfolio, remove: removePortfolio } = usePortfolios();
@@ -904,27 +906,29 @@ const Portfolio = () => {
         {/* KPI strip - mockup v2 */}
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
           <div className="p-5 flex flex-col gap-1.5">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total value</span>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.totalValue")}</span>
             <div className="text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <span className="text-[11px] text-muted-foreground">▲ all-time</span>
+            <span className="text-[11px] text-muted-foreground">{t("portfolio.allTime")}</span>
           </div>
           <div className="p-5 flex flex-col gap-1.5">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Today</span>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.today")}</span>
             <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{Math.abs(gainBase * 0.01).toFixed(2)}
             </div>
-            <span className="text-[11px] text-muted-foreground">vs benchmark</span>
+            <span className="text-[11px] text-muted-foreground">{t("portfolio.vsBenchmark")}</span>
           </div>
           <div className="p-5 flex flex-col gap-1.5">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Unrealised gain</span>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.unrealisedGain")}</span>
             <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{gainBase.toFixed(2)}
             </div>
             <span className="text-[11px] text-muted-foreground">
-              {portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice > p.avgPrice).length} winners ·{" "}
-              {portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice < p.avgPrice).length} losers ·{" "}
-              {portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice === p.avgPrice).length} flat ·{" "}
-              {portfolio.filter(p => !quotes[p.symbol]?.price).length} no live price
+              {t("portfolio.breakdown", {
+                winners: portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice > p.avgPrice).length,
+                losers: portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice < p.avgPrice).length,
+                flat: portfolio.filter(p => quotes[p.symbol]?.price && p.currentPrice === p.avgPrice).length,
+                stale: portfolio.filter(p => !quotes[p.symbol]?.price).length,
+              })}
             </span>
           </div>
           <div className="p-5 flex flex-col gap-1.5">
@@ -1144,7 +1148,7 @@ const Portfolio = () => {
                 </div>
               )}
               <div>
-                <label htmlFor="portfolio-shares" className="text-sm text-muted-foreground mb-2 block">Shares</label>
+                <label htmlFor="portfolio-shares" className="text-sm text-muted-foreground mb-2 block">{t("portfolio.shares")}</label>
                 <Input
                   id="portfolio-shares"
                   type="number"
@@ -1184,7 +1188,7 @@ const Portfolio = () => {
               </div>
               <div>
                 <label htmlFor="portfolio-avg-price" className="text-sm text-muted-foreground mb-2 block">
-                  Avg Price ({currencySign(newCurrency).trim() || newCurrency})
+                  {t("portfolio.avgPriceIn", { currency: currencySign(newCurrency).trim() || newCurrency })}
                 </label>
                 <Input
                   id="portfolio-avg-price"
@@ -1251,24 +1255,24 @@ const Portfolio = () => {
 
                       <div className="grid md:grid-cols-5 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground mb-1">Shares</p>
+                          <p className="text-muted-foreground mb-1">{t("portfolio.shares")}</p>
                           <p className="font-semibold text-foreground">{stock.shares}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground mb-1">Avg Price</p>
+                          <p className="text-muted-foreground mb-1">{t("portfolio.avgPrice")}</p>
                           <p className="font-semibold text-foreground">{sym}{stock.avgPrice.toFixed(2)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground mb-1">Current Price</p>
+                          <p className="text-muted-foreground mb-1">{t("portfolio.currentPrice")}</p>
                           <p className="font-semibold text-foreground">{sym}{stock.currentPrice.toFixed(2)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground mb-1">Total Value</p>
+                          <p className="text-muted-foreground mb-1">{t("portfolio.totalValue")}</p>
                           <p className="font-semibold text-foreground">{sym}{totalValue.toFixed(2)}</p>
                           {isForeign && <p className="text-xs text-muted-foreground">≈ €{totalValueEur.toFixed(2)}</p>}
                         </div>
                         <div>
-                          <p className="text-muted-foreground mb-1">Gain/Loss</p>
+                          <p className="text-muted-foreground mb-1">{t("portfolio.gainLoss")}</p>
                           <p className={`font-semibold ${isPositive ? 'text-success' : 'text-destructive'}`}>
                             {sym}{gain.toFixed(2)}
                           </p>
@@ -1282,7 +1286,7 @@ const Portfolio = () => {
                         size="icon"
                         onClick={() => openEdit(stock)}
                         className="text-muted-foreground hover:text-primary"
-                        title="Edit / Buy / Sell"
+                        title={t("portfolio.editBuySell")}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -1291,7 +1295,7 @@ const Portfolio = () => {
                         size="icon"
                         onClick={() => handleRemoveStock(stock.symbol)}
                         className="text-muted-foreground hover:text-destructive"
-                        title="Remove"
+                        title={t("portfolio.remove")}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -1306,7 +1310,7 @@ const Portfolio = () => {
         {/* Bottom row - Allocation / Risk / Italian capital gains (mockup v2) */}
         <div className="grid lg:grid-cols-3 gap-6 mt-8">
           <Card className="p-6 rounded-2xl">
-            <h3 className="text-sm font-semibold mb-4">Allocation by sector</h3>
+            <h3 className="text-sm font-semibold mb-4">{t("portfolio.allocationBySector")}</h3>
             <div className="space-y-3">
               {(() => {
                 const bySector: Record<string, number> = {};
@@ -1372,7 +1376,7 @@ const Portfolio = () => {
               <span className="inline-flex items-center rounded-full bg-warning/15 text-warning text-[11px] font-semibold px-2.5 py-0.5">26% TUIR</span>
             </div>
             <div className="space-y-2.5 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Unrealised gain</span><span className="font-semibold">{baseSign}{gainBase.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("portfolio.unrealisedGain")}</span><span className="font-semibold">{baseSign}{gainBase.toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Tax if sold today</span><span className="font-semibold">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Net after tax</span><span className="font-semibold text-success">{baseSign}{(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Carry-forward losses</span><span className="font-semibold">{baseSign}0</span></div>
@@ -1405,7 +1409,7 @@ const Portfolio = () => {
                   <Button variant={txnSide === "sell" ? "default" : "outline"} onClick={() => setTxnSide("sell")}>Sell</Button>
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">Shares</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">{t("portfolio.shares")}</label>
                   <Input type="number" inputMode="decimal" value={txnShares} onChange={(e) => setTxnShares(e.target.value)} placeholder="0" />
                 </div>
                 <div>
@@ -1424,7 +1428,7 @@ const Portfolio = () => {
               </TabsContent>
               <TabsContent value="direct" className="space-y-4 pt-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">Shares</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">{t("portfolio.shares")}</label>
                   <Input type="number" inputMode="decimal" value={editShares} onChange={(e) => setEditShares(e.target.value)} />
                 </div>
                 <div>

@@ -114,14 +114,20 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     setThreadId(id);
     const { data } = await (supabase as any)
       .from("copilot_messages")
-      .select("role,content")
+      .select("role,content,artifacts")
       .eq("thread_id", id)
       .order("created_at", { ascending: true });
-    const rows = (data ?? []) as { role: Msg["role"]; content: string }[];
+    const rows = (data ?? []) as { role: Msg["role"]; content: string; artifacts?: ToolEvent[] | null }[];
     if (rows.length === 0) {
       setMessages([{ role: "assistant", content: intro }]);
     } else {
-      setMessages(rows.map(r => ({ role: r.role, content: r.content })));
+      // Artifact cards (memo / simulation download cards) are restored from the
+      // persisted tool events so they survive reloads and thread switches.
+      setMessages(rows.map(r => ({
+        role: r.role,
+        content: r.content,
+        tools: Array.isArray(r.artifacts) ? r.artifacts : undefined,
+      })));
     }
   }, [intro]);
 
@@ -272,10 +278,13 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
           }
         }
       }
-      // Persist the assistant reply and auto-trigger PDF when asked
-      if (tid && user && memoryOn && acc) {
+      // Persist the assistant reply (plus any artifact-producing tool events so
+      // the download cards come back after a reload) and auto-trigger PDF.
+      const artifactTools = tools.filter(t => t.done && (t.result?.artifact || t.result?.summary));
+      if (tid && user && memoryOn && (acc || artifactTools.length > 0)) {
         await (supabase as any).from("copilot_messages").insert({
           thread_id: tid, user_id: user.id, role: "assistant", content: acc,
+          artifacts: artifactTools.length > 0 ? artifactTools : null,
         });
         await (supabase as any).from("copilot_threads").update({ updated_at: new Date().toISOString() }).eq("id", tid);
       }
@@ -479,6 +488,13 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                       />
                     ) : tl.name === "compare_portfolio_impact" && tl.done && tl.result?.summary ? (
                       <PortfolioImpactArtifactCard key={tl.id} result={tl.result} />
+                    ) : (tl.name === "generate_portfolio_memo" || tl.name === "generate_investment_memo") && tl.done && tl.result?.error ? (
+                      <div key={tl.id} className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs space-y-1">
+                        <div className="flex items-center gap-1 font-semibold text-destructive">
+                          <ShieldAlert className="h-3.5 w-3.5" /> Memo could not be generated
+                        </div>
+                        <div className="text-muted-foreground">{String(tl.result.error)}</div>
+                      </div>
                     ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">

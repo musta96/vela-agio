@@ -1,0 +1,1 @@
+ALTER TABLE public.copilot_messages ADD COLUMN IF NOT EXISTS artifacts jsonb;

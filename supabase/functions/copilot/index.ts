@@ -610,10 +610,34 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         const sym = String(k).trim().toUpperCase();
         if (sym && Number.isFinite(w) && w > 0) allocation[sym] = w;
       }
+      // Fallback: the model often asks for "a memo on my portfolio" without
+      // restating weights. Rather than erroring (which produced no download
+      // card in the chat), derive the allocation from the user's holdings.
+      let derivedFromHoldings = false;
       if (!Object.keys(allocation).length) {
-        return { error: 'allocation must contain at least one symbol with positive weight' };
+        const { data: hRows } = await sb
+          .from('portfolio_holdings')
+          .select('symbol,shares,avg_price')
+          .eq('user_id', user.id);
+        const rows = (hRows ?? []).map((r: any) => ({
+          symbol: String(r.symbol ?? '').toUpperCase(),
+          value: Number(r.shares ?? 0) * Number(r.avg_price ?? 0),
+        })).filter((r) => r.symbol && r.value > 0);
+        const total = rows.reduce((s, r) => s + r.value, 0);
+        if (total > 0) {
+          for (const r of rows) allocation[r.symbol] = r.value / total;
+          derivedFromHoldings = true;
+        }
       }
-      const sumW = Object.values(allocation).reduce((s, w) => s + w, 0);
+      if (!Object.keys(allocation).length) {
+        return { error: 'allocation must contain at least one symbol with positive weight, and no portfolio holdings were found to fall back on' };
+      }
+      let sumW = Object.values(allocation).reduce((s, w) => s + w, 0);
+      // Accept percentage-style weights (e.g. 30 instead of 0.30).
+      if (sumW > 1.5) {
+        for (const k of Object.keys(allocation)) allocation[k] = allocation[k] / sumW;
+        sumW = 1;
+      }
       const profile = String(args.risk_profile ?? 'balanced').toLowerCase();
       const memo = {
         allocation,
@@ -635,9 +659,11 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         ok: true,
         artifact: 'portfolio_memo',
         memo,
-        normalisationNote: Math.abs(sumW - 1) > 0.01
-          ? `Allocation summed to ${(sumW * 100).toFixed(2)}% — will be normalised to 100% in the PDF.`
-          : undefined,
+        normalisationNote: derivedFromHoldings
+          ? 'Allocation derived from your current portfolio holdings (weighted by book value).'
+          : Math.abs(sumW - 1) > 0.01
+            ? `Allocation summed to ${(sumW * 100).toFixed(2)}% — will be normalised to 100% in the PDF.`
+            : undefined,
         ui: { kind: 'portfolio_memo_pdf', message: `Portfolio memo ready: ${memo.portfolioName} (${Object.keys(allocation).length} positions, ${memo.riskProfile} risk).` },
         disclaimer: 'Educational research only — not investment advice.',
       };

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
@@ -172,6 +173,7 @@ const REASSESS_MONTHS = 12;
 
 export default function Suitability() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [ans, setAns] = useState<Record<string, number>>({});
   const [objectives, setObjectives] = useState<string[]>([]);
   const [excluded, setExcluded] = useState<string[]>([]);
@@ -660,17 +662,17 @@ export default function Suitability() {
             </div>
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <Badge variant={errors.length ? "destructive" : "outline"} className="gap-1">
-                <AlertCircle className="h-3 w-3" />{errors.length} error{errors.length === 1 ? "" : "s"}
+                <AlertCircle className="h-3 w-3" />{t("suitability.errors", { count: errors.length })}
               </Badge>
               <Badge variant="outline" className={`gap-1 ${warns.length ? "border-warning/50 text-warning" : ""}`}>
-                <AlertTriangle className="h-3 w-3" />{warns.length} warning{warns.length === 1 ? "" : "s"}
+                <AlertTriangle className="h-3 w-3" />{t("suitability.warnings", { count: warns.length })}
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <Info className="h-3 w-3" />{infos.length} note{infos.length === 1 ? "" : "s"}
+                <Info className="h-3 w-3" />{t("suitability.notes", { count: infos.length })}
               </Badge>
               {complete && !errors.length && !warns.length && (
                 <Badge variant="outline" className="gap-1 border-success/50 text-success">
-                  <CheckCircle2 className="h-3 w-3" />All checks passed
+                  <CheckCircle2 className="h-3 w-3" />{t("suitability.allChecksPassed")}
                 </Badge>
               )}
             </div>
@@ -684,13 +686,13 @@ export default function Suitability() {
             {SECTIONS.map(section => (
               <Card key={section.id}>
                 <CardHeader>
-                  <CardTitle className="text-lg">{section.title}</CardTitle>
-                  <CardDescription>{section.description}</CardDescription>
+                  <CardTitle className="text-lg">{t(`suitability.sections.${section.id}.title`, { defaultValue: section.title })}</CardTitle>
+                  <CardDescription>{t(`suitability.sections.${section.id}.description`, { defaultValue: section.description })}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
                   {section.questions.map(qq => (
                     <div key={qq.key}>
-                      <Label className="text-sm font-medium">{qq.q}</Label>
+                      <Label className="text-sm font-medium">{t(`suitability.q.${qq.key}.label`, { defaultValue: qq.q })}</Label>
                       {qq.help && <p className="text-xs text-muted-foreground mt-0.5">{qq.help}</p>}
                       <RadioGroup
                         className="mt-2"
@@ -700,7 +702,7 @@ export default function Suitability() {
                         {qq.opts.map((o, i) => (
                           <div key={i} className="flex items-center gap-2 py-0.5">
                             <RadioGroupItem id={`${qq.key}-${i}`} value={String(o.score)} />
-                            <Label htmlFor={`${qq.key}-${i}`} className="cursor-pointer font-normal">{o.label}</Label>
+                            <Label htmlFor={`${qq.key}-${i}`} className="cursor-pointer font-normal">{t(`suitability.q.${qq.key}.opts.${i}`, { defaultValue: o.label })}</Label>
                           </div>
                         ))}
                       </RadioGroup>
@@ -936,7 +938,7 @@ export default function Suitability() {
                     Real-time checks across MiFID II appropriateness, AML/KYC, SFDR and ESMA Guideline 5.
                     {" "}
                     <span className="font-medium text-foreground">
-                      {errors.length} error{errors.length === 1 ? "" : "s"} · {warns.length} warning{warns.length === 1 ? "" : "s"} · {infos.length} note{infos.length === 1 ? "" : "s"}
+                      {t("suitability.issueSummary", { errors: t("suitability.errors", { count: errors.length }), warnings: t("suitability.warnings", { count: warns.length }), notes: t("suitability.notes", { count: infos.length }) })}
                     </span>
                   </CardDescription>
                 </CardHeader>
@@ -999,7 +1001,7 @@ export default function Suitability() {
               </Button>
               {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
               {complete && errors.length > 0 && (
-                <span className="text-xs text-destructive font-medium">Fix {errors.length} blocking error{errors.length === 1 ? "" : "s"} above before saving.</span>
+                <span className="text-xs text-destructive font-medium">{t("suitability.fixErrors", { count: errors.length })}</span>
               )}
               {complete && !errors.length && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
             </div>

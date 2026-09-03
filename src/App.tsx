@@ -120,7 +120,6 @@ import Cookies from "./pages/legal/Cookies";
 import Install from "./pages/Install";
 import IosApp from "./pages/IosApp";
 import { ConsentBanner } from "./components/ConsentBanner";
-import { AutoTranslate } from "./lib/autoTranslate";
 
 const queryClient = new QueryClient();
 
@@ -136,7 +135,6 @@ const App = () => (
         <FeatureFlagsProvider>
         <PortfoliosProvider>
         <ConsentBanner />
-        <AutoTranslate />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />

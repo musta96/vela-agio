@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { localizePlanFeature } from "@/lib/planFeatureCopy";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
@@ -684,6 +686,7 @@ function PlanCard({
   downgradeScheduled?: boolean;
   onDowngrade?: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const variant = useAbPriceVariant(p.id, !!p.ab_test_enabled);
   const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
   const yearly = variant === "B" && p.ab_yearly_price_cents != null ? p.ab_yearly_price_cents : p.yearly_price_cents;
@@ -701,12 +704,12 @@ function PlanCard({
       <div className="rounded-xl border border-border p-4 flex flex-col" data-testid={`plan-card-${p.slug || p.tier || p.id}`}>
         <div className="flex items-center justify-between mb-2">
           <div className="font-semibold">{p.name}</div>
-          {downgradeScheduled && <Badge variant="outline" className="text-[10px]">Scheduled</Badge>}
+          {downgradeScheduled && <Badge variant="outline" className="text-[10px]">{t("plans.scheduled")}</Badge>}
         </div>
         <div className="text-2xl font-bold">{formatPrice(0, "mo")}</div>
         <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
           {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
-            <li key={i}>• {String(f)}</li>
+            <li key={i}>• {localizePlanFeature(String(f), i18n.resolvedLanguage)}</li>
           ))}
         </ul>
         <Button
@@ -717,7 +720,7 @@ function PlanCard({
           data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
           onClick={() => onDowngrade?.()}
         >
-          {downgradeScheduled ? "Downgrade scheduled" : "Downgrade to Free"}
+          {downgradeScheduled ? t("plans.downgradeScheduled") : t("plans.downgradeToFree")}
         </Button>
         <p className="text-[10px] text-muted-foreground mt-2">
           You keep paid access until the end of your current billing period, then move to Free. Your data stays.
@@ -735,31 +738,31 @@ function PlanCard({
       <div className="flex items-center justify-between mb-2">
         <div className="font-semibold">{p.name}</div>
         {isCurrent
-          ? <Badge className="text-[10px]">Current</Badge>
-          : p.highlighted ? <Badge variant="outline" className="text-[10px]">Popular</Badge> : null}
+          ? <Badge className="text-[10px]">{t("plans.current")}</Badge>
+          : p.highlighted ? <Badge variant="outline" className="text-[10px]">{t("plans.popular")}</Badge> : null}
       </div>
       {frequency === "yearly" && yearly != null && yearly > 0 ? (
         <>
           <div className="text-2xl font-bold">
             {formatPrice(Math.round(yearly / 12), "mo")}
-            <span className="text-xs text-muted-foreground font-normal ml-1">effective</span>
+            <span className="text-xs text-muted-foreground font-normal ml-1">{t("plans.effective")}</span>
           </div>
-          <div className="text-xs text-muted-foreground">Billed {formatPrice(yearly, "yr")}</div>
+          <div className="text-xs text-muted-foreground">{t("plans.billedYearly", { price: formatPrice(yearly, "yr") })}</div>
         </>
       ) : (
         <>
           <div className="text-2xl font-bold">{formatPrice(monthly, "mo")}</div>
           {yearly != null && yearly > 0 && (
-            <div className="text-xs text-muted-foreground">or {formatPrice(yearly, "yr")} annually</div>
+            <div className="text-xs text-muted-foreground">{t("plans.orYearly", { price: formatPrice(yearly, "yr") })}</div>
           )}
         </>
       )}
       <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
         {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
-          <li key={i}>• {String(f)}</li>
+          <li key={i}>• {localizePlanFeature(String(f), i18n.resolvedLanguage)}</li>
         ))}
         {p.ai_monthly_quota != null && (
-          <li>• {p.ai_monthly_quota === -1 ? "Unlimited" : p.ai_monthly_quota.toLocaleString()} AI credits / month</li>
+          <li>• {p.ai_monthly_quota === -1 ? t("plans.aiCreditsUnlimited") : t("plans.aiCredits", { count: p.ai_monthly_quota, formattedCount: p.ai_monthly_quota.toLocaleString(i18n.resolvedLanguage) })}</li>
         )}
       </ul>
       {missingKey && (
@@ -783,7 +786,7 @@ function PlanCard({
           data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
           onClick={() => onChoose(lookupKey!)}
         >
-          Choose
+          {t("plans.choose")}
         </Button>
       ) : (
         // No Stripe lookup key (Free / Enterprise / contact tiers) → keep the
@@ -797,16 +800,16 @@ function PlanCard({
           data-testid={`plan-cta-${p.slug || p.tier || p.id}`}
         >
           {isCurrent ? (
-            <span>Current plan</span>
+            <span>{t("plans.currentPlan")}</span>
           ) : missingKey ? (
-            <span>Unavailable</span>
+            <span>{t("plans.unavailable")}</span>
           ) : (p.tier === "enterprise" || (p.slug ?? "").toLowerCase().includes("enterprise")) ? (
             <Link to="/contact-sales?source=plans_billing_enterprise">
-              Talk to us about Enterprise
+              {t("plans.talkEnterprise")}
             </Link>
           ) : (
             <Link to={`/upgrade?plan=${encodeURIComponent(p.slug || p.tier || p.id)}&cycle=${frequency === "yearly" ? "annual" : "monthly"}${p.ab_test_enabled ? `&v=${variant}` : ""}`}>
-              Choose
+              {t("plans.choose")}
             </Link>
           )}
         </Button>

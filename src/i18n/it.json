@@ -46,22 +46,278 @@
     "notFinancialAdvice": "Questo non è un consiglio finanziario."
   },
   "pages": {
-    "filings": { "title": "Documenti regolamentari", "subtitle": "SEC EDGAR (titoli USA). Gratis, in tempo reale. Documenti europei (Consob/ESMA/AMF) in arrivo.", "ticker": "Ticker (es. AAPL)", "load": "Carica" },
-    "earnings": { "title": "Calendario trimestrali", "epsEstimate": "Stima EPS", "yoyGrowth": "Crescita YoY stimata", "recentSurprises": "Sorprese recenti" },
-    "insider": { "title": "Operazioni insider", "subtitle": "SEC Form 3 (iniziale), 4 (variazioni), 5 (annuale). Gratis da EDGAR." },
-    "macro": { "title": "Macro e Cross-Asset", "groups": { "Rates": "Tassi", "FX": "Valute", "Commodities": "Materie prime", "Indices & Vol": "Indici e volatilità", "Crypto / Alt": "Cripto / Alt" } },
-    "copilot": { "title": "Copilot di ricerca", "placeholder": "Chiedi del tuo portafoglio…", "intro": "Sono il tuo copilot di ricerca. Ho accesso in lettura al tuo portafoglio e watchlist. Chiedimi di concentrazione, fattori di rischio, esposizione settoriale o singoli titoli." },
-    "goals": { "title": "Pianificazione per obiettivi", "initial": "Capitale iniziale (€)", "monthly": "Contributo mensile (€)", "horizon": "Orizzonte (anni)", "target": "Obiettivo (€)", "expectedReturn": "Rendimento atteso", "volatility": "Volatilità", "successProb": "Probabilità di successo", "median": "Mediana", "trials": "800 simulazioni Monte Carlo, rendimenti lognormali." },
-    "eventStudy": { "title": "Event Study", "dates": "Date evento (separate da virgola)", "window": "Finestra (giorni)", "run": "Esegui", "chartTitle": "Rendimento cumulato medio attorno all'evento (%)" },
-    "taxHarvest": { "title": "Compensazione minusvalenze", "unrealised": "Minusvalenze latenti", "benefit": "Beneficio fiscale stimato (26% IT)", "eligible": "Posizioni eleggibili", "candidates": "Candidati alla compensazione", "none": "Nessuna posizione in perdita.", "footer": "Stima euristica. Attenzione alla regola dei 30 giorni e alla finestra di 4 anni per le minusvalenze italiane." },
-    "methodology": { "title": "Metodologia e Informativa", "subtitle": "Trasparenza totale su ogni modello, punteggio e output AI. Pensato per due diligence istituzionale.", "updated": "Aggiornato" },
-    "onboarding": { "title": "Costruisci il tuo profilo di investitore", "see": "Vedi il mio profilo", "score": "Punteggio di rischio", "retake": "Rifai il test", "indicative": "Allocazione indicativa. Non costituisce consulenza finanziaria personalizzata." },
-    "learn": { "title": "Impara", "subtitle": "Ogni metrica della piattaforma spiegata in 1-2 frasi." },
-    "api": { "title": "API e Webhook", "subtitle": "Integra punteggi, screen e report PDF nel tuo stack. Add-in Excel/Sheets sugli stessi endpoint.", "auth": "Autenticazione" }
+    "filings": {
+      "title": "Documenti regolamentari",
+      "subtitle": "SEC EDGAR (titoli USA). Gratis, in tempo reale. Documenti europei (Consob/ESMA/AMF) in arrivo.",
+      "ticker": "Ticker (es. AAPL)",
+      "load": "Carica"
+    },
+    "earnings": {
+      "title": "Calendario trimestrali",
+      "epsEstimate": "Stima EPS",
+      "yoyGrowth": "Crescita YoY stimata",
+      "recentSurprises": "Sorprese recenti"
+    },
+    "insider": {
+      "title": "Operazioni insider",
+      "subtitle": "SEC Form 3 (iniziale), 4 (variazioni), 5 (annuale). Gratis da EDGAR."
+    },
+    "macro": {
+      "title": "Macro e Cross-Asset",
+      "groups": {
+        "Rates": "Tassi",
+        "FX": "Valute",
+        "Commodities": "Materie prime",
+        "Indices & Vol": "Indici e volatilità",
+        "Crypto / Alt": "Cripto / Alt"
+      }
+    },
+    "copilot": {
+      "title": "Copilot di ricerca",
+      "placeholder": "Chiedi del tuo portafoglio…",
+      "intro": "Sono il tuo copilot di ricerca. Ho accesso in lettura al tuo portafoglio e watchlist. Chiedimi di concentrazione, fattori di rischio, esposizione settoriale o singoli titoli."
+    },
+    "goals": {
+      "title": "Pianificazione per obiettivi",
+      "initial": "Capitale iniziale (€)",
+      "monthly": "Contributo mensile (€)",
+      "horizon": "Orizzonte (anni)",
+      "target": "Obiettivo (€)",
+      "expectedReturn": "Rendimento atteso",
+      "volatility": "Volatilità",
+      "successProb": "Probabilità di successo",
+      "median": "Mediana",
+      "trials": "800 simulazioni Monte Carlo, rendimenti lognormali."
+    },
+    "eventStudy": {
+      "title": "Event Study",
+      "dates": "Date evento (separate da virgola)",
+      "window": "Finestra (giorni)",
+      "run": "Esegui",
+      "chartTitle": "Rendimento cumulato medio attorno all'evento (%)"
+    },
+    "taxHarvest": {
+      "title": "Compensazione minusvalenze",
+      "unrealised": "Minusvalenze latenti",
+      "benefit": "Beneficio fiscale stimato (26% IT)",
+      "eligible": "Posizioni eleggibili",
+      "candidates": "Candidati alla compensazione",
+      "none": "Nessuna posizione in perdita.",
+      "footer": "Stima euristica. Attenzione alla regola dei 30 giorni e alla finestra di 4 anni per le minusvalenze italiane."
+    },
+    "methodology": {
+      "title": "Metodologia e Informativa",
+      "subtitle": "Trasparenza totale su ogni modello, punteggio e output AI. Pensato per due diligence istituzionale.",
+      "updated": "Aggiornato"
+    },
+    "onboarding": {
+      "title": "Costruisci il tuo profilo di investitore",
+      "see": "Vedi il mio profilo",
+      "score": "Punteggio di rischio",
+      "retake": "Rifai il test",
+      "indicative": "Allocazione indicativa. Non costituisce consulenza finanziaria personalizzata."
+    },
+    "learn": {
+      "title": "Impara",
+      "subtitle": "Ogni metrica della piattaforma spiegata in 1-2 frasi."
+    },
+    "api": {
+      "title": "API e Webhook",
+      "subtitle": "Integra punteggi, screen e report PDF nel tuo stack. Add-in Excel/Sheets sugli stessi endpoint.",
+      "auth": "Autenticazione"
+    }
   },
   "pdf": {
     "disclaimer": "Non costituisce consulenza finanziaria",
     "page": "Pagina",
     "of": "di"
+  },
+  "footer": {
+    "noticeLabel": "Non è consulenza finanziaria.",
+    "notice": "Vela.ai è uno strumento informativo, non un consulente finanziario o intermediario regolamentato. Tutti i contenuti hanno finalità puramente informative. I rendimenti passati non garantiscono risultati futuri. Consulta un consulente abilitato prima di prendere decisioni di investimento.",
+    "readDisclaimer": "Leggi il disclaimer completo",
+    "copyright": "© {{year}} Vela.ai - Made in Italy",
+    "privacy": "Privacy",
+    "terms": "Termini",
+    "disclaimer": "Disclaimer",
+    "cookies": "Cookie",
+    "cookieSettings": "Impostazioni cookie"
+  },
+  "portfolio": {
+    "totalValue": "Valore totale",
+    "allTime": "▲ da inizio",
+    "today": "Oggi",
+    "vsBenchmark": "vs benchmark",
+    "unrealisedGain": "Plusvalenza latente",
+    "breakdown": "{{winners}} in utile · {{losers}} in perdita · {{flat}} invariati · {{stale}} senza prezzo live",
+    "shares": "Quantità",
+    "avgPrice": "Prezzo medio di carico",
+    "avgPriceIn": "Prezzo medio di carico ({{currency}})",
+    "currentPrice": "Prezzo attuale",
+    "gainLoss": "Utile/Perdita",
+    "allocationBySector": "Allocazione per settore",
+    "editBuySell": "Modifica / Compra / Vendi",
+    "remove": "Rimuovi"
+  },
+  "plans": {
+    "status": {
+      "active": "Attivo",
+      "trialing": "In prova",
+      "past_due": "Pagamento scaduto",
+      "canceled": "Annullato",
+      "incomplete": "Incompleto",
+      "paused": "In pausa"
+    },
+    "free": "Gratis",
+    "current": "Attuale",
+    "popular": "Popolare",
+    "scheduled": "Programmato",
+    "choose": "Scegli",
+    "currentPlan": "Piano attuale",
+    "unavailable": "Non disponibile",
+    "talkEnterprise": "Parliamo di Enterprise",
+    "downgradeScheduled": "Downgrade programmato",
+    "downgradeToFree": "Passa al piano Gratis",
+    "downgradeNote": "Mantieni l'accesso a pagamento fino alla fine del periodo di fatturazione in corso, poi passi al piano Gratis. I tuoi dati restano.",
+    "billedYearly": "Fatturato {{price}}",
+    "effective": "effettivi",
+    "orYearly": "oppure {{price}} all'anno",
+    "aiCredits": "{{formattedCount}} crediti AI / mese",
+    "aiCreditsUnlimited": "Crediti AI illimitati / mese"
+  },
+  "suitability": {
+    "currentProfile": "Profilo attuale",
+    "scoreLine": "Punteggio {{score}}/{{max}} · SRI {{sri}}/7",
+    "answered": "{{done}}/{{total}} risposte",
+    "completion": "Completamento",
+    "errors_one": "{{count}} errore",
+    "warnings_one": "{{count}} avviso",
+    "notes_one": "{{count}} nota",
+    "allChecksPassed": "Tutti i controlli superati",
+    "issueSummary": "{{errors}} · {{warnings}} · {{notes}}",
+    "sections": {
+      "knowledge": {
+        "title": "1. Conoscenza ed esperienza",
+        "description": "Adeguatezza MiFID II - la tua familiarità con gli strumenti finanziari."
+      },
+      "financial": {
+        "title": "2. Situazione finanziaria",
+        "description": "La tua capacità di sostenere perdite (MiFID II Art. 25)."
+      },
+      "objectives": {
+        "title": "3. Obiettivi di investimento e orizzonte",
+        "description": "Cosa vuoi ottenere dal tuo portafoglio."
+      },
+      "risk": {
+        "title": "4. Tolleranza al rischio",
+        "description": "Reazione comportamentale alle perdite."
+      }
+    },
+    "q": {
+      "edu": {
+        "label": "Massimo titolo di studio in finanza/economia",
+        "opts": [
+          "Nessuno",
+          "Autodidatta / libri e corsi",
+          "Laurea in economia o finanza",
+          "Post-laurea / professionale (CFA, ACCA, ecc.)"
+        ]
+      },
+      "knowledge": {
+        "label": "Conoscenza complessiva degli investimenti",
+        "opts": [
+          "Nessuna",
+          "Base (risparmio, depositi vincolati)",
+          "Buona (azioni, ETF, obbligazioni)",
+          "Esperta (derivati, prodotti strutturati)"
+        ]
+      },
+      "experience": {
+        "label": "Da quanto tempo investi attivamente?",
+        "opts": [
+          "Mai",
+          "< 2 anni",
+          "2-5 anni",
+          "Oltre 5 anni"
+        ]
+      },
+      "frequency": {
+        "label": "Numero medio di operazioni all'anno",
+        "opts": [
+          "0",
+          "1-10",
+          "11-50",
+          "Oltre 50"
+        ]
+      },
+      "income": {
+        "label": "Liquidità disponibile rispetto al reddito annuo",
+        "opts": [
+          "< 3 mesi",
+          "3-6 mesi",
+          "6-12 mesi",
+          "Oltre 12 mesi"
+        ]
+      },
+      "debt": {
+        "label": "Rapporto debito/reddito",
+        "opts": [
+          "> 50%",
+          "30-50%",
+          "10-30%",
+          "< 10% o nessun debito"
+        ]
+      },
+      "share": {
+        "label": "% del patrimonio netto che puoi investire a rischio",
+        "opts": [
+          "< 10%",
+          "10-25%",
+          "25-50%",
+          "> 50%"
+        ]
+      },
+      "horizon": {
+        "label": "Orizzonte temporale di investimento",
+        "opts": [
+          "< 1 anno",
+          "1-3 anni",
+          "3-7 anni",
+          "Oltre 7 anni"
+        ]
+      },
+      "goal": {
+        "label": "Obiettivo principale",
+        "opts": [
+          "Conservazione del capitale",
+          "Reddito periodico",
+          "Crescita bilanciata",
+          "Crescita aggressiva"
+        ]
+      },
+      "loss": {
+        "label": "Se il tuo portafoglio perdesse il 20% in un mese, tu…",
+        "opts": [
+          "Venderesti tutto",
+          "Venderesti una parte, con preoccupazione",
+          "Manterresti con calma",
+          "Compreresti ancora"
+        ]
+      },
+      "volatility": {
+        "label": "Volatilità annua accettabile",
+        "opts": [
+          "Molto bassa (< 5%)",
+          "Bassa (5-10%)",
+          "Media (10-20%)",
+          "Alta (> 20%)"
+        ]
+      }
+    },
+    "errors_other": "{{count}} errori",
+    "warnings_other": "{{count}} avvisi",
+    "notes_other": "{{count}} note",
+    "fixErrors_one": "Correggi {{count}} errore bloccante prima di salvare.",
+    "fixErrors_other": "Correggi {{count}} errori bloccanti prima di salvare."
   }
 }

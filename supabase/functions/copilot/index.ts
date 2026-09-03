@@ -549,8 +549,13 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       return { ...res, ui: { kind: 'link', href: '/research-analyst', label: 'Open AI Research Analyst' } };
     }
     case 'run_regulatory_analysis': {
+      // The model sometimes omits `focus` (it is optional in the schema); derive
+      // it from context/topic so the downstream validation never hard-fails.
+      const derivedFocus = String(args.focus ?? '').trim()
+        || String(args.context ?? '').trim().slice(0, 160)
+        || String(args.topic ?? '').trim().slice(0, 160);
       const res = await callEdge(ctx.authHeader, 'regulatory-analysis', {
-        focus: String(args.focus ?? '').slice(0, 160),
+        focus: derivedFocus.slice(0, 160),
         jurisdiction: String(args.jurisdiction ?? '').slice(0, 100),
         topic: String(args.topic ?? '').slice(0, 180),
         horizon: String(args.horizon ?? '').slice(0, 80),

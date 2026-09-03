@@ -4,7 +4,9 @@ import { resolveAIConfig } from '../_shared/ai-provider.ts';
 import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
 const BodySchema = z.object({
-  focus: z.string().trim().min(1).max(160),
+  // focus is optional at the boundary: callers (e.g. the Copilot tool) may omit
+  // it; we fall back to topic/context below instead of hard-failing.
+  focus: z.string().trim().max(160).optional(),
   jurisdiction: z.string().trim().min(1).max(100),
   topic: z.string().trim().min(1).max(180),
   horizon: z.string().trim().min(1).max(80),

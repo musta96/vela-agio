@@ -596,7 +596,48 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       if (res?.error) return { error: res.error };
       return { ...res, ui: { kind: 'link', href: '/regulatory-analysis', label: 'Open Regulatory Analysis' } };
     }
+    case 'research_web': {
+      const res = await callEdge(ctx.authHeader, 'web-research', {
+        query: String(args.query ?? '').slice(0, 300),
+        lane: ['macro','regulatory','company','fund','derivatives','tax','any'].includes(String(args.lane)) ? args.lane : 'any',
+        urls: Array.isArray(args.urls) ? args.urls.slice(0, 5) : undefined,
+        max_results: Number(args.max_results ?? 5),
+      });
+      if (res?.error) return { error: res.error };
+      return res;
+    }
+    case 'lookup_instruments': {
+      const symbols = (Array.isArray(args.symbols) ? args.symbols : []).map((s: any) => String(s)).filter(Boolean).slice(0, 25);
+      if (!symbols.length) return { error: 'symbols required' };
+      const res = await callEdge(ctx.authHeader, 'instrument-master', { symbols });
+      if (res?.error) return { error: res.error };
+      return res;
+    }
+    case 'run_advanced_simulation': {
+      const res = await callEdge(ctx.authHeader, 'advanced-simulation', {
+        mode: args.mode === 'blend' ? 'blend' : 'single',
+        assets: args.assets, sleeves: args.sleeves,
+        constraints: args.constraints, config: args.config,
+      });
+      if (res?.error) return { error: res.error };
+      return { ...res, ui: { kind: 'link', href: '/full-analysis', label: 'Open Full Analysis workbench' } };
+    }
+    case 'run_full_analysis': {
+      const res = await callEdge(ctx.authHeader, 'full-analysis', {
+        positions: args.positions,
+        objective: args.objective,
+        horizon_years: args.horizon_years,
+        initial_capital: args.initial_capital,
+        research_topics: args.research_topics,
+        method: args.method,
+        tax_rate: args.tax_rate,
+        transaction_cost_bps: args.transaction_cost_bps,
+      });
+      if (res?.error) return { error: res.error, details: res.details };
+      return { ...res, ui: { kind: 'link', href: '/full-analysis', label: 'Open Full Analysis workbench' } };
+    }
     case 'run_portfolio_simulation': {
+
       // ---------- Inputs ----------
       const rawSyms = Array.isArray(args.symbols) ? args.symbols : [];
       const symbols = Array.from(new Set(rawSyms.map((s: any) => String(s).toUpperCase()).filter(Boolean))).slice(0, 8);

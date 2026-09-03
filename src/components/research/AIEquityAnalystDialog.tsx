@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Sparkles, AlertTriangle, TrendingUp, Quote, ClipboardCopy, RefreshCw, FileDown, Printer, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { RiskChecklistCard } from "./RiskChecklistCard";
 import { Citation } from "./Citation";
 import { downloadMarkdown, openPrintable } from "@/lib/research/export";
 
@@ -271,21 +272,11 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input, onSaved }: Pr
                 </TabsContent>
 
                 <TabsContent value="risks" className="mt-0 space-y-2">
-                  {(report.risks ?? []).map((r: any, i: number) => (
-                    <Card key={i}>
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <AlertTriangle className={`h-4 w-4 ${severityColor[r.severity] ?? ""}`} />
-                          <span className="font-medium text-sm">{r.title}</span>
-                          <Citation citation={r.citation} sourceUrl={input?.filingUrl} />
-                          <Badge variant="outline" className="ml-auto capitalize">{r.category}</Badge>
-                          {r.severity && <Badge variant="secondary" className="capitalize">{r.severity}</Badge>}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{r.detail}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {(!report.risks || report.risks.length === 0) && <p className="text-sm text-muted-foreground">No risks extracted.</p>}
+                  <RiskChecklistCard
+                    risks={report.risks}
+                    sourceUrl={input?.filingUrl}
+                    noteKey={savedId ?? input?.filingUrl ?? `${input?.symbol ?? "note"}-${report.period ?? ""}`}
+                  />
                 </TabsContent>
 
                 <TabsContent value="opps" className="mt-0 space-y-2">

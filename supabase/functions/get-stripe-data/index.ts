@@ -56,10 +56,22 @@ Deno.serve(async (req) => {
     const stripe = createStripeClient(env);
     const customerId = sub.stripe_customer_id;
 
-    const [invList, subList] = await Promise.all([
-      stripe.invoices.list({ customer: customerId, limit: 12 }),
-      stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 }),
-    ]);
+    let invList: any = { data: [] };
+    let subList: any = { data: [] };
+    try {
+      [invList, subList] = await Promise.all([
+        stripe.invoices.list({ customer: customerId, limit: 12 }),
+        stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 }),
+      ]);
+    } catch (e) {
+      // Unknown/stale customer (e.g. wrong environment) → no billing history instead of a hard failure.
+      if (/No such customer/i.test((e as Error).message)) {
+        return new Response(JSON.stringify({ invoices: [], events: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
+    }
 
     const invoices = invList.data.map((inv: any) => ({
       id: inv.id,

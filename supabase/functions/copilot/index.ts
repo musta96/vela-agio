@@ -1352,13 +1352,25 @@ ${PLATFORM_MAP}`;
         const enc = new TextEncoder();
         const send = (s: string) => controller.enqueue(enc.encode(s));
         try {
-          // Tool loop — up to 6 turns
-          for (let step = 0; step < 6; step++) {
-            const j = await chatStep(cfg, convo);
+          // Tool loop — up to 8 turns (extra room for deferral retries)
+          let deferralRetries = 0;
+          let forceTools = false;
+          for (let step = 0; step < 8; step++) {
+            const j = await chatStep(cfg, convo, forceTools ? 'required' : 'auto');
+            forceTools = false;
             const msg = j?.choices?.[0]?.message;
             if (!msg) break;
             const toolCalls = msg.tool_calls ?? [];
             if (toolCalls.length === 0) {
+              // Guard: never ship a "stand by / I'll notify you" promise — there is no
+              // background execution. Discard the draft and force a real tool turn.
+              if (isDeferralText(msg.content) && deferralRetries < 2) {
+                deferralRetries++;
+                convo.push({ role: 'assistant', content: String(msg.content).slice(0, 2000) });
+                convo.push({ role: 'system', content: DEFERRAL_CORRECTION });
+                forceTools = true;
+                continue;
+              }
               // No more tools — stream the final answer
               // If model already produced content here, push it then stop.
               if (msg.content) {
@@ -1376,6 +1388,7 @@ ${PLATFORM_MAP}`;
               controller.close();
               return;
             }
+
             // Push assistant message with tool_calls into convo
             convo.push({ role: 'assistant', content: msg.content ?? '', tool_calls: toolCalls });
             for (const tc of toolCalls) {

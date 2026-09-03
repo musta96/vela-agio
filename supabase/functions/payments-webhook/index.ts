@@ -161,6 +161,7 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
         dunning_email_sent_at: null,
         current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       }).eq("user_id", userId);
+      await maybeProvisionEnterprise(activePlan, "active", userId, "subscription_updated");
     } else if (subscription.status === "past_due") {
       // Only stamp past_due_since the first time — the grace period is measured
       // from the initial failure, not from every subsequent retry event.
@@ -307,6 +308,9 @@ async function handleInvoicePaid(invoice: any, env: StripeEnv) {
     // for first-time Pro activations after trial.
     trial_welcome_shown_at: isReactivation ? new Date().toISOString() : null,
   }).eq("user_id", userId);
+
+  await maybeProvisionEnterprise(activePlan, "active", userId, "invoice_paid");
+
 
   if (isReactivation) {
     try {

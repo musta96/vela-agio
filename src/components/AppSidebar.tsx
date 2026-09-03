@@ -169,6 +169,7 @@ const MARKETS: NavGroup = {
     { title: "Macro", url: "/macro", icon: Globe2 },
     { title: "Sectors", url: "/sectors", icon: Flame },
     { title: "Compare", url: "/compare", icon: Scale },
+    { title: "Regional Markets", url: "/regional-markets", icon: Globe2 },
   ],
 };
 
@@ -217,6 +218,7 @@ const PORTFOLIO: NavGroup = {
     { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
     { title: "Household", url: "/household", icon: Users2 },
     { title: "Tax-loss Harvesting", url: "/tax-harvest", icon: Wallet },
+    { title: "Proposed vs Current", url: "/portfolio-compare", icon: GitCompare },
   ],
 };
 

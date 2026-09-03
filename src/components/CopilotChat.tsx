@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare, Search, BrainCircuit, FileText, Activity, ShieldAlert, ArrowRight } from "lucide-react";
@@ -558,12 +559,20 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
           <MessageSquarePlus className="h-4 w-4" />
         </Button>
         <div className="flex-1 flex flex-col">
-          <Input
+          <Textarea
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => {
+              setInput(e.target.value);
+              const el = e.target;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+            }}
             onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
             placeholder={exhausted ? "AI credits exhausted — upgrade or add a BYO key" : t("pages.copilot.placeholder")}
             disabled={busy || exhausted}
+            rows={1}
+            className="min-h-[40px] max-h-40 resize-none"
+            aria-label={t("pages.copilot.placeholder")}
           />
           {hasCap && !unlimited && (
             <div className={`text-[10px] mt-1 px-1 ${exhausted ? "text-destructive" : (remaining ?? 0) <= Math.max(5, Math.round((limit as number) * 0.2)) ? "text-warning" : "text-muted-foreground"}`}>

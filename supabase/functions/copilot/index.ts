@@ -90,6 +90,14 @@ const TOOLS = [
         effort: { type: 'string', enum: ['S', 'M', 'L', 'XL'] },
         priority: { type: 'string', enum: ['nice-to-have', 'should-have', 'must-have'] },
       }, required: ['title', 'user_quote', 'why_it_matters', 'proposed_implementation', 'effort', 'priority'] } } },
+  { type: 'function', function: { name: 'open_support_ticket', description: 'Open a REAL support ticket in the product team\'s tracker. Use whenever the user reports a bug, a broken page, wrong data, or asks you to "open a ticket / report this / log this". Do NOT claim a ticket exists unless this tool returned ok:true with a ticket id.',
+      parameters: { type: 'object', properties: {
+        subject: { type: 'string', description: 'Short ticket title (max 200 chars).' },
+        message: { type: 'string', description: 'Full description: what the user reported, steps, page, expected vs actual.' },
+        category: { type: 'string', enum: ['bug', 'feature', 'question', 'feedback', 'other'] },
+        severity: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'] },
+        page_url: { type: 'string', description: 'Route where the issue happened, if known.' },
+      }, required: ['subject', 'message', 'category'] } } },
   { type: 'function', function: { name: 'run_screener', description: 'Run a natural-language stock screener against a universe of tickers. Returns a ranked, filtered candidate list with fundamentals — NOT a recommendation. Use this when the user describes objective criteria ("high momentum small caps under 15x earnings", "EU banks with yield > 6%", "speculative growth names with revenue growth > 30%") or asks for a shortlist to research. The output is information, not advice.',
       parameters: { type: 'object', properties: {
         query: { type: 'string', description: 'The user\u2019s natural-language screening criteria.' },
@@ -888,7 +896,7 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       };
     }
     case 'capture_feature_request': {
-      const title = String(args.title ?? '').slice(0, 200);
+      const title = String(args.title ?? '').trim().slice(0, 200) || 'Feature request from Copilot';
       const analysis = {
         why_it_matters: args.why_it_matters,
         proposed_implementation: args.proposed_implementation,
@@ -901,14 +909,17 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         user_quote: args.user_quote ?? null,
         ai_analysis: analysis,
       }).select('id').single();
-      if (error) return { error: error.message };
+      if (error) {
+        console.error('capture_feature_request: insert failed', error.message);
+        return { ok: false, created: false, error: error.message,
+          instruction: 'The request was NOT saved. Tell the user the ticket could not be created and to retry or email support. Do not claim it was forwarded.' };
+      }
 
       // Mirror into support_tickets so the request shows up in the owner
       // dashboard's Tickets view (which is where the team triages everything).
-      // We tag with category=feature + source=chat so it's filterable.
-      const severity =
-        args.priority === 'must_have' || args.priority === 'critical' ? 'high'
-        : args.priority === 'nice_to_have' ? 'low'
+      const prio = String(args.priority ?? '').replace(/_/g, '-');
+      const severity = prio === 'must-have' || prio === 'critical' ? 'high'
+        : prio === 'nice-to-have' ? 'low'
         : 'normal';
       const ticketMessage = [
         args.user_quote ? `User said: ${args.user_quote}` : null,
@@ -916,18 +927,58 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         args.proposed_implementation ? `\nProposed implementation: ${args.proposed_implementation}` : null,
         args.effort ? `\nEffort: ${args.effort}` : null,
         args.priority ? `Priority: ${args.priority}` : null,
-      ].filter(Boolean).join('\n');
-      const { error: ticketErr } = await sb.from('support_tickets').insert({
+      ].filter(Boolean).join('\n').slice(0, 5000);
+      const { data: ticketRow, error: ticketErr } = await sb.from('support_tickets').insert({
         user_id: user.id,
+        user_email: user.email ?? null,
         category: 'feature',
         severity,
         source: 'chat',
-        subject: title || 'Feature request from Copilot',
+        subject: title,
         message: ticketMessage || 'Feature request captured by AI copilot.',
         status: 'open',
-      });
-      if (ticketErr) console.warn('capture_feature_request: ticket mirror failed', ticketErr.message);
-      return { ok: true, id: data?.id, ticket_mirrored: !ticketErr };
+      }).select('id').maybeSingle();
+      if (ticketErr) console.error('capture_feature_request: ticket mirror failed', ticketErr.message);
+      return {
+        ok: true,
+        created: true,
+        id: data?.id,
+        ticket_id: ticketRow?.id ?? null,
+        ticket_mirrored: !ticketErr,
+        ticket_error: ticketErr?.message ?? null,
+        instruction: ticketErr
+          ? 'Saved as a feature request but it did NOT reach the support ticket queue — tell the user that honestly.'
+          : `Ticket #${String(ticketRow?.id ?? '').slice(0, 8)} was really created. You may confirm it to the user.`,
+      };
+    }
+    case 'open_support_ticket': {
+      const subject = String(args.subject ?? '').trim().slice(0, 200);
+      const message = String(args.message ?? '').trim().slice(0, 5000);
+      const allowedCat = ['bug', 'feature', 'question', 'feedback', 'other'];
+      const allowedSev = ['low', 'normal', 'high', 'urgent'];
+      const category = allowedCat.includes(String(args.category)) ? String(args.category) : 'other';
+      const severity = allowedSev.includes(String(args.severity)) ? String(args.severity) : 'normal';
+      if (subject.length < 1 || message.length < 1) {
+        return { ok: false, created: false, error: 'subject and message are required',
+          instruction: 'No ticket was created. Ask the user for a short title and description, then retry.' };
+      }
+      const { data, error } = await sb.from('support_tickets').insert({
+        user_id: user.id,
+        user_email: user.email ?? null,
+        category, severity, source: 'chat',
+        subject, message,
+        page_url: args.page_url ? String(args.page_url).slice(0, 500) : null,
+        status: 'open',
+      }).select('id, created_at').maybeSingle();
+      if (error || !data) {
+        console.error('open_support_ticket: insert failed', error?.message);
+        return { ok: false, created: false, error: error?.message ?? 'insert returned no row',
+          instruction: 'The ticket was NOT created. Tell the user the ticket could not be opened (state the error) and suggest retrying or Settings → Support. NEVER say it was opened.' };
+      }
+      return {
+        ok: true, created: true, ticket_id: data.id, created_at: data.created_at, category, severity,
+        instruction: `Ticket #${String(data.id).slice(0, 8)} was really created and is visible in the owner console. Confirm it to the user with this id.`,
+      };
     }
     default: return { error: `unknown tool ${name}` };
   }
@@ -1068,7 +1119,8 @@ Always frame proxy answers as "as of right now, search shows no direct listing f
 - Before ANY mutation (add/remove/update holdings or watchlist, create alerts, place orders) confirm intent UNLESS the user already gave a clear directive in their latest message.
 - For place_paper_order: always state it is PAPER (sandbox), summarize the order, and only call the tool after the user has confirmed.
 - LIVE (real-money) order routing is DISABLED. If the user asks to place a live order, tell them only paper orders are supported and they must use their broker's own app for real orders.
-- If the user asks for a feature/page/capability NOT in the PLATFORM MAP, don't pretend it exists. Call capture_feature_request with a real analysis and tell the user it's been forwarded.
+- If the user asks for a feature/page/capability NOT in the PLATFORM MAP, don't pretend it exists. Call capture_feature_request with a real analysis.
+- TICKETS — NEVER LIE: if the user reports a bug or asks you to open/log a ticket, you MUST call open_support_ticket (one call per ticket). Only after the tool returns ok:true with a ticket_id may you say the ticket was opened, and you must quote the id. If it returns ok:false, tell the user plainly that the ticket could NOT be created and why. Never say "I've opened a ticket" without a tool result proving it.
 - When the user attaches a screenshot or refers to "this page", use the PAGE CONTEXT and any image attachments to ground your answer.
 - For pure support questions answer concisely and link the relevant /route from the PLATFORM MAP.
 - End substantive analytical answers with a single short footer: "Research, not regulated advice." Don't repeat it inside every paragraph.
@@ -1098,6 +1150,7 @@ Behave as a competent personal financial advisor + portfolio manager + sell-side
 - CROSS-ASSET TICKER MAPPING: get_quote uses Yahoo symbols. Map plain-English asset names before calling. Crypto = TICKER-USD (BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD; ETF wrappers IBIT, ETHA, COIN, MSTR). Commodities = futures with "=F" or ETF proxy (Gold GC=F / GLD / IAU, Silver SI=F / SLV, WTI oil CL=F / USO, Brent BZ=F / BNO, Nat gas NG=F / UNG, Copper HG=F / CPER). FX = PAIR=X (EURUSD=X, GBPUSD=X, USDJPY=X; DXY = DX-Y.NYB). Indices = "^TICKER" (^GSPC / SPY, ^NDX / QQQ, ^DJI / DIA, ^FTSE, ^GDAXI, FTSEMIB.MI, ^STOXX50E, ^N225, ^VIX). Rate yields = ^TNX (US 10Y), ^IRX, ^FVX, ^TYX; investable via TLT, IEF, AGG, IEAG.L. Never say "the platform doesn't support gold/bitcoin/oil" — try the futures, ETF, and EUR/USD variants before giving up, and state which contract/wrapper you quoted.
 - Mutations (portfolio/watchlist/alerts/PAPER orders) still require user confirmation in the same turn before tool-calling.
 - LIVE (real-money) order routing remains DISABLED at the platform level — if asked, point the user to their broker's app.
+- TICKETS — NEVER LIE: bug reports or "open a ticket" requests MUST go through open_support_ticket. Confirm only when the tool returns ok:true, quoting the ticket_id; if it fails, say so explicitly.
 
 CONTEXT:
 CURRENT PAGE: ${pageContext ?? 'unknown'}

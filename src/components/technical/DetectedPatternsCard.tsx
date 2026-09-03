@@ -16,6 +16,18 @@ const iconFor = (b: Bias) => b === "bullish"
   ? <TrendingDown className="h-3 w-3 text-destructive" />
   : <Minus className="h-3 w-3 text-muted-foreground" />;
 
+const SMC_TERMS: Record<string, "orderBlock" | "fvg" | "liquiditySweep"> = {
+  "Order Block": "orderBlock",
+  "Fair Value Gap": "fvg",
+  "Liquidity Grab": "liquiditySweep",
+};
+
+/** Keep the English term of art, attach the localized explanation on hover. */
+const glossFor = (type: string) => {
+  const key = SMC_TERMS[type];
+  return key ? <TermGloss term={key}>{type}</TermGloss> : type;
+};
+
 const fmt = (t: number) => new Date(t).toLocaleDateString();
 
 export function DetectedPatternsCard({ analysis }: { analysis: FullAnalysis }) {
@@ -57,7 +69,7 @@ export function DetectedPatternsCard({ analysis }: { analysis: FullAnalysis }) {
               subtitle={`Level ${s.level.toFixed(2)}`} t={s.t} />
           ))}
           {smc.map((s, i) => (
-            <Row key={`m-${i}`} bias={s.bias} title={s.type} subtitle={s.detail} t={s.t} />
+            <Row key={`m-${i}`} bias={s.bias} title={glossFor(s.type)} subtitle={s.detail} t={s.t} />
           ))}
         </Column>
       </div>

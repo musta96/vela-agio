@@ -190,11 +190,8 @@
     "scoreLine": "Score {{score}}/{{max}} · SRI {{sri}}/7",
     "answered": "{{done}}/{{total}} answered",
     "completion": "Completion",
-    "errors": "{{count}} errors",
     "errors_one": "{{count}} error",
-    "warnings": "{{count}} warnings",
     "warnings_one": "{{count}} warning",
-    "notes": "{{count}} notes",
     "notes_one": "{{count}} note",
     "allChecksPassed": "All checks passed",
     "issueSummary": "{{errors}} · {{warnings}} · {{notes}}",
@@ -316,6 +313,9 @@
           "High (> 20%)"
         ]
       }
-    }
+    },
+    "errors_other": "{{count}} errors",
+    "warnings_other": "{{count}} warnings",
+    "notes_other": "{{count}} notes"
   }
 }

@@ -64,6 +64,8 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
     trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
     current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
   }).eq("user_id", userId);
+
+  await maybeProvisionEnterprise(planFromPriceLookup(priceId), subscription.status, userId, "subscription_created");
 }
 
 async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {

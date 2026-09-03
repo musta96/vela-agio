@@ -1,6 +1,8 @@
 // Client-side custom-strategy simulator. It intentionally mirrors the server
 // backtest evaluator and accepts OHLCV so advanced TA rules are executable.
 import type { Condition, RiskConfig } from "@/lib/ta/strategyTypes";
+import type { Bar as TaBar } from "@/lib/ta/types";
+import { normalizeOhlcv } from "@/lib/ta/normalize";
 import type { CostConfig } from "./costs";
 import { detectCandlestickPatterns } from "@/lib/ta/candlesticks";
 import { supportResistance, findTrendlines } from "@/lib/ta/structure";
@@ -118,7 +120,9 @@ function evalCondition(c: Condition, bars: Bar[], i: number): boolean {
 }
 
 export function simulateCustom(bars: Bar[], rules: { entry: Condition[]; exit: Condition[]; risk: RiskConfig }, initial: number, costs: CostConfig = {}): SimResult {
-  if (!bars.length) return { equity: [], trades: [], metrics: { totalReturn: 0, maxDrawdown: 0, sharpe: 0, winRate: 0, totalTrades: 0 } };
+  const normalized = normalizeOhlcv(bars);
+  if (!normalized.length) return { equity: [], trades: [], metrics: { totalReturn: 0, maxDrawdown: 0, sharpe: 0, winRate: 0, totalTrades: 0 } };
+  const cleanBars: Bar[] = normalized;
   let cash = initial, shares = 0, entryPrice = 0;
   const equity: { t: number; value: number }[] = [], trades: SimTrade[] = [];
   const slip = 1 + Math.max(0, costs.slippageBps ?? 0) / 10000;

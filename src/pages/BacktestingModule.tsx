@@ -32,7 +32,11 @@ import { VersionCompareCard } from "@/components/backtest/VersionCompareCard";
 import { WalkForwardOptimizerCard } from "@/components/backtest/WalkForwardOptimizerCard";
 import { NewsEventBacktestCard } from "@/components/backtest/NewsEventBacktestCard";
 import { SimCachePanel } from "@/components/backtest/SimCachePanel";
+import { DetectorSettingsCard } from "@/components/backtest/DetectorSettingsCard";
+import { AdvancedBacktestChart } from "@/components/backtest/AdvancedBacktestChart";
+import { SignalPerformanceCard } from "@/components/backtest/SignalPerformanceCard";
 import { DEFAULT_COSTS, costsSummary, type CostConfig } from "@/lib/backtest/costs";
+import { DEFAULT_DETECTOR_SETTINGS, type DetectorSettings } from "@/lib/ta/detectorSettings";
 
 interface Holding { symbol: string; weight: number; name?: string; }
 interface BacktestResult {
@@ -40,7 +44,7 @@ interface BacktestResult {
   benchmark?: string | null; benchmarkLabel?: string;
   equity: { t: number; value: number; benchmark: number }[];
   trades: { date: string; type: "BUY" | "SELL"; price: number; shares: number }[];
-  bars?: { t: number; close: number }[];
+  bars?: { t: number; open?: number; high?: number; low?: number; close: number; volume?: number }[];
   costs?: CostConfig;
   metrics: {
     finalValue: number; totalReturn: number; benchReturn: number;
@@ -98,6 +102,7 @@ const BacktestingModule = () => {
   const [customRules, setCustomRules] = useState<any | null>(null);
   const [customStrategyName, setCustomStrategyName] = useState<string | null>(null);
   const [costs, setCosts] = useState<CostConfig>(DEFAULT_COSTS);
+  const [detectorSettings, setDetectorSettings] = useState<DetectorSettings>(DEFAULT_DETECTOR_SETTINGS);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const suggestions = useMemo(() => (query ? searchCatalog(query, 6) : []), [query]);
@@ -377,6 +382,7 @@ const BacktestingModule = () => {
           </Card>
 
           <CostConfigCard costs={costs} onChange={setCosts} />
+          <DetectorSettingsCard settings={detectorSettings} onChange={setDetectorSettings} />
           <SimCachePanel />
 
           {/* Results */}
@@ -504,6 +510,12 @@ const BacktestingModule = () => {
                   </CardContent>
                 </Card>
 
+                {result.bars && result.bars.length > 30 && (
+                  <>
+                    <AdvancedBacktestChart bars={result.bars.map((b) => ({ t: b.t, open: b.open ?? b.close, high: b.high ?? b.close, low: b.low ?? b.close, close: b.close, volume: b.volume }))} settings={detectorSettings} />
+                    <SignalPerformanceCard bars={result.bars.map((b) => ({ t: b.t, open: b.open ?? b.close, high: b.high ?? b.close, low: b.low ?? b.close, close: b.close, volume: b.volume }))} settings={detectorSettings} />
+                  </>
+                )}
                 <BacktestDetailCharts equity={result.equity} trades={result.trades} />
                 <WalkForwardCard equity={result.equity} />
 

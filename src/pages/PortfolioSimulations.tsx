@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TickerMultiSelect, parseSymbols } from "@/components/TickerMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,11 +16,15 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Cell,
 } from "recharts";
 import { MonteCarloHistogram } from "@/components/MonteCarloHistogram";
-import { Loader2, Activity, ShieldAlert, TrendingUp, Wand2 } from "lucide-react";
+import { Loader2, Activity, ShieldAlert, TrendingUp, Wand2, GitCompare } from "lucide-react";
 import {
   runPortfolioSimulation, estimateAssetStats, type SimulationResult,
 } from "@/lib/portfolioSimulation";
 import { correlationMatrix } from "@/lib/correlation";
+import { normalizeOhlcv } from "@/lib/ta/normalize";
+import { signalReport } from "@/lib/backtest/signalReport";
+import { DEFAULT_DETECTOR_SETTINGS } from "@/lib/ta/detectorSettings";
+import { applySignalTilts, computeSymbolTilt, portfolioTiltSummary, DEFAULT_SIGNAL_TILT, type SymbolTilt } from "@/lib/portfolio/signalTilt";
 
 const RUN_OPTIONS = [
   { value: "1000", label: "1,000 paths" },
@@ -52,6 +57,9 @@ export default function PortfolioSimulations() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResult | null>(null);
+  const [signalAdjustedResult, setSignalAdjustedResult] = useState<SimulationResult | null>(null);
+  const [signalTilts, setSignalTilts] = useState<SymbolTilt[]>([]);
+  const [useSignalAdjustments, setUseSignalAdjustments] = useState(true);
   const [symbolsUsed, setSymbolsUsed] = useState<string[]>([]);
 
   const run = async () => {
@@ -68,22 +76,25 @@ export default function PortfolioSimulations() {
         const total = weights.reduce((a, b) => a + b, 0) || 1;
         weights = weights.map((w) => w / total);
       }
-      // Fetch daily OHLC for each ticker
+      // Fetch daily OHLC for each ticker and keep the clean bars for signal attribution.
       const series: number[][] = [];
+      const barsBySymbol = new Map<string, ReturnType<typeof normalizeOhlcv>>();
       for (const s of symbols) {
-        const { data } = await supabase.functions.invoke("market-data", {
+        const { data, error: dataError } = await supabase.functions.invoke("market-data", {
           body: { action: "ohlc", symbol: s, range: lookback, interval: "1d" },
         });
-        const bars = (data?.bars ?? []) as { close: number }[];
+        if (dataError) throw dataError;
+        const bars = normalizeOhlcv(data?.bars ?? []);
         const rets: number[] = [];
         for (let i = 1; i < bars.length; i++) {
           const a = bars[i - 1]?.close, b = bars[i]?.close;
           if (a > 0 && b > 0) rets.push(Math.log(b / a));
         }
         if (rets.length < 20) throw new Error(`Insufficient price history for ${s}`);
+        barsBySymbol.set(s, bars);
         series.push(rets);
       }
-      // Align to shortest series, estimate stats and correlation
+      // Align to shortest series, estimate stats and correlation.
       const T = Math.min(...series.map((r) => r.length));
       const aligned = series.map((s) => s.slice(s.length - T));
       const stats = estimateAssetStats(aligned, 252);
@@ -93,19 +104,19 @@ export default function PortfolioSimulations() {
       const assets = symbols.map((sym, i) => ({
         symbol: sym, weight: weights[i], mu: stats[i].mu, sigma: stats[i].sigma,
       }));
-      const sim = runPortfolioSimulation({
-        assets, corr,
-        initialValue,
-        horizonYears,
-        runs: Number(runs),
-        stepsPerYear: 12,
-        riskFreeRate: riskFree,
-      });
-      setResult(sim);
+      const simInput = { assets, corr, initialValue, horizonYears, runs: Number(runs), stepsPerYear: 12, riskFreeRate: riskFree };
+      const baseline = runPortfolioSimulation(simInput);
+      const tilts = symbols.map((sym) => computeSymbolTilt(sym, signalReport(barsBySymbol.get(sym) ?? [], DEFAULT_DETECTOR_SETTINGS, DEFAULT_SIGNAL_TILT.horizonDays), DEFAULT_SIGNAL_TILT));
+      const adjusted = runPortfolioSimulation({ ...simInput, assets: applySignalTilts(assets, tilts) });
+      setResult(baseline);
+      setSignalAdjustedResult(adjusted);
+      setSignalTilts(tilts);
       setSymbolsUsed(symbols);
     } catch (e: any) {
       setError(e?.message ?? "Simulation failed.");
       setResult(null);
+      setSignalAdjustedResult(null);
+      setSignalTilts([]);
     } finally {
       setLoading(false);
     }
@@ -195,9 +206,14 @@ export default function PortfolioSimulations() {
                   {LOOKBACK_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="md:col-span-2 lg:col-span-3 flex justify-end">
-              <Button onClick={run} disabled={loading} className="gap-2">
+             </div>
+             <div className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2 md:col-span-2 lg:col-span-3">
+               <Switch id="signal-adjustments" checked={useSignalAdjustments} onCheckedChange={setUseSignalAdjustments} />
+               <Label htmlFor="signal-adjustments" className="text-sm">Compare with advanced backtest signals</Label>
+               <span className="ml-auto text-xs text-muted-foreground">Causal detector evidence tilts drift and volatility; baseline remains unchanged.</span>
+             </div>
+             <div className="md:col-span-2 lg:col-span-3 flex justify-end">
+               <Button onClick={run} disabled={loading} className="gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
                 {loading ? "Simulating…" : "Run Simulation"}
               </Button>
@@ -208,9 +224,10 @@ export default function PortfolioSimulations() {
           </CardContent>
         </Card>
 
-        {result && (
-          <>
-            {/* Summary KPIs */}
+         {result && (
+           <>
+             {useSignalAdjustments && signalAdjustedResult && <SignalComparison baseline={result} adjusted={signalAdjustedResult} tilts={signalTilts} assets={symbolsUsed} />}
+             {/* Summary KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <Kpi label="Expected value" value={fmtCcy(result.expected)} hint={`CAGR ${fmtPct(result.expectedReturnPct)}`} />
               <Kpi label="Median (P50)" value={fmtCcy(result.median)} />
@@ -331,6 +348,20 @@ export default function PortfolioSimulations() {
     </div>
   );
 }
+
+function SignalComparison({ baseline, adjusted, tilts, assets }: { baseline: SimulationResult; adjusted: SimulationResult; tilts: SymbolTilt[]; assets: string[] }) {
+  const summary = portfolioTiltSummary(assets.map((symbol) => ({ symbol, weight: 1 / Math.max(1, assets.length), mu: 0, sigma: 0 })), tilts);
+  return <Card className="border-primary/30"><CardHeader className="flex flex-row items-center gap-2"><CardTitle className="flex items-center gap-2 text-base"><GitCompare className="h-4 w-4 text-primary" /> Baseline vs signal-adjusted</CardTitle><span className="ml-auto text-xs text-muted-foreground">{summary.signals} qualifying observations</span></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-3 md:grid-cols-4"><ComparisonMetric label="Expected value" base={baseline.expected} adjusted={adjusted.expected} money /><ComparisonMetric label="Median value" base={baseline.median} adjusted={adjusted.median} money /><ComparisonMetric label="Prob. of loss" base={baseline.probLoss} adjusted={adjusted.probLoss} percent inverse /><ComparisonMetric label="Realised volatility" base={baseline.realizedVolPct} adjusted={adjusted.realizedVolPct} percent /></div><div className="flex flex-wrap gap-2">{tilts.filter((t) => t.signals > 0).map((t) => <span key={t.symbol} className="rounded-md border border-border/60 px-2 py-1 text-xs"><span className="font-mono font-semibold">{t.symbol}</span> <span className={t.driftDelta >= 0 ? "text-bull" : "text-bear"}>{t.driftDelta >= 0 ? "+" : ""}{(t.driftDelta * 100).toFixed(1)}pp drift</span> · {(t.volFactor * 100 - 100).toFixed(1)}% vol</span>)}</div></CardContent></Card>;
+}
+
+function ComparisonMetric({ label, base, adjusted, money, percent, inverse }: { label: string; base: number; adjusted: number; money?: boolean; percent?: boolean; inverse?: boolean }) {
+  const delta = adjusted - base;
+  const good = inverse ? delta <= 0 : delta >= 0;
+  const format = (v: number) => money ? fmtCcy(v) : percent ? `${(v * 100).toFixed(1)}%` : v.toFixed(2);
+  return <div className="rounded-md border border-border/60 bg-card/60 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-mono text-sm">{format(base)} <span className="text-muted-foreground">→</span> {format(adjusted)}</p><p className={cnMetric(good)}>{delta >= 0 ? "+" : ""}{format(delta)}</p></div>;
+}
+
+function cnMetric(good: boolean) { return good ? "mt-1 text-[11px] text-bull" : "mt-1 text-[11px] text-bear"; }
 
 function Kpi({ label, value, hint, tone, small }: {
   label: string; value: string; hint?: string; tone?: "bull" | "bear"; small?: boolean;

@@ -100,10 +100,10 @@ export function FullBacktestReportCard({ bars, symbol }: { bars: Bar[]; symbol: 
         {ran && result && (
           <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              <Metric label="Total return" value={`${(result.metrics.totalReturn * 100).toFixed(2)}%`} tone={result.metrics.totalReturn >= 0 ? "up" : "down"} />
-              <Metric label="Max drawdown" value={`${(result.metrics.maxDrawdown * 100).toFixed(2)}%`} tone="down" />
+              <Metric label="Total return" value={`${result.metrics.totalReturn.toFixed(2)}%`} tone={result.metrics.totalReturn >= 0 ? "up" : "down"} />
+              <Metric label="Max drawdown" value={`${result.metrics.maxDrawdown.toFixed(2)}%`} tone="down" />
               <Metric label="Sharpe" value={result.metrics.sharpe.toFixed(2)} />
-              <Metric label="Win rate" value={`${(result.metrics.winRate * 100).toFixed(1)}%`} />
+              <Metric label="Win rate" value={`${result.metrics.winRate.toFixed(1)}%`} />
               <Metric label="Trades" value={String(result.metrics.totalTrades)} />
             </div>
 

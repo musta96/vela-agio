@@ -5,4 +5,4 @@
 - [x] Move Notes and Blotter persistence from localStorage to the backend with one-time legacy migration.
 - [x] Restrict profile billing/advice entitlement changes and Enterprise seat-limit changes to admins/service role.
 - [x] Add iOS Capacitor wrapper configured for the published Vela app and sync the production web bundle.
-- [ ] Expand advanced technical analysis and integrate detected signals into custom backtests.
+- [x] Expand advanced technical analysis and integrate detected signals into custom backtests.

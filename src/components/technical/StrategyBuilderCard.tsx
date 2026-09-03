@@ -462,31 +462,44 @@ function RuleList({
 }
 
 function ParamInputs({ c, onChange }: { c: Condition; onChange: (p: Partial<Condition>) => void }) {
-  const num = (v: string) => (v === "" ? undefined : Number(v));
   switch (c.type) {
     case "rsi_below":
     case "rsi_above":
       return <NumField label="Level" value={c.value ?? (c.type === "rsi_below" ? 30 : 70)} onChange={(v) => onChange({ value: v })} />;
     case "sma_cross_up":
     case "sma_cross_down":
-      return (
-        <>
-          <NumField label="Fast" value={c.fast ?? 20} onChange={(v) => onChange({ fast: v })} />
-          <NumField label="Slow" value={c.slow ?? 50} onChange={(v) => onChange({ slow: v })} />
-        </>
-      );
+    case "ema_cross_up":
+    case "ema_cross_down":
+      return <><NumField label="Fast" value={c.fast ?? (c.type.startsWith("ema") ? 12 : 20)} onChange={(v) => onChange({ fast: v })} /><NumField label="Slow" value={c.slow ?? (c.type.startsWith("ema") ? 26 : 50)} onChange={(v) => onChange({ slow: v })} /></>;
     case "price_above_sma":
     case "price_below_sma":
       return <NumField label="SMA period" value={c.period ?? 50} onChange={(v) => onChange({ period: v })} />;
     case "volume_spike":
       return <NumField label="× avg" value={c.value ?? 2} onChange={(v) => onChange({ value: v })} step={0.1} />;
     case "price_pct_change":
-      return (
-        <>
-          <NumField label="Bars" value={c.period ?? 5} onChange={(v) => onChange({ period: v })} />
-          <NumField label="≥ %" value={c.value ?? 5} onChange={(v) => onChange({ value: v })} step={0.5} />
-        </>
-      );
+      return <><NumField label="Bars" value={c.period ?? 5} onChange={(v) => onChange({ period: v })} /><NumField label="≥ %" value={c.value ?? 5} onChange={(v) => onChange({ value: v })} step={0.5} /></>;
+    case "candlestick_pattern":
+      return <Select value={c.pattern ?? "Any"} onValueChange={(v) => onChange({ pattern: v })}><SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Pattern" /></SelectTrigger><SelectContent>{["Any", "Hammer", "Inverted Hammer", "Hanging Man", "Shooting Star", "Bullish Engulfing", "Bearish Engulfing", "Morning Star", "Evening Star", "Doji", "Marubozu"].map((p) => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}</SelectContent></Select>;
+    case "support_reclaim":
+    case "resistance_rejection":
+      return <NumField label="Proximity %" value={c.value ?? 1.5} onChange={(v) => onChange({ value: v })} step={0.1} />;
+    case "atr_breakout":
+    case "adx_above":
+      return <NumField label="Threshold" value={c.value ?? (c.type === "adx_above" ? 25 : 1.5)} onChange={(v) => onChange({ value: v })} step={0.1} />;
+    case "avwap_sweep_reclaim":
+      return <><NumField label="Band %" value={c.value ?? 1.5} onChange={(v) => onChange({ value: v })} step={0.1} /><NumField label="Lookback" value={c.period ?? 40} onChange={(v) => onChange({ period: v })} /></>;
+    case "liquidity_sweep_bullish":
+    case "liquidity_sweep_bearish":
+    case "order_block_touch_bullish":
+    case "order_block_touch_bearish":
+    case "fib_golden_zone":
+    case "avwap_cross_up":
+    case "avwap_cross_down":
+    case "volume_profile_above_poc":
+    case "volume_profile_below_poc":
+    case "trendline_break_up":
+    case "trendline_break_down":
+      return <NumField label="Window" value={c.period ?? 60} onChange={(v) => onChange({ period: v })} />;
     default:
       return null;
   }

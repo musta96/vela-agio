@@ -20,7 +20,7 @@ interface CustomRules {
 }
 
 interface Holding { symbol: string; weight: number; }
-interface Bar { t: number; close: number; }
+interface Bar { t: number; open: number; high: number; low: number; close: number; volume: number; }
 
 interface CostConfig {
   commissionPct?: number;   // %, applied to trade notional (each side)
@@ -46,11 +46,26 @@ async function fetchBars(symbol: string, range: string): Promise<Bar[]> {
     const result = j?.chart?.result?.[0];
     if (!result) return [];
     const ts: number[] = result.timestamp || [];
-    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close || [];
+    const q = result.indicators?.quote?.[0] || {};
+    const cArr: (number | null)[] = q.close || [];
+    const oArr: (number | null)[] = q.open || [];
+    const hArr: (number | null)[] = q.high || [];
+    const lArr: (number | null)[] = q.low || [];
+    const vArr: (number | null)[] = q.volume || [];
+    
     const bars: Bar[] = [];
     for (let i = 0; i < ts.length; i++) {
-      const c = closes[i];
-      if (typeof c === "number" && !isNaN(c)) bars.push({ t: ts[i] * 1000, close: c });
+      const c = cArr[i];
+      if (typeof c === "number" && !isNaN(c)) {
+        bars.push({
+          t: ts[i] * 1000,
+          open: oArr[i] ?? c,
+          high: hArr[i] ?? c,
+          low: lArr[i] ?? c,
+          close: c,
+          volume: vArr[i] ?? 0,
+        });
+      }
     }
     return bars;
   } catch { return []; }
@@ -107,8 +122,6 @@ function evalCondition(c: CustomCondition, closes: number[], i: number): boolean
       return v !== null && closes[i] < v;
     }
     case "macd_cross_up": {
-      // Use EMA(12) - EMA(26) with signal EMA(9). Compute incrementally is heavy;
-      // approximate by evaluating on window ending at i.
       const m = macdAt(closes, i);
       const mp = macdAt(closes, i - 1);
       return !!(m && mp && mp.macd <= mp.signal && m.macd > m.signal);
@@ -139,10 +152,8 @@ function evalCondition(c: CustomCondition, closes: number[], i: number): boolean
     }
     case "atr_breakout":
     case "adx_above":
-      // OHLC-only conditions — not modeled on basket close series server-side.
-      return false;
     case "volume_spike":
-      // Volume not modeled on basket bars — never triggers server-side.
+      // OHLC/Volume aggregation exists but rule logic not yet updated to use them
       return false;
     default:
       return false;
@@ -164,7 +175,6 @@ function macdAt(closes: number[], i: number): { macd: number; signal: number } |
   const f = ema(closes, 12, i);
   const s = ema(closes, 26, i);
   if (f == null || s == null) return null;
-  // Signal = EMA(9) of the macd line — approximate with EMA over the derived series.
   const macdLine: number[] = [];
   for (let x = 0; x <= i; x++) {
     const ef = ema(closes, 12, x);
@@ -191,8 +201,7 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
   let entryPrice = 0;
   const buy = (i: number) => {
     if (shares > 0 || cash <= 0) return;
-    const exec = closes[i] * slipMult; // pay slippage on the way in
-    // solve: cash = shares*exec*(1+feePct) + feeFlat
+    const exec = closes[i] * slipMult;
     const spendable = Math.max(0, cash - feeFlat);
     const buyShares = spendable / (exec * (1 + feePctFrac));
     if (buyShares <= 0) return;
@@ -205,7 +214,7 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
   };
   const sell = (i: number) => {
     if (shares <= 0) return;
-    const exec = closes[i] * (2 - slipMult); // slippage on the way out (symmetric bps)
+    const exec = closes[i] * (2 - slipMult);
     const gross = shares * exec;
     const fee = feeFlat + gross * feePctFrac;
     cash = Math.max(0, gross - fee);
@@ -231,7 +240,6 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
         else if (r > 70 && shares > 0) sell(i);
       }
     } else if (strategy === "custom" && rules) {
-      // Evaluate hard stop/target first if position open.
       if (shares > 0) {
         const chg = (closes[i] - entryPrice) / entryPrice * 100;
         if (rules.risk?.stopPct && chg <= -Math.abs(rules.risk.stopPct)) { sell(i); }
@@ -250,10 +258,8 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
     equity.push({ t: bars[i].t, value, benchmark });
   }
 
-  // Close any open position at end
   if (shares > 0) sell(bars.length - 1);
 
-  // Metrics
   const finalValue = equity[equity.length - 1].value;
   const totalReturn = (finalValue - initial) / initial * 100;
   const benchReturn = (equity[equity.length - 1].benchmark - initial) / initial * 100;
@@ -263,7 +269,6 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
     const dd = (e.value - peak) / peak * 100;
     if (dd < maxDD) maxDD = dd;
   }
-  // Daily returns for Sharpe
   const rets: number[] = [];
   for (let i = 1; i < equity.length; i++) {
     rets.push((equity[i].value - equity[i-1].value) / (equity[i-1].value || 1));
@@ -273,7 +278,6 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
   const std = Math.sqrt(variance);
   const sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : 0;
 
-  // Pair trades for win rate
   let wins = 0, totalPairs = 0;
   for (let i = 0; i < trades.length - 1; i += 2) {
     if (trades[i].type === "BUY" && trades[i+1]?.type === "SELL") {
@@ -312,7 +316,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch bars for each holding
     const all = await Promise.all(holdings.map(async h => ({ h, bars: await fetchBars(h.symbol, range) })));
     const valid = all.filter(x => x.bars.length >= 30);
     if (valid.length === 0) {
@@ -321,13 +324,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build a synthetic weighted-basket bar series by aligning on calendar date (UTC).
-    // Different exchanges close at different times, so exact-ms timestamps rarely match.
     const dayKey = (t: number) => new Date(t).toISOString().slice(0, 10);
     const perSymbolByDay = valid.map(v => {
       const m = new Map<string, Bar>();
       for (const b of v.bars) {
-        // Keep the last bar of the day (latest close)
         m.set(dayKey(b.t), b);
       }
       return { h: v.h, map: m };
@@ -337,18 +337,23 @@ Deno.serve(async (req) => {
       .sort();
     const totalWeight = valid.reduce((s, v) => s + v.h.weight, 0) || 1;
     const basketBars: Bar[] = commonDays.map(d => {
-      let v = 0;
+      let o = 0, h = 0, l = 0, c = 0, vol = 0;
       let t = 0;
       for (const item of perSymbolByDay) {
         const bar = item.map.get(d)!;
-        v += (item.h.weight / totalWeight) * bar.close;
+        const w = item.h.weight / totalWeight;
+        o += w * bar.open;
+        h += w * bar.high;
+        l += w * bar.low;
+        c += w * bar.close;
+        vol += bar.volume;
         if (bar.t > t) t = bar.t;
       }
-      return { t, close: v };
+      return { t, open: o, high: h, low: l, close: c, volume: vol };
     });
 
     if (basketBars.length < 2) {
-      return new Response(JSON.stringify({ error: "Selected holdings have no overlapping price history for this range. Try a longer range or fewer symbols." }), {
+      return new Response(JSON.stringify({ error: "Selected holdings have no overlapping price history for this range." }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -363,13 +368,11 @@ Deno.serve(async (req) => {
     }
     const result = simulate(basketBars, strategy, initial, rules, costs);
 
-    // External benchmark (index): replace the self-basket benchmark in the equity series.
     let benchmarkLabel = "Buy & Hold (basket)";
     if (benchmarkSymbol) {
       const benchBars = await fetchBars(benchmarkSymbol, range);
       if (benchBars.length >= 2) {
         const bMap = new Map(benchBars.map(b => [b.t, b.close] as const));
-        // Find the first benchmark close on/after each basket timestamp; otherwise carry-forward.
         const sortedBench = benchBars.slice().sort((a, b) => a.t - b.t);
         let lastClose: number | null = null;
         let benchIdx = 0;

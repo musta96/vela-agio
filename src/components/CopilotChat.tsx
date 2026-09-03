@@ -488,6 +488,13 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                       />
                     ) : tl.name === "compare_portfolio_impact" && tl.done && tl.result?.summary ? (
                       <PortfolioImpactArtifactCard key={tl.id} result={tl.result} />
+                    ) : (tl.name === "generate_portfolio_memo" || tl.name === "generate_investment_memo") && tl.done && tl.result?.error ? (
+                      <div key={tl.id} className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs space-y-1">
+                        <div className="flex items-center gap-1 font-semibold text-destructive">
+                          <ShieldAlert className="h-3.5 w-3.5" /> Memo could not be generated
+                        </div>
+                        <div className="text-muted-foreground">{String(tl.result.error)}</div>
+                      </div>
                     ) : (
                     <details key={tl.id} className="rounded-md border border-border bg-card/50 text-xs">
                       <summary className="flex items-center gap-2 px-2 py-1 cursor-pointer list-none">

@@ -1,4 +1,4 @@
 - [x] Auto-approve Enterprise leads after verified firm payment and show only pending leads in admin.
 - [x] Populate the Enterprise client portal with real compliance documents/reports and white-label delivery.
 - [x] Resolve the Blotter JSX syntax error and re-verify instrument selector changes.
-- [ ] Answer App Store publishing + cross-device sync questions (Capacitor build, shared Cloud backend, localStorage-only features).
+- [x] Answer App Store publishing + cross-device sync questions (Capacitor build, shared Cloud backend, localStorage-only features).

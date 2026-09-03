@@ -549,8 +549,13 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       return { ...res, ui: { kind: 'link', href: '/research-analyst', label: 'Open AI Research Analyst' } };
     }
     case 'run_regulatory_analysis': {
+      // The model sometimes omits `focus` (it is optional in the schema); derive
+      // it from context/topic so the downstream validation never hard-fails.
+      const derivedFocus = String(args.focus ?? '').trim()
+        || String(args.context ?? '').trim().slice(0, 160)
+        || String(args.topic ?? '').trim().slice(0, 160);
       const res = await callEdge(ctx.authHeader, 'regulatory-analysis', {
-        focus: String(args.focus ?? '').slice(0, 160),
+        focus: derivedFocus.slice(0, 160),
         jurisdiction: String(args.jurisdiction ?? '').slice(0, 100),
         topic: String(args.topic ?? '').slice(0, 180),
         horizon: String(args.horizon ?? '').slice(0, 80),
@@ -1352,10 +1357,11 @@ ${PLATFORM_MAP}`;
         const enc = new TextEncoder();
         const send = (s: string) => controller.enqueue(enc.encode(s));
         try {
-          // Tool loop — up to 8 turns (extra room for deferral retries)
+          // Tool loop — up to 12 turns (extra room for deferral retries and
+          // multi-part requests that chain several analyses)
           let deferralRetries = 0;
           let forceTools = false;
-          for (let step = 0; step < 8; step++) {
+          for (let step = 0; step < 12; step++) {
             const j = await chatStep(cfg, convo, forceTools ? 'required' : 'auto');
             forceTools = false;
             const msg = j?.choices?.[0]?.message;
@@ -1400,7 +1406,19 @@ ${PLATFORM_MAP}`;
               convo.push({ role: 'tool', tool_call_id: tc.id, name: fn, content: JSON.stringify(result).slice(0, 4000) });
             }
           }
-          send(sseChunk('\n\n(Tool loop limit reached — please rephrase or narrow the request.)'));
+          // Loop exhausted with only tool results — force one final no-tools turn
+          // so the user gets a synthesized answer instead of a raw limit notice.
+          convo.push({ role: 'system', content: 'You have used all available tool steps for this turn. Do NOT call more tools. Synthesize a helpful final answer from the tool results already in this conversation, state clearly which parts (if any) remain, and invite the user to say "continue" for the rest. No deferral promises — everything you describe must already be in the results above.' });
+          try {
+            const r = await chatStream(cfg, convo);
+            if (r.body) {
+              const reader = r.body.getReader();
+              const dec = new TextDecoder();
+              while (true) { const { done, value } = await reader.read(); if (done) break; send(dec.decode(value, { stream: true })); }
+            }
+          } catch {
+            send(sseChunk('\n\nI ran out of analysis steps for this turn. The partial results above are complete; reply "continue" and I will pick up from there.'));
+          }
           send('data: [DONE]\n\n');
           controller.close();
         } catch (e: any) {

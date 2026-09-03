@@ -4,7 +4,9 @@ import { resolveAIConfig } from '../_shared/ai-provider.ts';
 import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 
 const BodySchema = z.object({
-  focus: z.string().trim().min(1).max(160),
+  // focus is optional at the boundary: callers (e.g. the Copilot tool) may omit
+  // it; we fall back to topic/context below instead of hard-failing.
+  focus: z.string().trim().max(160).optional(),
   jurisdiction: z.string().trim().min(1).max(100),
   topic: z.string().trim().min(1).max(180),
   horizon: z.string().trim().min(1).max(80),
@@ -134,12 +136,16 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed', message: 'POST required.' }, 405);
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return json({ error: 'validation_failed', message: 'Focus, jurisdiction, topic, horizon, and stance are required.' }, 400);
+  if (!parsed.success) return json({ error: 'validation_failed', message: 'Jurisdiction, topic, horizon, and stance are required.' }, 400);
+  const body: Body = {
+    ...parsed.data,
+    focus: parsed.data.focus || parsed.data.context?.slice(0, 160) || parsed.data.topic,
+  };
   const access = await resolveAiAccess(req.headers.get('Authorization'));
   if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
   try {
     const cfg = await resolveAIConfig(req.headers.get('Authorization'));
-    const report = await callAI(parsed.data, cfg);
+    const report = await callAI(body, cfg);
     return json({ report: { ...report, sources: [...report.sources, ...SOURCES.filter((s) => !report.sources.some((r) => r.url === s.url))] }, generatedAt: new Date().toISOString(), providerNotice: cfg.notice ?? null });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Regulatory analysis failed.';

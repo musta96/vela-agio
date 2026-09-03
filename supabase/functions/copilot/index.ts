@@ -171,6 +171,37 @@ const TOOLS = [
         currency: { type: 'string', description: 'Reporting currency. Defaults to "USD".' },
         strategy_thesis: { type: 'string', description: 'Optional one-line thesis surfaced in the PDF and chat card.' },
       }, required: ['allocation'] } } },
+  { type: 'function', function: { name: 'analyze_technicals', description: 'Run the FULL advanced technical-analysis engine on one ticker using real OHLCV bars: candlestick patterns, support/resistance zones, trendlines, market-structure shifts (BOS/CHoCH), SMC order blocks, fair-value gaps, supply/demand zones, liquidity grabs and liquidity sweeps, anchored VWAP (auto-anchored, with reclaim detection), Volume Profile (POC / value area high & low) and Fibonacci retracement/extension levels with golden zone. Use whenever the user asks about chart patterns, key levels, "where is support", order blocks, liquidity, sweeps, VWAP, volume profile, Fibonacci, or a technical read on a ticker. The detailed interactive charts live on /technical and /advanced-analysis.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string', description: 'Yahoo-format ticker.' },
+        range: { type: 'string', enum: ['3M','6M','1Y','2Y','5Y'], description: 'Bar history window. Defaults to 1Y daily.' },
+      }, required: ['symbol'] } } },
+  { type: 'function', function: { name: 'run_strategy_backtest', description: 'Backtest a strategy on real historical bars for one or more tickers, with configurable transaction costs (commission % / flat, slippage bps) and a benchmark. Strategies: buy_hold, sma_cross, rsi. Returns total return vs benchmark, max drawdown, Sharpe, win rate, trade count and total fees. Use when the user asks "how would this strategy have performed", "backtest X", "SMA cross on Y". The full lab with sensitivity heatmaps, regime breakdown, walk-forward and SMC signal reports is on /strategy-lab and /backtest.',
+      parameters: { type: 'object', properties: {
+        holdings: { type: 'array', description: 'Basket to trade.', items: { type: 'object', properties: { symbol: { type: 'string' }, weight: { type: 'number' } }, required: ['symbol','weight'] } },
+        strategy: { type: 'string', enum: ['buy_hold','sma_cross','rsi'] },
+        range: { type: 'string', enum: ['3M','6M','1Y','3Y','5Y'] },
+        initialCapital: { type: 'number' },
+        benchmark: { type: 'string', description: 'Optional benchmark ticker, e.g. SPY.' },
+        costs: { type: 'object', properties: { commissionPct: { type: 'number' }, commissionFlat: { type: 'number' }, slippageBps: { type: 'number' } } },
+      }, required: ['holdings','strategy'] } } },
+  { type: 'function', function: { name: 'analyze_filing_or_transcript', description: 'AI Equity Research Analyst: read a SEC filing (10-K / 10-Q / 8-K / 20-F, by URL) or a pasted earnings-call transcript and return a portfolio-manager grade research note — summary, guidance changes, key metrics, extracted and severity-classified risks with verbatim citations. The note is saved to the user\'s research notes. Use for "summarise the annual report", "what are the risks in this 10-K", "analyse the earnings call". Full UI with filing lists, tagging, watchlist filing alerts and report-vs-report diff is on /research-analyst.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string' },
+        mode: { type: 'string', enum: ['filing','transcript'] },
+        filingUrl: { type: 'string', description: 'Required for mode=filing. Use a SEC EDGAR document URL.' },
+        transcript: { type: 'string', description: 'Required for mode=transcript. The full call text.' },
+        focus: { type: 'string', description: 'Optional research angle, e.g. "margin trajectory", "regulatory risk".' },
+      }, required: ['symbol','mode'] } } },
+  { type: 'function', function: { name: 'run_regulatory_analysis', description: 'Predictive regulatory analysis: assess how a proposed law, directive or regulatory trend could affect a sector, company or asset class. Returns a headline, executive summary, affected assets, channel-by-channel impacts with timeframes, base/upside/downside scenarios, assumptions, confidence and cited sources. Use for "how would the EU AI Act hit software names", "impact of Basel IV on EU banks", "upcoming rules for crypto in Italy". Forward-looking and uncertain by construction — say so. Full UI on /regulatory-analysis.',
+      parameters: { type: 'object', properties: {
+        focus: { type: 'string', description: 'Sector, company, or asset class under analysis.' },
+        jurisdiction: { type: 'string', description: 'e.g. "European Union", "Italy", "United States", "Global".' },
+        topic: { type: 'string', description: 'The regulation, bill or regulatory trend.' },
+        horizon: { type: 'string', description: 'e.g. "12 months", "2026-2028".' },
+        stance: { type: 'string', enum: ['base','upside','downside'] },
+        context: { type: 'string', description: 'Optional extra context from the user.' },
+      }, required: ['focus','jurisdiction','topic','horizon','stance'] } } },
 ];
 
 // ---------- Tool executors ----------
@@ -462,6 +493,68 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         ui: { kind: 'memo_pdf', message: `Investment memo ready: ${name} (${sym}) — ${memo.recommendation.toUpperCase()}.` },
         disclaimer: 'Educational research only — not investment advice.',
       };
+    }
+    case 'analyze_technicals': {
+      const sym = String(args.symbol ?? '').trim().toUpperCase();
+      if (!sym) return { error: 'symbol required' };
+      const res = await callEdge(ctx.authHeader, 'technical-detectors', { symbol: sym, range: args.range ?? '1Y' });
+      if (res?.error) return { error: res.error, symbol: sym };
+      return { ...res, ui: { kind: 'link', href: `/advanced-analysis?symbol=${encodeURIComponent(sym)}`, label: `Open ${sym} on Advanced Analysis` } };
+    }
+    case 'run_strategy_backtest': {
+      const holdings = (Array.isArray(args.holdings) ? args.holdings : [])
+        .map((h: any) => ({ symbol: String(h?.symbol ?? '').toUpperCase(), weight: Number(h?.weight) || 0 }))
+        .filter((h: any) => h.symbol && h.weight > 0)
+        .slice(0, 10);
+      if (!holdings.length) return { error: 'at least one holding with a positive weight is required' };
+      const res = await callEdge(ctx.authHeader, 'backtest-strategy', {
+        holdings,
+        strategy: args.strategy ?? 'buy_hold',
+        range: args.range ?? '1Y',
+        initialCapital: Number(args.initialCapital) || 100000,
+        benchmark: typeof args.benchmark === 'string' ? args.benchmark : null,
+        costs: args.costs && typeof args.costs === 'object' ? args.costs : undefined,
+      });
+      if (res?.error) return { error: res.error };
+      return {
+        ok: true,
+        strategy: args.strategy ?? 'buy_hold',
+        range: args.range ?? '1Y',
+        holdings,
+        metrics: res.metrics,
+        trades: Array.isArray(res.trades) ? res.trades.slice(-20) : [],
+        ui: { kind: 'link', href: '/strategy-lab', label: 'Open Strategy Lab for sensitivity, regimes and walk-forward' },
+        disclaimer: 'Past simulated performance is not indicative of future results.',
+      };
+    }
+    case 'analyze_filing_or_transcript': {
+      const sym = String(args.symbol ?? '').trim().toUpperCase();
+      const mode = args.mode === 'transcript' ? 'transcript' : 'filing';
+      if (!sym) return { error: 'symbol required' };
+      if (mode === 'filing' && !args.filingUrl) return { error: 'filingUrl required for mode=filing' };
+      if (mode === 'transcript' && !String(args.transcript ?? '').trim()) return { error: 'transcript required for mode=transcript' };
+      const res = await callEdge(ctx.authHeader, 'equity-research-analyst', {
+        action: 'analyze',
+        symbol: sym,
+        mode,
+        filingUrl: args.filingUrl,
+        transcript: args.transcript,
+        focus: args.focus,
+      });
+      if (res?.error) return { error: res.error, symbol: sym };
+      return { ...res, ui: { kind: 'link', href: '/research-analyst', label: 'Open AI Research Analyst' } };
+    }
+    case 'run_regulatory_analysis': {
+      const res = await callEdge(ctx.authHeader, 'regulatory-analysis', {
+        focus: String(args.focus ?? '').slice(0, 160),
+        jurisdiction: String(args.jurisdiction ?? '').slice(0, 100),
+        topic: String(args.topic ?? '').slice(0, 180),
+        horizon: String(args.horizon ?? '').slice(0, 80),
+        stance: ['base', 'upside', 'downside'].includes(args.stance) ? args.stance : 'base',
+        context: typeof args.context === 'string' ? args.context.slice(0, 2000) : undefined,
+      });
+      if (res?.error) return { error: res.error };
+      return { ...res, ui: { kind: 'link', href: '/regulatory-analysis', label: 'Open Regulatory Analysis' } };
     }
     case 'run_portfolio_simulation': {
       // ---------- Inputs ----------

@@ -91,29 +91,63 @@ Deno.serve(async (req) => {
   }
 });
 
+/** Multi-engine search: DuckDuckGo HTML, DDG Lite, then Mojeek. */
 async function ddg(q: string): Promise<Hit[]> {
-  try {
-    const r = await fetch('https://html.duckduckgo.com/html/', {
-      method: 'POST',
-      headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ q }),
-    });
-    if (!r.ok) return [];
-    const html = await r.text();
-    const out: Hit[] = [];
-    const re = /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(html)) && out.length < 12) {
-      let url = decodeEntities(m[1]);
-      const uddg = url.match(/uddg=([^&]+)/);
-      if (uddg) url = decodeURIComponent(uddg[1]);
-      if (!/^https?:\/\//.test(url)) continue;
-      let domain = '';
-      try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch { continue; }
-      out.push({ title: stripTags(m[2]).trim().slice(0, 200), url, domain, official: false });
-    }
-    return out;
-  } catch { return []; }
+  const engines = [
+    async () => {
+      const r = await fetch('https://html.duckduckgo.com/html/', {
+        method: 'POST',
+        headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'text/html' },
+        body: new URLSearchParams({ q }),
+      });
+      return r.ok ? await r.text() : '';
+    },
+    async () => {
+      const r = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`, {
+        headers: { 'User-Agent': UA, Accept: 'text/html' },
+      });
+      return r.ok ? await r.text() : '';
+    },
+    async () => {
+      const r = await fetch(`https://www.mojeek.com/search?q=${encodeURIComponent(q)}`, {
+        headers: { 'User-Agent': UA, Accept: 'text/html' },
+      });
+      return r.ok ? await r.text() : '';
+    },
+  ];
+  for (const run of engines) {
+    try {
+      const html = await run();
+      const hits = parseResults(html);
+      if (hits.length) return hits;
+    } catch { /* next engine */ }
+  }
+  return [];
+}
+
+/** Generic anchor harvest that works across the HTML search endpoints. */
+function parseResults(html: string): Hit[] {
+  if (!html) return [];
+  const out: Hit[] = [];
+  const seen = new Set<string>();
+  const re = /<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]{0,300}?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) && out.length < 15) {
+    let url = decodeEntities(m[1]);
+    const uddg = url.match(/uddg=([^&]+)/);
+    if (uddg) url = decodeURIComponent(uddg[1]);
+    if (!/^https?:\/\//i.test(url)) continue;
+    let domain = '';
+    try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch { continue; }
+    // Drop engine chrome / social links.
+    if (/duckduckgo\.com|mojeek\.com|google\.|bing\.com|facebook\.com|twitter\.com|x\.com|instagram\.com|youtube\.com|reddit\.com|pinterest\./i.test(domain)) continue;
+    const title = decodeEntities(stripTags(m[2])).replace(/\s+/g, ' ').trim();
+    if (title.length < 12) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push({ title: title.slice(0, 200), url, domain, official: false });
+  }
+  return out;
 }
 
 async function readable(url: string): Promise<string> {

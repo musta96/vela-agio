@@ -114,12 +114,14 @@ const Screener = () => {
       const { data, error } = await supabase.functions.invoke("nl-screener", {
         body: { query, symbols: UNIVERSES[universe].slice(0, 40) },
       });
-      const payload = data as any;
-      if (payload?.error) throw new Error(payload.error);
+      let payload = data as any;
       if (error) {
-        // Non-2xx from the function: surface the body message when we have it.
-        throw new Error(payload?.error || error.message || "Screener request failed");
+        // Non-2xx: supabase-js hides the body in error.context — read it so the user sees a real message.
+        const ctx = (error as any)?.context;
+        const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+        throw new Error(body?.error || body?.reason || error.message || "Screener request failed");
       }
+      if (payload?.error) throw new Error(payload.error);
       const rows: Result[] = Array.isArray(payload?.results) ? payload.results : [];
       console.debug("[screener] returned rows:", payload?.matched, "rendering:", rows.length, "universe fetched:", payload?.total);
       setResults(rows);

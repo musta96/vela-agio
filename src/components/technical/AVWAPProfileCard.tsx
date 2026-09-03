@@ -7,6 +7,7 @@ import { ResponsiveContainer, ComposedChart, Line, ReferenceLine, ReferenceArea,
 import type { Bar as OhlcBar } from "@/lib/ta/types";
 import { computeAVWAP, suggestAnchors, detectAVWAPReclaim } from "@/lib/ta/avwap";
 import { computeVolumeProfile } from "@/lib/ta/volumeProfile";
+import { TermGloss } from "@/components/TermGloss";
 
 interface Props { bars: OhlcBar[]; }
 
@@ -67,11 +68,11 @@ export function AVWAPProfileCard({ bars }: Props) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-xs">
         <div className="p-2 rounded border border-border">
-          <p className="text-muted-foreground">AVWAP</p>
+          <p className="text-muted-foreground"><TermGloss term="avwap">AVWAP</TermGloss></p>
           <p className="font-semibold">{lastAvwap ? lastAvwap.toFixed(2) : "—"}</p>
         </div>
         <div className="p-2 rounded border border-border">
-          <p className="text-muted-foreground">POC</p>
+          <p className="text-muted-foreground"><TermGloss term="poc">POC</TermGloss></p>
           <p className="font-semibold">{profile ? profile.poc.toFixed(2) : "—"}</p>
         </div>
         <div className="p-2 rounded border border-border">

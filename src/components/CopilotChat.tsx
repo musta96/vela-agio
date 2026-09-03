@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare, Search, BrainCircuit, FileText, Activity, ShieldAlert, ArrowRight } from "lucide-react";
+import { Bot, Send, User as UserIcon, Loader2, Wrench, ChevronRight, Paperclip, X, Image as ImageIcon, MessageSquarePlus, FileDown, Plus, Trash2, MessageSquare, Search, BrainCircuit, FileText, Activity, ShieldAlert, ArrowRight, RotateCcw, PlayCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
@@ -15,12 +15,13 @@ import { generateInvestmentMemo, type InvestmentMemoData } from "@/lib/investmen
 import { generatePortfolioMemo, type GeneratePortfolioMemoOptions } from "@/lib/generatePortfolioMemo";
 import { downloadMemoCsvBundle } from "@/lib/portfolioMemoData";
 import { AiCreditsBadge } from "@/components/AiCreditsBadge";
+import { AnalysisProgress } from "@/components/copilot/AnalysisProgress";
 import { useAiCredits } from "@/hooks/useAiCredits";
 import { Link } from "react-router-dom";
 
 const MEMORY_KEY = "vela.ai_memory_enabled";
 
-type ToolEvent = { id: string; name: string; args?: any; result?: any; done: boolean };
+type ToolEvent = { id: string; name: string; args?: any; result?: any; done: boolean; startedAt?: number; endedAt?: number };
 type Attachment = { name: string; mime: string; dataUrl: string };
 type Msg = { role: "user" | "assistant"; content: string; tools?: ToolEvent[]; attachments?: Attachment[] };
 type Thread = { id: string; title: string; updated_at: string };
@@ -204,22 +205,46 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     setAttachments(a => [...a, ...next].slice(0, 5));
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? input).trim();
     if ((!text && attachments.length === 0) || busy) return;
-    setInput(""); setBusy(true);
+    if (override === undefined) setInput("");
+    setBusy(true);
     const userMsg: Msg = { role: "user", content: text || "(see attachments)", attachments };
     const next = [...messages, userMsg];
     setMessages(next);
     const sentAttachments = attachments;
     setAttachments([]);
-    const wantsPdf = userWantsPdf(text);
     const tid = memoryOn ? await ensureThread(text) : null;
     if (tid && user && memoryOn) {
       await (supabase as any).from("copilot_messages").insert({
         thread_id: tid, user_id: user.id, role: "user", content: userMsg.content,
       });
     }
+    await streamTurn(next, sentAttachments, text, tid);
+  };
+
+  /**
+   * Retry the last turn: drop the trailing assistant reply and re-run the same
+   * user message. Useful when a long tool run failed or the answer was cut off.
+   */
+  const retryLast = async () => {
+    if (busy) return;
+    let idx = messages.length - 1;
+    while (idx >= 0 && messages[idx].role !== "user") idx--;
+    if (idx < 0) return;
+    const next = messages.slice(0, idx + 1);
+    setMessages(next);
+    setBusy(true);
+    const tid = memoryOn ? threadId : null;
+    await streamTurn(next, next[idx].attachments ?? [], next[idx].content, tid);
+  };
+
+  /** Ask the assistant to pick up where it stopped, executing tools now. */
+  const continueAnalysis = () => send(t("copilot.controls.continuePrompt"));
+
+  const streamTurn = async (next: Msg[], sentAttachments: Attachment[], text: string, tid: string | null) => {
+    const wantsPdf = userWantsPdf(text);
     try {
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
       const { data: { session } } = await supabase.auth.getSession();
@@ -266,10 +291,10 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
             try {
               const j = JSON.parse(data);
               const existing = tools.find(x => x.id === j.id);
-              if (j.phase === "start") { if (!existing) tools.push({ id: j.id, name: j.name, args: j.args, done: false }); }
+              if (j.phase === "start") { if (!existing) tools.push({ id: j.id, name: j.name, args: j.args, done: false, startedAt: Date.now() }); }
               else if (j.phase === "end") {
-                if (existing) { existing.result = j.result; existing.done = true; }
-                else tools.push({ id: j.id, name: j.name, result: j.result, done: true });
+                if (existing) { existing.result = j.result; existing.done = true; existing.endedAt = Date.now(); }
+                else tools.push({ id: j.id, name: j.name, result: j.result, done: true, startedAt: Date.now(), endedAt: Date.now() });
               }
               pushUpdate();
             } catch {}
@@ -475,6 +500,9 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
                 </div>
               )}
               {m.tools && m.tools.length > 0 && (
+                <AnalysisProgress tools={m.tools} busy={busy && i === messages.length - 1} />
+              )}
+              {m.tools && m.tools.length > 0 && (
                 <div className="space-y-1">
                   {m.tools.map(tl => (
                     tl.name === "generate_investment_memo" && tl.done && tl.result?.memo ? (
@@ -518,6 +546,16 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
               <div className={`rounded-lg px-3 py-2 prose prose-sm max-w-none ${m.role === "user" ? "prose-invert bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
                 <ReactMarkdown>{m.content || (m.tools && m.tools.length > 0 ? "_working..._" : "...")}</ReactMarkdown>
               </div>
+              {m.role === "assistant" && i === messages.length - 1 && i > 0 && !busy && (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-[11px]" onClick={retryLast}>
+                    <RotateCcw className="h-3 w-3" /> {t("copilot.controls.retry")}
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-[11px]" onClick={continueAnalysis}>
+                    <PlayCircle className="h-3 w-3" /> {t("copilot.controls.continue")}
+                  </Button>
+                </div>
+              )}
               {m.role === "assistant" && m.content && i > 0 && (
                 <div className="flex justify-start">
                   <button

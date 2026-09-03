@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CandlestickChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { FullAnalysis, Bias } from "@/lib/ta";
+import { TermGloss } from "@/components/TermGloss";
 
 const bgFor = (b: Bias) => b === "bullish"
   ? "bg-success/10 border-success/30"
@@ -14,6 +15,18 @@ const iconFor = (b: Bias) => b === "bullish"
   : b === "bearish"
   ? <TrendingDown className="h-3 w-3 text-destructive" />
   : <Minus className="h-3 w-3 text-muted-foreground" />;
+
+const SMC_TERMS: Record<string, "orderBlock" | "fvg" | "liquiditySweep"> = {
+  "Order Block": "orderBlock",
+  "Fair Value Gap": "fvg",
+  "Liquidity Grab": "liquiditySweep",
+};
+
+/** Keep the English term of art, attach the localized explanation on hover. */
+const glossFor = (type: string) => {
+  const key = SMC_TERMS[type];
+  return key ? <TermGloss term={key}>{type}</TermGloss> : type;
+};
 
 const fmt = (t: number) => new Date(t).toLocaleDateString();
 
@@ -56,7 +69,7 @@ export function DetectedPatternsCard({ analysis }: { analysis: FullAnalysis }) {
               subtitle={`Level ${s.level.toFixed(2)}`} t={s.t} />
           ))}
           {smc.map((s, i) => (
-            <Row key={`m-${i}`} bias={s.bias} title={s.type} subtitle={s.detail} t={s.t} />
+            <Row key={`m-${i}`} bias={s.bias} title={glossFor(s.type)} subtitle={s.detail} t={s.t} />
           ))}
         </Column>
       </div>
@@ -76,7 +89,7 @@ export function DetectedPatternsCard({ analysis }: { analysis: FullAnalysis }) {
     );
   }
 
-  function Row({ bias, title, subtitle, t }: { bias: Bias; title: string; subtitle?: string; t?: number }) {
+  function Row({ bias, title, subtitle, t }: { bias: Bias; title: React.ReactNode; subtitle?: string; t?: number }) {
     return (
       <div className={`p-2 rounded-md border ${bgFor(bias)}`}>
         <div className="flex items-center gap-2 flex-wrap">

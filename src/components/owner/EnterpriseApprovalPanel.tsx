@@ -52,7 +52,7 @@ export default function EnterpriseApprovalPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold tracking-tight">Enterprise approvals</h2>
-          <p className="text-sm text-muted-foreground">Review sales-assisted requests before provisioning the firm and its included seats.</p>
+          <p className="text-sm text-muted-foreground">Pending sales-assisted requests only — firms that pay for Enterprise are provisioned automatically.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-1.5">
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh
@@ -65,7 +65,7 @@ export default function EnterpriseApprovalPanel() {
           </TableRow></TableHeader>
           <TableBody>
             {loading && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading approvals…</TableCell></TableRow>}
-            {!loading && leads.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No Enterprise approval requests.</TableCell></TableRow>}
+            {!loading && leads.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">Nothing awaiting review — every Enterprise request has been provisioned.</TableCell></TableRow>}
             {leads.map((lead) => {
               const approved = lead.approved || lead.status === "converted";
               return <TableRow key={lead.id}>
@@ -79,7 +79,7 @@ export default function EnterpriseApprovalPanel() {
           </TableBody>
         </Table>
       </Card>
-      <p className="text-xs text-muted-foreground">Requests without a linked account remain reviewable but cannot receive seats until the applicant signs in or creates an account.</p>
+      <p className="text-xs text-muted-foreground">Firms that complete Enterprise checkout are approved automatically once Stripe confirms payment, so they never appear here. Requests without a linked account remain reviewable but cannot receive seats until the applicant signs in or creates an account.</p>
     </div>
   );
 }

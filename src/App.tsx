@@ -41,6 +41,8 @@ import Goals from "./pages/Goals";
 import DividendPlanner from "./pages/DividendPlanner";
 import Budget from "./pages/Budget";
 import PortfolioSimulations from "./pages/PortfolioSimulations";
+import AdvancedAnalysis from "./pages/AdvancedAnalysis";
+import RegulatoryAnalysis from "./pages/RegulatoryAnalysis";
 import EventStudy from "./pages/EventStudy";
 import TaxHarvest from "./pages/TaxHarvest";
 import Methodology from "./pages/Methodology";
@@ -201,6 +203,8 @@ const App = () => (
             <Route path="/dividends" element={<DividendPlanner />} />
             <Route path="/budget" element={<Budget />} />
             <Route path="/simulations" element={<RouteFeatureGate feature="portfolio.simulations"><PortfolioSimulations /></RouteFeatureGate>} />
+            <Route path="/advanced-analysis" element={<AdvancedAnalysis />} />
+            <Route path="/regulatory-analysis" element={<RegulatoryAnalysis />} />
             <Route path="/event-study" element={<RouteFeatureGate feature="research.event_study"><EventStudy /></RouteFeatureGate>} />
             <Route path="/tax-harvest" element={<RouteFeatureGate feature="tax.harvest"><TaxHarvest /></RouteFeatureGate>} />
             <Route path="/tax" element={<Navigate to="/tax-harvest" replace />} />

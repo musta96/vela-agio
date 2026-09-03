@@ -233,6 +233,8 @@ const ANALYST_TOOLS: NavGroup = {
     { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
     { title: "Event Study", url: "/event-study", icon: CalendarClock },
     { title: "Technical", url: "/technical", icon: LineChart },
+    { title: "Advanced Analysis", url: "/advanced-analysis", icon: Activity },
+    { title: "Regulatory Analysis", url: "/regulatory-analysis", icon: Scale },
     { title: "Quant Alpha", url: "/quant", icon: Gauge },
     { title: "Blotter", url: "/blotter", icon: ClipboardList },
     { title: "Peers", url: "/peers", icon: Network },

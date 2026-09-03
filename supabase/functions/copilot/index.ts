@@ -1212,7 +1212,7 @@ function isDeferralText(text: unknown): boolean {
 
 const DEFERRAL_CORRECTION = `SYSTEM ENFORCEMENT: your last draft promised future/background work ("stand by", "I will notify you", "this will take time"). That draft was DISCARDED and never shown to the user, because you have NO background execution: when your reply ends, nothing else runs.
 Redo this turn NOW:
-1. Call the actual tools you need in THIS turn (generate_portfolio_memo, generate_investment_memo, generate_research_brief, analyze_technicals, run_strategy_backtest, run_portfolio_simulation, run_regulatory_analysis, run_thematic_deepdive, run_screener, ...). Every one of them is live and deployed.
+1. Call the actual tools you need in THIS turn (generate_portfolio_memo, generate_investment_memo, generate_research_brief, analyze_technicals, run_strategy_backtest, run_portfolio_simulation, run_regulatory_analysis, run_full_analysis, run_advanced_simulation, research_web, lookup_instruments, run_thematic_deepdive, run_screener, ...). Every one of them is live and deployed.
 2. If the request is too large for one turn, run the FIRST concrete piece now, present its real output, then ask the user to reply "continue" for the next piece.
 3. Never again write any sentence promising later delivery, notifications, or processing time.`;
 

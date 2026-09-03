@@ -775,6 +775,42 @@ export type Database = {
         }
         Relationships: []
       }
+      blotter_trades: {
+        Row: {
+          created_at: string
+          executed_at: string
+          id: string
+          note: string | null
+          price: number
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          executed_at?: string
+          id?: string
+          note?: string | null
+          price: number
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          executed_at?: string
+          id?: string
+          note?: string | null
+          price?: number
+          quantity?: number
+          side?: string
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bond_saved_bonds: {
         Row: {
           created_at: string
@@ -2739,6 +2775,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      research_notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          symbol: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          symbol?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          symbol?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       sentiment_history: {
         Row: {

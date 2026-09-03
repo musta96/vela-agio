@@ -2,3 +2,6 @@
 - [x] Populate the Enterprise client portal with real compliance documents/reports and white-label delivery.
 - [x] Resolve the Blotter JSX syntax error and re-verify instrument selector changes.
 - [x] Answer App Store publishing + cross-device sync questions (Capacitor build, shared Cloud backend, localStorage-only features).
+- [x] Move Notes and Blotter persistence from localStorage to the backend with one-time legacy migration.
+- [x] Restrict profile billing/advice entitlement changes and Enterprise seat-limit changes to admins/service role.
+- [x] Add iOS Capacitor wrapper configured for the published Vela app and sync the production web bundle.

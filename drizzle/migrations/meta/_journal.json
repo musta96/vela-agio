@@ -36,6 +36,13 @@
       "when": 1788362266381,
       "tag": "0004_fix_enterprise_firms_membership_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788416356322,
+      "tag": "0005_notes_blotter_and_entitlement_locks",
+      "breakpoints": true
     }
   ]
 }

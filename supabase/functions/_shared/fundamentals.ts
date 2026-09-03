@@ -48,34 +48,60 @@ function num(v: unknown): number | null {
 }
 
 let cachedCrumb: { crumb: string; cookie: string; at: number } | null = null;
-export async function getCrumb(): Promise<{ crumb: string; cookie: string }> {
-  if (cachedCrumb && Date.now() - cachedCrumb.at < 30 * 60 * 1000) return cachedCrumb;
-  const r2 = await fetch("https://finance.yahoo.com/", {
-    headers: { "User-Agent": UA },
-    redirect: "manual",
-  });
-  const sc = r2.headers.get("set-cookie") ?? "";
-  const cookiePairs: string[] = [];
-  for (const p of sc.split(/,(?=\s*[A-Za-z0-9_-]+=)/)) {
+
+function parseCookies(setCookie: string): string {
+  const pairs: string[] = [];
+  for (const p of setCookie.split(/,(?=\s*[A-Za-z0-9_-]+=)/)) {
     const kv = p.split(";")[0].trim();
-    if (kv && kv.includes("=")) cookiePairs.push(kv);
+    if (kv && kv.includes("=")) pairs.push(kv);
   }
-  const cookie = cookiePairs.join("; ");
-  const r3 = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
-    headers: { "User-Agent": UA, Cookie: cookie },
-  });
-  if (!r3.ok) throw new Error(`crumb ${r3.status}`);
-  const crumb = (await r3.text()).trim();
-  cachedCrumb = { crumb, cookie, at: Date.now() };
-  return cachedCrumb;
+  return pairs.join("; ");
+}
+
+/**
+ * Yahoo requires a consent cookie + crumb pair. `finance.yahoo.com` intermittently
+ * fails from server runtimes (HTTP/2 protocol errors), so we try the lightweight
+ * `fc.yahoo.com` cookie endpoint first and fall back to the main site.
+ */
+export async function getCrumb(force = false): Promise<{ crumb: string; cookie: string }> {
+  if (!force && cachedCrumb && Date.now() - cachedCrumb.at < 30 * 60 * 1000) return cachedCrumb;
+  const sources = ["https://fc.yahoo.com/", "https://finance.yahoo.com/"];
+  const errors: string[] = [];
+  for (const src of sources) {
+    try {
+      const r = await fetch(src, { headers: { "User-Agent": UA }, redirect: "manual" });
+      const cookie = parseCookies(r.headers.get("set-cookie") ?? "");
+      if (!cookie) { errors.push(`${src}: no cookie`); continue; }
+      const r3 = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
+        headers: { "User-Agent": UA, Cookie: cookie },
+      });
+      const crumb = (await r3.text()).trim();
+      if (!r3.ok || !crumb || crumb.startsWith("{")) { errors.push(`${src}: crumb ${r3.status}`); continue; }
+      cachedCrumb = { crumb, cookie, at: Date.now() };
+      return cachedCrumb;
+    } catch (e) {
+      errors.push(`${src}: ${(e as Error).message}`);
+    }
+  }
+  throw new Error(`yahoo crumb unavailable (${errors.join(" | ")})`);
 }
 
 export async function fetchFundamentals(symbol: string): Promise<Fundamentals | null> {
   const modules = ["summaryDetail", "defaultKeyStatistics", "financialData", "price", "assetProfile"].join(",");
-  const { crumb, cookie } = await getCrumb();
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
-  const r = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie } });
-  if (!r.ok) return null;
+  let { crumb, cookie } = await getCrumb();
+  const call = () =>
+    fetch(
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`,
+      { headers: { "User-Agent": UA, Cookie: cookie } },
+    );
+  let r = await call();
+  if (r.status === 401 || r.status === 403) {
+    // Stale crumb/cookie — refresh once and retry.
+    ({ crumb, cookie } = await getCrumb(true));
+    r = await call();
+  }
+  if (!r.ok) throw new Error(`quoteSummary ${symbol}: ${r.status}`);
+
   const j = await r.json();
   const q = j?.quoteSummary?.result?.[0];
   if (!q) return null;

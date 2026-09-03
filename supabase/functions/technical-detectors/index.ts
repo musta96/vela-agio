@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       bars: bars.length,
       lastPrice: last.close,
       lastBarTs: last.t,
-      candlestickPatterns: patterns.map((p) => ({ name: p.name, bias: p.bias, date: new Date(p.t ?? bars[p.index].t).toISOString().slice(0, 10) })),
+      candlestickPatterns: patterns.map((p) => ({ name: p.name, bias: p.bias, date: new Date(p.t).toISOString().slice(0, 10) })),
       supportResistance: levels.map((z) => ({ type: z.type, price: z.price, strength: z.strength })),
       trendlines: findTrendlines(bars.slice(-120)).map((t) => ({ kind: t.kind, from: t.from.price, to: t.to.price, broken: !!t.broken })),
       structure: detectStructure(bars).slice(-5),

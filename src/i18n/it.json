@@ -316,6 +316,8 @@
     },
     "errors_other": "{{count}} errori",
     "warnings_other": "{{count}} avvisi",
-    "notes_other": "{{count}} note"
+    "notes_other": "{{count}} note",
+    "fixErrors_one": "Correggi {{count}} errore bloccante prima di salvare.",
+    "fixErrors_other": "Correggi {{count}} errori bloccanti prima di salvare."
   }
 }

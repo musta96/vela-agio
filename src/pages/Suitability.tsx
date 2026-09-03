@@ -173,6 +173,7 @@ const REASSESS_MONTHS = 12;
 
 export default function Suitability() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [ans, setAns] = useState<Record<string, number>>({});
   const [objectives, setObjectives] = useState<string[]>([]);
   const [excluded, setExcluded] = useState<string[]>([]);
@@ -937,7 +938,7 @@ export default function Suitability() {
                     Real-time checks across MiFID II appropriateness, AML/KYC, SFDR and ESMA Guideline 5.
                     {" "}
                     <span className="font-medium text-foreground">
-                      {errors.length} error{errors.length === 1 ? "" : "s"} · {warns.length} warning{warns.length === 1 ? "" : "s"} · {t("suitability.notes", { count: infos.length })}
+                      {t("suitability.issueSummary", { errors: t("suitability.errors", { count: errors.length }), warnings: t("suitability.warnings", { count: warns.length }), notes: t("suitability.notes", { count: infos.length }) })}
                     </span>
                   </CardDescription>
                 </CardHeader>
@@ -1000,7 +1001,7 @@ export default function Suitability() {
               </Button>
               {!complete && <span className="text-xs text-muted-foreground">Answer all {totalQuestions} core questions to save.</span>}
               {complete && errors.length > 0 && (
-                <span className="text-xs text-destructive font-medium">Fix {errors.length} blocking error{errors.length === 1 ? "" : "s"} above before saving.</span>
+                <span className="text-xs text-destructive font-medium">{t("suitability.fixErrors", { count: errors.length })}</span>
               )}
               {complete && !errors.length && !attestation && <span className="text-xs text-muted-foreground">Tick the attestation to enable save.</span>}
             </div>

@@ -89,7 +89,7 @@ export function DetectedPatternsCard({ analysis }: { analysis: FullAnalysis }) {
     );
   }
 
-  function Row({ bias, title, subtitle, t }: { bias: Bias; title: string; subtitle?: string; t?: number }) {
+  function Row({ bias, title, subtitle, t }: { bias: Bias; title: React.ReactNode; subtitle?: string; t?: number }) {
     return (
       <div className={`p-2 rounded-md border ${bgFor(bias)}`}>
         <div className="flex items-center gap-2 flex-wrap">

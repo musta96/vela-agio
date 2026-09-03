@@ -19,7 +19,12 @@ const UNIVERSES = {
   "S&P 500": STOCK_CATALOG.filter((s) => s.market === "S&P 500").map((s) => s.symbol),
   NASDAQ: STOCK_CATALOG.filter((s) => s.market === "NASDAQ").map((s) => s.symbol),
   ETF: STOCK_CATALOG.filter((s) => s.market === "ETF").map((s) => s.symbol),
+  MENA: STOCK_CATALOG.filter((s) => s.market === "MENA").map((s) => s.symbol),
+  APAC: STOCK_CATALOG.filter((s) => s.market === "APAC").map((s) => s.symbol),
+  China: STOCK_CATALOG.filter((s) => s.market === "China").map((s) => s.symbol),
+  LatAm: STOCK_CATALOG.filter((s) => s.market === "LatAm").map((s) => s.symbol),
 } as const;
+
 
 const EXAMPLES = [
   "US megacaps with ROE > 20%",

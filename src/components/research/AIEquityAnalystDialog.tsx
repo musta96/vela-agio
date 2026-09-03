@@ -275,7 +275,7 @@ export function AIEquityAnalystDialog({ open, onOpenChange, input, onSaved }: Pr
                   <RiskChecklistCard
                     risks={report.risks}
                     sourceUrl={input?.filingUrl}
-                    noteKey={savedId ?? input?.filingUrl ?? `${input?.symbol ?? "note"}-${report.period ?? ""}`}
+                    noteKey={input?.filingUrl ?? `${input?.symbol ?? "note"}-${report.period ?? ""}`}
                   />
                 </TabsContent>
 

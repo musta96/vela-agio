@@ -89,26 +89,26 @@ function evalCondition(c: Condition, bars: Bar[], i: number): boolean {
     case "volume_spike": { const n = 20; const avg = sma(bars.map(volumeOf), n, i - 1); return avg !== null && volumeOf(bars[i]) > (c.value ?? 2) * avg; }
     case "atr_breakout": { const a = atr(bars, i); return a !== null && highOf(bars[i]) - lowOf(bars[i]) > (c.value ?? 1.5) * a; }
     case "adx_above": { const v = adx(bars, i); return v !== null && v > (c.value ?? 25); }
-    case "candlestick_pattern": { const hits = detectCandlestickPatterns(bars.slice(0, i + 1)); return hits.some((h) => h.index === i && (!c.pattern || c.pattern === "Any" || h.name === c.pattern)); }
+    case "candlestick_pattern": { const hits = detectCandlestickPatterns(taBars.slice(0, i + 1)); return hits.some((h) => h.index === i && (!c.pattern || c.pattern === "Any" || h.name === c.pattern)); }
     case "support_reclaim": {
-      if (i < 8) return false; const zones = supportResistance(bars.slice(0, i + 1)); const z = zones.filter((x) => x.type === "support").sort((a, b) => Math.abs(a.price - closes[i]) - Math.abs(b.price - closes[i]))[0];
+      if (i < 8) return false; const zones = supportResistance(taBars.slice(0, i + 1)); const z = zones.filter((x) => x.type === "support").sort((a, b) => Math.abs(a.price - closes[i]) - Math.abs(b.price - closes[i]))[0];
       return !!z && closes[i - 1] < z.price && closes[i] >= z.price && Math.abs(closes[i] - z.price) / z.price * 100 <= (c.value ?? 1.5);
     }
     case "resistance_rejection": {
-      if (i < 8) return false; const zones = supportResistance(bars.slice(0, i + 1)); const z = zones.filter((x) => x.type === "resistance").sort((a, b) => Math.abs(a.price - closes[i]) - Math.abs(b.price - closes[i]))[0];
+      if (i < 8) return false; const zones = supportResistance(taBars.slice(0, i + 1)); const z = zones.filter((x) => x.type === "resistance").sort((a, b) => Math.abs(a.price - closes[i]) - Math.abs(b.price - closes[i]))[0];
       return !!z && highOf(bars[i]) >= z.price && closes[i] < z.price && Math.abs(closes[i] - z.price) / z.price * 100 <= (c.value ?? 1.5);
     }
-    case "liquidity_sweep_bullish": return detectSweeps(bars.slice(0, i + 1), { lookback: c.period ?? 40 }).some((s) => s.index === i && s.bias === "bullish" && s.reclaimed);
-    case "liquidity_sweep_bearish": return detectSweeps(bars.slice(0, i + 1), { lookback: c.period ?? 40 }).some((s) => s.index === i && s.bias === "bearish" && s.reclaimed);
-    case "order_block_touch_bullish": { const obs = detectOrderBlocks(bars.slice(0, i + 1)); return obs.some((o) => o.index < i && o.bias === "bullish" && lowOf(bars[i]) <= o.top && highOf(bars[i]) >= o.bottom && i - o.index <= (c.period ?? 60)); }
-    case "order_block_touch_bearish": { const obs = detectOrderBlocks(bars.slice(0, i + 1)); return obs.some((o) => o.index < i && o.bias === "bearish" && lowOf(bars[i]) <= o.top && highOf(bars[i]) >= o.bottom && i - o.index <= (c.period ?? 60)); }
-    case "fib_golden_zone": { const fib = computeFibonacci(bars.slice(0, i + 1)); return !!fib && closes[i] >= fib.goldenZone.bottom && closes[i] <= fib.goldenZone.top; }
-    case "avwap_cross_up": { const n = c.period ?? 60; if (!prior(1)) return false; const points = computeAVWAP(bars.slice(0, i + 1), Math.max(0, i - n)); const prev = points[i - 1]?.avwap, now = points[i]?.avwap; return prev !== null && now !== null && closes[i - 1] <= (prev ?? 0) && closes[i] > (now ?? 0); }
-    case "avwap_cross_down": { const n = c.period ?? 60; if (!prior(1)) return false; const points = computeAVWAP(bars.slice(0, i + 1), Math.max(0, i - n)); const prev = points[i - 1]?.avwap, now = points[i]?.avwap; return prev !== null && now !== null && closes[i - 1] >= (prev ?? 0) && closes[i] < (now ?? 0); }
-    case "volume_profile_above_poc": { const w = Math.min(i + 1, c.period ?? 60); const p = computeVolumeProfile(bars.slice(i + 1 - w, i + 1)); return !!p && closes[i] > p.poc; }
-    case "volume_profile_below_poc": { const w = Math.min(i + 1, c.period ?? 60); const p = computeVolumeProfile(bars.slice(i + 1 - w, i + 1)); return !!p && closes[i] < p.poc; }
-    case "trendline_break_up": return findTrendlines(bars.slice(0, i + 1)).some((t) => t.kind === "down" && t.broken?.index === i);
-    case "trendline_break_down": return findTrendlines(bars.slice(0, i + 1)).some((t) => t.kind === "up" && t.broken?.index === i);
+    case "liquidity_sweep_bullish": return detectSweeps(taBars.slice(0, i + 1), { lookback: c.period ?? 40 }).some((s) => s.index === i && s.bias === "bullish" && s.reclaimed);
+    case "liquidity_sweep_bearish": return detectSweeps(taBars.slice(0, i + 1), { lookback: c.period ?? 40 }).some((s) => s.index === i && s.bias === "bearish" && s.reclaimed);
+    case "order_block_touch_bullish": { const obs = detectOrderBlocks(taBars.slice(0, i + 1)); return obs.some((o) => o.index < i && o.bias === "bullish" && lowOf(bars[i]) <= o.top && highOf(bars[i]) >= o.bottom && i - o.index <= (c.period ?? 60)); }
+    case "order_block_touch_bearish": { const obs = detectOrderBlocks(taBars.slice(0, i + 1)); return obs.some((o) => o.index < i && o.bias === "bearish" && lowOf(bars[i]) <= o.top && highOf(bars[i]) >= o.bottom && i - o.index <= (c.period ?? 60)); }
+    case "fib_golden_zone": { const fib = computeFibonacci(taBars.slice(0, i + 1)); return !!fib && closes[i] >= fib.goldenZone.bottom && closes[i] <= fib.goldenZone.top; }
+    case "avwap_cross_up": { const n = c.period ?? 60; if (!prior(1)) return false; const points = computeAVWAP(taBars.slice(0, i + 1), Math.max(0, i - n)); const prev = points[i - 1]?.avwap, now = points[i]?.avwap; return prev !== null && now !== null && closes[i - 1] <= (prev ?? 0) && closes[i] > (now ?? 0); }
+    case "avwap_cross_down": { const n = c.period ?? 60; if (!prior(1)) return false; const points = computeAVWAP(taBars.slice(0, i + 1), Math.max(0, i - n)); const prev = points[i - 1]?.avwap, now = points[i]?.avwap; return prev !== null && now !== null && closes[i - 1] >= (prev ?? 0) && closes[i] < (now ?? 0); }
+    case "volume_profile_above_poc": { const w = Math.min(i + 1, c.period ?? 60); const p = computeVolumeProfile(taBars.slice(i + 1 - w, i + 1)); return !!p && closes[i] > p.poc; }
+    case "volume_profile_below_poc": { const w = Math.min(i + 1, c.period ?? 60); const p = computeVolumeProfile(taBars.slice(i + 1 - w, i + 1)); return !!p && closes[i] < p.poc; }
+    case "trendline_break_up": return findTrendlines(taBars.slice(0, i + 1)).some((t) => t.kind === "down" && t.broken?.index === i);
+    case "trendline_break_down": return findTrendlines(taBars.slice(0, i + 1)).some((t) => t.kind === "up" && t.broken?.index === i);
     case "avwap_sweep_reclaim": {
       const n = c.period ?? 40; const prefix = bars.slice(0, i + 1); const sweeps = detectSweeps(prefix, { lookback: n }); const s = sweeps.find((x) => x.index === i && x.reclaimed); if (!s) return false;
       const points = computeAVWAP(prefix, Math.max(0, i - n)); const v = points[i]?.avwap; return v !== null && v !== undefined && Math.abs(closes[i] - v) / v * 100 <= (c.value ?? 1.5);

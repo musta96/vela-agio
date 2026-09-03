@@ -110,7 +110,7 @@ function evalCondition(c: Condition, bars: Bar[], i: number): boolean {
     case "trendline_break_up": return findTrendlines(taBars.slice(0, i + 1)).some((t) => t.kind === "down" && t.broken?.index === i);
     case "trendline_break_down": return findTrendlines(taBars.slice(0, i + 1)).some((t) => t.kind === "up" && t.broken?.index === i);
     case "avwap_sweep_reclaim": {
-      const n = c.period ?? 40; const prefix = bars.slice(0, i + 1); const sweeps = detectSweeps(prefix, { lookback: n }); const s = sweeps.find((x) => x.index === i && x.reclaimed); if (!s) return false;
+      const n = c.period ?? 40; const prefix = taBars.slice(0, i + 1); const sweeps = detectSweeps(prefix, { lookback: n }); const s = sweeps.find((x) => x.index === i && x.reclaimed); if (!s) return false;
       const points = computeAVWAP(prefix, Math.max(0, i - n)); const v = points[i]?.avwap; return v !== null && v !== undefined && Math.abs(closes[i] - v) / v * 100 <= (c.value ?? 1.5);
     }
     default: return false;

@@ -171,6 +171,37 @@ const TOOLS = [
         currency: { type: 'string', description: 'Reporting currency. Defaults to "USD".' },
         strategy_thesis: { type: 'string', description: 'Optional one-line thesis surfaced in the PDF and chat card.' },
       }, required: ['allocation'] } } },
+  { type: 'function', function: { name: 'analyze_technicals', description: 'Run the FULL advanced technical-analysis engine on one ticker using real OHLCV bars: candlestick patterns, support/resistance zones, trendlines, market-structure shifts (BOS/CHoCH), SMC order blocks, fair-value gaps, supply/demand zones, liquidity grabs and liquidity sweeps, anchored VWAP (auto-anchored, with reclaim detection), Volume Profile (POC / value area high & low) and Fibonacci retracement/extension levels with golden zone. Use whenever the user asks about chart patterns, key levels, "where is support", order blocks, liquidity, sweeps, VWAP, volume profile, Fibonacci, or a technical read on a ticker. The detailed interactive charts live on /technical and /advanced-analysis.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string', description: 'Yahoo-format ticker.' },
+        range: { type: 'string', enum: ['3M','6M','1Y','2Y','5Y'], description: 'Bar history window. Defaults to 1Y daily.' },
+      }, required: ['symbol'] } } },
+  { type: 'function', function: { name: 'run_strategy_backtest', description: 'Backtest a strategy on real historical bars for one or more tickers, with configurable transaction costs (commission % / flat, slippage bps) and a benchmark. Strategies: buy_hold, sma_cross, rsi. Returns total return vs benchmark, max drawdown, Sharpe, win rate, trade count and total fees. Use when the user asks "how would this strategy have performed", "backtest X", "SMA cross on Y". The full lab with sensitivity heatmaps, regime breakdown, walk-forward and SMC signal reports is on /strategy-lab and /backtest.',
+      parameters: { type: 'object', properties: {
+        holdings: { type: 'array', description: 'Basket to trade.', items: { type: 'object', properties: { symbol: { type: 'string' }, weight: { type: 'number' } }, required: ['symbol','weight'] } },
+        strategy: { type: 'string', enum: ['buy_hold','sma_cross','rsi'] },
+        range: { type: 'string', enum: ['3M','6M','1Y','3Y','5Y'] },
+        initialCapital: { type: 'number' },
+        benchmark: { type: 'string', description: 'Optional benchmark ticker, e.g. SPY.' },
+        costs: { type: 'object', properties: { commissionPct: { type: 'number' }, commissionFlat: { type: 'number' }, slippageBps: { type: 'number' } } },
+      }, required: ['holdings','strategy'] } } },
+  { type: 'function', function: { name: 'analyze_filing_or_transcript', description: 'AI Equity Research Analyst: read a SEC filing (10-K / 10-Q / 8-K / 20-F, by URL) or a pasted earnings-call transcript and return a portfolio-manager grade research note — summary, guidance changes, key metrics, extracted and severity-classified risks with verbatim citations. The note is saved to the user\'s research notes. Use for "summarise the annual report", "what are the risks in this 10-K", "analyse the earnings call". Full UI with filing lists, tagging, watchlist filing alerts and report-vs-report diff is on /research-analyst.',
+      parameters: { type: 'object', properties: {
+        symbol: { type: 'string' },
+        mode: { type: 'string', enum: ['filing','transcript'] },
+        filingUrl: { type: 'string', description: 'Required for mode=filing. Use a SEC EDGAR document URL.' },
+        transcript: { type: 'string', description: 'Required for mode=transcript. The full call text.' },
+        focus: { type: 'string', description: 'Optional research angle, e.g. "margin trajectory", "regulatory risk".' },
+      }, required: ['symbol','mode'] } } },
+  { type: 'function', function: { name: 'run_regulatory_analysis', description: 'Predictive regulatory analysis: assess how a proposed law, directive or regulatory trend could affect a sector, company or asset class. Returns a headline, executive summary, affected assets, channel-by-channel impacts with timeframes, base/upside/downside scenarios, assumptions, confidence and cited sources. Use for "how would the EU AI Act hit software names", "impact of Basel IV on EU banks", "upcoming rules for crypto in Italy". Forward-looking and uncertain by construction — say so. Full UI on /regulatory-analysis.',
+      parameters: { type: 'object', properties: {
+        focus: { type: 'string', description: 'Sector, company, or asset class under analysis.' },
+        jurisdiction: { type: 'string', description: 'e.g. "European Union", "Italy", "United States", "Global".' },
+        topic: { type: 'string', description: 'The regulation, bill or regulatory trend.' },
+        horizon: { type: 'string', description: 'e.g. "12 months", "2026-2028".' },
+        stance: { type: 'string', enum: ['base','upside','downside'] },
+        context: { type: 'string', description: 'Optional extra context from the user.' },
+      }, required: ['focus','jurisdiction','topic','horizon','stance'] } } },
 ];
 
 // ---------- Tool executors ----------

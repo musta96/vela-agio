@@ -4,27 +4,41 @@
 export type ConditionType =
   | "rsi_below"
   | "rsi_above"
-  | "sma_cross_up"        // fast SMA crosses above slow
-  | "sma_cross_down"      // fast crosses below slow
+  | "sma_cross_up"
+  | "sma_cross_down"
   | "price_above_sma"
   | "price_below_sma"
   | "macd_cross_up"
   | "macd_cross_down"
-  | "volume_spike"        // volume > multiplier × 20-bar avg
-  | "price_pct_change"    // close vs N bars ago >= value (or <= if negative)
-  | "ema_cross_up"        // fast EMA crosses above slow (algorithmic trend)
-  | "ema_cross_down"      // fast EMA crosses below slow
-  | "atr_breakout"        // range > multiplier × ATR14 (volatility breakout)
-  | "adx_above"           // ADX(14) > threshold (trend strength filter)
-  | "avwap_sweep_reclaim"; // Liquidity sweep near anchored VWAP value area (period=sweep lookback, value=value-area% band)
+  | "volume_spike"
+  | "price_pct_change"
+  | "ema_cross_up"
+  | "ema_cross_down"
+  | "atr_breakout"
+  | "adx_above"
+  | "avwap_sweep_reclaim"
+  | "candlestick_pattern"
+  | "support_reclaim"
+  | "resistance_rejection"
+  | "liquidity_sweep_bullish"
+  | "liquidity_sweep_bearish"
+  | "order_block_touch_bullish"
+  | "order_block_touch_bearish"
+  | "fib_golden_zone"
+  | "avwap_cross_up"
+  | "avwap_cross_down"
+  | "volume_profile_above_poc"
+  | "volume_profile_below_poc"
+  | "trendline_break_up"
+  | "trendline_break_down";
 
 export interface Condition {
   type: ConditionType;
-  // Common numeric fields, condition-specific meaning:
-  value?: number;        // rsi threshold, pct change, multiplier
-  period?: number;       // sma period, lookback bars
-  fast?: number;         // sma_cross fast period
-  slow?: number;         // sma_cross slow period
+  value?: number;
+  period?: number;
+  fast?: number;
+  slow?: number;
+  pattern?: string;
 }
 
 export type ExitType = "signal" | "target_pct" | "stop_pct" | "target_rr" | "atr_stop";
@@ -89,6 +103,20 @@ export const CONDITION_LABELS: Record<ConditionType, string> = {
   atr_breakout: "ATR breakout (bar range × ATR14)",
   adx_above: "ADX(14) above threshold",
   avwap_sweep_reclaim: "Liquidity sweep reclaimed within AVWAP value area",
+  candlestick_pattern: "Candlestick pattern",
+  support_reclaim: "Support reclaimed",
+  resistance_rejection: "Resistance rejected",
+  liquidity_sweep_bullish: "Bullish liquidity sweep",
+  liquidity_sweep_bearish: "Bearish liquidity sweep",
+  order_block_touch_bullish: "Bullish order block touched",
+  order_block_touch_bearish: "Bearish order block touched",
+  fib_golden_zone: "Price in Fibonacci golden zone",
+  avwap_cross_up: "Price crosses above anchored VWAP",
+  avwap_cross_down: "Price crosses below anchored VWAP",
+  volume_profile_above_poc: "Price above volume-profile POC",
+  volume_profile_below_poc: "Price below volume-profile POC",
+  trendline_break_up: "Breaks downtrend",
+  trendline_break_down: "Breaks uptrend",
 };
 
 export function describeCondition(c: Condition): string {
@@ -108,5 +136,19 @@ export function describeCondition(c: Condition): string {
     case "atr_breakout": return `Bar range > ${c.value ?? 1.5}× ATR(14)`;
     case "adx_above": return `ADX(14) > ${c.value ?? 25}`;
     case "avwap_sweep_reclaim": return `Sweep reclaimed within ±${c.value ?? 1.5}% AVWAP band (lookback ${c.period ?? 40})`;
+    case "candlestick_pattern": return `${c.pattern ?? "Any"} candlestick pattern`;
+    case "support_reclaim": return `Close reclaims support within ${c.value ?? 1.5}%`;
+    case "resistance_rejection": return `Close rejects resistance within ${c.value ?? 1.5}%`;
+    case "liquidity_sweep_bullish": return `Bullish liquidity sweep (lookback ${c.period ?? 40})`;
+    case "liquidity_sweep_bearish": return `Bearish liquidity sweep (lookback ${c.period ?? 40})`;
+    case "order_block_touch_bullish": return `Touches bullish order block (lookback ${c.period ?? 60})`;
+    case "order_block_touch_bearish": return `Touches bearish order block (lookback ${c.period ?? 60})`;
+    case "fib_golden_zone": return `Price in Fibonacci golden zone (lookback ${c.period ?? 60})`;
+    case "avwap_cross_up": return `Price crosses above AVWAP (anchor ${c.period ?? 60} bars)`;
+    case "avwap_cross_down": return `Price crosses below AVWAP (anchor ${c.period ?? 60} bars)`;
+    case "volume_profile_above_poc": return `Price above volume-profile POC (${c.period ?? 60} bars)`;
+    case "volume_profile_below_poc": return `Price below volume-profile POC (${c.period ?? 60} bars)`;
+    case "trendline_break_up": return `Breaks downtrend (${c.period ?? 60} bars)`;
+    case "trendline_break_down": return `Breaks uptrend (${c.period ?? 60} bars)`;
   }
 }

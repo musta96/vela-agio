@@ -18,3 +18,5 @@
 - [ ] Order flow & options microstructure page (Yahoo-derived + free open-source data only).
 - [ ] Italian regulatory source and "normative in arrivo" section on Regulatory Analysis.
 - [ ] Authenticated client-only portal (no admin login) with research reports, notes, portfolio.
+- [x] Fix regulatory-analysis validation_failed (missing focus) — derive focus in copilot + tolerate in function
+- [ ] Investigate "Tool loop limit reached" message in Copilot

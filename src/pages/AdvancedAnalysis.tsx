@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { FullBacktestReportCard } from "@/components/backtest/FullBacktestReportCard";
 import { TopNav } from "@/components/TopNav";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +22,8 @@ import { Activity, Loader2, RefreshCw, SlidersHorizontal } from "lucide-react";
 const SETTINGS_KEY = "vela.advanced-analysis.detectors.v1";
 
 export default function AdvancedAnalysis() {
-  const [symbol, setSymbol] = useState("AAPL");
+  const [searchParams] = useSearchParams();
+  const [symbol, setSymbol] = useState(() => searchParams.get("symbol")?.toUpperCase() || "AAPL");
   const [range, setRange] = useState("1y");
   const [bars, setBars] = useState<Bar[]>([]);
   const [loading, setLoading] = useState(false);

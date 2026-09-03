@@ -46,7 +46,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (!sub?.stripe_customer_id) {
+    // Manually granted / comped plans use synthetic ids (comp_*) that don't exist in Stripe.
+    if (!sub?.stripe_customer_id || !sub.stripe_customer_id.startsWith("cus_")) {
       return new Response(JSON.stringify({ invoices: [], events: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

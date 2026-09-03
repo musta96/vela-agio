@@ -62,6 +62,16 @@ function scoreFor(r: { roe?: number; pe?: number; opMargin?: number }): string {
   return "C";
 }
 
+const METRIC_LABELS: Record<string, string> = {
+  marketCap: "Market cap", pe: "P/E", forwardPe: "Forward P/E", peg: "PEG", pb: "P/B", ps: "P/S",
+  evEbitda: "EV/EBITDA", divYield: "Dividend yield", payout: "Payout ratio", roe: "ROE", roa: "ROA",
+  grossMargin: "Gross margin", opMargin: "Operating margin", netMargin: "Net margin",
+  revGrowth: "Revenue growth", earningsGrowth: "Earnings growth", debtEquity: "Debt/Equity",
+  currentRatio: "Current ratio", beta: "Beta", fcf: "Free cash flow", price: "Price",
+  targetMean: "Target price", _score: "Overall score",
+};
+const metricLabel = (m: string) => METRIC_LABELS[m] ?? m;
+
 interface Result {
   symbol: string;
   name: string;
@@ -89,26 +99,46 @@ const Screener = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
   const [spec, setSpec] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [ran, setRan] = useState(false);
+  const [meta, setMeta] = useState<{ total: number; matched: number } | null>(null);
 
   const run = async () => {
     if (!query.trim()) return;
     setLoading(true);
     setResults([]);
     setSpec(null);
+    setErrorMsg(null);
+    setMeta(null);
     try {
       const { data, error } = await supabase.functions.invoke("nl-screener", {
         body: { query, symbols: UNIVERSES[universe].slice(0, 40) },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setResults((data as any).results || []);
-      setSpec((data as any).spec);
-      if ((data as any).results?.length === 0) {
-        toast({ title: "No matches", description: `Tried ${(data as any).total ?? "?"} symbols in ${universe}.` });
+      let payload = data as any;
+      if (error) {
+        // Non-2xx: supabase-js hides the body in error.context — read it so the user sees a real message.
+        const ctx = (error as any)?.context;
+        const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+        throw new Error(body?.error || body?.reason || error.message || "Screener request failed");
+      }
+      if (payload?.error) throw new Error(payload.error);
+      const rows: Result[] = Array.isArray(payload?.results) ? payload.results : [];
+      console.debug("[screener] returned rows:", payload?.matched, "rendering:", rows.length, "universe fetched:", payload?.total);
+      setResults(rows);
+      setSpec(payload?.spec ?? null);
+      setMeta({ total: payload?.total ?? 0, matched: payload?.matched ?? rows.length });
+      if (payload?.unmapped?.length) {
+        toast({
+          title: "Some constraints were not applied",
+          description: `Couldn't apply: ${payload.unmapped.join(", ")}`,
+        });
       }
     } catch (e: any) {
-      toast({ title: "Screener failed", description: e?.message || "Try again later", variant: "destructive" });
+      const msg = e?.message || "Try again later";
+      setErrorMsg(msg);
+      toast({ title: "Screener failed", description: msg, variant: "destructive" });
     } finally {
+      setRan(true);
       setLoading(false);
     }
   };
@@ -170,14 +200,29 @@ const Screener = () => {
               <div className="flex flex-wrap gap-2">
                 {spec.filters.map((f: any, i: number) => (
                   <span key={i} className="rounded-full bg-muted px-3 py-1 text-xs font-medium font-mono">
-                    {f.metric} {f.op} {f.value}
+                    {metricLabel(f.metric)} {f.op} {f.value}
+                  </span>
+                ))}
+                {Array.isArray(spec.sectors) && spec.sectors.map((sct: string) => (
+                  <span key={`sec-${sct}`} className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                    Sector: {sct}
+                  </span>
+                ))}
+                {Array.isArray(spec.industries) && spec.industries.map((ind: string) => (
+                  <span key={`ind-${ind}`} className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                    Industry: {ind}
                   </span>
                 ))}
                 {spec.rankBy && (
-                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium font-mono">
-                    Rank: {spec.rankBy}
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                    Ranked by {metricLabel(spec.rankBy)} ({spec.direction === "asc" ? "lowest first" : "highest first"})
                   </span>
                 )}
+                {Array.isArray(spec.unmapped) && spec.unmapped.map((u: string) => (
+                  <span key={`un-${u}`} className="rounded-full bg-destructive/10 text-destructive px-3 py-1 text-xs font-medium">
+                    Couldn't apply: {u}
+                  </span>
+                ))}
               </div>
             </div>
           )}
@@ -235,6 +280,23 @@ const Screener = () => {
           </div>
         </aside>
       </div>
+
+      {errorMsg && (
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-center space-y-2">
+          <h3 className="font-semibold text-destructive">Screener failed</h3>
+          <p className="text-sm text-muted-foreground">{errorMsg}</p>
+          <Button size="sm" variant="outline" onClick={run} disabled={loading}>Retry</Button>
+        </div>
+      )}
+
+      {!errorMsg && ran && !loading && results.length === 0 && (
+        <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-2">
+          <h3 className="font-semibold">No instruments matched these filters — try widening them</h3>
+          <p className="text-sm text-muted-foreground">
+            Screened {meta?.total ?? 0} instruments in {universe}. Loosen a threshold, remove a constraint, or pick a broader universe.
+          </p>
+        </div>
+      )}
 
       {results.length > 0 && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">

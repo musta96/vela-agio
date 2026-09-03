@@ -236,6 +236,7 @@ const ANALYST_TOOLS: NavGroup = {
     { title: "Quant Alpha", url: "/quant", icon: Gauge },
     { title: "Blotter", url: "/blotter", icon: ClipboardList },
     { title: "Peers", url: "/peers", icon: Network },
+    { title: "AI Research Analyst", url: "/research-analyst", icon: FileText },
     { title: "Paper Trading", url: "/paper-trading", icon: FlaskConical },
     { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
     { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },

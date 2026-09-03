@@ -27,6 +27,7 @@ import Risk from "./pages/Risk";
 import Screener from "./pages/Screener";
 import Baskets from "./pages/Baskets";
 import Filings from "./pages/Filings";
+import ResearchAnalyst from "./pages/ResearchAnalyst";
 import Earnings from "./pages/Earnings";
 import Insider from "./pages/Insider";
 import Macro from "./pages/Macro";
@@ -186,6 +187,7 @@ const App = () => (
             <Route path="/screener" element={<Screener />} />
             <Route path="/baskets" element={<Baskets />} />
             <Route path="/filings" element={<Filings />} />
+            <Route path="/research-analyst" element={<ResearchAnalyst />} />
             <Route path="/earnings" element={<Earnings />} />
             <Route path="/insider" element={<Insider />} />
             <Route path="/macro" element={<Macro />} />

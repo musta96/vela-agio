@@ -114,14 +114,20 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     setThreadId(id);
     const { data } = await (supabase as any)
       .from("copilot_messages")
-      .select("role,content")
+      .select("role,content,artifacts")
       .eq("thread_id", id)
       .order("created_at", { ascending: true });
-    const rows = (data ?? []) as { role: Msg["role"]; content: string }[];
+    const rows = (data ?? []) as { role: Msg["role"]; content: string; artifacts?: ToolEvent[] | null }[];
     if (rows.length === 0) {
       setMessages([{ role: "assistant", content: intro }]);
     } else {
-      setMessages(rows.map(r => ({ role: r.role, content: r.content })));
+      // Artifact cards (memo / simulation download cards) are restored from the
+      // persisted tool events so they survive reloads and thread switches.
+      setMessages(rows.map(r => ({
+        role: r.role,
+        content: r.content,
+        tools: Array.isArray(r.artifacts) ? r.artifacts : undefined,
+      })));
     }
   }, [intro]);
 

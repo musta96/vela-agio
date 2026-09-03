@@ -278,10 +278,13 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
           }
         }
       }
-      // Persist the assistant reply and auto-trigger PDF when asked
-      if (tid && user && memoryOn && acc) {
+      // Persist the assistant reply (plus any artifact-producing tool events so
+      // the download cards come back after a reload) and auto-trigger PDF.
+      const artifactTools = tools.filter(t => t.done && (t.result?.artifact || t.result?.summary));
+      if (tid && user && memoryOn && (acc || artifactTools.length > 0)) {
         await (supabase as any).from("copilot_messages").insert({
           thread_id: tid, user_id: user.id, role: "assistant", content: acc,
+          artifacts: artifactTools.length > 0 ? artifactTools : null,
         });
         await (supabase as any).from("copilot_threads").update({ updated_at: new Date().toISOString() }).eq("id", tid);
       }

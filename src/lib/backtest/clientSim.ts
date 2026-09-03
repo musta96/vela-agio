@@ -22,6 +22,9 @@ const openOf = (b: Bar) => b.open ?? b.close;
 const highOf = (b: Bar) => b.high ?? b.close;
 const lowOf = (b: Bar) => b.low ?? b.close;
 const volumeOf = (b: Bar) => b.volume && b.volume > 0 ? b.volume : 1;
+const asTaBars = (items: Bar[]) => items.map((b) => ({
+  t: b.t, open: openOf(b), high: highOf(b), low: lowOf(b), close: b.close, volume: b.volume,
+}));
 
 function sma(values: number[], n: number, i: number): number | null {
   if (n < 1 || i + 1 < n) return null;

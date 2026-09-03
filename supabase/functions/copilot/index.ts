@@ -1406,7 +1406,19 @@ ${PLATFORM_MAP}`;
               convo.push({ role: 'tool', tool_call_id: tc.id, name: fn, content: JSON.stringify(result).slice(0, 4000) });
             }
           }
-          send(sseChunk('\n\n(Tool loop limit reached — please rephrase or narrow the request.)'));
+          // Loop exhausted with only tool results — force one final no-tools turn
+          // so the user gets a synthesized answer instead of a raw limit notice.
+          convo.push({ role: 'system', content: 'You have used all available tool steps for this turn. Do NOT call more tools. Synthesize a helpful final answer from the tool results already in this conversation, state clearly which parts (if any) remain, and invite the user to say "continue" for the rest. No deferral promises — everything you describe must already be in the results above.' });
+          try {
+            const r = await chatStream(cfg, convo);
+            if (r.body) {
+              const reader = r.body.getReader();
+              const dec = new TextDecoder();
+              while (true) { const { done, value } = await reader.read(); if (done) break; send(dec.decode(value, { stream: true })); }
+            }
+          } catch {
+            send(sseChunk('\n\nI ran out of analysis steps for this turn. The partial results above are complete; reply "continue" and I will pick up from there.'));
+          }
           send('data: [DONE]\n\n');
           controller.close();
         } catch (e: any) {

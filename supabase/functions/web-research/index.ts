@@ -114,6 +114,10 @@ async function ddg(q: string): Promise<Hit[]> {
       });
       return r.ok ? await r.text() : '';
     },
+    // Proxied fallbacks — datacentre egress is often blocked by the engines.
+    async () => proxied(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`),
+    async () => proxied(`https://www.mojeek.com/search?q=${encodeURIComponent(q)}`),
+    async () => proxied(`https://search.marcia.cc/search?q=${encodeURIComponent(q)}`),
   ];
   for (const run of engines) {
     try {
@@ -123,6 +127,22 @@ async function ddg(q: string): Promise<Hit[]> {
     } catch { /* next engine */ }
   }
   return [];
+}
+
+async function proxied(target: string): Promise<string> {
+  for (const p of [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
+    `https://r.jina.ai/${target}`,
+  ]) {
+    try {
+      const r = await fetch(p, { headers: { 'User-Agent': UA } });
+      if (r.ok) {
+        const t = await r.text();
+        if (t.length > 500) return t;
+      }
+    } catch { /* next */ }
+  }
+  return '';
 }
 
 /** Generic anchor harvest that works across the HTML search endpoints. */

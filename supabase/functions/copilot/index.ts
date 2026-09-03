@@ -90,6 +90,14 @@ const TOOLS = [
         effort: { type: 'string', enum: ['S', 'M', 'L', 'XL'] },
         priority: { type: 'string', enum: ['nice-to-have', 'should-have', 'must-have'] },
       }, required: ['title', 'user_quote', 'why_it_matters', 'proposed_implementation', 'effort', 'priority'] } } },
+  { type: 'function', function: { name: 'open_support_ticket', description: 'Open a REAL support ticket in the product team\'s tracker. Use whenever the user reports a bug, a broken page, wrong data, or asks you to "open a ticket / report this / log this". Do NOT claim a ticket exists unless this tool returned ok:true with a ticket id.',
+      parameters: { type: 'object', properties: {
+        subject: { type: 'string', description: 'Short ticket title (max 200 chars).' },
+        message: { type: 'string', description: 'Full description: what the user reported, steps, page, expected vs actual.' },
+        category: { type: 'string', enum: ['bug', 'feature', 'question', 'feedback', 'other'] },
+        severity: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'] },
+        page_url: { type: 'string', description: 'Route where the issue happened, if known.' },
+      }, required: ['subject', 'message', 'category'] } } },
   { type: 'function', function: { name: 'run_screener', description: 'Run a natural-language stock screener against a universe of tickers. Returns a ranked, filtered candidate list with fundamentals — NOT a recommendation. Use this when the user describes objective criteria ("high momentum small caps under 15x earnings", "EU banks with yield > 6%", "speculative growth names with revenue growth > 30%") or asks for a shortlist to research. The output is information, not advice.',
       parameters: { type: 'object', properties: {
         query: { type: 'string', description: 'The user\u2019s natural-language screening criteria.' },

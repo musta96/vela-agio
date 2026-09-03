@@ -170,6 +170,7 @@ const MARKETS: NavGroup = {
     { title: "Sectors", url: "/sectors", icon: Flame },
     { title: "Compare", url: "/compare", icon: Scale },
     { title: "Regional Markets", url: "/regional-markets", icon: Globe2 },
+    { title: "Full Analysis", url: "/full-analysis", icon: Scale },
   ],
 };
 

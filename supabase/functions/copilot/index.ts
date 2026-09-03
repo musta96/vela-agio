@@ -202,7 +202,38 @@ const TOOLS = [
         stance: { type: 'string', enum: ['base','upside','downside'] },
         context: { type: 'string', description: 'Optional extra context from the user.' },
       }, required: ['focus','jurisdiction','topic','horizon','stance'] } } },
+  { type: 'function', function: { name: 'research_web', description: 'LIVE web research against official/primary sources (IMF, Fed, ECB, EUR-Lex, ESMA, Consob, SEC/EDGAR, FINRA, CFTC, CME, IEA, fund issuers, IRS/Agenzia Entrate). Returns page excerpts with URLs you MUST cite verbatim. Use whenever you need macro, company, fund, regulatory, derivative-contract or tax evidence that is not already in the platform data. Never invent a citation — if this returns nothing, say so.',
+      parameters: { type: 'object', properties: {
+        query: { type: 'string', description: 'Search query, in the language of the source.' },
+        lane: { type: 'string', enum: ['macro','regulatory','company','fund','derivatives','tax','any'], description: 'Prioritises the matching official-source list.' },
+        urls: { type: 'array', items: { type: 'string' }, description: 'Optional exact URLs to fetch and read.' },
+        max_results: { type: 'number', description: '1-8, default 5.' },
+      }, required: ['query'] } } },
+  { type: 'function', function: { name: 'lookup_instruments', description: 'Instrument master: ISIN, exchange, domicile, trading currency, UCITS vs US-domiciled, PRIIPs KID availability, TER, replication method, distribution policy, fund size, spread, average volume and US estate-tax situs. Use before comparing ETFs or recommending an instrument to an EU investor. Records marked source:"live" are unverified — say so.',
+      parameters: { type: 'object', properties: {
+        symbols: { type: 'array', items: { type: 'string' }, description: 'Yahoo tickers, max 25.' },
+      }, required: ['symbols'] } } },
+  { type: 'function', function: { name: 'run_advanced_simulation', description: 'Institutional simulation engine on real aligned histories: historical/block bootstrap, Student-t fat tails, two-state regime switching, explicit FX paths, TER + spreads + transaction costs + taxes, futures roll drag, short-borrow costs, maintenance margin and forced liquidation. Returns percentiles, fan chart, VaR/CVaR, probability of loss, liquidation probability and max drawdown. Use mode="blend" with sleeves to search CVaR- and drawdown-constrained blended portfolios (e.g. conservative core + aggressive satellite).',
+      parameters: { type: 'object', properties: {
+        mode: { type: 'string', enum: ['single','blend'] },
+        assets: { type: 'array', description: 'mode=single. Each: {symbol, weight (negative = short), fx, ter, borrow_rate, roll_drag}.', items: { type: 'object' } },
+        sleeves: { type: 'array', description: 'mode=blend. Each: {name, assets:[{symbol,weight,...}]}.', items: { type: 'object' } },
+        constraints: { type: 'object', description: 'mode=blend: {maxCVaR, maxDrawdown, minWeightStep}.' },
+        config: { type: 'object', description: '{paths, years, initial, method: bootstrap|block|student_t|gbm, regimeSwitching, taxRate, transactionCostBps, maintenanceMargin, history}.' },
+      }, required: ['mode'] } } },
+  { type: 'function', function: { name: 'run_full_analysis', description: 'ONE orchestrated institutional run for a proposed book: live official-source research, instrument master validation, per-name fundamentals and valuation, advanced simulation with frictions and margin mechanics, then a structured decision document (executive summary, security analysis, portfolio construction, risks, scenarios, decision framework, evidence gaps). Use this when the user asks for a full/complete analysis of a portfolio or strategy. Takes ~1 minute — run it in this turn and deliver the result, never promise it for later.',
+      parameters: { type: 'object', properties: {
+        positions: { type: 'array', description: 'Each: {symbol, weight (negative = short), fx, ter, borrow_rate, roll_drag}.', items: { type: 'object' } },
+        objective: { type: 'string' },
+        horizon_years: { type: 'number' },
+        initial_capital: { type: 'number' },
+        research_topics: { type: 'array', items: { type: 'string' }, description: 'Up to 4 evidence questions for the web research pass.' },
+        method: { type: 'string', enum: ['bootstrap','block','student_t','gbm'] },
+        tax_rate: { type: 'number' },
+        transaction_cost_bps: { type: 'number' },
+      }, required: ['positions'] } } },
 ];
+
 
 // ---------- Tool executors ----------
 async function callEdge(authHeader: string, fn: string, body: unknown) {
@@ -565,7 +596,48 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       if (res?.error) return { error: res.error };
       return { ...res, ui: { kind: 'link', href: '/regulatory-analysis', label: 'Open Regulatory Analysis' } };
     }
+    case 'research_web': {
+      const res = await callEdge(ctx.authHeader, 'web-research', {
+        query: String(args.query ?? '').slice(0, 300),
+        lane: ['macro','regulatory','company','fund','derivatives','tax','any'].includes(String(args.lane)) ? args.lane : 'any',
+        urls: Array.isArray(args.urls) ? args.urls.slice(0, 5) : undefined,
+        max_results: Number(args.max_results ?? 5),
+      });
+      if (res?.error) return { error: res.error };
+      return res;
+    }
+    case 'lookup_instruments': {
+      const symbols = (Array.isArray(args.symbols) ? args.symbols : []).map((s: any) => String(s)).filter(Boolean).slice(0, 25);
+      if (!symbols.length) return { error: 'symbols required' };
+      const res = await callEdge(ctx.authHeader, 'instrument-master', { symbols });
+      if (res?.error) return { error: res.error };
+      return res;
+    }
+    case 'run_advanced_simulation': {
+      const res = await callEdge(ctx.authHeader, 'advanced-simulation', {
+        mode: args.mode === 'blend' ? 'blend' : 'single',
+        assets: args.assets, sleeves: args.sleeves,
+        constraints: args.constraints, config: args.config,
+      });
+      if (res?.error) return { error: res.error };
+      return { ...res, ui: { kind: 'link', href: '/full-analysis', label: 'Open Full Analysis workbench' } };
+    }
+    case 'run_full_analysis': {
+      const res = await callEdge(ctx.authHeader, 'full-analysis', {
+        positions: args.positions,
+        objective: args.objective,
+        horizon_years: args.horizon_years,
+        initial_capital: args.initial_capital,
+        research_topics: args.research_topics,
+        method: args.method,
+        tax_rate: args.tax_rate,
+        transaction_cost_bps: args.transaction_cost_bps,
+      });
+      if (res?.error) return { error: res.error, details: res.details };
+      return { ...res, ui: { kind: 'link', href: '/full-analysis', label: 'Open Full Analysis workbench' } };
+    }
     case 'run_portfolio_simulation': {
+
       // ---------- Inputs ----------
       const rawSyms = Array.isArray(args.symbols) ? args.symbols : [];
       const symbols = Array.from(new Set(rawSyms.map((s: any) => String(s).toUpperCase()).filter(Boolean))).slice(0, 8);
@@ -1140,7 +1212,7 @@ function isDeferralText(text: unknown): boolean {
 
 const DEFERRAL_CORRECTION = `SYSTEM ENFORCEMENT: your last draft promised future/background work ("stand by", "I will notify you", "this will take time"). That draft was DISCARDED and never shown to the user, because you have NO background execution: when your reply ends, nothing else runs.
 Redo this turn NOW:
-1. Call the actual tools you need in THIS turn (generate_portfolio_memo, generate_investment_memo, generate_research_brief, analyze_technicals, run_strategy_backtest, run_portfolio_simulation, run_regulatory_analysis, run_thematic_deepdive, run_screener, ...). Every one of them is live and deployed.
+1. Call the actual tools you need in THIS turn (generate_portfolio_memo, generate_investment_memo, generate_research_brief, analyze_technicals, run_strategy_backtest, run_portfolio_simulation, run_regulatory_analysis, run_full_analysis, run_advanced_simulation, research_web, lookup_instruments, run_thematic_deepdive, run_screener, ...). Every one of them is live and deployed.
 2. If the request is too large for one turn, run the FIRST concrete piece now, present its real output, then ask the user to reply "continue" for the next piece.
 3. Never again write any sentence promising later delivery, notifications, or processing time.`;
 

@@ -89,6 +89,7 @@ import PaperTrading from "./pages/PaperTrading";
 import ShortSelling from "./pages/ShortSelling";
 import RegionalMarkets from "./pages/RegionalMarkets";
 import PortfolioCompare from "./pages/PortfolioCompare";
+import FullAnalysis from "./pages/FullAnalysis";
 import OwnerConsole from "./pages/OwnerConsole";
 import EnterpriseTeams from "./pages/owner/EnterpriseTeams";
 import EnterpriseFirmDashboard from "./pages/EnterpriseFirmDashboard";
@@ -206,6 +207,7 @@ const App = () => (
             <Route path="/advanced-analysis" element={<AdvancedAnalysis />} />
             <Route path="/regional-markets" element={<RegionalMarkets />} />
             <Route path="/portfolio-compare" element={<PortfolioCompare />} />
+            <Route path="/full-analysis" element={<FullAnalysis />} />
             <Route path="/regulatory-analysis" element={<RegulatoryAnalysis />} />
             <Route path="/event-study" element={<RouteFeatureGate feature="research.event_study"><EventStudy /></RouteFeatureGate>} />
             <Route path="/tax-harvest" element={<RouteFeatureGate feature="tax.harvest"><TaxHarvest /></RouteFeatureGate>} />

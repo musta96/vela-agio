@@ -1,7 +1,6 @@
 // Client-side custom-strategy simulator. It intentionally mirrors the server
 // backtest evaluator and accepts OHLCV so advanced TA rules are executable.
 import type { Condition, RiskConfig } from "@/lib/ta/strategyTypes";
-import type { Bar as TaBar } from "@/lib/ta/types";
 import { normalizeOhlcv } from "@/lib/ta/normalize";
 import type { CostConfig } from "./costs";
 import { detectCandlestickPatterns } from "@/lib/ta/candlesticks";
@@ -127,15 +126,15 @@ export function simulateCustom(bars: Bar[], rules: { entry: Condition[]; exit: C
   const equity: { t: number; value: number }[] = [], trades: SimTrade[] = [];
   const slip = 1 + Math.max(0, costs.slippageBps ?? 0) / 10000;
   const feePct = Math.max(0, costs.commissionPct ?? 0) / 100, flat = Math.max(0, costs.commissionFlat ?? 0);
-  const buy = (i: number) => { if (shares > 0 || cash <= 0) return; const exec = bars[i].close * slip; const spend = Math.max(0, cash - flat); shares = spend / (exec * (1 + feePct)); cash = 0; entryPrice = exec; trades.push({ t: bars[i].t, date: new Date(bars[i].t).toISOString().slice(0, 10), type: "BUY", price: exec, shares }); };
-  const sell = (i: number) => { if (shares <= 0) return; const exec = bars[i].close * (2 - slip); cash = Math.max(0, shares * exec - flat - shares * exec * feePct); trades.push({ t: bars[i].t, date: new Date(bars[i].t).toISOString().slice(0, 10), type: "SELL", price: exec, shares }); shares = 0; };
-  for (let i = 0; i < bars.length; i++) {
-    if (shares > 0) { const chg = (bars[i].close - entryPrice) / entryPrice * 100; if (rules.risk.stopPct && chg <= -Math.abs(rules.risk.stopPct)) sell(i); else if (rules.risk.targetPct && chg >= Math.abs(rules.risk.targetPct)) sell(i); }
-    if (shares === 0 && rules.entry.length && rules.entry.every((c) => evalCondition(c, bars, i))) buy(i);
-    else if (shares > 0 && rules.exit.length && rules.exit.every((c) => evalCondition(c, bars, i))) sell(i);
-    equity.push({ t: bars[i].t, value: cash + shares * bars[i].close });
+  const buy = (i: number) => { if (shares > 0 || cash <= 0) return; const exec = cleanBars[i].close * slip; const spend = Math.max(0, cash - flat); shares = spend / (exec * (1 + feePct)); cash = 0; entryPrice = exec; trades.push({ t: cleanBars[i].t, date: new Date(cleanBars[i].t).toISOString().slice(0, 10), type: "BUY", price: exec, shares }); };
+  const sell = (i: number) => { if (shares <= 0) return; const exec = cleanBars[i].close * (2 - slip); cash = Math.max(0, shares * exec - flat - shares * exec * feePct); trades.push({ t: cleanBars[i].t, date: new Date(cleanBars[i].t).toISOString().slice(0, 10), type: "SELL", price: exec, shares }); shares = 0; };
+  for (let i = 0; i < cleanBars.length; i++) {
+    if (shares > 0) { const chg = (cleanBars[i].close - entryPrice) / entryPrice * 100; if (rules.risk.stopPct && chg <= -Math.abs(rules.risk.stopPct)) sell(i); else if (rules.risk.targetPct && chg >= Math.abs(rules.risk.targetPct)) sell(i); }
+    if (shares === 0 && rules.entry.length && rules.entry.every((c) => evalCondition(c, cleanBars, i))) buy(i);
+    else if (shares > 0 && rules.exit.length && rules.exit.every((c) => evalCondition(c, cleanBars, i))) sell(i);
+    equity.push({ t: cleanBars[i].t, value: cash + shares * cleanBars[i].close });
   }
-  if (shares > 0) sell(bars.length - 1);
+  if (shares > 0) sell(cleanBars.length - 1);
   const finalValue = equity[equity.length - 1]?.value ?? initial;
   let peak = equity[0]?.value ?? initial, maxDrawdown = 0;
   for (const p of equity) { peak = Math.max(peak, p.value); maxDrawdown = Math.min(maxDrawdown, peak ? (p.value - peak) / peak * 100 : 0); }

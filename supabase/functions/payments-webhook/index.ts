@@ -1,6 +1,23 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, verifyWebhook } from "../_shared/stripe.ts";
 import { autoApplyRetentionOffer, planFromPriceLookup } from "../_shared/retention.ts";
+import { provisionEnterpriseFirm } from "../_shared/enterprise.ts";
+
+/**
+ * Verified-payment Enterprise activation. Only ever called with a plan slug
+ * derived from the Stripe price on a subscription Stripe reports as paid, so
+ * a lead alone can never unlock seats.
+ */
+async function maybeProvisionEnterprise(plan: string, status: string, userId: string | undefined, source: string) {
+  if (!userId || plan !== "enterprise") return;
+  if (status !== "active" && status !== "trialing") return;
+  try {
+    const result = await provisionEnterpriseFirm(getSupabase() as any, userId, { source });
+    console.log("[payments-webhook] enterprise provisioning", { userId, source, ...result });
+  } catch (e) {
+    console.warn("enterprise provisioning failed", (e as Error).message);
+  }
+}
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {

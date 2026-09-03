@@ -494,6 +494,68 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         disclaimer: 'Educational research only — not investment advice.',
       };
     }
+    case 'analyze_technicals': {
+      const sym = String(args.symbol ?? '').trim().toUpperCase();
+      if (!sym) return { error: 'symbol required' };
+      const res = await callEdge(ctx.authHeader, 'technical-detectors', { symbol: sym, range: args.range ?? '1Y' });
+      if (res?.error) return { error: res.error, symbol: sym };
+      return { ...res, ui: { kind: 'link', href: `/advanced-analysis?symbol=${encodeURIComponent(sym)}`, label: `Open ${sym} on Advanced Analysis` } };
+    }
+    case 'run_strategy_backtest': {
+      const holdings = (Array.isArray(args.holdings) ? args.holdings : [])
+        .map((h: any) => ({ symbol: String(h?.symbol ?? '').toUpperCase(), weight: Number(h?.weight) || 0 }))
+        .filter((h: any) => h.symbol && h.weight > 0)
+        .slice(0, 10);
+      if (!holdings.length) return { error: 'at least one holding with a positive weight is required' };
+      const res = await callEdge(ctx.authHeader, 'backtest-strategy', {
+        holdings,
+        strategy: args.strategy ?? 'buy_hold',
+        range: args.range ?? '1Y',
+        initialCapital: Number(args.initialCapital) || 100000,
+        benchmark: typeof args.benchmark === 'string' ? args.benchmark : null,
+        costs: args.costs && typeof args.costs === 'object' ? args.costs : undefined,
+      });
+      if (res?.error) return { error: res.error };
+      return {
+        ok: true,
+        strategy: args.strategy ?? 'buy_hold',
+        range: args.range ?? '1Y',
+        holdings,
+        metrics: res.metrics,
+        trades: Array.isArray(res.trades) ? res.trades.slice(-20) : [],
+        ui: { kind: 'link', href: '/strategy-lab', label: 'Open Strategy Lab for sensitivity, regimes and walk-forward' },
+        disclaimer: 'Past simulated performance is not indicative of future results.',
+      };
+    }
+    case 'analyze_filing_or_transcript': {
+      const sym = String(args.symbol ?? '').trim().toUpperCase();
+      const mode = args.mode === 'transcript' ? 'transcript' : 'filing';
+      if (!sym) return { error: 'symbol required' };
+      if (mode === 'filing' && !args.filingUrl) return { error: 'filingUrl required for mode=filing' };
+      if (mode === 'transcript' && !String(args.transcript ?? '').trim()) return { error: 'transcript required for mode=transcript' };
+      const res = await callEdge(ctx.authHeader, 'equity-research-analyst', {
+        action: 'analyze',
+        symbol: sym,
+        mode,
+        filingUrl: args.filingUrl,
+        transcript: args.transcript,
+        focus: args.focus,
+      });
+      if (res?.error) return { error: res.error, symbol: sym };
+      return { ...res, ui: { kind: 'link', href: '/research-analyst', label: 'Open AI Research Analyst' } };
+    }
+    case 'run_regulatory_analysis': {
+      const res = await callEdge(ctx.authHeader, 'regulatory-analysis', {
+        focus: String(args.focus ?? '').slice(0, 160),
+        jurisdiction: String(args.jurisdiction ?? '').slice(0, 100),
+        topic: String(args.topic ?? '').slice(0, 180),
+        horizon: String(args.horizon ?? '').slice(0, 80),
+        stance: ['base', 'upside', 'downside'].includes(args.stance) ? args.stance : 'base',
+        context: typeof args.context === 'string' ? args.context.slice(0, 2000) : undefined,
+      });
+      if (res?.error) return { error: res.error };
+      return { ...res, ui: { kind: 'link', href: '/regulatory-analysis', label: 'Open Regulatory Analysis' } };
+    }
     case 'run_portfolio_simulation': {
       // ---------- Inputs ----------
       const rawSyms = Array.isArray(args.symbols) ? args.symbols : [];

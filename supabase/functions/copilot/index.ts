@@ -896,7 +896,7 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
       };
     }
     case 'capture_feature_request': {
-      const title = String(args.title ?? '').slice(0, 200);
+      const title = String(args.title ?? '').trim().slice(0, 200) || 'Feature request from Copilot';
       const analysis = {
         why_it_matters: args.why_it_matters,
         proposed_implementation: args.proposed_implementation,
@@ -909,14 +909,17 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         user_quote: args.user_quote ?? null,
         ai_analysis: analysis,
       }).select('id').single();
-      if (error) return { error: error.message };
+      if (error) {
+        console.error('capture_feature_request: insert failed', error.message);
+        return { ok: false, created: false, error: error.message,
+          instruction: 'The request was NOT saved. Tell the user the ticket could not be created and to retry or email support. Do not claim it was forwarded.' };
+      }
 
       // Mirror into support_tickets so the request shows up in the owner
       // dashboard's Tickets view (which is where the team triages everything).
-      // We tag with category=feature + source=chat so it's filterable.
-      const severity =
-        args.priority === 'must_have' || args.priority === 'critical' ? 'high'
-        : args.priority === 'nice_to_have' ? 'low'
+      const prio = String(args.priority ?? '').replace(/_/g, '-');
+      const severity = prio === 'must-have' || prio === 'critical' ? 'high'
+        : prio === 'nice-to-have' ? 'low'
         : 'normal';
       const ticketMessage = [
         args.user_quote ? `User said: ${args.user_quote}` : null,
@@ -924,18 +927,58 @@ async function execTool(name: string, args: any, ctx: { authHeader: string }): P
         args.proposed_implementation ? `\nProposed implementation: ${args.proposed_implementation}` : null,
         args.effort ? `\nEffort: ${args.effort}` : null,
         args.priority ? `Priority: ${args.priority}` : null,
-      ].filter(Boolean).join('\n');
-      const { error: ticketErr } = await sb.from('support_tickets').insert({
+      ].filter(Boolean).join('\n').slice(0, 5000);
+      const { data: ticketRow, error: ticketErr } = await sb.from('support_tickets').insert({
         user_id: user.id,
+        user_email: user.email ?? null,
         category: 'feature',
         severity,
         source: 'chat',
-        subject: title || 'Feature request from Copilot',
+        subject: title,
         message: ticketMessage || 'Feature request captured by AI copilot.',
         status: 'open',
-      });
-      if (ticketErr) console.warn('capture_feature_request: ticket mirror failed', ticketErr.message);
-      return { ok: true, id: data?.id, ticket_mirrored: !ticketErr };
+      }).select('id').maybeSingle();
+      if (ticketErr) console.error('capture_feature_request: ticket mirror failed', ticketErr.message);
+      return {
+        ok: true,
+        created: true,
+        id: data?.id,
+        ticket_id: ticketRow?.id ?? null,
+        ticket_mirrored: !ticketErr,
+        ticket_error: ticketErr?.message ?? null,
+        instruction: ticketErr
+          ? 'Saved as a feature request but it did NOT reach the support ticket queue — tell the user that honestly.'
+          : `Ticket #${String(ticketRow?.id ?? '').slice(0, 8)} was really created. You may confirm it to the user.`,
+      };
+    }
+    case 'open_support_ticket': {
+      const subject = String(args.subject ?? '').trim().slice(0, 200);
+      const message = String(args.message ?? '').trim().slice(0, 5000);
+      const allowedCat = ['bug', 'feature', 'question', 'feedback', 'other'];
+      const allowedSev = ['low', 'normal', 'high', 'urgent'];
+      const category = allowedCat.includes(String(args.category)) ? String(args.category) : 'other';
+      const severity = allowedSev.includes(String(args.severity)) ? String(args.severity) : 'normal';
+      if (subject.length < 1 || message.length < 1) {
+        return { ok: false, created: false, error: 'subject and message are required',
+          instruction: 'No ticket was created. Ask the user for a short title and description, then retry.' };
+      }
+      const { data, error } = await sb.from('support_tickets').insert({
+        user_id: user.id,
+        user_email: user.email ?? null,
+        category, severity, source: 'chat',
+        subject, message,
+        page_url: args.page_url ? String(args.page_url).slice(0, 500) : null,
+        status: 'open',
+      }).select('id, created_at').maybeSingle();
+      if (error || !data) {
+        console.error('open_support_ticket: insert failed', error?.message);
+        return { ok: false, created: false, error: error?.message ?? 'insert returned no row',
+          instruction: 'The ticket was NOT created. Tell the user the ticket could not be opened (state the error) and suggest retrying or Settings → Support. NEVER say it was opened.' };
+      }
+      return {
+        ok: true, created: true, ticket_id: data.id, created_at: data.created_at, category, severity,
+        instruction: `Ticket #${String(data.id).slice(0, 8)} was really created and is visible in the owner console. Confirm it to the user with this id.`,
+      };
     }
     default: return { error: `unknown tool ${name}` };
   }

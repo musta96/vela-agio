@@ -105,8 +105,10 @@ export default function ContactSales() {
       }).select("id").maybeSingle();
       if (error) throw error;
       setSubmitted(true);
-      // Fire-and-forget: notify admins in-app + attempt email.
-      if (inserted?.id) {
+      // Fire-and-forget: notify admins in-app + attempt email. The notify
+      // endpoint requires authentication, so anonymous submissions skip it —
+      // the lead row is already stored and visible in the admin console.
+      if (inserted?.id && user?.id) {
         supabase.functions
           .invoke("notify-enterprise-lead", { body: { lead_id: inserted.id } })
           .catch((e) => console.warn("[contact-sales] notify skipped", e?.message));

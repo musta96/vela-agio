@@ -33,6 +33,13 @@ export type ResolvedSymbol = {
 const memory = new Map<string, ResolvedSymbol | null>();
 
 /**
+ * Manual overrides for share classes the public search index does not know.
+ * Key = ISIN (upper case), value = a symbol the price providers can chart.
+ */
+const CURATED: Record<string, { symbol: string; name?: string }> = {};
+
+
+/**
  * Look an ISIN (or free-text fund name) up on Yahoo's search endpoint.
  * Prefers a listed ETF/equity line over a mutual-fund NAV line when both
  * exist, and prefers EUR venues for European ISINs so the price the user

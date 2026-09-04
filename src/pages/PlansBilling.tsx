@@ -121,6 +121,7 @@ function StatusBadge({ status, cancel }: { status: string; cancel?: boolean | nu
 }
 
 export default function PlansBilling() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const pricingEnabled = useFlag("pricing", false);

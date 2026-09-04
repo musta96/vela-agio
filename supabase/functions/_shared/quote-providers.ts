@@ -224,16 +224,33 @@ async function fromTwelveData(symbol: string): Promise<UnifiedQuote | { reason: 
   if (!key) return { reason: "no api key configured" };
   // Twelve Data uses its own symbol format; pass through equity tickers and
   // best-effort map FX (EURUSD=X → EUR/USD) and crypto (BTC-USD → BTC/USD).
+  // Venue suffixes must become an explicit MIC, otherwise the bare ticker
+  // would resolve to a same-named US security.
   let sym = symbol;
+  let mic = "";
   const fx = symbol.match(/^([A-Z]{3})([A-Z]{3})=X$/i);
   if (fx) sym = `${fx[1].toUpperCase()}/${fx[2].toUpperCase()}`;
   const cr = symbol.match(/^([A-Z]{2,6})-(USD|EUR|USDT|USDC)$/i);
   if (cr) sym = `${cr[1].toUpperCase()}/${cr[2].toUpperCase()}`;
+  const venue = symbol.match(/^([^.]+)\.([A-Z]+)$/i);
+  if (!fx && !cr && venue) {
+    const MIC: Record<string, string> = {
+      MI: "XMIL", AS: "XAMS", DE: "XETR", F: "XFRA", SG: "XSTU", MU: "XMUN",
+      PA: "XPAR", BR: "XBRU", LS: "XLIS", MC: "XMAD", L: "XLON", SW: "XSWX",
+      ST: "XSTO", HE: "XHEL", CO: "XCSE", OL: "XOSL", VI: "XWBO", WA: "XWAR",
+      IR: "XDUB", TO: "XTSE", T: "XTKS", HK: "XHKG", AX: "XASX",
+    };
+    const code = MIC[venue[2].toUpperCase()];
+    if (!code) return { reason: "unmapped exchange suffix" };
+    sym = venue[1].toUpperCase();
+    mic = `&mic_code=${code}`;
+  }
   try {
     const r = await fetch(
-      `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}&apikey=${key}`,
+      `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}${mic}&apikey=${key}`,
     );
     if (!r.ok) return { reason: `http ${r.status}` };
+
     const j = await r.json();
     const price = Number(j?.close ?? j?.price);
     if (!Number.isFinite(price) || price <= 0) {

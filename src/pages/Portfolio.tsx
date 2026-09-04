@@ -45,6 +45,37 @@ interface PortfolioStock {
 
 const STORAGE_KEY = "portfolio_holdings";
 
+// --- Instrument classification, ordering & filtering (Fineco-style) ---
+export type InstrumentClass = "Stocks" | "ETFs" | "Funds" | "Crypto" | "Bonds" | "Other";
+
+const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+
+export function classifyInstrument(symbol: string, quoteType?: string): InstrumentClass {
+  const qt = (quoteType || "").toUpperCase();
+  if (qt === "ETF") return "ETFs";
+  if (qt === "MUTUALFUND" || qt === "FUND" || qt === "MONEYMARKET") return "Funds";
+  if (qt === "CRYPTOCURRENCY") return "Crypto";
+  if (qt === "BOND") return "Bonds";
+  if (qt === "EQUITY") return "Stocks";
+  // Fallbacks when no provider type is available yet.
+  const entry = findCatalogEntry(symbol);
+  if (entry?.market === "ETF") return "ETFs";
+  if (ISIN_RE.test(symbol)) return "Funds"; // funds are tracked by ISIN
+  return "Stocks";
+}
+
+const CLASS_ORDER: InstrumentClass[] = ["Stocks", "ETFs", "Funds", "Crypto", "Bonds", "Other"];
+
+type HoldingSortKey = "type" | "gainers" | "losers" | "value" | "name";
+const SORT_LABELS: Record<HoldingSortKey, string> = {
+  type: "Type of instrument",
+  gainers: "Gaining most",
+  losers: "Losing most",
+  value: "Total value",
+  name: "Name (A–Z)",
+};
+const HOLDINGS_PREFS_KEY = "vela.portfolio.holdingsView";
+
 const readLocal = (): PortfolioStock[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

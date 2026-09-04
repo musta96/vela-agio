@@ -28,7 +28,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
-import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
+import { useOHLCHistory, compactAxisTick, type OHLCRange } from "@/hooks/useOHLCHistory";
 import { useBenchmarkBars, benchmarkFor } from "@/hooks/useBenchmark";
 import { RiskPanel } from "@/components/RiskPanel";
 import { LockedPreview } from "@/components/gating/LockedPreview";
@@ -619,7 +619,7 @@ const StockDetails = () => {
                       </defs>
                       <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
                       <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} minTickGap={40} />
-                      <YAxis domain={[priceMin, priceMax]} stroke="hsl(var(--muted-foreground))" fontSize={11} width={60} />
+                      <YAxis domain={[priceMin, priceMax]} stroke="hsl(var(--muted-foreground))" fontSize={11} width={64} tickFormatter={(v) => compactAxisTick(Number(v))} />
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
                         labelStyle={{ color: "hsl(var(--foreground))" }}

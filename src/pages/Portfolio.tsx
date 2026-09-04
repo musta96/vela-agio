@@ -223,6 +223,50 @@ const Portfolio = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSig]);
 
+  // === Holdings view: instrument class, sorting & filtering (persisted) ===
+  const [holdingsSort, setHoldingsSort] = useState<HoldingSortKey>(() => {
+    try { return (JSON.parse(localStorage.getItem(HOLDINGS_PREFS_KEY) || "{}").sort as HoldingSortKey) || "type"; } catch { return "type"; }
+  });
+  const [holdingsFilter, setHoldingsFilter] = useState<InstrumentClass | "all">(() => {
+    try { return (JSON.parse(localStorage.getItem(HOLDINGS_PREFS_KEY) || "{}").filter as InstrumentClass) || "all"; } catch { return "all"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(HOLDINGS_PREFS_KEY, JSON.stringify({ sort: holdingsSort, filter: holdingsFilter })); } catch { /* ignore */ }
+  }, [holdingsSort, holdingsFilter]);
+
+  const holdingClasses = useMemo(() => {
+    const map = new Map<string, InstrumentClass>();
+    for (const p of portfolio) map.set(p.symbol, classifyInstrument(p.symbol, quotes[p.symbol]?.quoteType));
+    return map;
+  }, [portfolio, quotes]);
+
+  const presentClasses = useMemo(
+    () => CLASS_ORDER.filter((c) => [...holdingClasses.values()].includes(c)),
+    [holdingClasses],
+  );
+
+  const visibleHoldings = useMemo(() => {
+    const list = portfolio.filter((p) => holdingsFilter === "all" || holdingClasses.get(p.symbol) === holdingsFilter);
+    const gainPct = (p: PortfolioStock) => (p.avgPrice > 0 ? ((p.currentPrice - p.avgPrice) / p.avgPrice) * 100 : 0);
+    const sorted = [...list];
+    switch (holdingsSort) {
+      case "gainers": sorted.sort((a, b) => gainPct(b) - gainPct(a)); break;
+      case "losers": sorted.sort((a, b) => gainPct(a) - gainPct(b)); break;
+      case "value": sorted.sort((a, b) => toEur(b.shares * b.currentPrice, b.currency) - toEur(a.shares * a.currentPrice, a.currency)); break;
+      case "name": sorted.sort((a, b) => (a.name || a.symbol).localeCompare(b.name || b.symbol)); break;
+      case "type":
+      default:
+        sorted.sort((a, b) => {
+          const ca = CLASS_ORDER.indexOf(holdingClasses.get(a.symbol) ?? "Other");
+          const cb = CLASS_ORDER.indexOf(holdingClasses.get(b.symbol) ?? "Other");
+          if (ca !== cb) return ca - cb;
+          return toEur(b.shares * b.currentPrice, b.currency) - toEur(a.shares * a.currentPrice, a.currency);
+        });
+    }
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolio, holdingsSort, holdingsFilter, holdingClasses]);
+
   // === FX rates so totals can be expressed in EUR ===
   const currencies = useMemo(
     () => Array.from(new Set(portfolio.map((p) => p.currency).filter((c) => c && c !== "EUR"))).sort(),

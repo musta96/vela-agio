@@ -286,18 +286,18 @@ export default function Valuation() {
               <Card className="lg:col-span-2">
                 <CardHeader><CardTitle className="text-base">Company profile</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1"><Label className="text-xs">Name</Label><Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Sector</Label><Input value={profile.sector} onChange={(e) => setProfile({ ...profile, sector: e.target.value })} /></div>
+                  <div className="space-y-1"><Label className="text-xs" htmlFor="val-name">Name</Label><Input id="val-name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></div>
+                  <div className="space-y-1"><Label className="text-xs" htmlFor="val-sector">Sector</Label><Input id="val-sector" value={profile.sector} onChange={(e) => setProfile({ ...profile, sector: e.target.value })} /></div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Country (drives local requirements)</Label>
-                    <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={profile.country} onChange={(e) => setProfile({ ...profile, country: e.target.value })}>
+                    <Label className="text-xs" htmlFor="val-country">Country (drives local requirements)</Label>
+                    <select id="val-country" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={profile.country} onChange={(e) => setProfile({ ...profile, country: e.target.value })}>
                       {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-1"><Label className="text-xs">Currency</Label><Input value={profile.currency} onChange={(e) => setProfile({ ...profile, currency: e.target.value.toUpperCase() })} /></div>
+                  <div className="space-y-1"><Label className="text-xs" htmlFor="val-currency">Currency</Label><Input id="val-currency" value={profile.currency} onChange={(e) => setProfile({ ...profile, currency: e.target.value.toUpperCase() })} /></div>
                   <div className="space-y-1 sm:col-span-2">
-                    <Label className="text-xs">Business description (used to find listed comparables)</Label>
-                    <Textarea rows={4} value={profile.description} onChange={(e) => setProfile({ ...profile, description: e.target.value })} placeholder="What the company does, customers, geography, contracts, competitive edge…" />
+                    <Label className="text-xs" htmlFor="val-desc">Business description (used to find listed comparables)</Label>
+                    <Textarea id="val-desc" rows={4} value={profile.description} onChange={(e) => setProfile({ ...profile, description: e.target.value })} placeholder="What the company does, customers, geography, contracts, competitive edge…" />
                   </div>
                 </CardContent>
               </Card>

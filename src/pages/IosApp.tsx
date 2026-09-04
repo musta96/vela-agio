@@ -6,11 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Smartphone, ShieldCheck, LineChart, Bell, FileText, Users, ArrowRight, Check,
+} from "lucide-react";
 import { PLAN_FEATURES, formatPlanPrice, planPriceCaption } from "@/lib/planFeatures";
 
 const ENTERPRISE_PLAN = PLAN_FEATURES.enterprise;
-  Smartphone, ShieldCheck, LineChart, Bell, FileText, Users, ArrowRight, Check,
-} from "lucide-react";
 
 type Doc = { id: string; kind: string; version: string; title: string; published_at: string | null };
 

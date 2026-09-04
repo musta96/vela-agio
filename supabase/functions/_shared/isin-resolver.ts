@@ -45,7 +45,14 @@ export async function resolveIsin(query: string): Promise<ResolvedSymbol | null>
   if (memory.has(cacheKey)) return memory.get(cacheKey)!;
 
   let out: ResolvedSymbol | null = null;
+  const curated = CURATED[cacheKey];
+  if (curated) {
+    out = { symbol: curated.symbol, name: curated.name, isin: cacheKey };
+    memory.set(cacheKey, out);
+    return out;
+  }
   for (const host of ["query2", "query1"]) {
+
     try {
       const r = await fetch(
         `https://${host}.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0&listsCount=0`,

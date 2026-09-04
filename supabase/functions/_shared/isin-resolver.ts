@@ -68,7 +68,14 @@ export async function resolveIsin(query: string): Promise<ResolvedSymbol | null>
         if (/^0P/i.test(sym)) s -= 5;
         return s;
       };
-      const best = [...usable].sort((a, b) => rank(b) - rank(a))[0];
+      const ranked = [...usable].sort((a, b) => rank(b) - rank(a)).slice(0, 6);
+      // Yahoo search happily returns listings that have no price series
+      // (delisted share classes, venues it cannot chart). Probe the ranked
+      // candidates and keep the first one that actually prices.
+      let best = ranked[0];
+      for (const cand of ranked) {
+        if (await hasPrice(String(cand.symbol))) { best = cand; break; }
+      }
       out = {
         symbol: String(best.symbol),
         name: (best.shortname as string) || (best.longname as string) || undefined,
@@ -86,6 +93,23 @@ export async function resolveIsin(query: string): Promise<ResolvedSymbol | null>
   return out;
 }
 
+/** True when Yahoo's chart endpoint returns a usable price for the symbol. */
+async function hasPrice(symbol: string): Promise<boolean> {
+  for (const host of ["query1", "query2"]) {
+    try {
+      const r = await fetch(
+        `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+      );
+      if (!r.ok) continue;
+      const j = await r.json();
+      const p = j?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      return typeof p === "number" && p > 0;
+    } catch { /* next host */ }
+  }
+  return false;
+}
+
 /**
  * Normalize whatever the client sent (ticker, ISIN, or fund id) into a
  * symbol the providers can price. Non-ISIN input is returned untouched.
@@ -96,3 +120,4 @@ export async function toQuotableSymbol(input: string): Promise<{ symbol: string;
   const resolved = await resolveIsin(s.toUpperCase());
   return resolved ? { symbol: resolved.symbol, resolved } : { symbol: s };
 }
+

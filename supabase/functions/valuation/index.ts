@@ -179,6 +179,41 @@ async function jurisdictionRules(country: string, auth: string | null) {
   }));
 }
 
+/**
+ * Read the financial history out of the uploaded documents (bilanci, business
+ * plan) when the user has not typed the grid by hand. Figures are only taken
+ * from the documents — the model must not invent anything.
+ */
+async function extractFinancialsFromDocs(
+  cfg: Awaited<ReturnType<typeof resolveAIConfig>>,
+  docs: Array<{ name: string; text: string }>,
+): Promise<{ rows: Array<Record<string, unknown>>; unit: string; notes: string }> {
+  if (!docs.length) return { rows: [], unit: '1', notes: '' };
+  const sys = `You extract financial history from company documents for a valuation.
+Return STRICT JSON {"unit":"1|1000|1000000","rows":[{"year":2025,"revenue":0,"ebitda":0,"ebit":0,"da":0,"netIncome":0,"capex":0,"nwcChange":0,"netDebt":0,"equity":0}],"notes":"..."}.
+Rules: use ONLY figures present in the documents; omit any field you cannot find (do not guess); "unit" is the multiplier that converts the reported figures to absolute currency units (e.g. 1000 when the statements are in EUR thousands); net debt is positive when the company is a net borrower; notes must say which document and period each figure came from.`;
+  const digest = docs.slice(0, 6).map((d) => `### ${d.name}\n${String(d.text ?? '').slice(0, 8000)}`).join('\n\n');
+  try {
+    const r = await chatComplete(cfg, {
+      messages: [{ role: 'system', content: sys }, { role: 'user', content: digest }],
+      temperature: 0, response_format: { type: 'json_object' },
+    });
+    if (!r.ok) return { rows: [], unit: '1', notes: '' };
+    const j = await r.json();
+    const parsed = JSON.parse((j?.choices?.[0]?.message?.content ?? '{}').replace(/^```json\s*|```$/g, ''));
+    const mult = Number(parsed.unit ?? 1) || 1;
+    const rows = (Array.isArray(parsed.rows) ? parsed.rows : []).map((row: Record<string, unknown>) => {
+      const out: Record<string, unknown> = { year: row.year };
+      for (const k of ['revenue', 'ebitda', 'ebit', 'da', 'netIncome', 'capex', 'nwcChange', 'netDebt', 'equity']) {
+        const v = Number(row[k]);
+        if (Number.isFinite(v)) out[k] = v * mult;
+      }
+      return out;
+    }).filter((row: Record<string, unknown>) => Number.isFinite(Number(row.revenue)) || Number.isFinite(Number(row.ebitda)));
+    return { rows, unit: String(mult), notes: String(parsed.notes ?? '') };
+  } catch { return { rows: [], unit: '1', notes: '' }; }
+}
+
 async function privateValuation(body: Record<string, unknown>, auth: string | null) {
   const profile = (body.profile ?? {}) as Record<string, unknown>;
   const country = String(profile.country ?? 'IT');
@@ -188,7 +223,25 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
   const sections: string[] = Array.isArray(body.sections) && body.sections.length ? (body.sections as string[]) : DEFAULT_SECTIONS;
   const docs = (Array.isArray(body.documents) ? body.documents : []) as Array<{ name: string; text: string }>;
 
-  const last = fin[fin.length - 1] ?? {};
+  const cfg = await resolveAIConfig(auth);
+
+  // A manually typed grid always wins; otherwise read the numbers out of the
+  // uploaded statements so an upload alone produces a real valuation.
+  const hasManualFigures = fin.some((row) =>
+    ['revenue', 'ebitda', 'ebit', 'netIncome', 'equity'].some((k) => Number.isFinite(Number(row[k])) && Number(row[k]) !== 0));
+  let financialsSource: 'manual' | 'documents' | 'none' = hasManualFigures ? 'manual' : 'none';
+  let extractionNotes = '';
+  let history = fin;
+  if (!hasManualFigures && docs.length) {
+    const extracted = await extractFinancialsFromDocs(cfg, docs);
+    if (extracted.rows.length) {
+      history = extracted.rows;
+      financialsSource = 'documents';
+      extractionNotes = extracted.notes;
+    }
+  }
+
+  const last = history[history.length - 1] ?? {};
   const revenue = n(last.revenue);
   const ebitda = n(last.ebitda, revenue * 0.15);
   const ebit = n(last.ebit, ebitda * 0.75);
@@ -211,7 +264,6 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
     terminalEbitda: ebitda * Math.pow(1 + g0, yrs),
   });
 
-  const cfg = await resolveAIConfig(auth);
   const [compFind, rules] = await Promise.all([
     findComparables(cfg, { ...profile, description: body.description ?? profile.description, revenue, ebitda }),
     sections.includes('jurisdiction_requirements') ? jurisdictionRules(country, auth) : Promise.resolve([]),
@@ -238,7 +290,9 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
     multiplesPs: applyAdj(psEquity),
     adjustedNetAsset: assetEquity,
   };
-  const vals = Object.values(conclusions).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  // A method with no usable inputs (e.g. no book equity for the asset method)
+  // returns zero — it must not drag the valuation range down to nil.
+  const vals = Object.values(conclusions).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0);
   const range = vals.length ? { low: Math.min(...vals), mid: median(vals), high: Math.max(...vals) } : null;
 
   // ---- narrative -------------------------------------------------
@@ -247,7 +301,7 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
 Write ONLY the requested sections, as STRICT JSON: {"sections":{"<section_id>":"markdown text"},"key_findings":["..."],"open_items":["..."]}.
 Standards: state methods used and why, reference the applicable local requirements when provided, distinguish audited data from management estimates, never invent figures not present in the inputs, and flag every material assumption. Language: ${String(body.language ?? 'it')}. Professional, defensible, no marketing tone.`;
   const user = `PROFILE: ${JSON.stringify(profile)}
-FINANCIAL HISTORY: ${JSON.stringify(fin)}
+FINANCIAL HISTORY (source: ${financialsSource}${extractionNotes ? `; extraction notes: ${extractionNotes}` : ''}): ${JSON.stringify(history)}
 ASSUMPTIONS/WACC: ${JSON.stringify(wacc)}
 DCF: ${JSON.stringify({ ...dcf, discounted: undefined })}
 COMPARABLES: ${JSON.stringify({ tickers: compFind.tickers, rationale: compFind.rationale, medians: { evEbitda: medEvEbitda, pe: medPe, ps: medPs } })}
@@ -283,6 +337,9 @@ SECTIONS REQUESTED: ${sections.join(', ')}`;
     sensitivity: sensitivity(baseFcf, growth, wacc.wacc, n(a.terminalGrowth, 0.015), netDebt),
     jurisdiction: { country, sources: rules },
     documentsUsed: docs.map((d) => d.name),
+    financials: history,
+    financialsSource,
+    extractionNotes,
     narrative,
   };
 }

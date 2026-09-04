@@ -131,7 +131,12 @@ Rules: quantify with the simulation numbers where relevant (CVaR, max drawdown, 
       mandate: { objective, horizon_years: horizonYears, initial_capital: initial, positions },
       report,
       simulation: sim?.result ?? null,
-      simulation_warnings: sim?.result?.warnings ?? sim?.error ?? null,
+      simulation_inputs: sim?.config ?? null,
+      // Real borrow/margin economics resolved for any short leg.
+      borrow: sim?.borrow ?? null,
+      common_days: sim?.commonDays ?? null,
+      missing_history: sim?.missing ?? null,
+      simulation_warnings: sim?.result?.warnings ?? sim?.error ?? sim?.message ?? (sim && !sim.result ? JSON.stringify(sim).slice(0, 400) : null),
       instruments: master?.records ?? [],
       unverified_instruments: master?.unverified ?? [],
       fundamentals,
@@ -153,7 +158,14 @@ async function edge(auth: string, fn: string, body: unknown) {
       body: JSON.stringify(body),
     });
     const t = await r.text();
-    try { return JSON.parse(t); } catch { return { error: t.slice(0, 300) }; }
+    try {
+      const parsed = JSON.parse(t);
+      // A non-2xx body is an error even when it parses as JSON.
+      if (!r.ok && parsed && typeof parsed === 'object' && !('error' in parsed)) {
+        return { ...parsed, error: `${fn} HTTP ${r.status}` };
+      }
+      return parsed;
+    } catch { return { error: `${fn} HTTP ${r.status}: ${t.slice(0, 300)}` }; }
   } catch (e) { return { error: e instanceof Error ? e.message : 'call failed' }; }
 }
 function num(v: unknown): number | undefined { const n = Number(v); return Number.isFinite(n) ? n : undefined; }

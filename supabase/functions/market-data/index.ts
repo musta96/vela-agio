@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
-import { toQuotableSymbol } from "../_shared/isin-resolver.ts";
+import { toQuotableSymbol, isIsin } from "../_shared/isin-resolver.ts";
+import { fetchBIFundNav } from "../_shared/borsa-italiana-funds.ts";
 
 
 const corsHeaders = {
@@ -191,6 +192,29 @@ Deno.serve(async (req) => {
           return;
         }
         console.warn(`quote chain exhausted for ${sym} (as ${target}):`, JSON.stringify(r.attempts));
+        // Unlisted Italian funds: daily NAV published by Borsa Italiana.
+        if (isIsin(sym)) {
+          try {
+            const nav = await fetchBIFundNav(sym, resolved?.name);
+            if (nav) {
+              const q = {
+                symbol: sym,
+                name: nav.name ?? resolved?.name,
+                price: nav.nav,
+                previousClose: nav.previousNav,
+                change: nav.previousNav ? nav.nav - nav.previousNav : undefined,
+                changePercent: nav.changePct,
+                currency: nav.currency,
+                quoteType: "MUTUALFUND",
+                source: "borsa_italiana",
+                asOf: nav.asOf,
+              };
+              out[sym] = q;
+              await writeCache(`q:${sym}`, "quote", sym, q, TTL.quote);
+              return;
+            }
+          } catch { /* fall through to stale/error */ }
+        }
         // Last resort: stale-with-badge from cache regardless of expiry.
         const { data: stale } = await supabase
           .from("market_data_cache").select("payload")

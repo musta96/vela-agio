@@ -165,28 +165,32 @@ Deno.serve(async (req) => {
       if (!Array.isArray(body.symbols) || body.symbols.length === 0) return bad("symbols required");
       const out: Record<string, any> = {};
       await Promise.all(body.symbols.slice(0, 50).map(async (sym) => {
-        const key = `q:${sym}`;
+        // ISINs (funds without a ticker) are mapped to a quotable symbol first.
+        const { symbol: target, resolved } = await toQuotableSymbol(sym);
+        const key = `q:${target}`;
         const cached = await readCache(key);
-        if (cached) { out[sym] = { ...(cached as object), source: "cache" }; return; }
+        if (cached) { out[sym] = { ...(cached as object), symbol: sym, source: "cache" }; return; }
         // Unified prioritized provider chain (Yahoo → Stooq → Finnhub → Alpaca → Twelve Data).
         // Optional providers are auto-skipped when their API keys are not configured.
-        const r = await fetchQuoteWithFallback(sym);
+        const r = await fetchQuoteWithFallback(target);
         if ("price" in r) {
-          out[sym] = r;
-          await writeCache(key, "quote", sym, r, TTL.quote);
+          const q = { ...r, symbol: sym, name: r.name ?? resolved?.name, resolvedSymbol: target };
+          out[sym] = q;
+          await writeCache(key, "quote", target, q, TTL.quote);
           return;
         }
-        console.warn(`quote chain exhausted for ${sym}:`, JSON.stringify(r.attempts));
+        console.warn(`quote chain exhausted for ${sym} (as ${target}):`, JSON.stringify(r.attempts));
         // Last resort: stale-with-badge from cache regardless of expiry.
         const { data: stale } = await supabase
           .from("market_data_cache").select("payload")
           .eq("cache_key", key).maybeSingle();
         if (stale?.payload) {
-          out[sym] = { ...(stale.payload as object), source: "cache", stale: true };
+          out[sym] = { ...(stale.payload as object), symbol: sym, source: "cache", stale: true };
         } else {
           out[sym] = { symbol: sym, error: r.error, attempts: r.attempts };
         }
       }));
+
       return new Response(JSON.stringify({ quotes: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

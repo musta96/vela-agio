@@ -1166,6 +1166,24 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_rate_limits: {
+        Row: {
+          bucket: string
+          hits: number
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          hits?: number
+          window_start?: string
+        }
+        Update: {
+          bucket?: string
+          hits?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       enterprise_firms: {
         Row: {
           address_line1: string | null
@@ -3849,6 +3867,10 @@ export type Database = {
           tier: string
         }[]
       }
+      consume_rate_limit: {
+        Args: { _key: string; _limit: number; _window_seconds: number }
+        Returns: boolean
+      }
       get_enabled_feature_flags: {
         Args: never
         Returns: {
@@ -3888,6 +3910,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_firm_member: {
+        Args: { _firm_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_firm_owner: {
+        Args: { _firm_id: string; _user_id: string }
         Returns: boolean
       }
       lookup_referral_code: { Args: { _code: string }; Returns: Json }

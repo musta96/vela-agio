@@ -2,6 +2,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
+import { rateLimit, requireUserId } from "../_shared/rate-limit.ts";
 
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
@@ -46,32 +47,23 @@ Deno.serve(async (req) => {
       expectedTotalCents, expectedCurrency,
     } = body ?? {};
 
-    // Derive userId from the caller's JWT — never trust the client-supplied value.
-    // Guest checkouts (no auth header) may still proceed but cannot bind to any account.
-    let userId: string | undefined = undefined;
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      try {
-        const userClient = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!,
-          { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } },
-        );
-        const { data } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-        const sub = data?.claims?.sub as string | undefined;
-        if (sub) userId = sub;
-      } catch { /* fall through as guest */ }
-      if (!userId) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (bodyUserId && bodyUserId !== userId) {
-        return new Response(JSON.stringify({ error: "userId mismatch" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // Authentication is REQUIRED. The Stripe customer is derived from the JWT
+    // subject only — a client-supplied userId is never trusted (and a mismatch
+    // is rejected outright). New customers without an account use
+    // `create-trial-checkout`, which runs before the account exists.
+    const userId = await requireUserId(req);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    if (bodyUserId && bodyUserId !== userId) {
+      return new Response(JSON.stringify({ error: "userId mismatch" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const limited = await rateLimit(req, { scope: "create-checkout", identity: userId, limit: 20, windowSeconds: 300 }, corsHeaders);
+    if (limited) return limited;
     logCtx = { event: "create-checkout:start", lookupKey: priceId, userId, environment, hasReferral: !!referralCode, correlationId };
     console.log("[payments]", logCtx);
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");

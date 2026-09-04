@@ -2,6 +2,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
+import { rateLimit } from "../_shared/rate-limit.ts";
 
 // Public, unauthenticated: this runs BEFORE the Supabase account exists.
 // The account is created after Stripe validates the card (see finalize-trial-signup).
@@ -17,6 +18,20 @@ Deno.serve(async (req) => {
       throw new Error("priceId must be pro_monthly or pro_annual");
     }
     if (!returnUrl || typeof returnUrl !== "string") throw new Error("returnUrl required");
+
+    // This endpoint is public by necessity — it runs *before* the Supabase
+    // account exists, so there is no JWT to require. It is therefore locked
+    // down with per-IP and per-email throttling instead, and it never accepts
+    // a customer id from the body: the Stripe customer is looked up/created
+    // from the validated email alone.
+    const ipLimited = await rateLimit(req, { scope: "create-trial-checkout", limit: 5, windowSeconds: 900 }, corsHeaders);
+    if (ipLimited) return ipLimited;
+    const emailLimited = await rateLimit(
+      req,
+      { scope: "create-trial-checkout:email", identity: email.toLowerCase(), limit: 5, windowSeconds: 3600 },
+      corsHeaders,
+    );
+    if (emailLimited) return emailLimited;
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";
 
     const sb = createClient(

@@ -51,18 +51,30 @@ export default function Insider() {
   const [bars, setBars] = useState<Array<{ t: number; close: number }>>([]);
   const [name, setName] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
+  const [meta, setMeta] = useState<{
+    market?: { market: string; country: string; regulator: string; regime: string };
+    method?: string; coverage?: string; note?: string;
+    sources?: Array<{ title: string; url: string }>;
+  }>({});
 
   const load = async () => {
     setLoading(true);
     setErr(null);
     try {
       const [tx, ohlc] = await Promise.all([
-        supabase.functions.invoke("sec-edgar", { body: { symbol, kind: "insider_tx" } }),
+        supabase.functions.invoke("insider-global", { body: { symbol, kind: "insider_tx" } }),
         supabase.functions.invoke("market-data", { body: { action: "ohlc", symbol, range: "1y", interval: "1d" } }),
       ]);
       if (tx.error) throw tx.error;
       setTxs((tx.data?.transactions ?? []) as Tx[]);
       setName(tx.data?.name ?? "");
+      setMeta({
+        market: tx.data?.market,
+        method: tx.data?.method,
+        coverage: tx.data?.coverage,
+        note: tx.data?.note,
+        sources: tx.data?.sources ?? [],
+      });
       setBars((ohlc.data?.bars ?? []) as Array<{ t: number; close: number }>);
     } catch (e: any) {
       setErr(e?.message ?? "Failed to load insider data");
@@ -174,7 +186,7 @@ export default function Insider() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Insider Trading Signal Dashboard | Vela.ai" description="Analyze insider buying trends, executive transactions, cluster buys, and post-purchase stock performance from SEC Form 4 filings." path="/insider" />
+      <SEO title="Insider Trading Signal Dashboard | Vela.ai" description="Insider and PDMR transactions for global markets: SEC Form 4, MAR Art.19 internal dealing, SEDI, EDINET, DART, HKEXnews, SEBI, ASX and more." path="/insider" />
       <TopNav />
       <main className="container mx-auto px-6 py-8 space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -197,6 +209,31 @@ export default function Insider() {
 
         {name && <div className="text-sm text-muted-foreground">{name} • {txs.length} transactions in the last ~12 months</div>}
         {err && <Card><CardContent className="p-4 text-sm text-destructive">{err}</CardContent></Card>}
+
+        {meta.market && (
+          <Card>
+            <CardContent className="p-4 space-y-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{meta.market.market}</Badge>
+                <Badge variant="outline">{meta.market.regulator}</Badge>
+                <Badge variant="outline">{meta.market.regime}</Badge>
+                <Badge variant={meta.coverage === "full" ? "default" : meta.coverage === "partial" ? "secondary" : "outline"}>
+                  {meta.coverage === "full" ? "Structured filings" : meta.coverage === "partial" ? "Official disclosures" : "No disclosures found"}
+                </Badge>
+              </div>
+              {meta.note && <p className="text-muted-foreground">{meta.note}</p>}
+              {!!meta.sources?.length && (
+                <div className="flex flex-wrap gap-3">
+                  {meta.sources.slice(0, 6).map((s) => (
+                    <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" />{(s.title || s.url).slice(0, 60)}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

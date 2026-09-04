@@ -3912,6 +3912,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_firm_member: {
+        Args: { _firm_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_firm_owner: {
+        Args: { _firm_id: string; _user_id: string }
+        Returns: boolean
+      }
       lookup_referral_code: { Args: { _code: string }; Returns: Json }
       my_entitlements: {
         Args: never

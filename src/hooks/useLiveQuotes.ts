@@ -12,6 +12,7 @@ export interface LiveQuote {
   source?: string;
   asOf?: number;
   stale?: boolean;
+  quoteType?: string;
 }
 
 // Quotes are fetched via our `market-data` edge function which proxies Yahoo

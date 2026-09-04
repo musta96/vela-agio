@@ -45,6 +45,37 @@ interface PortfolioStock {
 
 const STORAGE_KEY = "portfolio_holdings";
 
+// --- Instrument classification, ordering & filtering (Fineco-style) ---
+export type InstrumentClass = "Stocks" | "ETFs" | "Funds" | "Crypto" | "Bonds" | "Other";
+
+const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+
+export function classifyInstrument(symbol: string, quoteType?: string): InstrumentClass {
+  const qt = (quoteType || "").toUpperCase();
+  if (qt === "ETF") return "ETFs";
+  if (qt === "MUTUALFUND" || qt === "FUND" || qt === "MONEYMARKET") return "Funds";
+  if (qt === "CRYPTOCURRENCY") return "Crypto";
+  if (qt === "BOND") return "Bonds";
+  if (qt === "EQUITY") return "Stocks";
+  // Fallbacks when no provider type is available yet.
+  const entry = findCatalogEntry(symbol);
+  if (entry?.market === "ETF") return "ETFs";
+  if (ISIN_RE.test(symbol)) return "Funds"; // funds are tracked by ISIN
+  return "Stocks";
+}
+
+const CLASS_ORDER: InstrumentClass[] = ["Stocks", "ETFs", "Funds", "Crypto", "Bonds", "Other"];
+
+type HoldingSortKey = "type" | "gainers" | "losers" | "value" | "name";
+const SORT_LABELS: Record<HoldingSortKey, string> = {
+  type: "Type of instrument",
+  gainers: "Gaining most",
+  losers: "Losing most",
+  value: "Total value",
+  name: "Name (A–Z)",
+};
+const HOLDINGS_PREFS_KEY = "vela.portfolio.holdingsView";
+
 const readLocal = (): PortfolioStock[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -192,6 +223,7 @@ const Portfolio = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSig]);
 
+
   // === FX rates so totals can be expressed in EUR ===
   const currencies = useMemo(
     () => Array.from(new Set(portfolio.map((p) => p.currency).filter((c) => c && c !== "EUR"))).sort(),
@@ -221,6 +253,50 @@ const Portfolio = () => {
   const toEur = (amount: number, currency: string) =>
     amount * (fxRates[currency] ?? (currency === "EUR" ? 1 : 1));
   
+  // === Holdings view: instrument class, sorting & filtering (persisted) ===
+  const [holdingsSort, setHoldingsSort] = useState<HoldingSortKey>(() => {
+    try { return (JSON.parse(localStorage.getItem(HOLDINGS_PREFS_KEY) || "{}").sort as HoldingSortKey) || "type"; } catch { return "type"; }
+  });
+  const [holdingsFilter, setHoldingsFilter] = useState<InstrumentClass | "all">(() => {
+    try { return (JSON.parse(localStorage.getItem(HOLDINGS_PREFS_KEY) || "{}").filter as InstrumentClass) || "all"; } catch { return "all"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(HOLDINGS_PREFS_KEY, JSON.stringify({ sort: holdingsSort, filter: holdingsFilter })); } catch { /* ignore */ }
+  }, [holdingsSort, holdingsFilter]);
+
+  const holdingClasses = useMemo(() => {
+    const map = new Map<string, InstrumentClass>();
+    for (const p of portfolio) map.set(p.symbol, classifyInstrument(p.symbol, quotes[p.symbol]?.quoteType));
+    return map;
+  }, [portfolio, quotes]);
+
+  const presentClasses = useMemo(
+    () => CLASS_ORDER.filter((c) => [...holdingClasses.values()].includes(c)),
+    [holdingClasses],
+  );
+
+  const visibleHoldings = useMemo(() => {
+    const list = portfolio.filter((p) => holdingsFilter === "all" || holdingClasses.get(p.symbol) === holdingsFilter);
+    const gainPct = (p: PortfolioStock) => (p.avgPrice > 0 ? ((p.currentPrice - p.avgPrice) / p.avgPrice) * 100 : 0);
+    const sorted = [...list];
+    switch (holdingsSort) {
+      case "gainers": sorted.sort((a, b) => gainPct(b) - gainPct(a)); break;
+      case "losers": sorted.sort((a, b) => gainPct(a) - gainPct(b)); break;
+      case "value": sorted.sort((a, b) => toEur(b.shares * b.currentPrice, b.currency) - toEur(a.shares * a.currentPrice, a.currency)); break;
+      case "name": sorted.sort((a, b) => (a.name || a.symbol).localeCompare(b.name || b.symbol)); break;
+      case "type":
+      default:
+        sorted.sort((a, b) => {
+          const ca = CLASS_ORDER.indexOf(holdingClasses.get(a.symbol) ?? "Other");
+          const cb = CLASS_ORDER.indexOf(holdingClasses.get(b.symbol) ?? "Other");
+          if (ca !== cb) return ca - cb;
+          return toEur(b.shares * b.currentPrice, b.currency) - toEur(a.shares * a.currentPrice, a.currency);
+        });
+    }
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolio, holdingsSort, holdingsFilter, holdingClasses]);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [range, setRange] = useState<HistoryRange>("1M");
   const [newStock, setNewStock] = useState({
@@ -591,14 +667,14 @@ const Portfolio = () => {
                   <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
                 )}
               </h1>
-              <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm mt-1">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm mt-1">
               {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "-"}
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
               ) : (
                 <Badge variant="outline" className="gap-1 text-muted-foreground">Local only · <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to sync</Badge>
               )}
-              </p>
+              </div>
             </div>
           </div>
 
@@ -1219,6 +1295,66 @@ const Portfolio = () => {
         )}
 
         {/* Portfolio Holdings */}
+        {portfolio.length > 0 && (
+          <div
+            className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-4 sm:flex-row sm:items-end sm:justify-between"
+            role="region"
+            aria-label="Holdings ordering and filtering"
+          >
+            <div className="w-full sm:w-64">
+              <Label htmlFor="holdings-sort" className="text-xs uppercase tracking-wide text-muted-foreground">
+                Order by
+              </Label>
+              <Select value={holdingsSort} onValueChange={(v) => setHoldingsSort(v as HoldingSortKey)}>
+                <SelectTrigger id="holdings-sort" className="mt-1.5" aria-label="Order holdings by">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(SORT_LABELS) as HoldingSortKey[]).map((k) => (
+                    <SelectItem key={k} value={k}>{SORT_LABELS[k]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground" id="holdings-filter-label">
+                Show
+              </span>
+              <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-labelledby="holdings-filter-label">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={holdingsFilter === "all" ? "default" : "outline"}
+                  className="h-8 text-xs"
+                  aria-pressed={holdingsFilter === "all"}
+                  onClick={() => setHoldingsFilter("all")}
+                >
+                  All ({portfolio.length})
+                </Button>
+                {presentClasses.map((c) => {
+                  const count = portfolio.filter((p) => holdingClasses.get(p.symbol) === c).length;
+                  const activeF = holdingsFilter === c;
+                  return (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant={activeF ? "default" : "outline"}
+                      className="h-8 text-xs"
+                      aria-pressed={activeF}
+                      onClick={() => setHoldingsFilter(activeF ? "all" : c)}
+                    >
+                      {c} ({count})
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground sm:text-right" aria-live="polite">
+              {visibleHoldings.length} of {portfolio.length} shown
+            </p>
+          </div>
+        )}
         <div className="space-y-4">
           {portfolio.length === 0 ? (
             <Card className="p-12 text-center card-gradient border-border">
@@ -1230,8 +1366,13 @@ const Portfolio = () => {
                 Add Your First Stock
               </Button>
             </Card>
+          ) : visibleHoldings.length === 0 ? (
+            <Card className="p-8 text-center card-gradient border-border">
+              <p className="text-muted-foreground">No holdings in this category.</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => setHoldingsFilter("all")}>Show all</Button>
+            </Card>
           ) : (
-            portfolio.map((stock) => {
+            visibleHoldings.map((stock) => {
               const { gain, gainPercent, totalValue, totalCost } = calculateGainLoss(stock);
               const isPositive = gain >= 0;
               const sym = currencySign(stock.currency);
@@ -1249,6 +1390,9 @@ const Portfolio = () => {
                         </div>
                         <Badge variant={isPositive ? "default" : "destructive"} className={isPositive ? "bg-success/10 text-success" : ""}>
                           {isPositive ? "+" : ""}{gainPercent.toFixed(2)}%
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs" aria-label={`Instrument type: ${holdingClasses.get(stock.symbol) ?? "Stocks"}`}>
+                          {holdingClasses.get(stock.symbol) ?? "Stocks"}
                         </Badge>
                         {isForeign && <Badge variant="outline" className="text-xs">{stock.currency}</Badge>}
                       </div>

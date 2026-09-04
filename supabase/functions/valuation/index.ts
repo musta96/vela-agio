@@ -290,7 +290,9 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
     multiplesPs: applyAdj(psEquity),
     adjustedNetAsset: assetEquity,
   };
-  const vals = Object.values(conclusions).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  // A method with no usable inputs (e.g. no book equity for the asset method)
+  // returns zero — it must not drag the valuation range down to nil.
+  const vals = Object.values(conclusions).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0);
   const range = vals.length ? { low: Math.min(...vals), mid: median(vals), high: Math.max(...vals) } : null;
 
   // ---- narrative -------------------------------------------------

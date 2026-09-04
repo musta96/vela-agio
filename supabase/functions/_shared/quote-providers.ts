@@ -36,6 +36,7 @@ export type UnifiedQuote = {
   previousClose?: number;
   updatedAt?: number;
   asOf?: number;
+  quoteType?: string; // Yahoo instrumentType: EQUITY | ETF | MUTUALFUND | INDEX | CRYPTOCURRENCY | ...
   source: "yahoo" | "stooq" | "finnhub" | "alpaca" | "twelvedata";
 };
 
@@ -152,6 +153,7 @@ async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: strin
           previousClose: typeof prev === "number" ? prev : undefined,
           updatedAt: Date.now(),
           asOf: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now(),
+          quoteType: typeof m.instrumentType === "string" ? m.instrumentType : undefined,
           source: "yahoo" as const,
         });
       } catch (e) {

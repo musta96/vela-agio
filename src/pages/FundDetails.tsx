@@ -154,13 +154,13 @@ const FundDetails = () => {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
                     <CardTitle className="text-xl">{data.profile?.name ?? data.symbol}</CardTitle>
-                    <CardDescription className="flex flex-wrap items-center gap-2 pt-1">
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-sm text-muted-foreground">
                       <Badge variant="secondary">{data.symbol}</Badge>
                       {data.isin ? <Badge variant="outline">ISIN {data.isin}</Badge> : null}
                       <Badge variant="outline">{data.quoteType === "ETF" ? "ETF" : "Fund"}</Badge>
                       {data.profile?.exchange ? <span className="text-xs">{data.profile.exchange}</span> : null}
                       {data.profile?.category ? <span className="text-xs">· {data.profile.category}</span> : null}
-                    </CardDescription>
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold tabular-nums">{money(kf.price, currency)}</div>

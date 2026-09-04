@@ -3,6 +3,8 @@ import {
   loadHistory, alignReturns, simulate, searchBlends, mergeSleeves,
   type AssetSpec, type SimConfig, type BlendCandidate, type BlendConstraints,
 } from '../_shared/advanced-sim.ts';
+import { getBorrowQuote } from '../_shared/borrow-margin.ts';
+import { marketForSymbol } from '../_shared/market-registry.ts';
 
 // POST { mode: "single" | "blend", assets?, sleeves?, config?, constraints? }
 Deno.serve(async (req) => {
@@ -40,6 +42,22 @@ Deno.serve(async (req) => {
       return json({ error: 'No assets provided. Send assets:[{symbol,weight,...}] or sleeves:[{name,assets}].' }, 400);
     }
     if (assets.length > 30) return json({ error: 'Maximum 30 distinct instruments per run.' }, 400);
+
+    // Real borrow costs for every short leg (IBKR public borrow file).
+    const borrowUsed: Array<Record<string, unknown>> = [];
+    await Promise.all(assets.filter((a) => a.weight < 0).map(async (a) => {
+      const mkt = marketForSymbol(a.symbol);
+      const q = await getBorrowQuote(a.symbol, mkt.country === '??' ? 'US' : mkt.country);
+      if (q.feeRate != null) a.borrowRate = q.feeRate;
+      borrowUsed.push({
+        symbol: a.symbol,
+        borrowRate: a.borrowRate ?? null,
+        source: q.feeRate != null ? q.source : 'assumption',
+        hardToBorrow: q.hardToBorrow,
+        shortableShares: q.available,
+        asOf: q.asOf,
+      });
+    }));
 
     const { series, missing } = await loadHistory(assets, config.history ?? '10y');
     if (!Object.keys(series).length) {

@@ -72,17 +72,25 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const totalValue = holdings.reduce((a, h) => a + h.shares * h.currentPrice, 0);
   const weights = holdings.map((h) => (h.shares * h.currentPrice) / (totalValue || 1));
 
-  // Portfolio returns (weighted) for vol / VaR / beta
+  // Portfolio returns (weighted) for vol / VaR / beta.
+  // Holdings without usable price history (unlisted funds, illiquid tickers) are
+  // excluded and the remaining weights are renormalised, so one missing series
+  // no longer blanks out the whole panel.
   const stats = useMemo(() => {
     if (holdings.length === 0) return null;
-    const symBars = holdings.map((h) => bars[h.symbol] || []);
-    if (symBars.some((b) => b.length < 30)) return null;
-    const minLen = Math.min(...symBars.map((b) => b.length));
-    const rets = symBars.map((b) => returns(b.slice(-minLen).map((x) => x.close)));
+    const covered = holdings
+      .map((h, i) => ({ holding: h, index: i, bars: bars[h.symbol] || [] }))
+      .filter((x) => x.bars.length >= 30);
+    const excluded = holdings.filter((h) => (bars[h.symbol] || []).length < 30).map((h) => h.symbol);
+    if (covered.length === 0) return null;
+    const coveredWeightSum = covered.reduce((a, x) => a + weights[x.index], 0) || 1;
+    const w = covered.map((x) => weights[x.index] / coveredWeightSum);
+    const minLen = Math.min(...covered.map((x) => x.bars.length));
+    const rets = covered.map((x) => returns(x.bars.slice(-minLen).map((b) => b.close)));
     const port: number[] = [];
     for (let i = 0; i < rets[0].length; i++) {
       let r = 0;
-      rets.forEach((arr, j) => (r += arr[i] * weights[j]));
+      rets.forEach((arr, j) => (r += arr[i] * w[j]));
       port.push(r);
     }
     const mibRets = mibBars.length > 30 ? returns(mibBars.map((b) => b.close)) : [];
@@ -99,8 +107,12 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
       betaSpx: spxRets.length ? beta(port, spxRets) : null,
       symRets: rets,
       portRets: port,
+      coveredSymbols: covered.map((x) => x.holding.symbol),
+      coveredWeights: w,
+      excludedSymbols: excluded,
     };
   }, [bars, mibBars, spxBars, holdings, weights]);
+
 
   // Market exposure (from catalog) and currency exposure
   const marketExposure = useMemo(() => {

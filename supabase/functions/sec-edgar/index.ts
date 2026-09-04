@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { secFullText } from '../_shared/official-sources.ts';
 
 // Free SEC EDGAR JSON API. Maps ticker -> CIK -> recent filings.
 const UA = 'FTSE MIB Analytics research@ftse-mib-analytics.app';
@@ -78,7 +79,20 @@ Deno.serve(async (req) => {
   try {
     const { symbol, kind = 'filings' } = await req.json();
     const cik = await getCik(symbol);
-    if (!cik) return new Response(JSON.stringify({ items: [], note: 'Ticker not found on SEC EDGAR (likely non-US listing).' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!cik) {
+      // No ticker-to-CIK match (foreign private issuers, funds, share classes).
+      // EDGAR full-text search still finds their filings by name/symbol.
+      const wantInsider = kind === 'insider' || kind === 'insider_tx';
+      const found = wantInsider ? [] : await secFullText(String(symbol ?? ''), {
+        forms: ['10-K', '10-Q', '8-K', '20-F', '6-K', 'N-CSR', 'N-PORT-P', '497K'], limit: 25,
+      });
+      return new Response(JSON.stringify({
+        items: found.map((d) => ({ form: d.title.split(' — ')[0], date: d.published, url: d.url, accession: null, doc: null })),
+        note: found.length
+          ? 'Matched through EDGAR full-text search (no direct ticker mapping).'
+          : 'No filings on SEC EDGAR for this instrument (likely a non-US listing that does not file with the SEC).',
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const sub = await fetch(`https://data.sec.gov/submissions/CIK${cik}.json`, { headers: { 'User-Agent': UA } });
     if (!sub.ok) throw new Error(`EDGAR ${sub.status}`);
     const data = await sub.json();

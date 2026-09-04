@@ -14,6 +14,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { fetchQuoteSummary, fetchCorporateEvents } from "../_shared/fundamentals.ts";
+import { getCached, setCached } from "../_shared/profile-cache.ts";
 
 function num(v: unknown): number | null {
   if (v == null) return null;
@@ -82,6 +83,12 @@ Deno.serve(async (req) => {
     const symbol = String(body.symbol ?? url.searchParams.get("symbol") ?? "").trim();
     if (!symbol) return json({ error: "symbol required" }, 400);
 
+    // Shared 30-minute cache: fundamentals move at most once a quarter, so
+    // repeat page views should never wait on Yahoo again.
+    const cacheKey = `profile:${symbol.toUpperCase()}`;
+    const cached = await getCached<Record<string, unknown>>(cacheKey);
+    if (cached) return json({ ...cached, cached: true });
+
     const modules = [
       "assetProfile", "price", "summaryDetail", "defaultKeyStatistics", "financialData",
       "calendarEvents", "earnings", "earningsHistory", "earningsTrend",
@@ -120,7 +127,7 @@ Deno.serve(async (req) => {
     const currency: string | null = p.currency ?? sd.currency ?? null;
     const financialCurrency: string | null = p.financialCurrency ?? fd.financialCurrency ?? null;
 
-    return json({
+    const payload = {
       symbol,
       asOf: new Date().toISOString(),
       currency,
@@ -237,7 +244,9 @@ Deno.serve(async (req) => {
       },
       dividends: corporate.dividends,
       splits: corporate.splits,
-    });
+    };
+    await setCached(cacheKey, "company-profile", symbol, payload, 30 * 60);
+    return json(payload);
   } catch (e) {
     console.error("company-profile error", e);
     return json({ error: (e as Error)?.message ?? "Internal error" }, 500);

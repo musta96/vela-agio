@@ -92,7 +92,7 @@ export async function fetchFundamentals(symbol: string): Promise<Fundamentals | 
   const call = () =>
     fetch(
       `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`,
-      { headers: { "User-Agent": UA, Cookie: cookie } },
+      { headers: { "User-Agent": UA, Cookie: cookie }, signal: AbortSignal.timeout(12000) },
     );
   let r = await call();
   if (r.status === 401 || r.status === 403) {
@@ -157,7 +157,7 @@ export async function fetchQuoteSummary(
   const call = (host: string) =>
     fetch(
       `https://${host}.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${mods}&crumb=${encodeURIComponent(crumb)}`,
-      { headers: { "User-Agent": UA, Cookie: cookie } },
+      { headers: { "User-Agent": UA, Cookie: cookie }, signal: AbortSignal.timeout(12000) },
     );
   let r = await call("query2").catch(() => null);
   if (!r || r.status === 401 || r.status === 403) {
@@ -174,7 +174,7 @@ export async function fetchCorporateEvents(symbol: string, range = "10y") {
   const url =
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1mo&range=${range}&events=div%2Csplit`;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
+    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
     if (!r.ok) return { dividends: [], splits: [] };
     const j = await r.json();
     const ev = j?.chart?.result?.[0]?.events ?? {};

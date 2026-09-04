@@ -205,7 +205,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
               <div className="min-w-0">
                 <div className="text-sm font-semibold">Advanced analytics</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  Risk · correlation · exposure · concentration {stats ? "" : "(loading…)"}
+                  {loading
+                    ? "Loading price history…"
+                    : stats
+                      ? `Risk · correlation · exposure · concentration${stats.excludedSymbols.length ? ` · ${stats.excludedSymbols.length} holding${stats.excludedSymbols.length > 1 ? "s" : ""} without price history excluded` : ""}`
+                      : "No price history available for these holdings yet"}
                 </div>
               </div>
             </div>

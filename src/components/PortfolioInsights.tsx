@@ -186,7 +186,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
       currencyExposure,
       topContributors,
       riskContribution,
-      correlation: corrMatrix ? { symbols: holdings.map((h) => h.symbol), matrix: corrMatrix } : null,
+      correlation: corrMatrix ? { symbols: stats.coveredSymbols, matrix: corrMatrix } : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats, hhi, corrMatrix]);

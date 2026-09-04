@@ -187,8 +187,14 @@ Deno.serve(async (req) => {
         if (stale?.payload) {
           out[sym] = { ...(stale.payload as object), symbol: sym, source: "cache", stale: true };
         } else {
-          out[sym] = { symbol: sym, error: r.error, attempts: r.attempts };
+          out[sym] = {
+            symbol: sym,
+            error: resolved || target !== sym ? "NO_PRICE_SOURCE" : r.error,
+            reason: "No price provider covers this instrument",
+            attempts: r.attempts,
+          };
         }
+
       }));
 
       return new Response(JSON.stringify({ quotes: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

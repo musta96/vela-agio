@@ -18,7 +18,7 @@ export interface EntitlementsLike {
   featureKeys: Set<string>;
   betaActive: boolean;
   source: EntitlementSource;
-  limits: {
+  limits?: {
     maxPortfolios: number | null;
     maxPositionsPerPortfolio: number | null;
     maxWatchlist: number | null;
@@ -122,7 +122,7 @@ export function resolvePlanState(input: {
   const planRow = matchPlanRow(ent, sub, plans);
 
   const subActive = !!sub && ["active", "trialing", "past_due"].includes(sub.status);
-  const aiQuestions = ent.limits.maxAiQuestionsPerMonth;
+  const aiQuestions = ent.limits?.maxAiQuestionsPerMonth ?? null;
   const aiEnabled =
     isBetaOnly ||
     AI_FEATURE_KEYS.some((k) => ent.featureKeys.has(k)) ||

@@ -304,7 +304,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
             </Card>
 
             {/* Correlation matrix */}
-            {corrMatrix && holdings.length > 1 && (
+            {corrMatrix && stats && stats.coveredSymbols.length > 1 && (
               <Card className="lg:col-span-3">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Correlation matrix</CardTitle>
@@ -316,17 +316,17 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
                       <thead>
                         <tr>
                           <th className="px-2 py-1"></th>
-                          {holdings.map((h) => (
-                            <th key={h.symbol} className="px-2 py-1 font-mono">{h.symbol}</th>
+                          {stats.coveredSymbols.map((s) => (
+                            <th key={s} className="px-2 py-1 font-mono">{s}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {holdings.map((h, i) => (
-                          <tr key={h.symbol}>
-                            <td className="px-2 py-1 font-mono">{h.symbol}</td>
-                            {holdings.map((_, j) => {
-                              const v = corrMatrix[i][j];
+                        {stats.coveredSymbols.map((s, i) => (
+                          <tr key={s}>
+                            <td className="px-2 py-1 font-mono">{s}</td>
+                            {stats.coveredSymbols.map((_, j) => {
+                              const v = corrMatrix[i]?.[j] ?? 0;
                               const c =
                                 v > 0.7 ? "bg-destructive/30 text-destructive"
                                 : v > 0.4 ? "bg-destructive/15"
@@ -338,6 +338,12 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
                             })}
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
                       </tbody>
                     </table>
                   </div>

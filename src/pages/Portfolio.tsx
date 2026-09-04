@@ -1366,8 +1366,13 @@ const Portfolio = () => {
                 Add Your First Stock
               </Button>
             </Card>
+          ) : visibleHoldings.length === 0 ? (
+            <Card className="p-8 text-center card-gradient border-border">
+              <p className="text-muted-foreground">No holdings in this category.</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => setHoldingsFilter("all")}>Show all</Button>
+            </Card>
           ) : (
-            portfolio.map((stock) => {
+            visibleHoldings.map((stock) => {
               const { gain, gainPercent, totalValue, totalCost } = calculateGainLoss(stock);
               const isPositive = gain >= 0;
               const sym = currencySign(stock.currency);

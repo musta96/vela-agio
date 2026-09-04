@@ -60,34 +60,75 @@ function envAny(...names: string[]): string | undefined {
 
 // ---------- providers --------------------------------------------------------
 
-async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: string }> {
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-  try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!r.ok) return { reason: `http ${r.status}` };
-    const j = await r.json();
-    const q = j?.quoteResponse?.result?.[0];
-    if (!q || typeof q.regularMarketPrice !== "number") return { reason: "no quote" };
-    return {
-      symbol: q.symbol ?? symbol,
-      name: q.longName ?? q.shortName,
-      price: q.regularMarketPrice,
-      currency: q.currency,
-      exchange: q.fullExchangeName,
-      changePct: q.regularMarketChangePercent,
-      dayHigh: q.regularMarketDayHigh,
-      dayLow: q.regularMarketDayLow,
-      marketCap: q.marketCap,
-      peTrailing: q.trailingPE,
-      dividendYield: q.trailingAnnualDividendYield,
-      previousClose: q.regularMarketPreviousClose,
-      updatedAt: Date.now(),
-      source: "yahoo",
+const YF_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+/**
+ * Alternative listings to try when the requested Yahoo symbol is unknown.
+ * German listings in particular exist under several venue suffixes
+ * (`.DE` Xetra, `.F` Frankfurt, `.SG` Stuttgart, `.MU` Munich).
+ */
+function yahooVariants(symbol: string): string[] {
+  const s = symbol.trim();
+  const out = [s];
+  const m = s.match(/^([^.]+)\.([A-Z]+)$/i);
+  if (m) {
+    const [, base, suf] = m;
+    const group: Record<string, string[]> = {
+      DE: ["F", "SG", "MU", "BE"],
+      F: ["DE", "SG", "MU"],
+      SG: ["DE", "F"],
+      MU: ["DE", "F"],
+      MI: ["MI"],
     };
-  } catch (e) {
-    return { reason: (e as Error)?.message ?? "fetch failed" };
+    for (const alt of group[suf.toUpperCase()] ?? []) {
+      const cand = `${base}.${alt}`;
+      if (!out.includes(cand)) out.push(cand);
+    }
   }
+  return out;
 }
+
+/**
+ * Yahoo quotes via the v8 chart endpoint. The older v7 `quote` API now
+ * requires a crumb/cookie session and answers 401, which silently pushed
+ * every non-US listing down the chain onto US-only providers.
+ */
+async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: string }> {
+  let lastReason = "no quote";
+  for (const sym of yahooVariants(symbol)) {
+    for (const host of ["query1", "query2"]) {
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+      try {
+        const r = await fetch(url, { headers: { "User-Agent": YF_UA, Accept: "application/json" } });
+        if (!r.ok) { lastReason = `http ${r.status}`; continue; }
+        const j = await r.json();
+        const m = j?.chart?.result?.[0]?.meta;
+        const price = m?.regularMarketPrice;
+        if (typeof price !== "number" || !(price > 0)) { lastReason = "no quote"; continue; }
+        const prev = typeof m.chartPreviousClose === "number" ? m.chartPreviousClose : m.previousClose;
+        return {
+          symbol,
+          name: m.longName ?? m.shortName,
+          price,
+          currency: m.currency,
+          exchange: m.fullExchangeName ?? m.exchangeName,
+          changePct: typeof prev === "number" && prev > 0 ? ((price - prev) / prev) * 100 : undefined,
+          dayHigh: m.regularMarketDayHigh,
+          dayLow: m.regularMarketDayLow,
+          previousClose: typeof prev === "number" ? prev : undefined,
+          updatedAt: Date.now(),
+          asOf: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now(),
+          source: "yahoo",
+        };
+      } catch (e) {
+        lastReason = (e as Error)?.message ?? "fetch failed";
+      }
+    }
+  }
+  return { reason: lastReason };
+}
+
 
 async function fromStooq(symbol: string): Promise<UnifiedQuote | { reason: string }> {
   try {
@@ -111,11 +152,14 @@ async function fromStooq(symbol: string): Promise<UnifiedQuote | { reason: strin
 async function fromFinnhub(symbol: string): Promise<UnifiedQuote | { reason: string }> {
   const key = envAny("FINNHUB_API_KEY");
   if (!key) return { reason: "no api key configured" };
-  // Finnhub uses unsuffixed US tickers; strip Yahoo suffixes we can't map.
-  if (symbol.includes("=") || symbol.startsWith("^")) {
+  // Finnhub's free tier only covers US listings under the bare ticker.
+  // Stripping a venue suffix (SGLD.MI → SGLD) silently resolves a DIFFERENT
+  // security, so foreign listings must never be sent here.
+  if (symbol.includes("=") || symbol.startsWith("^") || symbol.includes(".")) {
     return { reason: "symbol class not supported by free tier" };
   }
-  const sym = symbol.split(".")[0].toUpperCase();
+  const sym = symbol.toUpperCase();
+
   try {
     const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${key}`);
     if (!r.ok) return { reason: `http ${r.status}` };
@@ -180,16 +224,33 @@ async function fromTwelveData(symbol: string): Promise<UnifiedQuote | { reason: 
   if (!key) return { reason: "no api key configured" };
   // Twelve Data uses its own symbol format; pass through equity tickers and
   // best-effort map FX (EURUSD=X → EUR/USD) and crypto (BTC-USD → BTC/USD).
+  // Venue suffixes must become an explicit MIC, otherwise the bare ticker
+  // would resolve to a same-named US security.
   let sym = symbol;
+  let mic = "";
   const fx = symbol.match(/^([A-Z]{3})([A-Z]{3})=X$/i);
   if (fx) sym = `${fx[1].toUpperCase()}/${fx[2].toUpperCase()}`;
   const cr = symbol.match(/^([A-Z]{2,6})-(USD|EUR|USDT|USDC)$/i);
   if (cr) sym = `${cr[1].toUpperCase()}/${cr[2].toUpperCase()}`;
+  const venue = symbol.match(/^([^.]+)\.([A-Z]+)$/i);
+  if (!fx && !cr && venue) {
+    const MIC: Record<string, string> = {
+      MI: "XMIL", AS: "XAMS", DE: "XETR", F: "XFRA", SG: "XSTU", MU: "XMUN",
+      PA: "XPAR", BR: "XBRU", LS: "XLIS", MC: "XMAD", L: "XLON", SW: "XSWX",
+      ST: "XSTO", HE: "XHEL", CO: "XCSE", OL: "XOSL", VI: "XWBO", WA: "XWAR",
+      IR: "XDUB", TO: "XTSE", T: "XTKS", HK: "XHKG", AX: "XASX",
+    };
+    const code = MIC[venue[2].toUpperCase()];
+    if (!code) return { reason: "unmapped exchange suffix" };
+    sym = venue[1].toUpperCase();
+    mic = `&mic_code=${code}`;
+  }
   try {
     const r = await fetch(
-      `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}&apikey=${key}`,
+      `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}${mic}&apikey=${key}`,
     );
     if (!r.ok) return { reason: `http ${r.status}` };
+
     const j = await r.json();
     const price = Number(j?.close ?? j?.price);
     if (!Number.isFinite(price) || price <= 0) {

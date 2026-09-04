@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
+import { toQuotableSymbol } from "../_shared/isin-resolver.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,17 +83,36 @@ async function fetchYahoo(symbol: string, range: string, interval: string) {
   return await res.json();
 }
 
-// Italian tickers on Yahoo need a `.MI` suffix. Try once with it.
-async function fetchYahooWithFallback(symbol: string, range: string, interval: string) {
-  try {
-    return await fetchYahoo(symbol, range, interval);
-  } catch (e: any) {
-    if (e?.code === 404 && !symbol.includes(".") && !symbol.includes("=") && !symbol.includes("^")) {
-      return await fetchYahoo(`${symbol}.MI`, range, interval);
-    }
-    throw e;
+// Some listings answer under a sibling venue suffix (Xetra vs Frankfurt vs
+// Stuttgart), and bare Italian tickers need `.MI`. Try the alternatives once.
+function symbolVariants(symbol: string): string[] {
+  const out = [symbol];
+  const m = symbol.match(/^([^.]+)\.([A-Za-z]+)$/);
+  if (m) {
+    const alts: Record<string, string[]> = {
+      DE: ["F", "SG", "MU"], F: ["DE", "SG"], SG: ["DE", "F"], MU: ["DE", "F"],
+    };
+    for (const a of alts[m[2].toUpperCase()] ?? []) out.push(`${m[1]}.${a}`);
+  } else if (!symbol.includes("=") && !symbol.includes("^")) {
+    out.push(`${symbol}.MI`);
   }
+  return out;
 }
+
+async function fetchYahooWithFallback(symbol: string, range: string, interval: string) {
+  let lastErr: any = new Error(`Yahoo 404 for ${symbol}`);
+  lastErr.code = 404;
+  for (const s of symbolVariants(symbol)) {
+    try {
+      return await fetchYahoo(s, range, interval);
+    } catch (e: any) {
+      lastErr = e;
+      if (e?.code !== 404) throw e;
+    }
+  }
+  throw lastErr;
+}
+
 
 function parseQuote(symbol: string, json: any) {
   const r = json?.chart?.result?.[0];
@@ -144,43 +165,55 @@ Deno.serve(async (req) => {
       if (!Array.isArray(body.symbols) || body.symbols.length === 0) return bad("symbols required");
       const out: Record<string, any> = {};
       await Promise.all(body.symbols.slice(0, 50).map(async (sym) => {
-        const key = `q:${sym}`;
+        // ISINs (funds without a ticker) are mapped to a quotable symbol first.
+        const { symbol: target, resolved } = await toQuotableSymbol(sym);
+        const key = `q:${target}`;
         const cached = await readCache(key);
-        if (cached) { out[sym] = { ...(cached as object), source: "cache" }; return; }
+        if (cached) { out[sym] = { ...(cached as object), symbol: sym, source: "cache" }; return; }
         // Unified prioritized provider chain (Yahoo → Stooq → Finnhub → Alpaca → Twelve Data).
         // Optional providers are auto-skipped when their API keys are not configured.
-        const r = await fetchQuoteWithFallback(sym);
+        const r = await fetchQuoteWithFallback(target);
         if ("price" in r) {
-          out[sym] = r;
-          await writeCache(key, "quote", sym, r, TTL.quote);
+          const q = { ...r, symbol: sym, name: r.name ?? resolved?.name, resolvedSymbol: target };
+          out[sym] = q;
+          await writeCache(key, "quote", target, q, TTL.quote);
           return;
         }
-        console.warn(`quote chain exhausted for ${sym}:`, JSON.stringify(r.attempts));
+        console.warn(`quote chain exhausted for ${sym} (as ${target}):`, JSON.stringify(r.attempts));
         // Last resort: stale-with-badge from cache regardless of expiry.
         const { data: stale } = await supabase
           .from("market_data_cache").select("payload")
           .eq("cache_key", key).maybeSingle();
         if (stale?.payload) {
-          out[sym] = { ...(stale.payload as object), source: "cache", stale: true };
+          out[sym] = { ...(stale.payload as object), symbol: sym, source: "cache", stale: true };
         } else {
-          out[sym] = { symbol: sym, error: r.error, attempts: r.attempts };
+          out[sym] = {
+            symbol: sym,
+            error: resolved || target !== sym ? "NO_PRICE_SOURCE" : r.error,
+            reason: "No price provider covers this instrument",
+            attempts: r.attempts,
+          };
         }
+
       }));
+
       return new Response(JSON.stringify({ quotes: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (body.action === "ohlc") {
       if (!body.symbol || !body.range || !body.interval) return bad("symbol/range/interval required");
-      const key = `o:${body.symbol}:${body.range}:${body.interval}`;
+      const { symbol: histSymbol } = await toQuotableSymbol(body.symbol);
+      const key = `o:${histSymbol}:${body.range}:${body.interval}`;
       const cached = await readCache(key);
       if (cached) {
         return new Response(JSON.stringify({ bars: cached, cached: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       let bars: any[] = [];
       try {
-        const j = await fetchYahooWithFallback(body.symbol, body.range, body.interval);
+        const j = await fetchYahooWithFallback(histSymbol, body.range, body.interval);
         bars = parseOHLC(j);
       } catch (e: any) {
+
         if (e?.code === 404) {
           return new Response(
             JSON.stringify({ bars: [], cached: false, fallback: true, error: "TICKER_NOT_FOUND" }),

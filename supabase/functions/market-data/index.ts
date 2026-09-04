@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
         // Optional providers are auto-skipped when their API keys are not configured.
         const r = await fetchQuoteWithFallback(target);
         if ("price" in r) {
-          const q = { ...r, symbol: sym, name: r.name ?? resolved?.name, resolvedSymbol: target };
+          const q = { ...r, symbol: sym, name: r.name ?? resolved?.name, resolvedSymbol: target, quoteType: r.quoteType ?? resolved?.quoteType };
           out[sym] = q;
           await writeCache(key, "quote", target, q, TTL.quote);
           return;

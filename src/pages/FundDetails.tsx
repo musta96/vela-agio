@@ -102,7 +102,10 @@ const FundDetails = () => {
 
   const currency = data?.currency ?? null;
   const kf = data?.keyFacts ?? {};
-  const chartData = useMemo(() => bars.map((b) => ({ date: b.date, close: b.close })), [bars]);
+  const chartData = useMemo(
+    () => bars.map((b) => ({ date: new Date(b.t).toISOString().slice(0, 10), close: b.close })),
+    [bars],
+  );
   const changePct = kf.changePercent ?? null;
   const up = (changePct ?? 0) >= 0;
 
@@ -116,6 +119,7 @@ const FundDetails = () => {
       <SEO
         title={`${title} — ETF & fund data sheet`}
         description={`Key facts, holdings, sector and asset breakdown, performance vs category, risk statistics, costs and distributions for ${title}.`}
+        path={`/fund/${encodeURIComponent(sym)}`}
       />
       <TopNav />
       <main className="container mx-auto max-w-6xl space-y-6 px-4 py-6">
@@ -166,7 +170,7 @@ const FundDetails = () => {
                     </div>
                     <div className="mt-2 flex justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => void reload()}><RefreshCw className="h-4 w-4" /></Button>
-                      <Button size="sm" variant={isWatched(data.symbol) ? "default" : "outline"} onClick={() => void toggle(data.symbol)}>
+                      <Button size="sm" variant={isWatched(data.symbol) ? "default" : "outline"} onClick={() => toggle(data.symbol, data.profile?.name ?? data.symbol)}>
                         <Star className="mr-1 h-4 w-4" />{isWatched(data.symbol) ? "Watched" : "Watch"}
                       </Button>
                     </div>

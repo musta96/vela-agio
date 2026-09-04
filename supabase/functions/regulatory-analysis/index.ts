@@ -2,6 +2,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { z } from 'npm:zod@3.23.8';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
 import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
+import { gatherOfficialDocs, REFERENCE_SOURCES, type OfficialDoc } from '../_shared/official-sources.ts';
 
 const BodySchema = z.object({
   // focus is optional at the boundary: callers (e.g. the Copilot tool) may omit
@@ -89,11 +90,34 @@ export function normalizeReport(raw: unknown, body: Body): RegulatoryReport {
   };
 }
 
-const SOURCES = [
-  { title: 'European Commission legislative proposals', url: 'https://commission.europa.eu/law/law-making-process/types-eu-law_en', relevance: 'Primary EU legislative process reference.' },
-  { title: 'U.S. Federal Register', url: 'https://www.federalregister.gov/', relevance: 'Primary U.S. proposed and final rule publication.' },
-  { title: 'OECD Regulatory Policy Outlook', url: 'https://www.oecd.org/gov/regulatory-policy/regulatory-policy-outlook.htm', relevance: 'Cross-market regulatory context.' },
-];
+// ---------------------------------------------------------------------
+// Official-source evidence. The report must cite documents that were
+// actually retrieved from the regulators themselves, so we pull primary
+// documents from IMF / ECB / SEC / CFTC endpoints before the model
+// writes anything, and drop any citation that is not in that corpus.
+// ---------------------------------------------------------------------
+
+/** Landing pages used only when live retrieval returns nothing. */
+const SOURCES = REFERENCE_SOURCES.map((s) => ({
+  title: s.title,
+  url: s.url,
+  relevance: 'Primary regulator publication index.',
+}));
+
+export type Evidence = OfficialDoc;
+
+/** Retrieve live primary documents for this analysis from each authority. */
+async function gatherEvidence(body: Body): Promise<Evidence[]> {
+  const query = `${body.topic} ${body.focus ?? ''} ${body.jurisdiction}`.trim().slice(0, 200);
+  try {
+    return (await gatherOfficialDocs(query)).slice(0, 12);
+  } catch (e) {
+    console.error('regulatory-analysis evidence retrieval failed:', e instanceof Error ? e.message : e);
+    return REFERENCE_SOURCES;
+  }
+}
+
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 /**
@@ -116,8 +140,16 @@ export function parseModelJson(content: unknown): unknown {
   throw new Error('AI returned malformed JSON for the regulatory analysis.');
 }
 
-async function callAI(body: Body, cfg: { baseURL: string; headers: Record<string, string>; model: string }) {
-  const prompt = `Return only valid JSON matching this shape: {"headline":"string","executiveSummary":"string","affectedAssets":[{"asset":"string","direction":"positive|negative|mixed|uncertain","rationale":"string"}],"impacts":[{"dimension":"revenue|cost|capital|risk","severity":"high|medium|low","assessment":"string","timeframe":"string"}],"scenarios":[{"name":"string","probability":"string","outcome":"string"}],"assumptions":["string"],"confidence":"high|medium|low","sources":[{"title":"string","url":"string","relevance":"string"}]}. Every list must contain at least two entries. Analyze the possible future regulatory impact, not legal certainty. Do not invent a passed law, exact probability, or unsupported company exposure. Use the supplied public source list and clearly state uncertainty.
+async function callAI(body: Body, cfg: { baseURL: string; headers: Record<string, string>; model: string }, evidence: Evidence[]) {
+  const corpus = evidence.length
+    ? evidence.map((e) => `[${e.authority}] ${e.title}\nURL: ${e.url}\n${e.excerpt || '(no text extracted — cite the URL only, do not restate figures)'}`).join('\n\n---\n\n')
+    : 'NO OFFICIAL DOCUMENTS WERE RETRIEVED. Say so explicitly, mark confidence "low", and cite nothing beyond the regulator landing pages below.';
+  const prompt = `Return only valid JSON matching this shape: {"headline":"string","executiveSummary":"string","affectedAssets":[{"asset":"string","direction":"positive|negative|mixed|uncertain","rationale":"string"}],"impacts":[{"dimension":"revenue|cost|capital|risk","severity":"high|medium|low","assessment":"string","timeframe":"string"}],"scenarios":[{"name":"string","probability":"string","outcome":"string"}],"assumptions":["string"],"confidence":"high|medium|low","sources":[{"title":"string","url":"string","relevance":"string"}]}. Every list must contain at least two entries. Analyze the possible future regulatory impact, not legal certainty. Do not invent a passed law, exact probability, or unsupported company exposure. Clearly state uncertainty.
+
+CITATION RULES (strict):
+- Every URL in "sources" MUST be copied verbatim from the OFFICIAL DOCUMENTS block below. Never invent, shorten or guess a URL.
+- Ground each impact and scenario in a retrieved document where one exists; where none does, say the point is unsourced.
+- Prefer IMF, ECB, SEC and CFTC documents over commentary.
 
 Focus: ${body.focus}
 Jurisdiction: ${body.jurisdiction}
@@ -125,11 +157,21 @@ Regulatory topic/trend: ${body.topic}
 Horizon: ${body.horizon}
 Scenario stance: ${body.stance}
 Additional context: ${body.context ?? 'none'}
-Public sources: ${JSON.stringify(SOURCES)}`;
-  const response = await fetch(`${cfg.baseURL}/chat/completions`, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: 'You are a cautious regulatory-policy analyst for investment research. The output must be JSON.' }, { role: 'user', content: prompt }], response_format: { type: 'json_object' } }) });
+
+OFFICIAL DOCUMENTS RETRIEVED LIVE:
+${corpus.slice(0, 24000)}
+
+Regulator landing pages (fallback only): ${JSON.stringify(SOURCES)}`;
+  const response = await fetch(`${cfg.baseURL}/chat/completions`, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: 'You are a cautious regulatory-policy analyst for investment research. You cite only documents supplied to you. The output must be JSON.' }, { role: 'user', content: prompt }], response_format: { type: 'json_object' } }) });
   if (!response.ok) { const detail = (await response.text()).slice(0, 600); throw new Error(`AI gateway ${response.status}: ${detail}`); }
   const payload = await response.json();
   return normalizeReport(parseModelJson(payload?.choices?.[0]?.message?.content), body);
+}
+
+/** Keep only citations that exist in the retrieved corpus or the regulator landing pages. */
+export function filterCitations(report: RegulatoryReport, evidence: Evidence[]): RegulatoryReport {
+  const allowed = new Set([...evidence.map((e) => e.url), ...SOURCES.map((s) => s.url)]);
+  return { ...report, sources: report.sources.filter((s) => allowed.has(s.url)) };
 }
 
 Deno.serve(async (req) => {
@@ -144,9 +186,21 @@ Deno.serve(async (req) => {
   const access = await resolveAiAccess(req.headers.get('Authorization'));
   if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
   try {
-    const cfg = await resolveAIConfig(req.headers.get('Authorization'));
-    const report = await callAI(body, cfg);
-    return json({ report: { ...report, sources: [...report.sources, ...SOURCES.filter((s) => !report.sources.some((r) => r.url === s.url))] }, generatedAt: new Date().toISOString(), providerNotice: cfg.notice ?? null });
+    const [cfg, evidence] = await Promise.all([
+      resolveAIConfig(req.headers.get('Authorization')),
+      gatherEvidence(body),
+    ]);
+    const report = filterCitations(await callAI(body, cfg, evidence), evidence);
+    const retrieved = evidence.map((e) => ({ title: `${e.authority} — ${e.title}`, url: e.url, relevance: 'Primary document retrieved for this analysis.' }));
+    const merged = [...report.sources];
+    for (const s of [...retrieved, ...SOURCES]) if (!merged.some((m) => m.url === s.url)) merged.push(s);
+    return json({
+      report: { ...report, sources: merged },
+      evidence: evidence.map(({ authority, title, url, domain }) => ({ authority, title, url, domain })),
+      authorities_covered: [...new Set(evidence.map((e) => e.authority))],
+      generatedAt: new Date().toISOString(),
+      providerNotice: cfg.notice ?? null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Regulatory analysis failed.';
     const match = message.match(/gateway (\d{3})/i);

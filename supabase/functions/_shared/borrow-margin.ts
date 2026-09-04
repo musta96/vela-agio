@@ -50,17 +50,26 @@ async function loadFile(country: string): Promise<Map<string, string[]>> {
   const hit = CACHE.get(file);
   if (hit && Date.now() - hit.at < TTL) return hit.rows;
   const rows = new Map<string, string[]>();
-  try {
-    const r = await fetch(`https://ftp3.interactivebrokers.com/shortstock/${file}.txt`);
-    if (r.ok) {
+  // IBKR publishes the same file on several hosts; the ftp3 mirror refuses
+  // datacentre egress, so try the public web host first and fall back.
+  const hosts = [
+    `https://www.interactivebrokers.com/shortstock/${file}.txt`,
+    `https://ftp3.interactivebrokers.com/shortstock/${file}.txt`,
+  ];
+  for (const url of hosts) {
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VelaResearch/1.0)' } });
+      if (!r.ok) continue;
       const text = await r.text();
       for (const line of text.split('\n')) {
         const cols = line.split('|');
         if (cols.length < 8) continue;
         rows.set(cols[0].trim().toUpperCase(), cols);
       }
-    }
-  } catch { /* offline -> estimate */ }
+      if (rows.size) break;
+    } catch { /* try next host */ }
+  }
+  if (!rows.size) console.error(`borrow-margin: no IBKR rows loaded for ${file}`);
   CACHE.set(file, { rows, at: Date.now() });
   return rows;
 }

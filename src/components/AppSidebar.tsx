@@ -45,7 +45,19 @@ const ITEM_FEATURE_KEY: Record<string, string> = {
   "/enterprise/team": "enterprise.team_management",
   "/enterprise/dashboard": "enterprise.team_management",
   "/enterprise/clients": "enterprise.team_management",
+  // Extended so the lock badge tells the same story as the page itself —
+  // previously these pages were gated on arrival with no warning in the menu.
+  "/technical": "ta.advanced",
+  "/advanced-analysis": "ta.smc",
+  "/short-selling": "ta.volatility",
+  "/options": "options.analytics",
+  "/baskets": "thematic.explorer",
+  "/etf-overlap": "etf.overlap",
+  "/research-analyst": "research.full_memo",
+  "/trading": "paper.trading",
+  "/dividends": "dividends.planner",
 };
+
 
 type SidebarGate = ReturnType<typeof useFeatureGate>;
 const SidebarGateContext = createContext<SidebarGate | null>(null);

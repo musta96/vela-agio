@@ -228,6 +228,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
         </div>
 
         <CollapsibleContent>
+          {stats && stats.excludedSymbols.length > 0 && (
+            <p className="px-5 pt-4 text-xs text-muted-foreground">
+              Risk figures cover {stats.coveredSymbols.length} of {holdings.length} holdings. No 1-year price history yet for: {stats.excludedSymbols.join(", ")}.
+            </p>
+          )}
           <div className="grid lg:grid-cols-3 gap-4 p-5 border-t border-border bg-muted/20">
             {/* Risk vs benchmarks */}
             <Card>

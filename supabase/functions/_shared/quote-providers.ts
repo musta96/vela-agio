@@ -152,11 +152,14 @@ async function fromStooq(symbol: string): Promise<UnifiedQuote | { reason: strin
 async function fromFinnhub(symbol: string): Promise<UnifiedQuote | { reason: string }> {
   const key = envAny("FINNHUB_API_KEY");
   if (!key) return { reason: "no api key configured" };
-  // Finnhub uses unsuffixed US tickers; strip Yahoo suffixes we can't map.
-  if (symbol.includes("=") || symbol.startsWith("^")) {
+  // Finnhub's free tier only covers US listings under the bare ticker.
+  // Stripping a venue suffix (SGLD.MI → SGLD) silently resolves a DIFFERENT
+  // security, so foreign listings must never be sent here.
+  if (symbol.includes("=") || symbol.startsWith("^") || symbol.includes(".")) {
     return { reason: "symbol class not supported by free tier" };
   }
-  const sym = symbol.split(".")[0].toUpperCase();
+  const sym = symbol.toUpperCase();
+
   try {
     const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${key}`);
     if (!r.ok) return { reason: `http ${r.status}` };

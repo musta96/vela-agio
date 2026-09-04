@@ -7,7 +7,15 @@ export function LegalFooter() {
   const { t } = useTranslation();
   return (
     <footer className="border-t border-border bg-card/30 mt-12">
-      <div className="px-6 py-6 space-y-4">
+      <div
+        className="px-4 sm:px-6 py-6 space-y-4"
+        style={{
+          paddingLeft: "max(env(safe-area-inset-left), 1rem)",
+          // Extra room on the right so the floating Copilot button never
+          // clips the last footer link (e.g. "Cookie settings").
+          paddingRight: "max(env(safe-area-inset-right), 1rem)",
+        }}
+      >
         <div className="flex items-start gap-3 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
           <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -20,9 +28,9 @@ export function LegalFooter() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 text-[11px] text-muted-foreground">
+        <div className="flex flex-col gap-3 text-[11px] text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div>{t("footer.copyright", { year: new Date().getFullYear() })}</div>
-          <nav className="flex flex-wrap gap-x-4 gap-y-1">
+          <nav className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 pr-16 md:pr-20">
             <Link to="/privacy" className="hover:text-foreground">{t("footer.privacy")}</Link>
             <Link to="/terms" className="hover:text-foreground">{t("footer.terms")}</Link>
             <Link to="/disclaimer" className="hover:text-foreground">{t("footer.disclaimer")}</Link>

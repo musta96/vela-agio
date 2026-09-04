@@ -41,7 +41,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   failed: "destructive",
 };
 
-export default function OrderHistory() {
+export default function OrderHistory({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,18 +92,28 @@ export default function OrderHistory() {
 
   return (
     <BrokerRequiredOverlay>
-    <div className="p-4 sm:p-8 space-y-6 min-w-0">
-      <SEO title="Order & Trade History - Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
-      <PageHeader
-        icon={History}
-        title="Orders"
-        description="Live broker orders submitted via the confirm-modal flow."
-        actions={
+    <div className={cn("space-y-6 min-w-0", !embedded && "p-4 sm:p-8")}>
+      {!embedded && (
+        <SEO title="Order & Trade History - Vela" description="Review your live broker orders and trade history with symbol and date filters." path="/orders" />
+      )}
+      {embedded ? (
+        <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Refresh
           </Button>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          icon={History}
+          title="Orders"
+          description="Live broker orders submitted via the confirm-modal flow."
+          actions={
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Refresh
+            </Button>
+          }
+        />
+      )}
 
         <div className="bg-card border border-border rounded-2xl divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-4">
           {[

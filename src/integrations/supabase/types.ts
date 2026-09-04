@@ -2667,9 +2667,11 @@ export type Database = {
         Row: {
           auth: string
           created_at: string
+          device_token: string | null
           endpoint: string
           id: string
           p256dh: string
+          platform: string
           updated_at: string
           user_agent: string | null
           user_id: string
@@ -2677,9 +2679,11 @@ export type Database = {
         Insert: {
           auth: string
           created_at?: string
+          device_token?: string | null
           endpoint: string
           id?: string
           p256dh: string
+          platform?: string
           updated_at?: string
           user_agent?: string | null
           user_id: string
@@ -2687,9 +2691,11 @@ export type Database = {
         Update: {
           auth?: string
           created_at?: string
+          device_token?: string | null
           endpoint?: string
           id?: string
           p256dh?: string
+          platform?: string
           updated_at?: string
           user_agent?: string | null
           user_id?: string

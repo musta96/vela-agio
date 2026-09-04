@@ -88,7 +88,7 @@ export default function ShortSelling() {
             </SelectContent>
           </Select>
           <Button asChild variant="outline" size="sm">
-            <Link to="/paper-trading">Open paper ticket <ExternalLink className="h-3 w-3 ml-1" /></Link>
+            <Link to="/trading?tab=paper">Open paper ticket <ExternalLink className="h-3 w-3 ml-1" /></Link>
           </Button>
         </Card>
 

@@ -18,6 +18,9 @@ import { ClientContextBanner } from "@/components/ClientContextBanner";
 import { useMarketClock } from "@/hooks/useMarketClock";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { RouteSEO } from "@/components/RouteSEO";
+import { BiometricLock } from "@/components/BiometricLock";
+import { NativePushRegistrar } from "@/components/NativePushRegistrar";
 import { useEffect, useRef, useState } from "react";
 
 /** Auto-close the mobile sidebar sheet whenever the route changes. */
@@ -130,6 +133,9 @@ export default function AppShell() {
   return (
     <MaintenanceGate>
     <SidebarProvider>
+      {/* Baseline per-route metadata. Pages with their own <SEO/> mount later
+          and therefore win in react-helmet-async. */}
+      <RouteSEO />
       <CloseMobileSidebarOnNav />
       <div className="min-h-screen flex w-full bg-background gradient-hero overflow-x-hidden">
         <AppSidebar />
@@ -171,9 +177,7 @@ export default function AppShell() {
             </div>
           </header>
 
-          <main
-            className="flex-1 min-w-0 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-0"
-          >
+          <main className="flex-1 min-w-0 overflow-x-hidden pb-mobile-nav">
             <TrialStatusBanner />
             <ErrorBoundary label="route" resetKey={location.pathname + location.search}>
               <Outlet />
@@ -182,6 +186,8 @@ export default function AppShell() {
           </main>
         </div>
       </div>
+      <BiometricLock />
+      <NativePushRegistrar />
       <CommandPalette />
       <CopilotFab />
       <LiveOrderConfirmModal />

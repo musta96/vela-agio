@@ -223,6 +223,36 @@ const Portfolio = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSig]);
 
+
+  // === FX rates so totals can be expressed in EUR ===
+  const currencies = useMemo(
+    () => Array.from(new Set(portfolio.map((p) => p.currency).filter((c) => c && c !== "EUR"))).sort(),
+    [portfolio]
+  );
+  const fxKey = currencies.join(",");
+  const [fxRates, setFxRates] = useState<Record<string, number>>({ EUR: 1 });
+  useEffect(() => {
+    if (!currencies.length) { setFxRates({ EUR: 1 }); return; }
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, number> = { EUR: 1 };
+      await Promise.all(currencies.map(async (cur) => {
+        try {
+          const { data } = await supabase.functions.invoke("market-data", {
+            body: { action: "fx", pair: `${cur}EUR` },
+          });
+          const rate = data?.rate?.rate;
+          if (rate) next[cur] = rate;
+        } catch { /* ignore */ }
+      }));
+      if (!cancelled) setFxRates(next);
+    })();
+    return () => { cancelled = true; };
+  }, [fxKey]);
+
+  const toEur = (amount: number, currency: string) =>
+    amount * (fxRates[currency] ?? (currency === "EUR" ? 1 : 1));
+  
   // === Holdings view: instrument class, sorting & filtering (persisted) ===
   const [holdingsSort, setHoldingsSort] = useState<HoldingSortKey>(() => {
     try { return (JSON.parse(localStorage.getItem(HOLDINGS_PREFS_KEY) || "{}").sort as HoldingSortKey) || "type"; } catch { return "type"; }
@@ -267,35 +297,6 @@ const Portfolio = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolio, holdingsSort, holdingsFilter, holdingClasses]);
 
-  // === FX rates so totals can be expressed in EUR ===
-  const currencies = useMemo(
-    () => Array.from(new Set(portfolio.map((p) => p.currency).filter((c) => c && c !== "EUR"))).sort(),
-    [portfolio]
-  );
-  const fxKey = currencies.join(",");
-  const [fxRates, setFxRates] = useState<Record<string, number>>({ EUR: 1 });
-  useEffect(() => {
-    if (!currencies.length) { setFxRates({ EUR: 1 }); return; }
-    let cancelled = false;
-    (async () => {
-      const next: Record<string, number> = { EUR: 1 };
-      await Promise.all(currencies.map(async (cur) => {
-        try {
-          const { data } = await supabase.functions.invoke("market-data", {
-            body: { action: "fx", pair: `${cur}EUR` },
-          });
-          const rate = data?.rate?.rate;
-          if (rate) next[cur] = rate;
-        } catch { /* ignore */ }
-      }));
-      if (!cancelled) setFxRates(next);
-    })();
-    return () => { cancelled = true; };
-  }, [fxKey]);
-
-  const toEur = (amount: number, currency: string) =>
-    amount * (fxRates[currency] ?? (currency === "EUR" ? 1 : 1));
-  
   const [showAddForm, setShowAddForm] = useState(false);
   const [range, setRange] = useState<HistoryRange>("1M");
   const [newStock, setNewStock] = useState({

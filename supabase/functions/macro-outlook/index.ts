@@ -5,6 +5,7 @@
 // don't need to hand-author macro paragraphs.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
+import { gatherOfficialDocs, type OfficialDoc } from "../_shared/official-sources.ts";
 
 const BodySchema = z.object({
   risk_profile: z.string().optional(),
@@ -44,7 +45,22 @@ function fallbackMacro(body: Body): Output {
   };
 }
 
-async function callLovableAI(body: Body, apiKey: string): Promise<Output> {
+/** Pull the current stance straight from the IMF, Fed and ECB before writing. */
+async function officialEvidence(body: Body): Promise<OfficialDoc[]> {
+  const query = [
+    body.thesis ?? "",
+    "monetary policy outlook inflation growth",
+    body.base_currency ?? "EUR",
+  ].join(" ").trim();
+  try {
+    return await gatherOfficialDocs(query, { authorities: ["IMF", "FED", "ECB"], perSource: 3 });
+  } catch (e) {
+    console.warn("[macro-outlook] evidence retrieval failed:", e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
+async function callLovableAI(body: Body, apiKey: string, evidence: OfficialDoc[]): Promise<Output> {
   const alloc = body.allocation
     ? Object.entries(body.allocation).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([s, w]) => `${s} ${(w * 100).toFixed(1)}%`).join(", ")
     : "not provided";
@@ -56,7 +72,12 @@ async function callLovableAI(body: Body, apiKey: string): Promise<Output> {
 - Top allocation: ${alloc}
 - Thesis (optional): ${body.thesis ?? "(none supplied)"}
 
-Write the macro outlook tailored to how this book would behave in each scenario.`;
+Write the macro outlook tailored to how this book would behave in each scenario.
+
+OFFICIAL SOURCE MATERIAL (IMF WEO figures, Federal Reserve and ECB releases retrieved just now — use these facts, do not contradict them):
+${evidence.length
+    ? evidence.map((d) => `- [${d.authority}] ${d.title}${d.published ? ` (${d.published})` : ""}\n  ${d.excerpt.slice(0, 700)}`).join("\n")
+    : "(retrieval returned nothing — stay qualitative and avoid specific figures)"}`;
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -91,12 +112,13 @@ Deno.serve(async (req) => {
   const parsed = BodySchema.safeParse(raw);
   if (!parsed.success) return json({ error: "validation_failed", details: parsed.error.flatten() }, 400);
 
+  const evidence = await officialEvidence(parsed.data);
   const key = Deno.env.get("LOVABLE_API_KEY");
   let out: Output;
   let fallback = false;
   try {
     if (!key) throw new Error("missing_lovable_api_key");
-    out = await callLovableAI(parsed.data, key);
+    out = await callLovableAI(parsed.data, key, evidence);
   } catch (err) {
     console.warn("[macro-outlook] falling back:", err instanceof Error ? err.message : err);
     out = fallbackMacro(parsed.data);
@@ -104,9 +126,18 @@ Deno.serve(async (req) => {
   }
 
   const retrieved = new Date().toISOString();
+  // Real retrieved documents first; the standing landing pages only fill in
+  // when an authority could not be reached.
+  const live = evidence.filter((d) => d.retrieved).map((d) => ({
+    label: `${d.authority} — ${d.title}`, url: d.url, authority: d.authority,
+    published: d.published ?? null, excerpt: d.excerpt.slice(0, 400), retrieved_at: retrieved,
+  }));
+  const sources = live.length ? live : REF_SOURCES.map((s) => ({ ...s, retrieved_at: retrieved }));
   return json({
     macro: out,
-    sources: REF_SOURCES.map((s) => ({ ...s, retrieved_at: retrieved })),
+    sources,
+    evidence,
+    authorities_covered: [...new Set(evidence.filter((d) => d.retrieved).map((d) => d.authority))],
     fallback,
   }, 200);
 });

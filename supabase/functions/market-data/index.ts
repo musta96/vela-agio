@@ -114,6 +114,14 @@ async function fetchYahooWithFallback(symbol: string, range: string, interval: s
 }
 
 
+// London (GBp), Johannesburg (ZAc) and Tel Aviv (ILA) quote in a minor unit.
+// Convert to the major unit so FX conversion and portfolio maths are correct.
+const MINOR_UNIT: Record<string, { major: string; factor: number }> = {
+  GBp: { major: "GBP", factor: 100 }, GBX: { major: "GBP", factor: 100 },
+  ZAc: { major: "ZAR", factor: 100 }, ZAC: { major: "ZAR", factor: 100 },
+  ILA: { major: "ILS", factor: 100 },
+};
+
 function parseQuote(symbol: string, json: any) {
   const r = json?.chart?.result?.[0];
   if (!r) return null;
@@ -121,12 +129,14 @@ function parseQuote(symbol: string, json: any) {
   const price = m?.regularMarketPrice;
   const prev = m?.chartPreviousClose ?? m?.previousClose;
   if (typeof price !== "number" || typeof prev !== "number" || prev === 0) return null;
+  const unit = MINOR_UNIT[m?.currency as string];
+  const f = unit?.factor ?? 1;
   return {
     symbol,
-    price,
-    previousClose: prev,
+    price: price / f,
+    previousClose: prev / f,
     change: ((price - prev) / prev) * 100,
-    currency: m?.currency,
+    currency: unit?.major ?? m?.currency,
     marketState: m?.marketState,
     updatedAt: Date.now(),
     source: "yahoo" as const,
@@ -137,6 +147,7 @@ function parseQuote(symbol: string, json: any) {
 function parseOHLC(json: any) {
   const r = json?.chart?.result?.[0];
   if (!r) return [];
+  const f = MINOR_UNIT[r.meta?.currency as string]?.factor ?? 1;
   const ts: number[] = r.timestamp || [];
   const q = r.indicators?.quote?.[0] || {};
   const opens = q.open || [], highs = q.high || [], lows = q.low || [], closes = q.close || [], vols = q.volume || [];
@@ -144,7 +155,7 @@ function parseOHLC(json: any) {
   for (let i = 0; i < ts.length; i++) {
     const o = opens[i], h = highs[i], l = lows[i], c = closes[i];
     if (typeof o === "number" && typeof h === "number" && typeof l === "number" && typeof c === "number") {
-      bars.push({ t: ts[i] * 1000, open: o, high: h, low: l, close: c, volume: typeof vols[i] === "number" ? vols[i] : undefined });
+      bars.push({ t: ts[i] * 1000, open: o / f, high: h / f, low: l / f, close: c / f, volume: typeof vols[i] === "number" ? vols[i] : undefined });
     }
   }
   return bars;

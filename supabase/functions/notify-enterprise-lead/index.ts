@@ -3,6 +3,7 @@
 // emails if the template is configured. Failure to email is not fatal;
 // the lead row already exists.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { rateLimit, requireUserId } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,34 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // Anyone could previously fire admin notifications or probe lead ids with
+    // just the anon key. The endpoint now accepts two trusted callers only:
+    //   1. a server context presenting the internal notify secret, and
+    //   2. a signed-in user, rate limited per account.
+    // Anonymous lead submissions no longer notify from the browser; the
+    // enterprise_leads insert itself is what admins read.
+    const internalSecret = Deno.env.get("INTERNAL_NOTIFY_SECRET");
+    const presented = req.headers.get("x-internal-secret");
+    const trustedServer = !!internalSecret && presented === internalSecret;
+
+    if (!trustedServer) {
+      const uid = await requireUserId(req);
+      if (!uid) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const limited = await rateLimit(
+        req,
+        { scope: "notify-enterprise-lead", identity: uid, limit: 5, windowSeconds: 600 },
+        corsHeaders,
+      );
+      if (limited) return limited;
+    }
+
+    const ipLimited = await rateLimit(req, { scope: "notify-enterprise-lead:ip", limit: 20, windowSeconds: 600 }, corsHeaders);
+    if (ipLimited) return ipLimited;
+
     const { lead_id } = await req.json();
     if (!lead_id || typeof lead_id !== "string") {
       return new Response(JSON.stringify({ error: "lead_id required" }), {

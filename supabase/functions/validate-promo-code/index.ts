@@ -7,6 +7,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 import { lookupVelaCode, resolveVelaCoupon } from "../_shared/velaCoupon.ts";
+import { rateLimit, requireUserId } from "../_shared/rate-limit.ts";
 
 function money(cents: number, currency: string) {
   return { cents, currency, formatted: new Intl.NumberFormat("en-IE", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100) };
@@ -15,6 +16,18 @@ function money(cents: number, currency: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
+    // Code-guessing guard. Signed-in callers get a per-user bucket, anonymous
+    // trial-signup callers a stricter per-IP one.
+    const uid = await requireUserId(req);
+    const limited = await rateLimit(
+      req,
+      uid
+        ? { scope: "validate-promo-code:user", identity: uid, limit: 30, windowSeconds: 600 }
+        : { scope: "validate-promo-code:ip", limit: 10, windowSeconds: 600 },
+      corsHeaders,
+    );
+    if (limited) return limited;
+
     const { code, priceLookupKey, environment } = await req.json();
     if (!code || typeof code !== "string" || !/^[A-Za-z0-9_-]{2,64}$/.test(code)) {
       return json({ valid: false, error: "Enter a valid promo code" }, 200);

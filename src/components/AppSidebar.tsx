@@ -283,6 +283,7 @@ const PORTFOLIO: NavGroup = {
   icon: Briefcase,
   defaultOpen: true,
   items: [
+    { title: "Investor Overview", url: "/overview", icon: Briefcase, badge: "new" },
     { title: "Portfolio", url: "/portfolio", icon: Briefcase },
     { title: "Portfolio Doctor", url: "/advisor", icon: Lightbulb },
     { title: "Proposed vs Current", url: "/portfolio-compare", icon: GitCompare },

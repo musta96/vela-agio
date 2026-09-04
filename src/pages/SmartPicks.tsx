@@ -32,6 +32,33 @@ const SECTORS = [
   "Communication Services", "Real Estate", "Basic Materials",
 ];
 
+/**
+ * Market choices are derived from the instrument catalog instead of being
+ * hardcoded, so newly covered regions (China, APAC, MENA, LatAm…) appear in
+ * the picker automatically. Labels spell out what each bucket contains.
+ */
+const MARKET_LABELS: Record<Market, string> = {
+  "FTSE MIB": "Italy — FTSE MIB",
+  Europe: "Europe (ex-Italy)",
+  NASDAQ: "US — NASDAQ",
+  "S&P 500": "US — S&P 500",
+  China: "China & Hong Kong",
+  APAC: "Asia-Pacific (Japan, India, Korea, Australia, ASEAN)",
+  MENA: "Middle East & North Africa",
+  LatAm: "Latin America",
+  ETF: "ETFs (global)",
+};
+
+const MARKET_ORDER: Market[] = [
+  "FTSE MIB", "Europe", "NASDAQ", "S&P 500", "China", "APAC", "MENA", "LatAm", "ETF",
+];
+
+const MARKET_OPTIONS = MARKET_ORDER.map((value) => ({
+  value,
+  label: MARKET_LABELS[value],
+  count: STOCK_CATALOG.filter((c) => c.market === value).length,
+})).filter((m) => m.count > 0);
+
 const SmartPicks = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -57,8 +84,13 @@ const SmartPicks = () => {
     setCommentary("");
     setFiltersApplied([]);
     // Build candidate list: a representative subset per market (≤25)
+    // "All" must mean the whole world, not a US/EU shortlist: take a
+    // round-robin sample across every market so Asia, China, MENA and
+    // LatAm names can actually surface in a global run.
     const pool = market === "All"
-      ? STOCK_CATALOG.filter(c => ["AAPL","MSFT","NVDA","GOOGL","META","AMZN","TSLA","AVGO","BRK-B","JPM","V","LLY","XOM","ASML.AS","MC.PA","SAP.DE","NESN.SW","NOVO-B.CO","ENEL.MI","RACE.MI","STM.MI","SPY","QQQ","VWCE.DE","EUNL.DE"].includes(c.symbol))
+      ? MARKET_OPTIONS.flatMap((m) =>
+          STOCK_CATALOG.filter((c) => c.market === m.value).slice(0, 3),
+        )
       : STOCK_CATALOG.filter(c => c.market === market);
     const candidates = pool.slice(0, 25).map(c => ({ symbol: c.symbol, name: c.name, market: c.market }));
     const filters: Record<string, unknown> = {};
@@ -119,12 +151,12 @@ const SmartPicks = () => {
                 <Select value={market} onValueChange={(v) => setMarket(v as any)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All">All</SelectItem>
-                    <SelectItem value="FTSE MIB">FTSE MIB</SelectItem>
-                    <SelectItem value="Europe">Europe</SelectItem>
-                    <SelectItem value="NASDAQ">NASDAQ</SelectItem>
-                    <SelectItem value="S&P 500">S&amp;P 500</SelectItem>
-                    <SelectItem value="ETF">ETF</SelectItem>
+                    <SelectItem value="All">All markets (worldwide)</SelectItem>
+                    {MARKET_OPTIONS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label} ({m.count})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

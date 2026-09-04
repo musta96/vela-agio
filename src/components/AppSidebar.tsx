@@ -150,58 +150,101 @@ type NavGroup = {
   defaultOpen?: boolean;
 };
 
-const RESEARCH: NavGroup = {
-  title: "Research",
-  url: "/ai-scanner",
-  icon: Radar,
+const DASHBOARD_ITEM: Item = { title: "Dashboard", url: "/dashboard", icon: Home };
+
+/**
+ * Navigation is organised around the journey a user actually walks:
+ *   ask (Assistant) → find an idea (Discover) → study it (Analyse) →
+ *   check the market plumbing (Market data) → test a strategy
+ *   (Strategy & testing) → act on the portfolio (My portfolio) →
+ *   run a firm (Enterprise) → learn / administer (Learn, Account).
+ * Groups are capability-based, not team-based, so a task never spans two
+ * sections and nothing needs to be looked for in more than one place.
+ */
+
+const ASSISTANT: NavGroup = {
+  title: "Assistant",
+  url: "/copilot",
+  icon: Bot,
+  defaultOpen: true,
   items: [
+    { title: "AI Assistant", url: "/copilot", icon: Sparkles },
     { title: "AI Radar", url: "/ai-scanner", icon: Radar, badge: "new" },
-    { title: "Idea Lab", url: "/picks", icon: Sparkles },
-    { title: "Signals", url: "/alerts", icon: Bell },
-    { title: "Sentiment", url: "/sentiment", icon: Newspaper },
-    { title: "Portfolio Doctor", url: "/advisor", icon: Lightbulb },
-    { title: "Related Graph", url: "/related", icon: Network },
-    { title: "Deal Flow", url: "/dealflow", icon: Handshake },
-    { title: "Methodology", url: "/methodology", icon: ScrollText },
+    { title: "Idea Lab", url: "/picks", icon: Lightbulb },
   ],
 };
 
-const DASHBOARD_ITEM: Item = { title: "Dashboard", url: "/dashboard", icon: Home };
-
-const MARKETS: NavGroup = {
-  title: "Markets",
+const DISCOVER: NavGroup = {
+  title: "Discover",
   url: "/explore",
-  icon: Globe2,
+  icon: Compass,
   defaultOpen: true,
   items: [
     { title: "Explore", url: "/explore", icon: Compass },
     { title: "Movers", url: "/movers", icon: Activity },
     { title: "Watchlist", url: "/watchlist", icon: Eye },
     { title: "Stock Screener", url: "/screener", icon: Filter },
-    { title: "Macro", url: "/macro", icon: Globe2 },
     { title: "Sectors", url: "/sectors", icon: Flame },
-    { title: "Compare", url: "/compare", icon: Scale },
     { title: "Regional Markets", url: "/regional-markets", icon: Globe2 },
-    { title: "Full Analysis", url: "/full-analysis", icon: Scale },
-    { title: "Valuation", url: "/valuation", icon: Calculator },
+    { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+    { title: "Alerts & Signals", url: "/alerts", icon: Bell },
+    { title: "Deal Flow", url: "/dealflow", icon: Handshake },
   ],
 };
 
-const MARKET_DATA: NavGroup = {
-  title: "Market data",
-  url: "/options",
-  icon: LineChart,
+const ANALYSE: NavGroup = {
+  title: "Analyse a company",
+  url: "/compare",
+  icon: Scale,
   items: [
+    { title: "Full Analysis", url: "/full-analysis", icon: Scale },
+    { title: "Valuation (DCF/DDM)", url: "/valuation", icon: Calculator },
+    { title: "Compare", url: "/compare", icon: GitCompare },
+    { title: "Peers", url: "/peers", icon: Network },
+    { title: "Technical", url: "/technical", icon: LineChart },
+    { title: "Advanced Analysis", url: "/advanced-analysis", icon: Activity },
+    { title: "AI Research Analyst", url: "/research-analyst", icon: FileText },
+    { title: "Filings", url: "/filings", icon: FileText },
+    { title: "Earnings", url: "/earnings", icon: BarChart3 },
+    { title: "Insider", url: "/insider", icon: UserSquare },
+    { title: "Corp. Actions", url: "/corporate-actions", icon: CalendarClock },
+    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },
+    { title: "Related Graph", url: "/related", icon: Network },
+    { title: "Event Study", url: "/event-study", icon: CalendarClock },
+    { title: "Quant Alpha", url: "/quant", icon: Gauge },
+  ],
+};
+
+const MACRO_DATA: NavGroup = {
+  title: "Macro & market data",
+  url: "/macro",
+  icon: Globe2,
+  items: [
+    { title: "Macro", url: "/macro", icon: Globe2 },
+    { title: "Regulatory Analysis", url: "/regulatory-analysis", icon: Scale },
     { title: "Options", url: "/options", icon: LineChart },
     { title: "Futures", url: "/futures", icon: TrendingUp },
     { title: "Intraday", url: "/intraday", icon: Zap },
     { title: "Baskets", url: "/baskets", icon: Boxes },
-    { title: "Corp. Actions", url: "/corporate-actions", icon: CalendarClock },
-    { title: "Filings", url: "/filings", icon: FileText },
-    { title: "Earnings", url: "/earnings", icon: BarChart3 },
-    { title: "Insider", url: "/insider", icon: UserSquare },
     { title: "Credit Spreads", url: "/credit-spreads", icon: Activity },
     { title: "Bond Calculator", url: "/bonds", icon: Calculator },
+    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare },
+    { title: "13F Replicator", url: "/replicate", icon: Users },
+  ],
+};
+
+const STRATEGY: NavGroup = {
+  title: "Strategy & testing",
+  url: "/strategy-lab",
+  icon: FlaskConical,
+  items: [
+    { title: "Strategy Lab", url: "/strategy-lab", icon: FlaskConical, badge: "new" },
+    { title: "Backtesting", url: "/backtest", icon: Repeat },
+    { title: "Simulations", url: "/simulations", icon: Activity },
+    { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
+    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
+    { title: "Paper Trading", url: "/trading", icon: ClipboardList },
+    { title: "Methodology", url: "/methodology", icon: ScrollText },
   ],
 };
 
@@ -220,52 +263,22 @@ const NET_WORTH_SUB: Item[] = [
 ];
 
 const PORTFOLIO: NavGroup = {
-  title: "Portfolio",
+  title: "My portfolio",
   url: "/portfolio",
   icon: Briefcase,
   defaultOpen: true,
   items: [
     { title: "Portfolio", url: "/portfolio", icon: Briefcase },
-    { title: "Goals", url: "/goals", icon: Target },
-    { title: "Budget", url: "/budget", icon: PiggyBank },
-    { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
-    { title: "Household", url: "/household", icon: Users2 },
-    { title: "Tax-loss Harvesting", url: "/tax-harvest", icon: Wallet },
+    { title: "Portfolio Doctor", url: "/advisor", icon: Lightbulb },
     { title: "Proposed vs Current", url: "/portfolio-compare", icon: GitCompare },
-  ],
-};
-
-const ANALYST_TOOLS: NavGroup = {
-  title: "Analyst tools",
-  url: "/backtest",
-  icon: FlaskConical,
-  items: [
-    { title: "Backtesting", url: "/backtest", icon: Repeat },
-    { title: "Strategy Lab", url: "/strategy-lab", icon: FlaskConical, badge: "new" },
     { title: "Optimizer", url: "/optimizer", icon: Gauge },
     { title: "Rebalance", url: "/rebalance", icon: Rows3 },
-    { title: "Simulations", url: "/simulations", icon: Activity },
-    { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
-    { title: "Event Study", url: "/event-study", icon: CalendarClock },
-    { title: "Technical", url: "/technical", icon: LineChart },
-    { title: "Advanced Analysis", url: "/advanced-analysis", icon: Activity },
-    { title: "Regulatory Analysis", url: "/regulatory-analysis", icon: Scale },
-    { title: "Quant Alpha", url: "/quant", icon: Gauge },
-    { title: "Peers", url: "/peers", icon: Network },
-    { title: "AI Research Analyst", url: "/research-analyst", icon: FileText },
-    { title: "Trading", url: "/trading", icon: FlaskConical },
-    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
-    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },
-    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare },
-    { title: "13F Replicator", url: "/replicate", icon: Users },
+    { title: "Tax-loss Harvesting", url: "/tax-harvest", icon: Wallet },
+    { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
+    { title: "Goals", url: "/goals", icon: Target },
+    { title: "Budget", url: "/budget", icon: PiggyBank },
+    { title: "Household", url: "/household", icon: Users2 },
   ],
-};
-
-const ASSISTANT: NavGroup = {
-  title: "Assistant",
-  url: "/copilot",
-  icon: Bot,
-  items: [{ title: "AI Assistant", url: "/copilot", icon: Sparkles }],
 };
 
 const LEARN: NavGroup = {
@@ -294,8 +307,8 @@ const ACCOUNT: NavGroup = {
   url: "/profile",
   icon: User,
   items: [
-    { title: "Profile", url: "/profile", icon: User },
     { title: "Plans & billing", url: "/plans-billing", icon: CreditCard },
+    { title: "Profile", url: "/profile", icon: User },
     { title: "Notes", url: "/notes", icon: StickyNote },
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "AI Usage", url: "/ai-usage", icon: Activity },
@@ -306,7 +319,7 @@ const ACCOUNT: NavGroup = {
   ],
 };
 
-const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, MARKET_DATA, PORTFOLIO, ANALYST_TOOLS, ASSISTANT, LEARN, ENTERPRISE, ACCOUNT];
+const NAV_GROUPS: NavGroup[] = [ASSISTANT, DISCOVER, ANALYSE, MACRO_DATA, STRATEGY, PORTFOLIO, ENTERPRISE, LEARN, ACCOUNT];
 
 const OWNER_ITEM: Item = { title: "Owner Console", url: "/owner", icon: Crown, badge: "you" };
 

@@ -46,6 +46,18 @@ export type PlanDefinition = {
   featureList: string[];
   /** Stripe lookup keys, present only for self-serve paid tiers. */
   lookupKey?: { monthly: string; annual: string };
+  /**
+   * How the headline price is charged. `per_account` = one subscription for the
+   * whole workspace/firm (seats included in the price); `per_seat` = the price
+   * multiplies by the number of seats. Every surface that shows a price must
+   * render it through `formatPlanPrice` / `planPriceCaption` so the model can
+   * never drift between pages.
+   */
+  billingModel: "per_account" | "per_seat";
+  /** Seats bundled into the headline price (per_account plans). */
+  seatsIncluded?: number;
+  /** How extra seats are obtained when the bundle is exhausted. */
+  extraSeats?: "contact_sales" | "self_serve" | "none";
 };
 
 export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
@@ -59,6 +71,9 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     cta: "Start free",
     ctaHref: "/auth",
     explorer: true,
+    billingModel: "per_account",
+    seatsIncluded: 1,
+    extraSeats: "none",
     features: {
       ai_questions_per_day: 5,
       live_data: false,
@@ -87,6 +102,9 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     priceAnnualTotal: 108,
     cta: "Choose Plus",
     ctaHref: "/plans",
+    billingModel: "per_account",
+    seatsIncluded: 1,
+    extraSeats: "none",
     features: {
       ai_questions_per_day: 100,
       live_data: true,
@@ -117,6 +135,9 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     priceAnnualTotal: 288,
     cta: "Choose Pro",
     ctaHref: "/plans",
+    billingModel: "per_account",
+    seatsIncluded: 1,
+    extraSeats: "none",
     highlighted: true,
     features: {
       ai_questions_per_day: null,
@@ -148,6 +169,11 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     priceAnnualTotal: 1500,
     cta: "Choose Enterprise",
     ctaHref: "/upgrade?plan=enterprise",
+    // Enterprise is billed once per firm, not per seat: €149/month includes
+    // 3 advisor seats. Additional seats are handled by sales.
+    billingModel: "per_account",
+    seatsIncluded: 3,
+    extraSeats: "contact_sales",
     contactSales: false,
     features: {
       ai_questions_per_day: null,
@@ -162,7 +188,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
     },
     featureList: [
       "Everything in Pro",
-      "Multi-client advisor seats (3 included, add more)",
+      "3 advisor seats included in the firm subscription (extra seats via sales)",
       "Team management with seat invitations",
       "Client-ready compliance and suitability documents",
       "Bulk export",
@@ -201,4 +227,33 @@ export function normalizePlanSlug(input: string | null | undefined): PlanSlug {
   if (s === "pro") return "pro";
   if (s === "enterprise" || s === "advisor" || s === "elite") return "enterprise";
   return "explorer";
+}
+// ---------------------------------------------------------------------------
+// Price rendering — the only place prices become strings.
+// ---------------------------------------------------------------------------
+
+/** Headline price, e.g. "€149/mo" or "Free". */
+export function formatPlanPrice(
+  plan: PlanDefinition,
+  cycle: "monthly" | "annual" = "monthly",
+): string {
+  const value = cycle === "annual" ? plan.priceAnnualMonthly : plan.priceMonthly;
+  if (value === 0) return "Free";
+  return `\u20ac${value}/mo`;
+}
+
+/**
+ * The line that must always sit next to the headline price so the billing
+ * model is unambiguous ("per seat" vs "per firm, N seats included").
+ */
+export function planPriceCaption(plan: PlanDefinition): string {
+  if (plan.priceMonthly === 0) return "Free forever";
+  if (plan.billingModel === "per_seat") return "per seat / month";
+  const seats = plan.seatsIncluded ?? 1;
+  if (seats > 1) {
+    return plan.extraSeats === "contact_sales"
+      ? `per firm / month · ${seats} seats included, extra seats via sales`
+      : `per firm / month · ${seats} seats included`;
+  }
+  return "per user / month";
 }

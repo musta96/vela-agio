@@ -553,8 +553,6 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
   const visibleItems = query
     ? ordered.filter((it) => matchesSearch(query, it.title))
     : ordered;
-  if (query && visibleItems.length === 0) return null;
-  if (!query && visibleItems.length === 0) return null;
   const effectiveOpen = query ? true : open;
 
   useEffect(() => {
@@ -563,6 +561,9 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
       saveGroupOpen(group.title, true);
     }
   }, [groupActive, group.title]);
+
+  if (visibleItems.length === 0) return null;
+
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);

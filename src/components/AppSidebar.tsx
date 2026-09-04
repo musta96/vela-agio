@@ -113,6 +113,32 @@ function useItemLock(url: string): { locked: boolean; planName: string | null } 
   return { locked: true, planName: target?.name ?? null };
 }
 
+/** When true the user has chosen to hide everything their plan cannot open. */
+const HideLockedContext = createContext<boolean>(false);
+const HIDE_LOCKED_KEY = "vela.sidebar.hideLocked";
+
+/** Resolve locks for a whole group in one pass, so the group header can
+ *  summarise "3 locked" and locked entries can sink to the bottom of the
+ *  list instead of interrupting the tools the user can actually open. */
+function useGroupLocks(items: Item[]): { ordered: Item[]; lockedCount: number } {
+  const gate = useContext(SidebarGateContext);
+  const hideLocked = useContext(HideLockedContext);
+  return useMemo(() => {
+    const isLocked = (it: Item) => {
+      const key = ITEM_FEATURE_KEY[it.url];
+      if (!gate || !key) return false;
+      if (!gate.catalog.some((c) => c.key === key)) return false;
+      return !gate.has(key);
+    };
+    const open = items.filter((it) => !isLocked(it));
+    const locked = items.filter(isLocked);
+    return {
+      ordered: hideLocked ? open : [...open, ...locked],
+      lockedCount: locked.length,
+    };
+  }, [items, gate, hideLocked]);
+}
+
 const STORAGE_PREFIX = "vela.sidebar.group.";
 
 // Small helper to give animated Collapsible content a nice, reduced-motion-aware feel.
@@ -533,10 +559,12 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
     loadGroupOpen(group.title, groupActive || (group.defaultOpen ?? false)),
   );
   const query = useContext(SidebarSearchContext);
+  const { ordered, lockedCount } = useGroupLocks(group.items);
   const visibleItems = query
-    ? group.items.filter((it) => matchesSearch(query, it.title))
-    : group.items;
+    ? ordered.filter((it) => matchesSearch(query, it.title))
+    : ordered;
   if (query && visibleItems.length === 0) return null;
+  if (!query && visibleItems.length === 0) return null;
   const effectiveOpen = query ? true : open;
 
   useEffect(() => {
@@ -572,8 +600,19 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
             aria-controls={`sidebar-group-${group.title.toLowerCase()}`}
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
-            <span>{group.title}</span>
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
+            <span className="truncate">{group.title}</span>
+            <span className="flex items-center gap-1.5">
+              {lockedCount > 0 && !effectiveOpen && (
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-full bg-[hsl(38_92%_55%/0.15)] px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(38_95%_72%)] normal-case tracking-normal"
+                  title={`${lockedCount} feature${lockedCount > 1 ? "s" : ""} need a higher plan`}
+                >
+                  <Lock className="h-2.5 w-2.5" />
+                  {lockedCount}
+                </span>
+              )}
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
+            </span>
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -599,9 +638,10 @@ function PortfolioGroup() {
     loadGroupOpen(PORTFOLIO.title, groupActive || (PORTFOLIO.defaultOpen ?? false)),
   );
   const query = useContext(SidebarSearchContext);
+  const { ordered } = useGroupLocks(PORTFOLIO.items);
   const visibleItems = query
-    ? PORTFOLIO.items.filter((it) => matchesSearch(query, it.title))
-    : PORTFOLIO.items;
+    ? ordered.filter((it) => matchesSearch(query, it.title))
+    : ordered;
   const netWorthMatches = query
     ? matchesSearch(query, "Net Worth") ||
       NET_WORTH_SUB.some((it) => matchesSearch(query, it.title))

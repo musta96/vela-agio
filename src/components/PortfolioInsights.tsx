@@ -153,11 +153,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const riskContribution = useMemo(() => {
     if (!stats?.symRets) return [];
     const portVol = stats.vol || 1;
-    return holdings.map((h, i) => ({
-      symbol: h.symbol,
-      contribution: (weights[i] * realizedVol(stats.symRets[i])) / portVol,
+    return stats.coveredSymbols.map((symbol, i) => ({
+      symbol,
+      contribution: (stats.coveredWeights[i] * realizedVol(stats.symRets[i])) / portVol,
     })).sort((a, b) => b.contribution - a.contribution);
-  }, [stats, holdings, weights]);
+  }, [stats]);
 
   // Correlation matrix
   const corrMatrix = useMemo(() => {

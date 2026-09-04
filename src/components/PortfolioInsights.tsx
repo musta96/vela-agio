@@ -344,12 +344,6 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
                 </CardContent>
               </Card>
             )}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </CollapsibleContent>
       </Collapsible>

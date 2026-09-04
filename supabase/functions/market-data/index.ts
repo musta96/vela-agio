@@ -83,17 +83,36 @@ async function fetchYahoo(symbol: string, range: string, interval: string) {
   return await res.json();
 }
 
-// Italian tickers on Yahoo need a `.MI` suffix. Try once with it.
-async function fetchYahooWithFallback(symbol: string, range: string, interval: string) {
-  try {
-    return await fetchYahoo(symbol, range, interval);
-  } catch (e: any) {
-    if (e?.code === 404 && !symbol.includes(".") && !symbol.includes("=") && !symbol.includes("^")) {
-      return await fetchYahoo(`${symbol}.MI`, range, interval);
-    }
-    throw e;
+// Some listings answer under a sibling venue suffix (Xetra vs Frankfurt vs
+// Stuttgart), and bare Italian tickers need `.MI`. Try the alternatives once.
+function symbolVariants(symbol: string): string[] {
+  const out = [symbol];
+  const m = symbol.match(/^([^.]+)\.([A-Za-z]+)$/);
+  if (m) {
+    const alts: Record<string, string[]> = {
+      DE: ["F", "SG", "MU"], F: ["DE", "SG"], SG: ["DE", "F"], MU: ["DE", "F"],
+    };
+    for (const a of alts[m[2].toUpperCase()] ?? []) out.push(`${m[1]}.${a}`);
+  } else if (!symbol.includes("=") && !symbol.includes("^")) {
+    out.push(`${symbol}.MI`);
   }
+  return out;
 }
+
+async function fetchYahooWithFallback(symbol: string, range: string, interval: string) {
+  let lastErr: any = new Error(`Yahoo 404 for ${symbol}`);
+  lastErr.code = 404;
+  for (const s of symbolVariants(symbol)) {
+    try {
+      return await fetchYahoo(s, range, interval);
+    } catch (e: any) {
+      lastErr = e;
+      if (e?.code !== 404) throw e;
+    }
+  }
+  throw lastErr;
+}
+
 
 function parseQuote(symbol: string, json: any) {
   const r = json?.chart?.result?.[0];

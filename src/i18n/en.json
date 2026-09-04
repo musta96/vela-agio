@@ -183,7 +183,9 @@
     "effective": "effective",
     "orYearly": "or {{price}} annually",
     "aiCredits": "{{formattedCount}} AI credits / month",
-    "aiCreditsUnlimited": "Unlimited AI credits / month"
+    "aiCreditsUnlimited": "Unlimited AI credits / month",
+    "featuresUnlocked_one": "{{count}} feature unlocked",
+    "featuresUnlocked_other": "{{count}} features unlocked"
   },
   "suitability": {
     "currentProfile": "Current profile",

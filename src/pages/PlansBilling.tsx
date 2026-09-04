@@ -17,6 +17,7 @@ import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/hooks/useAuth";
 import { useAiCredits } from "@/hooks/useAiCredits";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { resolvePlanState } from "@/lib/planState";
 import { useFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
@@ -120,6 +121,7 @@ function StatusBadge({ status, cancel }: { status: string; cancel?: boolean | nu
 }
 
 export default function PlansBilling() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const pricingEnabled = useFlag("pricing", false);
@@ -138,12 +140,6 @@ export default function PlansBilling() {
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "yearly">("monthly");
   // Downgrade-to-free flow (cancels the paid sub at period end).
   const [downgradeOpen, setDowngradeOpen] = useState(false);
-  // Beta access only *adds* features on top of a paid sub — never replaces it.
-  // `isBetaOnly` = user is only on the platform because of beta role (no paid sub).
-  // `betaBonus`  = user has a real paid sub AND beta_tester role.
-  const isBetaOnly = ent.source === "beta";
-  const betaBonus = ent.source === "subscription" && ent.betaActive;
-  const isBeta = isBetaOnly; // back-compat with existing render branches below
 
   const scrollToPlans = () => {
     const el = document.getElementById("available-plans");
@@ -231,17 +227,18 @@ export default function PlansBilling() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sub?.stripe_customer_id]);
 
-  const matchedPlan: PlanRow | null = (() => {
-    if (!sub?.price_id || plans.length === 0) return null;
-    return (
-      plans.find(p => p.stripe_monthly_price_id === sub.price_id || p.stripe_yearly_price_id === sub.price_id)
-      ?? null
-    );
-  })();
-
-  const isActive = sub && ["active", "trialing", "past_due"].includes(sub.status);
-  const onFree = !sub || sub.status === "canceled";
-  const hasStripeCustomer = !!sub?.stripe_customer_id;
+  // ---------------------------------------------------------------------
+  // Single source of truth. Plan identity, tier, features and AI access come
+  // from my_entitlements(); the Stripe row only supplies billing metadata.
+  // Nothing below may re-derive plan state from `sub` directly.
+  // ---------------------------------------------------------------------
+  const planState = resolvePlanState({ ent, sub, plans, loading: loading || ent.loading });
+  const { isBetaOnly, betaBonus, planRow: matchedPlan, billing } = planState;
+  const isBeta = isBetaOnly;
+  const isPaid = planState.isPaid;
+  const onFree = planState.isFree;
+  const hasStripeCustomer = billing.hasStripeCustomer;
+  const canManageBilling = billing.hasSubscription;
   const lastInvoice: Invoice | null = stripeData?.invoices?.[0] ?? null;
 
   const handlePortal = async () => {
@@ -306,31 +303,35 @@ export default function PlansBilling() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 Current plan
-                {!loading && (
+                {!planState.loading && (
                   isBeta
                     ? <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">Beta tester · Free</Badge>
-                    : isActive
-                      ? <StatusBadge status={sub!.status} cancel={sub?.cancel_at_period_end} />
-                      : <Badge variant="outline">Free</Badge>
+                    : billing.hasSubscription
+                      ? <StatusBadge status={billing.status!} cancel={billing.cancelAtPeriodEnd} />
+                      : isPaid
+                        ? <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Active</Badge>
+                        : <Badge variant="outline">Free</Badge>
                 )}
-                {!loading && betaBonus && (
+                {!planState.loading && betaBonus && (
                   <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                     + Beta access
                   </Badge>
                 )}
               </CardTitle>
               <CardDescription>
-                {loading
+                {planState.loading
                   ? "Loading subscription details…"
                   : isBeta
                     ? "You're a beta tester. Every feature is unlocked free of charge while the beta program is active."
-                    : isActive
-                      ? "Active subscription. Manage payment method, invoices and cancellation in the billing portal."
-                      : "You're on the free Explorer tier. Upgrade any time to unlock more AI credits and real-time data."}
+                    : billing.hasSubscription
+                      ? `You're on ${planState.planName}. Manage payment method, invoices and cancellation in the billing portal.`
+                      : isPaid
+                        ? `You're on ${planState.planName}. This plan was granted directly, so there's no Stripe billing attached to it.`
+                        : "You're on the free Explorer tier. Upgrade any time to get more AI credits and real-time data."}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              {isActive && (
+              {canManageBilling && (
                 <Button onClick={handlePortal} variant="outline" size="sm" className="gap-2" disabled={portalLoading}>
                   {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
                   Manage billing
@@ -338,14 +339,14 @@ export default function PlansBilling() {
               )}
                 {!isBeta && (
                 <Button size="sm" className="gap-2" onClick={scrollToPlans}>
-                  <ArrowUpRight className="h-4 w-4" /> {isActive ? "Change plan" : "Upgrade"}
+                  <ArrowUpRight className="h-4 w-4" /> {isPaid ? "Change plan" : "Upgrade"}
                 </Button>
               )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {planState.loading ? (
             <div className="grid sm:grid-cols-3 gap-4">
               <Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" />
             </div>
@@ -355,11 +356,11 @@ export default function PlansBilling() {
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Plan</div>
                 <div className="mt-1 font-semibold text-base">
-                  {isBeta ? "Beta tester" : matchedPlan?.name ?? (isActive ? "Subscribed plan" : "Explorer (Free)")}
+                  {isBeta ? "Beta tester" : planState.planName}
                 </div>
                 {matchedPlan && (
                   <div className="text-xs text-muted-foreground mt-1">
-                    {sub?.price_id === matchedPlan.stripe_yearly_price_id
+                    {billing.cycle === "yearly"
                       ? formatPrice(matchedPlan.yearly_price_cents, "yr")
                       : formatPrice(matchedPlan.monthly_price_cents, "mo")}
                   </div>
@@ -368,16 +369,16 @@ export default function PlansBilling() {
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1"><Calendar className="h-3 w-3" /> Renews</div>
                 <div className="mt-1 font-semibold text-base">
-                  {isActive ? formatDate(sub?.current_period_end ?? null) : "—"}
+                  {formatDate(billing.renewsAt)}
                 </div>
-                {sub?.cancel_at_period_end && (
+                {billing.cancelAtPeriodEnd && (
                   <div className="text-xs text-amber-600 mt-1">Will not renew</div>
                 )}
               </div>
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Billing since</div>
                 <div className="mt-1 font-semibold text-base">
-                  {isActive ? formatDate(sub?.current_period_start ?? null) : "—"}
+                  {formatDate(billing.startedAt)}
                 </div>
               </div>
             </div>
@@ -393,7 +394,7 @@ export default function PlansBilling() {
                 <Badge variant="outline" className="text-[10px]">Tier: {ent.tier}</Badge>
                 {ent.planName && <Badge variant="outline" className="text-[10px]">Plan: {ent.planName}</Badge>}
                 <Badge variant="outline" className="text-[10px]">
-                  {ent.featureKeys.size} feature{ent.featureKeys.size === 1 ? "" : "s"} unlocked
+                  {t("plans.featuresUnlocked", { count: planState.featureCount })}
                 </Badge>
               </div>
               <p className="text-muted-foreground">
@@ -401,9 +402,11 @@ export default function PlansBilling() {
                   ? "Your paid subscription is fully active. The beta tester role adds extra unlocked features on top — your billing and plan are unchanged."
                   : isBetaOnly
                     ? "Your access is granted entirely by the beta tester role. If the beta program ends or your role is revoked, you'll return to the free tier."
-                    : isActive
+                    : billing.hasSubscription
                       ? "Access is granted by your active paid subscription."
-                      : "You're on the free tier. Upgrade to unlock more features."}
+                      : isPaid
+                        ? "Access is granted by a plan assigned to your account (no Stripe subscription)."
+                        : "You're on the free tier. Upgrade to get more features."}
               </p>
             </div>
             </>
@@ -548,7 +551,14 @@ export default function PlansBilling() {
                 <RefreshCw className="h-3.5 w-3.5" /> Retry
               </Button>
             </div>
-          ) : credits.unlimited ? (
+          ) : !planState.aiEnabled ? (
+            <div className="text-sm text-muted-foreground">
+              AI is not included in {planState.planName}.{" "}
+              {pricingEnabled && (
+                <a href="#available-plans" className="underline text-foreground">Upgrade to add AI features →</a>
+              )}
+            </div>
+          ) : credits.unlimited || planState.aiQuestionsPerMonth == null ? (
             <div className="text-sm">
               <div className="font-semibold">Unlimited AI access</div>
               <p className="text-muted-foreground text-xs mt-1">
@@ -584,11 +594,11 @@ export default function PlansBilling() {
               )}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              AI is not currently available on your plan.{" "}
-              {pricingEnabled && (
-                <a href="#available-plans" className="underline text-foreground">Upgrade to enable AI features →</a>
-              )}
+            <div className="text-sm">
+              <div className="font-semibold">AI included in {planState.planName}</div>
+              <p className="text-muted-foreground text-xs mt-1">
+                {planState.aiQuestionsPerMonth?.toLocaleString()} AI research questions per month. Usage for this month is still loading or has not started yet.
+              </p>
             </div>
           )}
 
@@ -626,14 +636,15 @@ export default function PlansBilling() {
               {plans.map((p) => {
                 const isFreePlan = (p.monthly_price_cents ?? 0) === 0 && (p.yearly_price_cents ?? 0) === 0;
                 const isCurrent = matchedPlan?.id === p.id || (onFree && isFreePlan);
+                // Downgrade is only offered when there is a real Stripe sub to cancel.
                 return (
                   <PlanCard
                     key={p.id}
                     p={p}
                     isCurrent={isCurrent}
                     frequency={billingFrequency}
-                    canDowngrade={isFreePlan && !!isActive && !sub?.cancel_at_period_end}
-                    downgradeScheduled={isFreePlan && !!sub?.cancel_at_period_end}
+                    canDowngrade={isFreePlan && billing.hasSubscription && !billing.cancelAtPeriodEnd}
+                    downgradeScheduled={isFreePlan && billing.cancelAtPeriodEnd}
                     onDowngrade={() => setDowngradeOpen(true)}
                     onChoose={(priceId) => {
                       logPaymentEvent("open_checkout", {
@@ -661,7 +672,7 @@ export default function PlansBilling() {
       <CancelSubscriptionDialog
         open={downgradeOpen}
         onOpenChange={setDowngradeOpen}
-        currentPeriodEnd={sub?.current_period_end ?? null}
+        currentPeriodEnd={billing.renewsAt}
         onCanceled={loadSubscription}
         onKept={loadSubscription}
       />

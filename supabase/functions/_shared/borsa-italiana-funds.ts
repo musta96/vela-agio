@@ -78,7 +78,7 @@ export function parseBIFundDetail(html: string, isin: string, code: string): BIF
     })();
   const chgRaw = firstMatch(html, /-percPrice"[\s\S]{0,120}?<strong>([+-]?[\d.,]+)%<\/strong>/);
   const nameRaw = firstMatch(html, /Dettaglio Fondo[^<]*<\/title>/) ?? firstMatch(html, /<h1[^>]*>([^<]+)<\/h1>/);
-  const dateRaw = firstMatch(html, /Data:<\/th>\s*<td[^>]*>([\d\/]+)</) ?? firstMatch(html, /\bData\s*(?:<[^>]+>)*\s*([\d]{2}\/[\d]{2}\/[\d]{2,4})/);
+  const dateRaw = firstMatch(html, /Data:\s*<strong>([\d]{2}\/[\d]{2}\/[\d]{2,4})<\/strong>/) ?? firstMatch(html, /-size-xs">([\d]{2}\/[\d]{2}\/[\d]{2,4})<\/span>/);
 
   let asOf: number | undefined;
   if (dateRaw) {

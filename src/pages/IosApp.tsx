@@ -6,6 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+import { PLAN_FEATURES, formatPlanPrice, planPriceCaption } from "@/lib/planFeatures";
+
+const ENTERPRISE_PLAN = PLAN_FEATURES.enterprise;
   Smartphone, ShieldCheck, LineChart, Bell, FileText, Users, ArrowRight, Check,
 } from "lucide-react";
 
@@ -132,11 +135,11 @@ export default function IosApp() {
           </p>
           <Card className="p-6">
             <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mb-4">
-              <span className="text-3xl font-semibold">€149</span>
-              <span className="text-sm text-muted-foreground">per seat / month</span>
+              <span className="text-3xl font-semibold">{formatPlanPrice(ENTERPRISE_PLAN).replace("/mo", "")}</span>
+              <span className="text-sm text-muted-foreground">{planPriceCaption(ENTERPRISE_PLAN)}</span>
             </div>
             <ul className="space-y-2 text-sm mb-6">
-              {["Team management and seat invitations", "White-label client portal with signed document links", "Firm-branded investment memos and reports", "Priority support"].map((x) => (
+              {ENTERPRISE_PLAN.featureList.slice(1).map((x) => (
                 <li key={x} className="flex gap-2"><Check className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />{x}</li>
               ))}
             </ul>

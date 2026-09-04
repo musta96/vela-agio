@@ -60,34 +60,75 @@ function envAny(...names: string[]): string | undefined {
 
 // ---------- providers --------------------------------------------------------
 
-async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: string }> {
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-  try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!r.ok) return { reason: `http ${r.status}` };
-    const j = await r.json();
-    const q = j?.quoteResponse?.result?.[0];
-    if (!q || typeof q.regularMarketPrice !== "number") return { reason: "no quote" };
-    return {
-      symbol: q.symbol ?? symbol,
-      name: q.longName ?? q.shortName,
-      price: q.regularMarketPrice,
-      currency: q.currency,
-      exchange: q.fullExchangeName,
-      changePct: q.regularMarketChangePercent,
-      dayHigh: q.regularMarketDayHigh,
-      dayLow: q.regularMarketDayLow,
-      marketCap: q.marketCap,
-      peTrailing: q.trailingPE,
-      dividendYield: q.trailingAnnualDividendYield,
-      previousClose: q.regularMarketPreviousClose,
-      updatedAt: Date.now(),
-      source: "yahoo",
+const YF_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+/**
+ * Alternative listings to try when the requested Yahoo symbol is unknown.
+ * German listings in particular exist under several venue suffixes
+ * (`.DE` Xetra, `.F` Frankfurt, `.SG` Stuttgart, `.MU` Munich).
+ */
+function yahooVariants(symbol: string): string[] {
+  const s = symbol.trim();
+  const out = [s];
+  const m = s.match(/^([^.]+)\.([A-Z]+)$/i);
+  if (m) {
+    const [, base, suf] = m;
+    const group: Record<string, string[]> = {
+      DE: ["F", "SG", "MU", "BE"],
+      F: ["DE", "SG", "MU"],
+      SG: ["DE", "F"],
+      MU: ["DE", "F"],
+      MI: ["MI"],
     };
-  } catch (e) {
-    return { reason: (e as Error)?.message ?? "fetch failed" };
+    for (const alt of group[suf.toUpperCase()] ?? []) {
+      const cand = `${base}.${alt}`;
+      if (!out.includes(cand)) out.push(cand);
+    }
   }
+  return out;
 }
+
+/**
+ * Yahoo quotes via the v8 chart endpoint. The older v7 `quote` API now
+ * requires a crumb/cookie session and answers 401, which silently pushed
+ * every non-US listing down the chain onto US-only providers.
+ */
+async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: string }> {
+  let lastReason = "no quote";
+  for (const sym of yahooVariants(symbol)) {
+    for (const host of ["query1", "query2"]) {
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+      try {
+        const r = await fetch(url, { headers: { "User-Agent": YF_UA, Accept: "application/json" } });
+        if (!r.ok) { lastReason = `http ${r.status}`; continue; }
+        const j = await r.json();
+        const m = j?.chart?.result?.[0]?.meta;
+        const price = m?.regularMarketPrice;
+        if (typeof price !== "number" || !(price > 0)) { lastReason = "no quote"; continue; }
+        const prev = typeof m.chartPreviousClose === "number" ? m.chartPreviousClose : m.previousClose;
+        return {
+          symbol,
+          name: m.longName ?? m.shortName,
+          price,
+          currency: m.currency,
+          exchange: m.fullExchangeName ?? m.exchangeName,
+          changePct: typeof prev === "number" && prev > 0 ? ((price - prev) / prev) * 100 : undefined,
+          dayHigh: m.regularMarketDayHigh,
+          dayLow: m.regularMarketDayLow,
+          previousClose: typeof prev === "number" ? prev : undefined,
+          updatedAt: Date.now(),
+          asOf: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now(),
+          source: "yahoo",
+        };
+      } catch (e) {
+        lastReason = (e as Error)?.message ?? "fetch failed";
+      }
+    }
+  }
+  return { reason: lastReason };
+}
+
 
 async function fromStooq(symbol: string): Promise<UnifiedQuote | { reason: string }> {
   try {

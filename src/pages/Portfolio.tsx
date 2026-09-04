@@ -1391,6 +1391,9 @@ const Portfolio = () => {
                         <Badge variant={isPositive ? "default" : "destructive"} className={isPositive ? "bg-success/10 text-success" : ""}>
                           {isPositive ? "+" : ""}{gainPercent.toFixed(2)}%
                         </Badge>
+                        <Badge variant="secondary" className="text-xs" aria-label={`Instrument type: ${holdingClasses.get(stock.symbol) ?? "Stocks"}`}>
+                          {holdingClasses.get(stock.symbol) ?? "Stocks"}
+                        </Badge>
                         {isForeign && <Badge variant="outline" className="text-xs">{stock.currency}</Badge>}
                       </div>
 

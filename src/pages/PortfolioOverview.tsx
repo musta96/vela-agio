@@ -12,6 +12,7 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { RequireBiometric } from "@/components/RequireBiometric";
 
 function money(v: number, currency = "EUR") {
   return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(
@@ -38,7 +39,7 @@ interface Row {
   source: "Holding" | "Paper";
 }
 
-export default function PortfolioOverview() {
+function PortfolioOverviewInner() {
   const o = useInvestorOverview();
   const { activeId, primary } = usePortfolios();
   const { user } = useAuth();
@@ -302,5 +303,13 @@ export default function PortfolioOverview() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PortfolioOverview() {
+  return (
+    <RequireBiometric reason="Unlock your investor dashboard">
+      <PortfolioOverviewInner />
+    </RequireBiometric>
   );
 }

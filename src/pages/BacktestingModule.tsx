@@ -353,6 +353,8 @@ const BacktestingModule = () => {
                     <SelectItem value="1Y">1 Year</SelectItem>
                     <SelectItem value="3Y">3 Years</SelectItem>
                     <SelectItem value="5Y">5 Years</SelectItem>
+                    <SelectItem value="10Y">10 Years (adjusted)</SelectItem>
+                    <SelectItem value="15Y">15 Years (adjusted)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

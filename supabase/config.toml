@@ -67,3 +67,15 @@ verify_jwt = false
 
 [functions.full-analysis]
 verify_jwt = true
+
+[functions.insider-global]
+verify_jwt = false
+
+[functions.borrow-margin]
+verify_jwt = false
+
+[functions.data-providers]
+verify_jwt = false
+
+[functions.valuation]
+verify_jwt = false

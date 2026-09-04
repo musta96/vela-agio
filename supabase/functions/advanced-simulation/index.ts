@@ -3,6 +3,8 @@ import {
   loadHistory, alignReturns, simulate, searchBlends, mergeSleeves,
   type AssetSpec, type SimConfig, type BlendCandidate, type BlendConstraints,
 } from '../_shared/advanced-sim.ts';
+import { getBorrowQuote } from '../_shared/borrow-margin.ts';
+import { marketForSymbol } from '../_shared/market-registry.ts';
 
 // POST { mode: "single" | "blend", assets?, sleeves?, config?, constraints? }
 Deno.serve(async (req) => {
@@ -41,6 +43,22 @@ Deno.serve(async (req) => {
     }
     if (assets.length > 30) return json({ error: 'Maximum 30 distinct instruments per run.' }, 400);
 
+    // Real borrow costs for every short leg (IBKR public borrow file).
+    const borrowUsed: Array<Record<string, unknown>> = [];
+    await Promise.all(assets.filter((a) => a.weight < 0).map(async (a) => {
+      const mkt = marketForSymbol(a.symbol);
+      const q = await getBorrowQuote(a.symbol, mkt.country === '??' ? 'US' : mkt.country);
+      if (q.feeRate != null) a.borrowRate = q.feeRate;
+      borrowUsed.push({
+        symbol: a.symbol,
+        borrowRate: a.borrowRate ?? null,
+        source: q.feeRate != null ? q.source : 'assumption',
+        hardToBorrow: q.hardToBorrow,
+        shortableShares: q.available,
+        asOf: q.asOf,
+      });
+    }));
+
     const { series, missing } = await loadHistory(assets, config.history ?? '10y');
     if (!Object.keys(series).length) {
       return json({ error: 'No usable price history could be fetched for these symbols.', missing }, 502);
@@ -58,7 +76,7 @@ Deno.serve(async (req) => {
       const best = rows.find((r) => r.feasible) ?? rows[0] ?? null;
       return json({
         mode, sleeves: sleeves.map((s) => s.name), constraints: cons,
-        commonDays: dates.length, missing,
+        commonDays: dates.length, missing, borrow: borrowUsed,
         best, blends: rows.slice(0, 25),
         bestMerged: best ? mergeSleeves(sleeves, best.mix) : null,
         disclaimer: 'Simulation output is information, not investment advice.',
@@ -67,7 +85,7 @@ Deno.serve(async (req) => {
 
     const result = simulate(assets, returns, config);
     return json({
-      mode, config, commonDays: dates.length, missing,
+      mode, config, commonDays: dates.length, missing, borrow: borrowUsed,
       result,
       disclaimer: 'Simulation output is information, not investment advice.',
     });

@@ -1,3 +1,4 @@
+import { getDailyHistory } from "../_shared/price-provider.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -34,9 +35,29 @@ const RANGE_MAP: Record<string, { range: string; interval: string }> = {
   "1Y": { range: "1y", interval: "1d" },
   "3Y": { range: "3y", interval: "1wk" },
   "5Y": { range: "5y", interval: "1wk" },
+  "10Y": { range: "10y", interval: "1d" },
+  "15Y": { range: "max", interval: "1d" },
 };
 
+// Long-horizon ranges go through the provider chain (Financial Datasets when a
+// key is configured, otherwise adjusted Yahoo / Stooq) so 10-15y backtests use
+// corporate-action adjusted prices.
+const LONG_RANGES: Record<string, number> = { "10Y": 10, "15Y": 15 };
+
 async function fetchBars(symbol: string, range: string): Promise<Bar[]> {
+  if (LONG_RANGES[range]) {
+    const hist = await getDailyHistory(symbol, LONG_RANGES[range], null);
+    if (hist.bars.length >= 60) {
+      return hist.bars.map((b) => ({
+        t: b.t,
+        open: b.open ?? b.adjClose,
+        high: b.high ?? b.adjClose,
+        low: b.low ?? b.adjClose,
+        close: b.adjClose,
+        volume: b.volume ?? 0,
+      }));
+    }
+  }
   const { range: r, interval } = RANGE_MAP[range] || RANGE_MAP["1Y"];
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${r}`;
   try {

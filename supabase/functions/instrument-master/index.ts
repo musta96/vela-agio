@@ -1,5 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { CURATED, resolveInstrument, type InstrumentRecord } from '../_shared/instrument-master.ts';
+import { CURATED, resolveInstrument, comparabilityMatrix, type InstrumentRecord } from '../_shared/instrument-master.ts';
 
 // POST { symbols: string[] } | GET ?symbols=A,B  -> instrument master records
 Deno.serve(async (req) => {
@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
     const gaps = records.filter((r) => r.source === 'live').map((r) => r.symbol);
     return json({
       records,
+      comparison: comparabilityMatrix(records),
       unverified: gaps,
       note: gaps.length
         ? 'Records marked source:"live" lack verified ISIN/domicile/TER/KID data — state this uncertainty instead of guessing.'

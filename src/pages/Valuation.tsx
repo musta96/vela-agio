@@ -97,9 +97,8 @@ export default function Valuation() {
         let text = "";
         if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
           const pdfjs = await import("pdfjs-dist");
-          // @ts-expect-error worker url resolved by bundler
           const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
-          pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+          pdfjs.GlobalWorkerOptions.workerSrc = (worker as { default: string }).default;
           const doc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
           const parts: string[] = [];
           for (let p = 1; p <= Math.min(doc.numPages, 40); p++) {

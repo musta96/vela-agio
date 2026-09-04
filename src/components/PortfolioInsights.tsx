@@ -34,6 +34,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const [bars, setBars] = useState<Record<string, OHLCBar[]>>({});
   const [mibBars, setMibBars] = useState<OHLCBar[]>([]);
   const [spxBars, setSpxBars] = useState<OHLCBar[]>([]);
+  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

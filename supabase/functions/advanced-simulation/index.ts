@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       const best = rows.find((r) => r.feasible) ?? rows[0] ?? null;
       return json({
         mode, sleeves: sleeves.map((s) => s.name), constraints: cons,
-        commonDays: dates.length, missing,
+        commonDays: dates.length, missing, borrow: borrowUsed,
         best, blends: rows.slice(0, 25),
         bestMerged: best ? mergeSleeves(sleeves, best.mix) : null,
         disclaimer: 'Simulation output is information, not investment advice.',
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     const result = simulate(assets, returns, config);
     return json({
-      mode, config, commonDays: dates.length, missing,
+      mode, config, commonDays: dates.length, missing, borrow: borrowUsed,
       result,
       disclaimer: 'Simulation output is information, not investment advice.',
     });

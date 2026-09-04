@@ -8,6 +8,12 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Height of the floating mobile tab bar (pill + its own bottom offset).
+       Every scrollable surface reserves this much room at the bottom so page
+       content never runs underneath the nav on small screens. */
+    --mobile-nav-height: 68px;
+    --mobile-nav-inset: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+
     /* Vela.ai - LIGHT theme
        Cream/sand base preserved from mockup v2, paired with glass surfaces
        that mirror the landing page language.                           */
@@ -287,6 +293,20 @@ All colors MUST be HSL.
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+}
+
+@layer utilities {
+  /* Reserve room for the floating mobile tab bar. Applied to the app shell's
+     scroll container and to any page that scrolls in its own element. */
+  .pb-mobile-nav {
+    padding-bottom: var(--mobile-nav-inset);
+  }
+
+  @screen md {
+    .pb-mobile-nav {
+      padding-bottom: 0;
     }
   }
 }

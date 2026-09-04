@@ -23,6 +23,8 @@ import { toast } from "sonner";
 import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 import { CancelSubscriptionDialog } from "@/components/billing/CancelSubscriptionDialog";
+import { ReaderModeNotice } from "@/components/PurchaseUi";
+import { hidePurchaseUi } from "@/lib/native";
 
 type SubRow = {
   id: string;
@@ -121,6 +123,8 @@ function StatusBadge({ status, cancel }: { status: string; cancel?: boolean | nu
 }
 
 export default function PlansBilling() {
+  // App Store reader model: no prices or purchase CTAs inside the native shell.
+  const readerMode = hidePurchaseUi();
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -337,7 +341,7 @@ export default function PlansBilling() {
                   Manage billing
                 </Button>
               )}
-                {!isBeta && (
+                {!isBeta && !readerMode && (
                 <Button size="sm" className="gap-2" onClick={scrollToPlans}>
                   <ArrowUpRight className="h-4 w-4" /> {isPaid ? "Change plan" : "Upgrade"}
                 </Button>
@@ -613,7 +617,9 @@ export default function PlansBilling() {
       </Card>
 
       {/* Upgrade options (shows tiers when pricing flag enabled) ------------ */}
-      {pricingEnabled && plans.length > 0 && (
+      {readerMode && <ReaderModeNotice />}
+
+      {pricingEnabled && plans.length > 0 && !readerMode && (
         <Card id="available-plans">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">

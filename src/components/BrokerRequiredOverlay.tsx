@@ -49,7 +49,7 @@ export function BrokerRequiredOverlay({ children }: { children: React.ReactNode 
               <Link to="/settings?tab=connections"><Building2 className="h-4 w-4" /> Connect a broker</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/paper-trading">Try paper trading</Link>
+              <Link to="/trading?tab=paper">Try paper trading</Link>
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground mt-3">

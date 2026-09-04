@@ -24,6 +24,7 @@ import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { SubscriptionActionsCard } from "@/components/billing/SubscriptionActionsCard";
 import { Switch } from "@/components/ui/switch";
+import { BiometricLockCard } from "@/components/settings/BiometricLockCard";
 import { Label } from "@/components/ui/label";
 import { computeSuitability } from "@/lib/suitability";
 
@@ -347,6 +348,7 @@ function PrivacyTab() {
   return (
     <div className="space-y-6">
       <AdvisoryAccessCard />
+      <BiometricLockCard />
       <TenantLicensingCard />
       <Card className="p-6 rounded-2xl">
         <h2 className="text-base font-semibold mb-2">Privacy & data controls</h2>

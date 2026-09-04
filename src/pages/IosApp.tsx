@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PurchaseUi } from "@/components/PurchaseUi";
 import { Badge } from "@/components/ui/badge";
 import {
   Smartphone, ShieldCheck, LineChart, Bell, FileText, Users, ArrowRight, Check,
@@ -71,9 +72,11 @@ export default function IosApp() {
             <Button asChild size="lg" className="gap-2">
               <Link to="/auth?tab=signup">Create your free account <ArrowRight className="h-4 w-4" /></Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/pricing">See plans &amp; pricing</Link>
-            </Button>
+            <PurchaseUi>
+              <Button asChild size="lg" variant="outline">
+                <Link to="/pricing">See plans &amp; pricing</Link>
+              </Button>
+            </PurchaseUi>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
             Sign up on the web today — your login works in the iOS app the moment it lands on the App Store.
@@ -135,8 +138,10 @@ export default function IosApp() {
           </p>
           <Card className="p-6">
             <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mb-4">
-              <span className="text-3xl font-semibold">{formatPlanPrice(ENTERPRISE_PLAN).replace("/mo", "")}</span>
-              <span className="text-sm text-muted-foreground">{planPriceCaption(ENTERPRISE_PLAN)}</span>
+              <PurchaseUi>
+                <span className="text-3xl font-semibold">{formatPlanPrice(ENTERPRISE_PLAN).replace("/mo", "")}</span>
+                <span className="text-sm text-muted-foreground">{planPriceCaption(ENTERPRISE_PLAN)}</span>
+              </PurchaseUi>
             </div>
             <ul className="space-y-2 text-sm mb-6">
               {ENTERPRISE_PLAN.featureList.slice(1).map((x) => (
@@ -144,7 +149,9 @@ export default function IosApp() {
               ))}
             </ul>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button asChild><Link to="/pricing">Buy Enterprise seats</Link></Button>
+              <PurchaseUi>
+                <Button asChild><Link to="/pricing">Buy Enterprise seats</Link></Button>
+              </PurchaseUi>
               <Button asChild variant="outline"><Link to="/contact-sales">Talk to sales</Link></Button>
             </div>
           </Card>

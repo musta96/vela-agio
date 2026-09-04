@@ -5,11 +5,53 @@ import { App as CapApp } from "@capacitor/app";
 import { Keyboard } from "@capacitor/keyboard";
 
 /**
+ * Native shell detection.
+ *
+ * The same React bundle powers the website and the Capacitor iOS/Android
+ * shells. Anything that differs between the two (App Store rules, native
+ * plugins, safe areas) must branch on these helpers rather than on the
+ * user agent, which lies inside a WKWebView.
+ */
+export function isNativeApp(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+export function nativePlatform(): "ios" | "android" | "web" {
+  try {
+    const p = Capacitor.getPlatform();
+    return p === "ios" || p === "android" ? p : "web";
+  } catch {
+    return "web";
+  }
+}
+
+export const isIosNative = () => nativePlatform() === "ios";
+
+/**
+ * App Store Guideline 3.1.1 ("reader" model): the iOS build must not show
+ * any purchase call-to-action, price that leads to a purchase, or link out
+ * to our web checkout. Subscriptions are bought on the website; the app only
+ * unlocks content the account already has.
+ *
+ * Everything purchase-related is wrapped in `hidePurchaseUi()` so there is a
+ * single switch to flip if we ever ship StoreKit IAP instead.
+ */
+export function hidePurchaseUi(): boolean {
+  return isNativeApp();
+}
+
+/**
  * Initialize native iOS / Android behaviors. Safe no-op on web.
  * Call once at app startup.
  */
 export async function initNative() {
   if (!Capacitor.isNativePlatform()) return;
+
+  document.documentElement.classList.add("native-app", `native-${Capacitor.getPlatform()}`);
 
   try {
     // Status bar: dark content area, light text, app theme background

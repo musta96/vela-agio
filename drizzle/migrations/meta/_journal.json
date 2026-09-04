@@ -71,6 +71,13 @@
       "when": 1788512354165,
       "tag": "0009_fix_enterprise_firm_policy_recursion",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788513960509,
+      "tag": "0010_push_subscriptions_native_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,36 @@
+import { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
+import { hidePurchaseUi } from "@/lib/native";
+import { Card, CardContent } from "@/components/ui/card";
+import { Info } from "lucide-react";
+
+/**
+ * App Store Guideline 3.1.1 (reader model): inside the native shell we never
+ * show prices, upgrade buttons or links to web checkout. On the web everything
+ * renders normally.
+ */
+export function PurchaseUi({ children, fallback = null }: { children: ReactNode; fallback?: ReactNode }) {
+  if (hidePurchaseUi()) return <>{fallback}</>;
+  return <>{children}</>;
+}
+
+/** Neutral, non-purchase explanation shown in place of plan/pricing surfaces. */
+export function ReaderModeNotice() {
+  return (
+    <Card className="border-dashed">
+      <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Your plan and its features are managed outside of the app. Sign in with the same account
+          to use everything your plan already includes.
+        </span>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Route guard: purchase-only routes are unreachable in the native build. */
+export function NoPurchaseRoute({ children, to = "/dashboard" }: { children: ReactNode; to?: string }) {
+  if (hidePurchaseUi()) return <Navigate to={to} replace />;
+  return <>{children}</>;
+}

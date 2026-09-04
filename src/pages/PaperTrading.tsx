@@ -38,7 +38,7 @@ function fmt(n: number, ccy = "EUR") {
   return `${sym}${n.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
 }
 
-export default function PaperTrading() {
+export default function PaperTrading({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const { portfolios, create: createPortfolio, refresh: refreshPortfolios } = usePortfolios();
   const { toast } = useToast();
@@ -267,9 +267,11 @@ export default function PaperTrading() {
 
   return (
     <>
-      <SEO title="Paper Trading Lab - Vela" description="Practice strategies with virtual cash. No real money is ever moved." path="/paper-trading" />
-      <div className="px-6 sm:px-8 py-6 max-w-7xl mx-auto">
-        <PageHeader icon={FlaskConical} title="Paper Trading Lab" description="Practice with virtual cash against live market data. Trades are simulated - no real orders are placed and no real money is ever moved." />
+      {!embedded && (
+        <SEO title="Paper Trading Lab - Vela" description="Practice strategies with virtual cash. No real money is ever moved." path="/paper-trading" />
+      )}
+      <div className={embedded ? "min-w-0" : "px-6 sm:px-8 py-6 max-w-7xl mx-auto"}>
+        {!embedded && <PageHeader icon={FlaskConical} title="Paper Trading Lab" description="Practice with virtual cash against live market data. Trades are simulated - no real orders are placed and no real money is ever moved." />}
 
         <Alert className="mb-4 border-amber-500/40 bg-amber-500/5">
           <AlertTriangle className="h-4 w-4 text-amber-600" />

@@ -55,8 +55,8 @@ import Optimizer from "./pages/Optimizer";
 import Rebalance from "./pages/Rebalance";
 import Peers from "./pages/Peers";
 import QuantAlpha from "./pages/QuantAlpha";
-import Blotter from "./pages/Blotter";
-import OrderHistory from "./pages/OrderHistory";
+import Trading from "./pages/Trading";
+import { NoPurchaseRoute } from "@/components/PurchaseUi";
 import Profile from "./pages/Profile";
 import Security from "./pages/Security";
 import AIScanner from "./pages/AIScanner";
@@ -85,7 +85,6 @@ import Explore from "./pages/Explore";
 import Support from "./pages/Support";
 import Movers from "./pages/Movers";
 import AIStocksToWatch from "./pages/AIStocksToWatch";
-import PaperTrading from "./pages/PaperTrading";
 import ShortSelling from "./pages/ShortSelling";
 import RegionalMarkets from "./pages/RegionalMarkets";
 import PortfolioCompare from "./pages/PortfolioCompare";
@@ -175,7 +174,8 @@ const App = () => (
             <Route path="/explore/themes" element={<ExploreThemes />} />
             <Route path="/explore/themes/company/:symbol" element={<ThematicCompanyDrilldown />} />
             <Route path="/movers" element={<Movers />} />
-            <Route path="/paper-trading" element={<PaperTrading />} />
+            <Route path="/trading" element={<Trading />} />
+            <Route path="/paper-trading" element={<Navigate to="/trading?tab=paper" replace />} />
             <Route path="/short-selling" element={<ShortSelling />} />
             <Route path="/options" element={<OptionsChain />} />
             <Route path="/options/:symbol" element={<OptionsChain />} />
@@ -227,8 +227,8 @@ const App = () => (
             <Route path="/rebalance" element={<RouteFeatureGate feature="portfolio.rebalance"><Rebalance /></RouteFeatureGate>} />
             <Route path="/peers" element={<Peers />} />
             <Route path="/quant" element={<RouteFeatureGate feature="quant.alpha"><QuantAlpha /></RouteFeatureGate>} />
-            <Route path="/blotter" element={<Blotter />} />
-            <Route path="/orders" element={<OrderHistory />} />
+            <Route path="/blotter" element={<Navigate to="/trading?tab=journal" replace />} />
+            <Route path="/orders" element={<Navigate to="/trading?tab=orders" replace />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/security" element={<Security />} />
             <Route path="/ai-scanner" element={<AIScanner />} />
@@ -236,9 +236,9 @@ const App = () => (
             <Route path="/notes" element={<Notes />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/suitability" element={<Suitability />} />
-            <Route path="/pricing" element={<PricingRedirect />} />
+            <Route path="/pricing" element={<NoPurchaseRoute><PricingRedirect /></NoPurchaseRoute>} />
             <Route path="/plans-billing" element={<PlansBilling />} />
-            <Route path="/upgrade" element={<Upgrade />} />
+            <Route path="/upgrade" element={<NoPurchaseRoute to="/plans-billing"><Upgrade /></NoPurchaseRoute>} />
             <Route path="/legal/:kind" element={<LegalDoc />} />
             <Route path="/checkout/return" element={<CheckoutReturn />} />
             <Route path="/dealflow" element={<RouteFeatureGate feature="dealflow.access"><DealFlow /></RouteFeatureGate>} />

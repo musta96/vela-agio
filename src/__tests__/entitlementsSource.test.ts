@@ -89,10 +89,11 @@ describe("PLAN_FEATURES is a well-formed source of truth", () => {
     }
   });
 
-  it("only self-serve paid tiers carry a Stripe lookupKey", () => {
+  it("only paid tiers carry a Stripe lookupKey", () => {
+    // Explorer is free. Enterprise is now self-serve per firm (EUR 149/mo,
+    // 3 seats included), so it does carry lookup keys.
     expect(PLAN_FEATURES.explorer.lookupKey).toBeUndefined();
-    expect(PLAN_FEATURES.enterprise.lookupKey).toBeUndefined();
-    for (const slug of ["plus", "pro"] as const) {
+    for (const slug of ["plus", "pro", "enterprise"] as const) {
       const lk = PLAN_FEATURES[slug].lookupKey;
       expect(lk?.monthly, `${slug} monthly lookupKey`).toBeTruthy();
       expect(lk?.annual, `${slug} annual lookupKey`).toBeTruthy();

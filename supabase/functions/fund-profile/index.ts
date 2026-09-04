@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v2:${symbol}`;
+    const cacheKey = `fund:v3:${symbol}`;
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
@@ -175,7 +175,10 @@ Deno.serve(async (req) => {
         twoHundredDayAverage: num(sd.twoHundredDayAverage),
         volume: num(sd.volume),
         averageVolume: num(sd.averageVolume),
-        totalAssets: num(sd.totalAssets) ?? num(ks.totalAssets),
+        // Yahoo reports fund net assets either directly or, for many UCITS
+        // ETFs, only inside the fee module in millions of the fund currency.
+        totalAssets: num(sd.totalAssets) ?? num(ks.totalAssets)
+          ?? (num(feesData.totalNetAssets) != null ? (num(feesData.totalNetAssets) as number) * 1e6 : null),
         ter: [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
           .find((v) => v != null && v > 0) ?? num(feesData.annualReportExpenseRatio) ?? null,
         yield: num(sd.yield) ?? num(ks.yield),

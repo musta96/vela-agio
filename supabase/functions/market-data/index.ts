@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
+import { toQuotableSymbol } from "../_shared/isin-resolver.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

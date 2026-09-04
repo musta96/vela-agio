@@ -40,6 +40,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   useEffect(() => {
     let cancelled = false;
     if (holdings.length === 0) return;
+    setLoading(true);
     (async () => {
       const results: Record<string, OHLCBar[]> = {};
       await Promise.all(
@@ -61,6 +62,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
         setBars(results);
         setMibBars(mib.data?.bars || []);
         setSpxBars(spx.data?.bars || []);
+        setLoading(false);
       }
     })();
     return () => { cancelled = true; };

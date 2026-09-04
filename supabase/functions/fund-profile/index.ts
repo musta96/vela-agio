@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v1:${symbol}`;
+    const cacheKey = `fund:v2:${symbol}`;
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
@@ -176,7 +176,8 @@ Deno.serve(async (req) => {
         volume: num(sd.volume),
         averageVolume: num(sd.averageVolume),
         totalAssets: num(sd.totalAssets) ?? num(ks.totalAssets),
-        ter: num(feesData.annualReportExpenseRatio) ?? num(ks.annualReportExpenseRatio),
+        ter: [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
+          .find((v) => v != null && v > 0) ?? num(feesData.annualReportExpenseRatio) ?? null,
         yield: num(sd.yield) ?? num(ks.yield),
         trailingAnnualDividendYield: num(sd.trailingAnnualDividendYield),
         ytdReturn: num(sd.ytdReturn) ?? num(ks.ytdReturn) ?? num(trailing.ytd),

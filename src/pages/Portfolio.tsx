@@ -1295,6 +1295,66 @@ const Portfolio = () => {
         )}
 
         {/* Portfolio Holdings */}
+        {portfolio.length > 0 && (
+          <div
+            className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-4 sm:flex-row sm:items-end sm:justify-between"
+            role="region"
+            aria-label="Holdings ordering and filtering"
+          >
+            <div className="w-full sm:w-64">
+              <Label htmlFor="holdings-sort" className="text-xs uppercase tracking-wide text-muted-foreground">
+                Order by
+              </Label>
+              <Select value={holdingsSort} onValueChange={(v) => setHoldingsSort(v as HoldingSortKey)}>
+                <SelectTrigger id="holdings-sort" className="mt-1.5" aria-label="Order holdings by">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(SORT_LABELS) as HoldingSortKey[]).map((k) => (
+                    <SelectItem key={k} value={k}>{SORT_LABELS[k]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground" id="holdings-filter-label">
+                Show
+              </span>
+              <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-labelledby="holdings-filter-label">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={holdingsFilter === "all" ? "default" : "outline"}
+                  className="h-8 text-xs"
+                  aria-pressed={holdingsFilter === "all"}
+                  onClick={() => setHoldingsFilter("all")}
+                >
+                  All ({portfolio.length})
+                </Button>
+                {presentClasses.map((c) => {
+                  const count = portfolio.filter((p) => holdingClasses.get(p.symbol) === c).length;
+                  const activeF = holdingsFilter === c;
+                  return (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant={activeF ? "default" : "outline"}
+                      className="h-8 text-xs"
+                      aria-pressed={activeF}
+                      onClick={() => setHoldingsFilter(activeF ? "all" : c)}
+                    >
+                      {c} ({count})
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground sm:text-right" aria-live="polite">
+              {visibleHoldings.length} of {portfolio.length} shown
+            </p>
+          </div>
+        )}
         <div className="space-y-4">
           {portfolio.length === 0 ? (
             <Card className="p-12 text-center card-gradient border-border">

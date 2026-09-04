@@ -342,7 +342,7 @@ export function computeBreadcrumb(pathname: string): { group: string | null; pag
     return { group: null, page: DASHBOARD_ITEM.title };
   }
   for (const g of NAV_GROUPS) {
-    if (g.title === "Portfolio" && pathname.startsWith("/net-worth")) {
+    if (g.title === PORTFOLIO.title && pathname.startsWith("/net-worth")) {
       const nwHit = NET_WORTH_SUB.find((it) => isRouteActive(pathname, it.url));
       if (nwHit) return { group: g.title, page: `Net Worth · ${nwHit.title}` };
     }
@@ -841,7 +841,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
         {NAV_GROUPS.map((group) =>
-          group.title === "Portfolio" ? (
+          group.title === PORTFOLIO.title ? (
             <PortfolioGroup key={group.title} />
           ) : (
             <CollapsibleNavGroup key={group.title} group={group} />

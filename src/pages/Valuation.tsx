@@ -130,7 +130,17 @@ export default function Valuation() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setPriv(data);
-      toast.success("Appraisal generated");
+      // When the figures came from the uploaded statements, show them in the
+      // grid so the user can see and correct what was read.
+      if (data?.financialsSource === "documents" && Array.isArray(data.financials) && data.financials.length) {
+        setRows(data.financials.map((r: Record<string, unknown>) => ({
+          ...emptyRow(Number(r.year) || thisYear),
+          ...Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v == null ? "" : String(v)])),
+        })));
+        toast.success("Appraisal generated from the uploaded documents");
+      } else {
+        toast.success("Appraisal generated");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Appraisal failed");
     } finally { setPrivLoading(false); }

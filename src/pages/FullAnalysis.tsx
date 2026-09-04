@@ -20,6 +20,9 @@ const emptyRow = (): PositionRow => ({ symbol: "", weight: "", fx: "", ter: "", 
 
 const pct = (v: number | undefined | null, digits = 1) =>
   v == null || !Number.isFinite(v) ? "—" : `${(v * 100).toFixed(digits)}%`;
+/** Engine metrics are already expressed in percent. */
+const pctRaw = (v: number | undefined | null, digits = 1) =>
+  v == null || !Number.isFinite(v) ? "—" : `${v.toFixed(digits)}%`;
 const money = (v: number | undefined | null) =>
   v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
@@ -312,13 +315,13 @@ export default function FullAnalysis() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {([
                           ["Median value", money(sim.medianValue)],
-                          ["Median CAGR", pct(sim.cagrMedian)],
-                          ["Prob. of loss", pct(sim.probLoss)],
-                          ["CVaR 95%", pct(sim.cvar95)],
-                          ["VaR 95%", pct(sim.var95)],
-                          ["Max DD (p95)", pct(sim.maxDrawdownP95)],
-                          ["Liquidation prob.", pct(sim.probLiquidation)],
-                          ["Total costs", pct(sim.totalCostsPct)],
+                          ["Median CAGR", pctRaw(sim.cagrMedian)],
+                          ["Prob. of loss", pctRaw(sim.probLoss)],
+                          ["CVaR 95%", pctRaw(sim.cvar95)],
+                          ["VaR 95%", pctRaw(sim.var95)],
+                          ["Max DD (p95)", pctRaw(sim.maxDrawdownP95)],
+                          ["Liquidation prob.", pctRaw(sim.probLiquidation)],
+                          ["Total costs", pctRaw(sim.totalCostsPct)],
                         ] as const).map(([label, value]) => (
                           <div key={label} className="rounded-xl border border-border p-3">
                             <p className="text-xs text-muted-foreground">{label}</p>

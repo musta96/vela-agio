@@ -107,8 +107,11 @@ export async function checkCredits(
   const cost = creditsFor(feature);
   if (byo) return { allowed: true, used: 0, cap: -1, feature, cost, byo: true };
   if (!userId) return { allowed: false, used: 0, cap, feature, cost, reason: "Sign in required" };
-  if (cap <= 0) return { allowed: false, used: 0, cap, feature, cost, reason: "Your plan does not include AI credits." };
+  // cap < 0 means unlimited (e.g. Enterprise / BYO-backed plans).
+  if (cap < 0) return { allowed: true, used: 0, cap, feature, cost };
+  if (cap === 0) return { allowed: false, used: 0, cap, feature, cost, reason: "Your plan does not include AI credits." };
   const { data } = await admin().rpc("ai_credits_this_month", { _user_id: userId });
+
   const used = Number(data ?? 0);
   if (used + cost > cap) {
     return {

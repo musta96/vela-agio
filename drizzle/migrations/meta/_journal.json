@@ -78,6 +78,13 @@
       "when": 1788513960509,
       "tag": "0010_push_subscriptions_native_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788538633139,
+      "tag": "0011_allow_fundamentals_cache_kinds",
+      "breakpoints": true
     }
   ]
 }

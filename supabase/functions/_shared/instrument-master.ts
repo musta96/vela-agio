@@ -76,8 +76,68 @@ export async function liveLookup(symbol: string): Promise<InstrumentRecord | nul
   return null;
 }
 
+/** Enrich an ETF record with TER, legal type, domicile and UCITS status from
+ *  Yahoo quoteSummary (fundProfile) — used when the symbol is not curated. */
+export async function enrichFund(symbol: string, rec: InstrumentRecord): Promise<InstrumentRecord> {
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36';
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=fundProfile,defaultKeyStatistics,summaryProfile,price`;
+  for (const u of [url, `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`]) {
+    try {
+      const r = await fetch(u, { headers: { 'User-Agent': UA } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const res = j?.quoteSummary?.result?.[0];
+      if (!res) continue;
+      const fp = res.fundProfile ?? {};
+      const ks = res.defaultKeyStatistics ?? {};
+      const ter = fp?.feesExpensesInvestment?.annualReportExpenseRatio?.raw
+        ?? ks?.annualReportExpenseRatio?.raw ?? undefined;
+      const legalType = String(fp?.legalType ?? ks?.legalType ?? '');
+      const name = rec.name ?? '';
+      const ucits = /ucits/i.test(name) || /ucits/i.test(legalType);
+      const suffix = symbol.includes('.') ? symbol.slice(symbol.lastIndexOf('.')) : '';
+      const domicile = ucits ? (/(\.MI|\.DE|\.AS|\.L|\.PA|\.SW)$/i.test(suffix) ? 'IE/LU (verify on KID)' : rec.domicile) : rec.domicile;
+      return {
+        ...rec,
+        ter: ter ?? rec.ter,
+        ucits: ucits || rec.ucits,
+        kidAvailable: ucits ? true : rec.kidAvailable,
+        domicile,
+        distribution: /acc/i.test(name) ? 'accumulating' : /dist/i.test(name) ? 'distributing' : rec.distribution,
+        fundSizeUsdM: ks?.totalAssets?.raw ? Math.round(ks.totalAssets.raw / 1e6) : rec.fundSizeUsdM,
+        notes: [rec.notes, ter ? 'TER read from the fund profile feed — confirm against the KID/factsheet.' : 'TER not published on the free feed — confirm on the KID/factsheet.'].filter(Boolean).join(' '),
+      };
+    } catch { /* next */ }
+  }
+  return rec;
+}
+
+/** UCITS vs US-domiciled comparison view for a set of records. */
+export function comparabilityMatrix(records: InstrumentRecord[]) {
+  return records.map((r) => ({
+    symbol: r.symbol,
+    name: r.name,
+    isin: r.isin ?? null,
+    domicile: r.domicile ?? null,
+    ucits: r.ucits ?? null,
+    kidAvailable: r.kidAvailable ?? null,
+    ter: r.ter ?? null,
+    replication: r.replication ?? null,
+    distribution: r.distribution ?? null,
+    tradingCurrency: r.tradingCurrency ?? null,
+    usSitusEstateTax: r.usSitusEstateTax ?? null,
+    euRetailTradable: r.kidAvailable === true,
+    verified: r.source === 'curated',
+  }));
+}
+
 export async function resolveInstrument(symbol: string): Promise<InstrumentRecord | null> {
   const key = symbol.toUpperCase();
   if (CURATED[key]) return CURATED[key];
-  return await liveLookup(key);
+  const live = await liveLookup(key);
+  if (!live) return null;
+  if (live.assetClass === 'etf' || live.assetClass === 'bond' || live.assetClass === 'commodity') {
+    return await enrichFund(key, live);
+  }
+  return live;
 }

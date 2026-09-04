@@ -18,7 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const PROXY = "https://api.allorigins.win/raw?url=";
 
 type YearRow = {
   year: string;
@@ -62,12 +61,14 @@ function fmtB(v: number | null | undefined) {
 }
 
 async function fetchSnapshot(symbol: string): Promise<{ snap: Snapshot; history: YearRow[]; raw: any } | null> {
-  const modules = "incomeStatementHistory,balanceSheetHistory,financialData,summaryDetail,defaultKeyStatistics,price,assetProfile";
-  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
-  const r = await fetch(`${PROXY}${encodeURIComponent(url)}`);
-  if (!r.ok) return null;
-  const j = await r.json();
-  const data = j?.quoteSummary?.result?.[0];
+  const modules = ["incomeStatementHistory", "balanceSheetHistory", "financialData", "summaryDetail", "defaultKeyStatistics", "price", "assetProfile"];
+  // Server-side + cached: the old public CORS proxy was slow and often failed
+  // outright for non-US listings.
+  const { data: res, error } = await supabase.functions.invoke("company-fundamentals", {
+    body: { action: "quoteSummary", symbol, modules },
+  });
+  if (error) throw new Error(error.message);
+  const data = res?.result;
   if (!data) return null;
   const inc = data.incomeStatementHistory?.incomeStatementHistory ?? [];
   const bs = data.balanceSheetHistory?.balanceSheetStatements ?? [];

@@ -752,6 +752,20 @@ export function AppSidebar() {
   const [searchInput, setSearchInput] = useState("");
   const searchQuery = searchInput.trim().toLowerCase();
   const newBadges = useMemo(() => getActiveNewBadgeUrls(), []);
+  const [hideLocked, setHideLocked] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem(HIDE_LOCKED_KEY) === "1"; } catch { return false; }
+  });
+  const toggleHideLocked = useCallback(() => {
+    setHideLocked((v) => {
+      const next = !v;
+      try { window.localStorage.setItem(HIDE_LOCKED_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+  const planLabel = gate.entitlements.planName
+    ?? (gate.entitlements.tier === "free" ? "Explorer" : gate.entitlements.tier);
+  const isFreeTier = gate.entitlements.tier === "free";
   const showDashboard = !searchQuery || matchesSearch(searchQuery, DASHBOARD_ITEM.title);
 
   // Roving keyboard navigation across every visible sidebar link + group trigger.
@@ -802,6 +816,7 @@ export function AppSidebar() {
     <SidebarGateContext.Provider value={gate}>
     <NewBadgeContext.Provider value={newBadges}>
     <SidebarSearchContext.Provider value={searchQuery}>
+    <HideLockedContext.Provider value={hideLocked}>
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? (
@@ -873,6 +888,34 @@ export function AppSidebar() {
             </div>
           </div>
         )}
+        {!collapsed && (
+          <div className="px-3 pb-2 flex items-center justify-between gap-2">
+            <NavLink
+              to="/plans-billing"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset transition-colors",
+                isFreeTier
+                  ? "bg-sidebar-accent/40 text-sidebar-foreground/70 ring-sidebar-border hover:text-sidebar-foreground"
+                  : "bg-[hsl(var(--sidebar-ring)/0.15)] text-[hsl(var(--sidebar-ring))] ring-[hsl(var(--sidebar-ring)/0.4)] hover:bg-[hsl(var(--sidebar-ring)/0.22)]",
+              )}
+              title={isFreeTier ? "You are on the free plan — see what upgrading unlocks" : `Your plan: ${planLabel}`}
+            >
+              <Crown className="h-3 w-3" />
+              <span className="truncate max-w-[92px]">{planLabel}</span>
+              {isFreeTier && <span className="normal-case font-medium opacity-80">· Upgrade</span>}
+            </NavLink>
+            <button
+              type="button"
+              onClick={toggleHideLocked}
+              aria-pressed={hideLocked}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              title={hideLocked ? "Show features included in higher plans" : "Hide features your plan cannot open"}
+            >
+              <Lock className="h-3 w-3" />
+              {hideLocked ? "Show locked" : "Hide locked"}
+            </button>
+          </div>
+        )}
         {showDashboard && (
           <SidebarGroup>
             <SidebarMenu>
@@ -890,6 +933,7 @@ export function AppSidebar() {
         <OwnerGroup collapsed={collapsed} isOwner={isOwner} />
       </SidebarContent>
     </Sidebar>
+    </HideLockedContext.Provider>
     </SidebarSearchContext.Provider>
     </NewBadgeContext.Provider>
     </SidebarGateContext.Provider>

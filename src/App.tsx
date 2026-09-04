@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import StockDetails from "./pages/StockDetails";
+import FundDetails from "./pages/FundDetails";
 import SentimentDashboard from "./pages/SentimentDashboard";
 import BacktestingModule from "./pages/BacktestingModule";
 import StrategyLab from "./pages/StrategyLab";
@@ -187,6 +188,7 @@ const App = () => (
             <Route path="/compare" element={<Compare />} />
             <Route path="/sectors" element={<SectorHeatmap />} />
             <Route path="/stock/:symbol" element={<StockDetails />} />
+            <Route path="/fund/:symbol" element={<FundDetails />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/risk" element={<RouteFeatureGate feature="portfolio.stress_test"><Risk /></RouteFeatureGate>} />

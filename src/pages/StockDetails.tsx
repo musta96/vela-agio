@@ -164,6 +164,15 @@ const StockDetails = () => {
 
   const sym = decodeURIComponent(symbol || "").toUpperCase();
   const { data: companyData, loading: companyLoading } = useCompanyProfile(sym);
+
+  // ETFs and mutual funds have their own data sheet (holdings, TER, category
+  // performance) — send them there instead of showing empty company accounts.
+  useEffect(() => {
+    const qt = (companyData as { quoteType?: string } | null)?.quoteType;
+    if (qt && ["ETF", "MUTUALFUND", "FUND", "MONEYMARKET"].includes(qt)) {
+      navigate(`/fund/${encodeURIComponent(sym)}`, { replace: true });
+    }
+  }, [companyData, navigate, sym]);
   const entry = findCatalogEntry(sym);
   const name = entry?.name || sym;
   const market = entry?.market;

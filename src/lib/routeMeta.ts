@@ -187,6 +187,13 @@ const PATTERNS: Array<{ test: RegExp; meta: (m: RegExpMatchArray) => RouteMeta }
     }),
   },
   {
+    test: /^\/fund\/([^/]+)$/,
+    meta: (m) => ({
+      title: `${decodeURIComponent(m[1]).toUpperCase()} — ETF & fund data sheet${SUFFIX}`,
+      description: `Key facts, holdings, sector and asset breakdown, performance vs category, risk statistics, costs and distributions for ${decodeURIComponent(m[1]).toUpperCase()}.`,
+    }),
+  },
+  {
     test: /^\/options\/([^/]+)$/,
     meta: (m) => ({
       title: `${decodeURIComponent(m[1]).toUpperCase()} options chain${SUFFIX}`,

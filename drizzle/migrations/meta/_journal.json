@@ -85,6 +85,13 @@
       "when": 1788538633139,
       "tag": "0011_allow_fundamentals_cache_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788539002397,
+      "tag": "0012_allow_fund_profile_cache_kind_and_fund_feature",
+      "breakpoints": true
     }
   ]
 }

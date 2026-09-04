@@ -85,12 +85,12 @@ Deno.serve(async (req) => {
 
     // Shared 30-minute cache: fundamentals move at most once a quarter, so
     // repeat page views should never wait on Yahoo again.
-    const cacheKey = `profile:${symbol.toUpperCase()}`;
+    const cacheKey = `profile:v2:${symbol.toUpperCase()}`;
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
     const modules = [
-      "assetProfile", "price", "summaryDetail", "defaultKeyStatistics", "financialData",
+      "quoteType", "assetProfile", "price", "summaryDetail", "defaultKeyStatistics", "financialData",
       "calendarEvents", "earnings", "earningsHistory", "earningsTrend",
       "incomeStatementHistory", "incomeStatementHistoryQuarterly",
       "balanceSheetHistory", "balanceSheetHistoryQuarterly",
@@ -129,6 +129,8 @@ Deno.serve(async (req) => {
 
     const payload = {
       symbol,
+      // Lets the UI route ETFs / mutual funds to the dedicated fund data sheet.
+      quoteType: String(q.quoteType?.quoteType ?? p.quoteType ?? "").toUpperCase() || null,
       asOf: new Date().toISOString(),
       currency,
       financialCurrency,

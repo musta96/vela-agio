@@ -196,16 +196,18 @@ Deno.serve(async (req) => {
 
     if (body.action === "ohlc") {
       if (!body.symbol || !body.range || !body.interval) return bad("symbol/range/interval required");
-      const key = `o:${body.symbol}:${body.range}:${body.interval}`;
+      const { symbol: histSymbol } = await toQuotableSymbol(body.symbol);
+      const key = `o:${histSymbol}:${body.range}:${body.interval}`;
       const cached = await readCache(key);
       if (cached) {
         return new Response(JSON.stringify({ bars: cached, cached: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       let bars: any[] = [];
       try {
-        const j = await fetchYahooWithFallback(body.symbol, body.range, body.interval);
+        const j = await fetchYahooWithFallback(histSymbol, body.range, body.interval);
         bars = parseOHLC(j);
       } catch (e: any) {
+
         if (e?.code === 404) {
           return new Response(
             JSON.stringify({ bars: [], cached: false, fallback: true, error: "TICKER_NOT_FOUND" }),

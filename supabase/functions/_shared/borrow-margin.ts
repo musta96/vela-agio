@@ -132,13 +132,38 @@ export function getMarginProfile(symbol: string, country = 'US', assetClass = 'e
       source: 'Federal Reserve Reg T / FINRA Rule 4210',
     };
   }
+  const EEA = new Set(['IT', 'DE', 'FR', 'ES', 'NL', 'BE', 'AT', 'PT', 'IE', 'FI', 'SE', 'DK', 'NO', 'PL', 'GR', 'CH', 'GB', 'UK']);
+  if (EEA.has(country.toUpperCase())) {
+    return {
+      symbol, regime: 'EU/UK broker haircut (MiFID II)',
+      initialLongPct: 0.5, maintenanceLongPct: 0.3, initialShortPct: 1.5, maintenanceShortPct: 0.35,
+      notes: [
+        'Non-US brokers set their own haircuts within MiFID II rules; values shown are typical retail levels.',
+        'Short selling of EU shares is subject to SSR net-short position notification thresholds (0.1% and each 0.1% thereafter).',
+      ],
+      source: 'MiFID II / SSR (EU 236/2012) — typical broker terms',
+    };
+  }
+  if (country.toUpperCase() === 'JP') {
+    return {
+      symbol, regime: 'Japan margin trading (FIEA / JSDA)',
+      initialLongPct: 0.3, maintenanceLongPct: 0.2, initialShortPct: 0.3, maintenanceShortPct: 0.2,
+      notes: [
+        'Statutory minimum deposit is 30% of contract value (minimum JPY 300,000); maintenance ratio typically 20%.',
+        'Standardised margin transactions run for six months; negotiable margin terms are set by the broker.',
+        'Short sales are subject to the JPX uptick rule and short-position reporting above 0.2% of shares outstanding.',
+      ],
+      source: 'FIEA / JSDA margin trading rules — typical broker terms',
+    };
+  }
   return {
-    symbol, regime: 'EU/UK broker haircut (MiFID II)',
+    symbol, regime: 'Broker haircut (local market rules)',
     initialLongPct: 0.5, maintenanceLongPct: 0.3, initialShortPct: 1.5, maintenanceShortPct: 0.35,
     notes: [
-      'Non-US brokers set their own haircuts within MiFID II rules; values shown are typical retail levels.',
-      'Short selling of EU shares is subject to SSR net-short position notification thresholds (0.1% and each 0.1% thereafter).',
+      'No statutory schedule is applied for this market; the values shown are typical broker haircuts and should be confirmed with the executing broker.',
+      'Local short-sale restrictions and reporting thresholds may apply.',
     ],
-    source: 'MiFID II / SSR (EU 236/2012) — typical broker terms',
+    source: 'Indicative broker terms — confirm with the executing broker',
   };
 }
+

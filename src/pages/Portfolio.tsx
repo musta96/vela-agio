@@ -667,14 +667,14 @@ const Portfolio = () => {
                   <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10">Simulation</Badge>
                 )}
               </h1>
-              <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm mt-1">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm mt-1">
               {active?.description || "Track your investments"} · base {baseCcy} · benchmark {active?.benchmark_symbol || "-"}
               {user ? (
                 <Badge variant="outline" className="gap-1 text-success border-success/30"><Cloud className="h-3 w-3" /> Synced</Badge>
               ) : (
                 <Badge variant="outline" className="gap-1 text-muted-foreground">Local only · <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to sync</Badge>
               )}
-              </p>
+              </div>
             </div>
           </div>
 

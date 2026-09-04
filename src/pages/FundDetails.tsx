@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useFundProfile } from "@/hooks/useFundProfile";
-import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
+import { useOHLCHistory, compactAxisTick, type OHLCRange } from "@/hooks/useOHLCHistory";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { useWatchlist } from "@/hooks/useWatchlist";
@@ -211,7 +211,7 @@ const FundDetails = () => {
                     <AreaChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={40} />
-                      <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={64} tickFormatter={(v) => Number(v).toFixed(2)} />
+                      <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={64} tickFormatter={(v) => compactAxisTick(Number(v))} />
                       <Tooltip formatter={(v: number) => money(v, currency)} />
                       <Area type="monotone" dataKey="close" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.15)" strokeWidth={2} />
                     </AreaChart>

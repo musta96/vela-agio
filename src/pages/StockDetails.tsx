@@ -28,7 +28,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
-import { useOHLCHistory, type OHLCRange } from "@/hooks/useOHLCHistory";
+import { useOHLCHistory, compactAxisTick, type OHLCRange } from "@/hooks/useOHLCHistory";
 import { useBenchmarkBars, benchmarkFor } from "@/hooks/useBenchmark";
 import { RiskPanel } from "@/components/RiskPanel";
 import { LockedPreview } from "@/components/gating/LockedPreview";

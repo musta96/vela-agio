@@ -83,7 +83,9 @@ Deno.serve(async (req) => {
       // No ticker-to-CIK match (foreign private issuers, funds, share classes).
       // EDGAR full-text search still finds their filings by name/symbol.
       const wantInsider = kind === 'insider' || kind === 'insider_tx';
-      const found = wantInsider ? [] : await secFullText(String(symbol ?? ''), {
+      // Yahoo-style suffixes (ENEL.MI) never appear in filings — search the root.
+      const term = String(symbol ?? '').split('.')[0].trim();
+      const found = wantInsider || !term ? [] : await secFullText(term, {
         forms: ['10-K', '10-Q', '8-K', '20-F', '6-K', 'N-CSR', 'N-PORT-P', '497K'], limit: 25,
       });
       return new Response(JSON.stringify({

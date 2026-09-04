@@ -86,7 +86,7 @@ ${evidence.length
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-3.7-flash",
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user },
@@ -96,8 +96,18 @@ ${evidence.length
   });
   if (!res.ok) throw new Error(`gateway_${res.status}`);
   const j = await res.json();
-  const raw = j?.choices?.[0]?.message?.content ?? "";
-  const parsed = OutputSchema.safeParse(JSON.parse(raw));
+  const raw = String(j?.choices?.[0]?.message?.content ?? "").replace(/^```json\s*|```$/g, "").trim();
+  let obj: unknown;
+  try {
+    obj = JSON.parse(raw);
+  } catch {
+    // Models occasionally emit trailing prose after the object; take the
+    // outermost braces rather than discarding a usable answer.
+    const first = raw.indexOf("{"), last = raw.lastIndexOf("}");
+    if (first < 0 || last <= first) throw new Error("ai_output_unparsable");
+    obj = JSON.parse(raw.slice(first, last + 1));
+  }
+  const parsed = OutputSchema.safeParse(obj);
   if (!parsed.success) throw new Error("ai_output_invalid");
   return parsed.data;
 }

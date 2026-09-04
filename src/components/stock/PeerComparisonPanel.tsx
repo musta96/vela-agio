@@ -1,3 +1,34 @@
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Loader2, RefreshCw, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+type Peer = {
+  symbol: string;
+  name: string;
+  pe: number | null;
+  evEbitda: number | null;
+  revGrowth: number | null;
+  grossMargin: number | null;
+  roe: number | null;
+  mcap: number | null;
+};
+
+function fmt(v: number | null, opts: { pct?: boolean; mc?: boolean } = {}) {
+  if (v == null || !Number.isFinite(v)) return "-";
+  if (opts.mc) {
+    const a = Math.abs(v);
+    if (a >= 1e12) return `${(v / 1e12).toFixed(2)}T`;
+    if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+    if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+    return v.toString();
+  }
+  if (opts.pct) return `${(v * 100).toFixed(1)}%`;
+  return v.toFixed(1);
+}
+
+export function PeerComparisonPanel({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Peer[]>([]);
   const [error, setError] = useState<string | null>(null);

@@ -90,6 +90,39 @@ function yahooVariants(symbol: string): string[] {
 }
 
 /**
+ * Some venues quote in a minor unit: London in pence (GBp), Johannesburg in
+ * cents (ZAc), Tel Aviv in agorot (ILA). Returning those raw makes portfolio
+ * values and FX conversion 100x wrong, so normalise to the major unit.
+ */
+const MINOR_UNITS: Record<string, { major: string; factor: number }> = {
+  GBP: { major: "GBP", factor: 1 },
+  GBp: { major: "GBP", factor: 100 },
+  GBX: { major: "GBP", factor: 100 },
+  ZAc: { major: "ZAR", factor: 100 },
+  ZAC: { major: "ZAR", factor: 100 },
+  ILA: { major: "ILS", factor: 100 },
+  ILa: { major: "ILS", factor: 100 },
+};
+
+function normaliseMinorUnit<T extends {
+  price: number; currency?: string; previousClose?: number; dayHigh?: number; dayLow?: number;
+}>(q: T): T {
+  const cur = q.currency;
+  if (!cur) return q;
+  const rule = MINOR_UNITS[cur];
+  if (!rule || rule.factor === 1) return q;
+  const div = (v?: number) => (typeof v === "number" ? v / rule.factor : v);
+  return {
+    ...q,
+    currency: rule.major,
+    price: q.price / rule.factor,
+    previousClose: div(q.previousClose),
+    dayHigh: div(q.dayHigh),
+    dayLow: div(q.dayLow),
+  };
+}
+
+/**
  * Yahoo quotes via the v8 chart endpoint. The older v7 `quote` API now
  * requires a crumb/cookie session and answers 401, which silently pushed
  * every non-US listing down the chain onto US-only providers.
@@ -107,7 +140,7 @@ async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: strin
         const price = m?.regularMarketPrice;
         if (typeof price !== "number" || !(price > 0)) { lastReason = "no quote"; continue; }
         const prev = typeof m.chartPreviousClose === "number" ? m.chartPreviousClose : m.previousClose;
-        return {
+        return normaliseMinorUnit({
           symbol,
           name: m.longName ?? m.shortName,
           price,
@@ -119,8 +152,8 @@ async function fromYahoo(symbol: string): Promise<UnifiedQuote | { reason: strin
           previousClose: typeof prev === "number" ? prev : undefined,
           updatedAt: Date.now(),
           asOf: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now(),
-          source: "yahoo",
-        };
+          source: "yahoo" as const,
+        });
       } catch (e) {
         lastReason = (e as Error)?.message ?? "fetch failed";
       }

@@ -142,3 +142,52 @@ export async function fetchFundamentals(symbol: string): Promise<Fundamentals | 
     recommendation: fd.recommendationKey,
   };
 }
+/**
+ * Raw quoteSummary fetch for arbitrary modules (statements, calendar events,
+ * earnings history, dividends…). Uses the same cached cookie+crumb session and
+ * retries once on an expired crumb. Falls back to query1 when query2 answers
+ * with a transport error.
+ */
+export async function fetchQuoteSummary(
+  symbol: string,
+  modules: string[],
+): Promise<Record<string, any> | null> {
+  const mods = modules.join(",");
+  let { crumb, cookie } = await getCrumb();
+  const call = (host: string) =>
+    fetch(
+      `https://${host}.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${mods}&crumb=${encodeURIComponent(crumb)}`,
+      { headers: { "User-Agent": UA, Cookie: cookie } },
+    );
+  let r = await call("query2").catch(() => null);
+  if (!r || r.status === 401 || r.status === 403) {
+    ({ crumb, cookie } = await getCrumb(true));
+    r = await call("query1").catch(() => null);
+  }
+  if (!r || !r.ok) return null;
+  const j = await r.json().catch(() => null);
+  return j?.quoteSummary?.result?.[0] ?? null;
+}
+
+/** Dividend + split history from the free chart endpoint (no crumb needed). */
+export async function fetchCorporateEvents(symbol: string, range = "10y") {
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1mo&range=${range}&events=div%2Csplit`;
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
+    if (!r.ok) return { dividends: [], splits: [] };
+    const j = await r.json();
+    const ev = j?.chart?.result?.[0]?.events ?? {};
+    const dividends = Object.values(ev.dividends ?? {}).map((d: any) => ({
+      date: new Date(d.date * 1000).toISOString().slice(0, 10),
+      amount: d.amount as number,
+    })).sort((a, b) => b.date.localeCompare(a.date));
+    const splits = Object.values(ev.splits ?? {}).map((s: any) => ({
+      date: new Date(s.date * 1000).toISOString().slice(0, 10),
+      ratio: s.splitRatio as string,
+    })).sort((a, b) => b.date.localeCompare(a.date));
+    return { dividends, splits };
+  } catch {
+    return { dividends: [], splits: [] };
+  }
+}

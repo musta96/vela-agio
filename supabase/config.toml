@@ -79,3 +79,6 @@ verify_jwt = false
 
 [functions.valuation]
 verify_jwt = false
+
+[functions.company-profile]
+verify_jwt = false

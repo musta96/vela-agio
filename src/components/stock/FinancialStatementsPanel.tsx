@@ -1,62 +1,63 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, FileText, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, FileText, Loader2, RefreshCw } from "lucide-react";
+import { useCompanyProfile, type StatementRow } from "@/hooks/useCompanyProfile";
 
-type Row = { year: string; values: Record<string, number | null> };
-type Series = { label: string; rows: Row[]; metrics: string[] };
-
-const PROXY = "https://api.allorigins.win/raw?url=";
-
-const INC = ["totalRevenue", "grossProfit", "operatingIncome", "netIncome"];
-const BS  = ["totalAssets", "totalLiab", "totalStockholderEquity", "longTermDebt"];
-const CF  = ["totalCashFromOperatingActivities", "capitalExpenditures", "freeCashFlow"];
+const INC = [
+  "totalRevenue", "costOfRevenue", "grossProfit", "researchDevelopment",
+  "sellingGeneralAdministrative", "operatingIncome", "interestExpense",
+  "incomeBeforeTax", "incomeTaxExpense", "netIncome",
+];
+const BS = [
+  "cash", "shortTermInvestments", "netReceivables", "inventory", "totalCurrentAssets",
+  "propertyPlantEquipment", "goodWill", "totalAssets", "totalCurrentLiabilities",
+  "longTermDebt", "totalLiab", "retainedEarnings", "totalStockholderEquity",
+];
+const CF = [
+  "totalCashFromOperatingActivities", "capitalExpenditures", "totalCashflowsFromInvestingActivities",
+  "totalCashFromFinancingActivities", "dividendsPaid", "repurchaseOfStock",
+  "netBorrowings", "changeInCash", "freeCashFlow",
+];
 
 const LABELS: Record<string, string> = {
   totalRevenue: "Revenue",
+  costOfRevenue: "Cost of revenue",
   grossProfit: "Gross profit",
+  researchDevelopment: "R&D",
+  sellingGeneralAdministrative: "SG&A",
   operatingIncome: "Operating income",
+  interestExpense: "Interest expense",
+  incomeBeforeTax: "Pre-tax income",
+  incomeTaxExpense: "Income tax",
   netIncome: "Net income",
+  cash: "Cash & equivalents",
+  shortTermInvestments: "Short-term investments",
+  netReceivables: "Receivables",
+  inventory: "Inventory",
+  totalCurrentAssets: "Current assets",
+  propertyPlantEquipment: "PP&E",
+  goodWill: "Goodwill",
   totalAssets: "Total assets",
-  totalLiab: "Total liabilities",
-  totalStockholderEquity: "Equity",
+  totalCurrentLiabilities: "Current liabilities",
   longTermDebt: "Long-term debt",
-  totalCashFromOperatingActivities: "Cash from ops",
+  totalLiab: "Total liabilities",
+  retainedEarnings: "Retained earnings",
+  totalStockholderEquity: "Equity",
+  totalCashFromOperatingActivities: "Cash from operations",
   capitalExpenditures: "CapEx",
+  totalCashflowsFromInvestingActivities: "Cash from investing",
+  totalCashFromFinancingActivities: "Cash from financing",
+  dividendsPaid: "Dividends paid",
+  repurchaseOfStock: "Buybacks",
+  netBorrowings: "Net borrowings",
+  changeInCash: "Change in cash",
   freeCashFlow: "Free cash flow",
 };
 
-function pick(item: any, key: string): number | null {
-  const v = item?.[key];
-  if (v == null) return null;
-  if (typeof v === "number") return v;
-  if (typeof v?.raw === "number") return v.raw;
-  return null;
-}
-
-function toRows(history: any[] | undefined, keys: string[]): Row[] {
-  if (!Array.isArray(history)) return [];
-  return history
-    .map((h) => {
-      const year = h?.endDate?.fmt?.slice(0, 4) ?? "-";
-      const values: Record<string, number | null> = {};
-      keys.forEach((k) => {
-        let v = pick(h, k);
-        if (k === "freeCashFlow" && v == null) {
-          const ops = pick(h, "totalCashFromOperatingActivities");
-          const cap = pick(h, "capitalExpenditures");
-          if (ops != null && cap != null) v = ops + cap; // capex is negative
-        }
-        values[k] = v;
-      });
-      return { year, values };
-    })
-    .slice(0, 4)
-    .reverse(); // oldest → newest
-}
-
 function fmt(v: number | null) {
-  if (v == null || !Number.isFinite(v)) return "-";
+  if (v == null || !Number.isFinite(v)) return "—";
   const abs = Math.abs(v);
   if (abs >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
   if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
@@ -68,16 +69,16 @@ function pctDelta(curr: number | null, prev: number | null): number | null {
   return ((curr - prev) / Math.abs(prev)) * 100;
 }
 
-function detectRedFlags(series: { income: Row[]; balance: Row[]; cash: Row[] }): string[] {
+function detectRedFlags(series: { income: StatementRow[]; balance: StatementRow[]; cash: StatementRow[] }): string[] {
   const flags: string[] = [];
-  const last = (rows: Row[], k: string, off = 0) => rows[rows.length - 1 - off]?.values[k] ?? null;
+  const last = (rows: StatementRow[], k: string, off = 0) => rows[rows.length - 1 - off]?.values[k] ?? null;
 
   const rev2 = last(series.income, "totalRevenue", 1);
   const rev1 = last(series.income, "totalRevenue");
   const gm2 = (last(series.income, "grossProfit", 1) ?? 0) / (rev2 || 1);
   const gm1 = (last(series.income, "grossProfit") ?? 0) / (rev1 || 1);
   if (rev1 != null && rev2 != null && gm1 < gm2 - 0.03)
-    flags.push("Gross margin compressed >3pp YoY - pricing/cost pressure.");
+    flags.push("Gross margin compressed >3pp YoY — pricing/cost pressure.");
 
   const cfo2 = last(series.cash, "totalCashFromOperatingActivities", 1);
   const cfo1 = last(series.cash, "totalCashFromOperatingActivities");
@@ -92,48 +93,57 @@ function detectRedFlags(series: { income: Row[]; balance: Row[]; cash: Row[] }):
 
   const ni1 = last(series.income, "netIncome");
   if (ni1 != null && cfo1 != null && ni1 > 0 && cfo1 < ni1 * 0.5)
-    flags.push("Net income meaningfully exceeds operating cash flow - quality of earnings concern.");
+    flags.push("Net income meaningfully exceeds operating cash flow — quality of earnings concern.");
 
   return flags;
 }
 
+/**
+ * Full income statement, balance sheet and cash-flow statement, annual and
+ * quarterly, sourced server-side (worldwide coverage) instead of the old
+ * browser CORS proxy that failed for most non-US listings.
+ */
 export function FinancialStatementsPanel({ symbol }: { symbol: string }) {
-  const [loading, setLoading] = useState(true);
-  const [income, setIncome] = useState<Row[]>([]);
-  const [balance, setBalance] = useState<Row[]>([]);
-  const [cash, setCash] = useState<Row[]>([]);
-  const [err, setErr] = useState<string | null>(null);
+  const { data, loading, error, reload } = useCompanyProfile(symbol);
+  const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
 
-  useEffect(() => {
-    if (!symbol) return;
-    let active = true;
-    setLoading(true); setErr(null);
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory`;
-    fetch(`${PROXY}${encodeURIComponent(url)}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (!active) return;
-        const r = j?.quoteSummary?.result?.[0];
-        if (!r) { setErr("Statements unavailable for this symbol."); setLoading(false); return; }
-        setIncome(toRows(r.incomeStatementHistory?.incomeStatementHistory, INC));
-        setBalance(toRows(r.balanceSheetHistory?.balanceSheetStatements, BS));
-        setCash(toRows(r.cashflowStatementHistory?.cashflowStatements, CF));
-        setLoading(false);
-      })
-      .catch(() => { if (active) { setErr("Statements unavailable for this symbol."); setLoading(false); } });
-    return () => { active = false; };
-  }, [symbol]);
+  const set = period === "annual" ? data?.statements?.annual : data?.statements?.quarterly;
+  const income = set?.income ?? [];
+  const balance = set?.balance ?? [];
+  const cash = set?.cash ?? [];
 
   const flags = useMemo(() => detectRedFlags({ income, balance, cash }), [income, balance, cash]);
 
   if (loading) {
-    return <div className="flex items-center gap-2 text-sm text-muted-foreground py-8"><Loader2 className="h-4 w-4 animate-spin" /> Loading financial statements…</div>;
-  }
-  if (err || (!income.length && !balance.length && !cash.length)) {
-    return <div className="text-sm text-muted-foreground py-6">{err ?? "Not covered for this symbol."}</div>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading financial statements…
+      </div>
+    );
   }
 
-  const blocks: Series[] = [
+  if (error || data?.error || (!income.length && !balance.length && !cash.length)) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Financial statements</CardTitle>
+          <CardDescription>
+            {error ?? data?.message ?? `No filed statements available for ${symbol} on a ${period} basis.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => void reload()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
+          </Button>
+          {period === "quarterly" && (
+            <Button size="sm" variant="ghost" onClick={() => setPeriod("annual")}>Show annual instead</Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const blocks = [
     { label: "Income statement", rows: income, metrics: INC },
     { label: "Balance sheet", rows: balance, metrics: BS },
     { label: "Cash flow", rows: cash, metrics: CF },
@@ -141,6 +151,18 @@ export function FinancialStatementsPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        {(["annual", "quarterly"] as const).map((p) => (
+          <Button key={p} size="sm" variant={period === p ? "default" : "outline"} onClick={() => setPeriod(p)} className="capitalize">
+            {p}
+          </Button>
+        ))}
+        {data?.financialCurrency && <Badge variant="outline">Reported in {data.financialCurrency}</Badge>}
+        <Button size="sm" variant="ghost" onClick={() => void reload()} className="ml-auto">
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
+        </Button>
+      </div>
+
       {flags.length > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardHeader>
@@ -161,30 +183,30 @@ export function FinancialStatementsPanel({ symbol }: { symbol: string }) {
         <Card key={b.label}>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> {b.label}</CardTitle>
-            <CardDescription>Source: Yahoo Finance · as of latest filings</CardDescription>
+            <CardDescription>Filed {period} figures · latest {b.rows.length} periods</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-xs text-muted-foreground uppercase tracking-wide">
                   <th className="text-left py-2 font-medium">Metric</th>
-                  {b.rows.map((r) => <th key={r.year} className="text-right py-2 font-medium">{r.year}</th>)}
-                  <th className="text-right py-2 font-medium">YoY Δ</th>
+                  {b.rows.map((r) => <th key={r.period} className="text-right py-2 font-medium">{r.period}</th>)}
+                  <th className="text-right py-2 font-medium">Δ</th>
                 </tr>
               </thead>
               <tbody>
                 {b.metrics.map((m) => {
-                  const last = b.rows[b.rows.length - 1]?.values[m] ?? null;
-                  const prev = b.rows[b.rows.length - 2]?.values[m] ?? null;
-                  const d = pctDelta(last, prev);
+                  const values = b.rows.map((r) => r.values[m] ?? null);
+                  if (values.every((v) => v == null)) return null;
+                  const d = pctDelta(values[values.length - 1], values[values.length - 2]);
                   return (
                     <tr key={m} className="border-b last:border-0">
                       <td className="py-2">{LABELS[m] ?? m}</td>
-                      {b.rows.map((r) => (
-                        <td key={r.year} className="text-right font-mono py-2">{fmt(r.values[m])}</td>
+                      {b.rows.map((r, idx) => (
+                        <td key={r.period + idx} className="text-right font-mono py-2">{fmt(r.values[m] ?? null)}</td>
                       ))}
                       <td className={`text-right font-mono py-2 ${d == null ? "" : d >= 0 ? "text-success" : "text-destructive"}`}>
-                        {d == null ? "-" : `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`}
+                        {d == null ? "—" : `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`}
                       </td>
                     </tr>
                   );

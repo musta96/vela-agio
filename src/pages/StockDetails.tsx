@@ -40,6 +40,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
 import { FinancialStatementsPanel } from "@/components/stock/FinancialStatementsPanel";
+import { KeyIndicatorsCard } from "@/components/stock/KeyIndicatorsCard";
+import { EventsDividendsCard } from "@/components/stock/EventsDividendsCard";
+import { useCompanyProfile } from "@/hooks/useCompanyProfile";
 import { RoicWaccPanel } from "@/components/stock/RoicWaccPanel";
 import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
 
@@ -160,6 +163,7 @@ const StockDetails = () => {
   const [addSaving, setAddSaving] = useState(false);
 
   const sym = decodeURIComponent(symbol || "").toUpperCase();
+  const { data: companyData, loading: companyLoading } = useCompanyProfile(sym);
   const entry = findCatalogEntry(sym);
   const name = entry?.name || sym;
   const market = entry?.market;
@@ -709,6 +713,8 @@ const StockDetails = () => {
                 </CardContent>
               </Card>
             </div>
+            <KeyIndicatorsCard data={companyData} loading={companyLoading} />
+            <EventsDividendsCard data={companyData} loading={companyLoading} />
           </TabsContent>
 
           {/* TECHNICALS */}

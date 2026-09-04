@@ -34,11 +34,13 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const [bars, setBars] = useState<Record<string, OHLCBar[]>>({});
   const [mibBars, setMibBars] = useState<OHLCBar[]>([]);
   const [spxBars, setSpxBars] = useState<OHLCBar[]>([]);
+  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     if (holdings.length === 0) return;
+    setLoading(true);
     (async () => {
       const results: Record<string, OHLCBar[]> = {};
       await Promise.all(
@@ -60,6 +62,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
         setBars(results);
         setMibBars(mib.data?.bars || []);
         setSpxBars(spx.data?.bars || []);
+        setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -69,17 +72,25 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const totalValue = holdings.reduce((a, h) => a + h.shares * h.currentPrice, 0);
   const weights = holdings.map((h) => (h.shares * h.currentPrice) / (totalValue || 1));
 
-  // Portfolio returns (weighted) for vol / VaR / beta
+  // Portfolio returns (weighted) for vol / VaR / beta.
+  // Holdings without usable price history (unlisted funds, illiquid tickers) are
+  // excluded and the remaining weights are renormalised, so one missing series
+  // no longer blanks out the whole panel.
   const stats = useMemo(() => {
     if (holdings.length === 0) return null;
-    const symBars = holdings.map((h) => bars[h.symbol] || []);
-    if (symBars.some((b) => b.length < 30)) return null;
-    const minLen = Math.min(...symBars.map((b) => b.length));
-    const rets = symBars.map((b) => returns(b.slice(-minLen).map((x) => x.close)));
+    const covered = holdings
+      .map((h, i) => ({ holding: h, index: i, bars: bars[h.symbol] || [] }))
+      .filter((x) => x.bars.length >= 30);
+    const excluded = holdings.filter((h) => (bars[h.symbol] || []).length < 30).map((h) => h.symbol);
+    if (covered.length === 0) return null;
+    const coveredWeightSum = covered.reduce((a, x) => a + weights[x.index], 0) || 1;
+    const w = covered.map((x) => weights[x.index] / coveredWeightSum);
+    const minLen = Math.min(...covered.map((x) => x.bars.length));
+    const rets = covered.map((x) => returns(x.bars.slice(-minLen).map((b) => b.close)));
     const port: number[] = [];
     for (let i = 0; i < rets[0].length; i++) {
       let r = 0;
-      rets.forEach((arr, j) => (r += arr[i] * weights[j]));
+      rets.forEach((arr, j) => (r += arr[i] * w[j]));
       port.push(r);
     }
     const mibRets = mibBars.length > 30 ? returns(mibBars.map((b) => b.close)) : [];
@@ -96,8 +107,12 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
       betaSpx: spxRets.length ? beta(port, spxRets) : null,
       symRets: rets,
       portRets: port,
+      coveredSymbols: covered.map((x) => x.holding.symbol),
+      coveredWeights: w,
+      excludedSymbols: excluded,
     };
   }, [bars, mibBars, spxBars, holdings, weights]);
+
 
   // Market exposure (from catalog) and currency exposure
   const marketExposure = useMemo(() => {
@@ -138,11 +153,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const riskContribution = useMemo(() => {
     if (!stats?.symRets) return [];
     const portVol = stats.vol || 1;
-    return holdings.map((h, i) => ({
-      symbol: h.symbol,
-      contribution: (weights[i] * realizedVol(stats.symRets[i])) / portVol,
+    return stats.coveredSymbols.map((symbol, i) => ({
+      symbol,
+      contribution: (stats.coveredWeights[i] * realizedVol(stats.symRets[i])) / portVol,
     })).sort((a, b) => b.contribution - a.contribution);
-  }, [stats, holdings, weights]);
+  }, [stats]);
 
   // Correlation matrix
   const corrMatrix = useMemo(() => {
@@ -171,7 +186,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
       currencyExposure,
       topContributors,
       riskContribution,
-      correlation: corrMatrix ? { symbols: holdings.map((h) => h.symbol), matrix: corrMatrix } : null,
+      correlation: corrMatrix ? { symbols: stats.coveredSymbols, matrix: corrMatrix } : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats, hhi, corrMatrix]);
@@ -190,7 +205,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
               <div className="min-w-0">
                 <div className="text-sm font-semibold">Advanced analytics</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  Risk · correlation · exposure · concentration {stats ? "" : "(loading…)"}
+                  {loading
+                    ? "Loading price history…"
+                    : stats
+                      ? `Risk · correlation · exposure · concentration${stats.excludedSymbols.length ? ` · ${stats.excludedSymbols.length} holding${stats.excludedSymbols.length > 1 ? "s" : ""} without price history excluded` : ""}`
+                      : "No price history available for these holdings yet"}
                 </div>
               </div>
             </div>
@@ -209,6 +228,11 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
         </div>
 
         <CollapsibleContent>
+          {stats && stats.excludedSymbols.length > 0 && (
+            <p className="px-5 pt-4 text-xs text-muted-foreground">
+              Risk figures cover {stats.coveredSymbols.length} of {holdings.length} holdings. No 1-year price history yet for: {stats.excludedSymbols.join(", ")}.
+            </p>
+          )}
           <div className="grid lg:grid-cols-3 gap-4 p-5 border-t border-border bg-muted/20">
             {/* Risk vs benchmarks */}
             <Card>
@@ -285,7 +309,7 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
             </Card>
 
             {/* Correlation matrix */}
-            {corrMatrix && holdings.length > 1 && (
+            {corrMatrix && stats && stats.coveredSymbols.length > 1 && (
               <Card className="lg:col-span-3">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Correlation matrix</CardTitle>
@@ -297,17 +321,17 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
                       <thead>
                         <tr>
                           <th className="px-2 py-1"></th>
-                          {holdings.map((h) => (
-                            <th key={h.symbol} className="px-2 py-1 font-mono">{h.symbol}</th>
+                          {stats.coveredSymbols.map((s) => (
+                            <th key={s} className="px-2 py-1 font-mono">{s}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {holdings.map((h, i) => (
-                          <tr key={h.symbol}>
-                            <td className="px-2 py-1 font-mono">{h.symbol}</td>
-                            {holdings.map((_, j) => {
-                              const v = corrMatrix[i][j];
+                        {stats.coveredSymbols.map((s, i) => (
+                          <tr key={s}>
+                            <td className="px-2 py-1 font-mono">{s}</td>
+                            {stats.coveredSymbols.map((_, j) => {
+                              const v = corrMatrix[i]?.[j] ?? 0;
                               const c =
                                 v > 0.7 ? "bg-destructive/30 text-destructive"
                                 : v > 0.4 ? "bg-destructive/15"

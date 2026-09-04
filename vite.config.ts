@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.svg", "icons/apple-touch-icon.png", "offline.html"],
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         // Make the offline shell part of the precache.
         additionalManifestEntries: [{ url: "/offline.html", revision: Date.now().toString() }],
       },

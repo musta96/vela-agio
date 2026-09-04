@@ -33,6 +33,10 @@ const EXACT: Record<string, RouteMeta> = {
     title: "Investment themes" + SUFFIX,
     description: "Thematic baskets and the companies driving each structural trend, with exposure and performance breakdowns.",
   },
+  "/overview": {
+    title: "Investor overview" + SUFFIX,
+    description: "Live view of your holdings, cash balance and profit or loss, updating as trades are placed.",
+  },
   "/portfolio": {
     title: "Portfolio" + SUFFIX,
     description: "Track holdings, allocation, performance and risk across every account in your base currency.",

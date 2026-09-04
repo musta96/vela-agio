@@ -9,6 +9,7 @@ import SentimentDashboard from "./pages/SentimentDashboard";
 import BacktestingModule from "./pages/BacktestingModule";
 import StrategyLab from "./pages/StrategyLab";
 import Portfolio from "./pages/Portfolio";
+import PortfolioOverview from "./pages/PortfolioOverview";
 import Watchlist from "./pages/Watchlist";
 import SmartPicks from "./pages/SmartPicks";
 import TechnicalAnalysis from "./pages/TechnicalAnalysis";
@@ -167,6 +168,7 @@ const App = () => (
             <Route path="/backtesting" element={<Navigate to="/backtest" replace />} />
             <Route path="/strategy-lab" element={<RouteFeatureGate feature="strategy.proposal_builder"><StrategyLab /></RouteFeatureGate>} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/overview" element={<PortfolioOverview />} />
             <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
             <Route path="/watchlist" element={<Watchlist />} />

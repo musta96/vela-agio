@@ -22,12 +22,15 @@ const EXPECTED_LABELS: Record<string, string> = {
   "/risk": "Risk Engine",
   "/simulations": "Simulations",
   "/event-study": "Event Study",
-  "/tax-harvest": "Tax",
+  "/tax-harvest": "Tax-loss Harvesting",
   "/optimizer": "Optimizer",
   "/rebalance": "Rebalance",
   "/quant": "Quant Alpha",
   "/dealflow": "Deal Flow",
-  "/advisor": "Portfolio Coach",
+  "/advisor": "Portfolio Doctor",
+  "/enterprise/team": "Team & seats",
+  "/enterprise/dashboard": "Firm dashboard",
+  "/enterprise/clients": "Client portal",
   // /api is Enterprise-only and not in the sidebar; excluded intentionally.
 };
 

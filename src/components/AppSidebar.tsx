@@ -47,6 +47,7 @@ const ITEM_FEATURE_KEY: Record<string, string> = {
   "/enterprise/clients": "enterprise.team_management",
 };
 
+
 type SidebarGate = ReturnType<typeof useFeatureGate>;
 const SidebarGateContext = createContext<SidebarGate | null>(null);
 
@@ -101,6 +102,32 @@ function useItemLock(url: string): { locked: boolean; planName: string | null } 
   return { locked: true, planName: target?.name ?? null };
 }
 
+/** When true the user has chosen to hide everything their plan cannot open. */
+const HideLockedContext = createContext<boolean>(false);
+const HIDE_LOCKED_KEY = "vela.sidebar.hideLocked";
+
+/** Resolve locks for a whole group in one pass, so the group header can
+ *  summarise "3 locked" and locked entries can sink to the bottom of the
+ *  list instead of interrupting the tools the user can actually open. */
+function useGroupLocks(items: Item[]): { ordered: Item[]; lockedCount: number } {
+  const gate = useContext(SidebarGateContext);
+  const hideLocked = useContext(HideLockedContext);
+  return useMemo(() => {
+    const isLocked = (it: Item) => {
+      const key = ITEM_FEATURE_KEY[it.url];
+      if (!gate || !key) return false;
+      if (!gate.catalog.some((c) => c.key === key)) return false;
+      return !gate.has(key);
+    };
+    const open = items.filter((it) => !isLocked(it));
+    const locked = items.filter(isLocked);
+    return {
+      ordered: hideLocked ? open : [...open, ...locked],
+      lockedCount: locked.length,
+    };
+  }, [items, gate, hideLocked]);
+}
+
 const STORAGE_PREFIX = "vela.sidebar.group.";
 
 // Small helper to give animated Collapsible content a nice, reduced-motion-aware feel.
@@ -138,58 +165,101 @@ type NavGroup = {
   defaultOpen?: boolean;
 };
 
-const RESEARCH: NavGroup = {
-  title: "Research",
-  url: "/ai-scanner",
-  icon: Radar,
+const DASHBOARD_ITEM: Item = { title: "Dashboard", url: "/dashboard", icon: Home };
+
+/**
+ * Navigation is organised around the journey a user actually walks:
+ *   ask (Assistant) → find an idea (Discover) → study it (Analyse) →
+ *   check the market plumbing (Market data) → test a strategy
+ *   (Strategy & testing) → act on the portfolio (My portfolio) →
+ *   run a firm (Enterprise) → learn / administer (Learn, Account).
+ * Groups are capability-based, not team-based, so a task never spans two
+ * sections and nothing needs to be looked for in more than one place.
+ */
+
+const ASSISTANT: NavGroup = {
+  title: "Assistant",
+  url: "/copilot",
+  icon: Bot,
+  defaultOpen: true,
   items: [
+    { title: "AI Assistant", url: "/copilot", icon: Sparkles },
     { title: "AI Radar", url: "/ai-scanner", icon: Radar, badge: "new" },
-    { title: "Idea Lab", url: "/picks", icon: Sparkles },
-    { title: "Signals", url: "/alerts", icon: Bell },
-    { title: "Sentiment", url: "/sentiment", icon: Newspaper },
-    { title: "Portfolio Doctor", url: "/advisor", icon: Lightbulb },
-    { title: "Related Graph", url: "/related", icon: Network },
-    { title: "Deal Flow", url: "/dealflow", icon: Handshake },
-    { title: "Methodology", url: "/methodology", icon: ScrollText },
+    { title: "Idea Lab", url: "/picks", icon: Lightbulb },
   ],
 };
 
-const DASHBOARD_ITEM: Item = { title: "Dashboard", url: "/dashboard", icon: Home };
-
-const MARKETS: NavGroup = {
-  title: "Markets",
+const DISCOVER: NavGroup = {
+  title: "Discover",
   url: "/explore",
-  icon: Globe2,
+  icon: Compass,
   defaultOpen: true,
   items: [
     { title: "Explore", url: "/explore", icon: Compass },
     { title: "Movers", url: "/movers", icon: Activity },
     { title: "Watchlist", url: "/watchlist", icon: Eye },
     { title: "Stock Screener", url: "/screener", icon: Filter },
-    { title: "Macro", url: "/macro", icon: Globe2 },
     { title: "Sectors", url: "/sectors", icon: Flame },
-    { title: "Compare", url: "/compare", icon: Scale },
     { title: "Regional Markets", url: "/regional-markets", icon: Globe2 },
-    { title: "Full Analysis", url: "/full-analysis", icon: Scale },
-    { title: "Valuation", url: "/valuation", icon: Calculator },
+    { title: "Sentiment", url: "/sentiment", icon: Newspaper },
+    { title: "Alerts & Signals", url: "/alerts", icon: Bell },
+    { title: "Deal Flow", url: "/dealflow", icon: Handshake },
   ],
 };
 
-const MARKET_DATA: NavGroup = {
-  title: "Market data",
-  url: "/options",
-  icon: LineChart,
+const ANALYSE: NavGroup = {
+  title: "Analyse a company",
+  url: "/compare",
+  icon: Scale,
   items: [
+    { title: "Full Analysis", url: "/full-analysis", icon: Scale },
+    { title: "Valuation (DCF/DDM)", url: "/valuation", icon: Calculator },
+    { title: "Compare", url: "/compare", icon: GitCompare },
+    { title: "Peers", url: "/peers", icon: Network },
+    { title: "Technical", url: "/technical", icon: LineChart },
+    { title: "Advanced Analysis", url: "/advanced-analysis", icon: Activity },
+    { title: "AI Research Analyst", url: "/research-analyst", icon: FileText },
+    { title: "Filings", url: "/filings", icon: FileText },
+    { title: "Earnings", url: "/earnings", icon: BarChart3 },
+    { title: "Insider", url: "/insider", icon: UserSquare },
+    { title: "Corp. Actions", url: "/corporate-actions", icon: CalendarClock },
+    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },
+    { title: "Related Graph", url: "/related", icon: Network },
+    { title: "Event Study", url: "/event-study", icon: CalendarClock },
+    { title: "Quant Alpha", url: "/quant", icon: Gauge },
+  ],
+};
+
+const MACRO_DATA: NavGroup = {
+  title: "Macro & market data",
+  url: "/macro",
+  icon: Globe2,
+  items: [
+    { title: "Macro", url: "/macro", icon: Globe2 },
+    { title: "Regulatory Analysis", url: "/regulatory-analysis", icon: Scale },
     { title: "Options", url: "/options", icon: LineChart },
     { title: "Futures", url: "/futures", icon: TrendingUp },
     { title: "Intraday", url: "/intraday", icon: Zap },
     { title: "Baskets", url: "/baskets", icon: Boxes },
-    { title: "Corp. Actions", url: "/corporate-actions", icon: CalendarClock },
-    { title: "Filings", url: "/filings", icon: FileText },
-    { title: "Earnings", url: "/earnings", icon: BarChart3 },
-    { title: "Insider", url: "/insider", icon: UserSquare },
     { title: "Credit Spreads", url: "/credit-spreads", icon: Activity },
     { title: "Bond Calculator", url: "/bonds", icon: Calculator },
+    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare },
+    { title: "13F Replicator", url: "/replicate", icon: Users },
+  ],
+};
+
+const STRATEGY: NavGroup = {
+  title: "Strategy & testing",
+  url: "/strategy-lab",
+  icon: FlaskConical,
+  items: [
+    { title: "Strategy Lab", url: "/strategy-lab", icon: FlaskConical, badge: "new" },
+    { title: "Backtesting", url: "/backtest", icon: Repeat },
+    { title: "Simulations", url: "/simulations", icon: Activity },
+    { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
+    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
+    { title: "Paper Trading", url: "/trading", icon: ClipboardList },
+    { title: "Methodology", url: "/methodology", icon: ScrollText },
   ],
 };
 
@@ -208,52 +278,22 @@ const NET_WORTH_SUB: Item[] = [
 ];
 
 const PORTFOLIO: NavGroup = {
-  title: "Portfolio",
+  title: "My portfolio",
   url: "/portfolio",
   icon: Briefcase,
   defaultOpen: true,
   items: [
     { title: "Portfolio", url: "/portfolio", icon: Briefcase },
-    { title: "Goals", url: "/goals", icon: Target },
-    { title: "Budget", url: "/budget", icon: PiggyBank },
-    { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
-    { title: "Household", url: "/household", icon: Users2 },
-    { title: "Tax-loss Harvesting", url: "/tax-harvest", icon: Wallet },
+    { title: "Portfolio Doctor", url: "/advisor", icon: Lightbulb },
     { title: "Proposed vs Current", url: "/portfolio-compare", icon: GitCompare },
-  ],
-};
-
-const ANALYST_TOOLS: NavGroup = {
-  title: "Analyst tools",
-  url: "/backtest",
-  icon: FlaskConical,
-  items: [
-    { title: "Backtesting", url: "/backtest", icon: Repeat },
-    { title: "Strategy Lab", url: "/strategy-lab", icon: FlaskConical, badge: "new" },
     { title: "Optimizer", url: "/optimizer", icon: Gauge },
     { title: "Rebalance", url: "/rebalance", icon: Rows3 },
-    { title: "Simulations", url: "/simulations", icon: Activity },
-    { title: "Risk Engine", url: "/risk", icon: ShieldAlert },
-    { title: "Event Study", url: "/event-study", icon: CalendarClock },
-    { title: "Technical", url: "/technical", icon: LineChart },
-    { title: "Advanced Analysis", url: "/advanced-analysis", icon: Activity },
-    { title: "Regulatory Analysis", url: "/regulatory-analysis", icon: Scale },
-    { title: "Quant Alpha", url: "/quant", icon: Gauge },
-    { title: "Peers", url: "/peers", icon: Network },
-    { title: "AI Research Analyst", url: "/research-analyst", icon: FileText },
-    { title: "Trading", url: "/trading", icon: FlaskConical },
-    { title: "Short Selling", url: "/short-selling", icon: ArrowDownFromLine },
-    { title: "Buyback Analyzer", url: "/buybacks", icon: Repeat },
-    { title: "ETF Overlap", url: "/etf-overlap", icon: GitCompare },
-    { title: "13F Replicator", url: "/replicate", icon: Users },
+    { title: "Tax-loss Harvesting", url: "/tax-harvest", icon: Wallet },
+    { title: "Dividend Planner", url: "/dividends", icon: Coins, badge: "new" },
+    { title: "Goals", url: "/goals", icon: Target },
+    { title: "Budget", url: "/budget", icon: PiggyBank },
+    { title: "Household", url: "/household", icon: Users2 },
   ],
-};
-
-const ASSISTANT: NavGroup = {
-  title: "Assistant",
-  url: "/copilot",
-  icon: Bot,
-  items: [{ title: "AI Assistant", url: "/copilot", icon: Sparkles }],
 };
 
 const LEARN: NavGroup = {
@@ -282,8 +322,8 @@ const ACCOUNT: NavGroup = {
   url: "/profile",
   icon: User,
   items: [
-    { title: "Profile", url: "/profile", icon: User },
     { title: "Plans & billing", url: "/plans-billing", icon: CreditCard },
+    { title: "Profile", url: "/profile", icon: User },
     { title: "Notes", url: "/notes", icon: StickyNote },
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "AI Usage", url: "/ai-usage", icon: Activity },
@@ -294,7 +334,7 @@ const ACCOUNT: NavGroup = {
   ],
 };
 
-const NAV_GROUPS: NavGroup[] = [RESEARCH, MARKETS, MARKET_DATA, PORTFOLIO, ANALYST_TOOLS, ASSISTANT, LEARN, ENTERPRISE, ACCOUNT];
+const NAV_GROUPS: NavGroup[] = [ASSISTANT, DISCOVER, ANALYSE, MACRO_DATA, STRATEGY, PORTFOLIO, ENTERPRISE, LEARN, ACCOUNT];
 
 const OWNER_ITEM: Item = { title: "Owner Console", url: "/owner", icon: Crown, badge: "you" };
 
@@ -317,7 +357,7 @@ export function computeBreadcrumb(pathname: string): { group: string | null; pag
     return { group: null, page: DASHBOARD_ITEM.title };
   }
   for (const g of NAV_GROUPS) {
-    if (g.title === "Portfolio" && pathname.startsWith("/net-worth")) {
+    if (g.title === PORTFOLIO.title && pathname.startsWith("/net-worth")) {
       const nwHit = NET_WORTH_SUB.find((it) => isRouteActive(pathname, it.url));
       if (nwHit) return { group: g.title, page: `Net Worth · ${nwHit.title}` };
     }
@@ -508,10 +548,12 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
     loadGroupOpen(group.title, groupActive || (group.defaultOpen ?? false)),
   );
   const query = useContext(SidebarSearchContext);
+  const { ordered, lockedCount } = useGroupLocks(group.items);
   const visibleItems = query
-    ? group.items.filter((it) => matchesSearch(query, it.title))
-    : group.items;
+    ? ordered.filter((it) => matchesSearch(query, it.title))
+    : ordered;
   if (query && visibleItems.length === 0) return null;
+  if (!query && visibleItems.length === 0) return null;
   const effectiveOpen = query ? true : open;
 
   useEffect(() => {
@@ -547,8 +589,19 @@ function CollapsibleNavGroup({ group }: { group: NavGroup }) {
             aria-controls={`sidebar-group-${group.title.toLowerCase()}`}
             className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
           >
-            <span>{group.title}</span>
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
+            <span className="truncate">{group.title}</span>
+            <span className="flex items-center gap-1.5">
+              {lockedCount > 0 && !effectiveOpen && (
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-full bg-[hsl(38_92%_55%/0.15)] px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(38_95%_72%)] normal-case tracking-normal"
+                  title={`${lockedCount} feature${lockedCount > 1 ? "s" : ""} need a higher plan`}
+                >
+                  <Lock className="h-2.5 w-2.5" />
+                  {lockedCount}
+                </span>
+              )}
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", effectiveOpen && "rotate-180")} />
+            </span>
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -574,9 +627,10 @@ function PortfolioGroup() {
     loadGroupOpen(PORTFOLIO.title, groupActive || (PORTFOLIO.defaultOpen ?? false)),
   );
   const query = useContext(SidebarSearchContext);
+  const { ordered } = useGroupLocks(PORTFOLIO.items);
   const visibleItems = query
-    ? PORTFOLIO.items.filter((it) => matchesSearch(query, it.title))
-    : PORTFOLIO.items;
+    ? ordered.filter((it) => matchesSearch(query, it.title))
+    : ordered;
   const netWorthMatches = query
     ? matchesSearch(query, "Net Worth") ||
       NET_WORTH_SUB.some((it) => matchesSearch(query, it.title))
@@ -687,6 +741,20 @@ export function AppSidebar() {
   const [searchInput, setSearchInput] = useState("");
   const searchQuery = searchInput.trim().toLowerCase();
   const newBadges = useMemo(() => getActiveNewBadgeUrls(), []);
+  const [hideLocked, setHideLocked] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem(HIDE_LOCKED_KEY) === "1"; } catch { return false; }
+  });
+  const toggleHideLocked = useCallback(() => {
+    setHideLocked((v) => {
+      const next = !v;
+      try { window.localStorage.setItem(HIDE_LOCKED_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+  const planLabel = gate.entitlements.planName
+    ?? (gate.entitlements.tier === "free" ? "Explorer" : gate.entitlements.tier);
+  const isFreeTier = gate.entitlements.tier === "free";
   const showDashboard = !searchQuery || matchesSearch(searchQuery, DASHBOARD_ITEM.title);
 
   // Roving keyboard navigation across every visible sidebar link + group trigger.
@@ -737,6 +805,7 @@ export function AppSidebar() {
     <SidebarGateContext.Provider value={gate}>
     <NewBadgeContext.Provider value={newBadges}>
     <SidebarSearchContext.Provider value={searchQuery}>
+    <HideLockedContext.Provider value={hideLocked}>
     <Sidebar collapsible="icon" className="border-r border-sidebar-border glass-panel">
       <SidebarHeader className="h-14 flex-row items-center justify-start px-4 border-b border-sidebar-border/60">
         {collapsed ? (
@@ -808,6 +877,34 @@ export function AppSidebar() {
             </div>
           </div>
         )}
+        {!collapsed && (
+          <div className="px-3 pb-2 flex items-center justify-between gap-2">
+            <NavLink
+              to="/plans-billing"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset transition-colors",
+                isFreeTier
+                  ? "bg-sidebar-accent/40 text-sidebar-foreground/70 ring-sidebar-border hover:text-sidebar-foreground"
+                  : "bg-[hsl(var(--sidebar-ring)/0.15)] text-[hsl(var(--sidebar-ring))] ring-[hsl(var(--sidebar-ring)/0.4)] hover:bg-[hsl(var(--sidebar-ring)/0.22)]",
+              )}
+              title={isFreeTier ? "You are on the free plan — see what upgrading unlocks" : `Your plan: ${planLabel}`}
+            >
+              <Crown className="h-3 w-3" />
+              <span className="truncate max-w-[92px]">{planLabel}</span>
+              {isFreeTier && <span className="normal-case font-medium opacity-80">· Upgrade</span>}
+            </NavLink>
+            <button
+              type="button"
+              onClick={toggleHideLocked}
+              aria-pressed={hideLocked}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              title={hideLocked ? "Show features included in higher plans" : "Hide features your plan cannot open"}
+            >
+              <Lock className="h-3 w-3" />
+              {hideLocked ? "Show locked" : "Hide locked"}
+            </button>
+          </div>
+        )}
         {showDashboard && (
           <SidebarGroup>
             <SidebarMenu>
@@ -816,7 +913,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
         {NAV_GROUPS.map((group) =>
-          group.title === "Portfolio" ? (
+          group.title === PORTFOLIO.title ? (
             <PortfolioGroup key={group.title} />
           ) : (
             <CollapsibleNavGroup key={group.title} group={group} />
@@ -825,6 +922,7 @@ export function AppSidebar() {
         <OwnerGroup collapsed={collapsed} isOwner={isOwner} />
       </SidebarContent>
     </Sidebar>
+    </HideLockedContext.Provider>
     </SidebarSearchContext.Provider>
     </NewBadgeContext.Provider>
     </SidebarGateContext.Provider>

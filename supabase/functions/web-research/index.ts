@@ -117,7 +117,6 @@ async function ddg(q: string): Promise<Hit[]> {
     // Proxied fallbacks — datacentre egress is often blocked by the engines.
     async () => proxied(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`),
     async () => proxied(`https://www.mojeek.com/search?q=${encodeURIComponent(q)}`),
-    async () => proxied(`https://search.marcia.cc/search?q=${encodeURIComponent(q)}`),
   ];
   for (const run of engines) {
     try {

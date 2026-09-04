@@ -13,6 +13,10 @@
 - [x] Regional Markets page (MENA, APAC, China, LatAm, Africa) with macro snapshots, drivers, risks, instruments.
 - [x] Proposed vs Current portfolio comparison (overlap, diversification HHI, rebalance suggestions).
 - [x] Short selling + derivatives tooling (existing `/short-selling`, `/options`, `/futures`, paper trading) confirmed routed.
+- [x] Live official-source web research (`web-research` + `research_web` Copilot tool).
+- [x] Instrument master (ISIN/domicile/UCITS/KID/TER/tax situs) + `lookup_instruments`.
+- [x] Advanced simulation engine (bootstrap, fat tails, regimes, FX, costs, margin/liquidation) + blend search.
+- [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
 - [ ] Order flow & options microstructure page (Yahoo-derived + free open-source data only).

@@ -19,6 +19,7 @@ import { getCached, setCached } from "../_shared/profile-cache.ts";
 import { isIsin, resolveIsin } from "../_shared/isin-resolver.ts";
 import { lookupIsin } from "../_shared/isin-lookup.ts";
 import { computeFundScore } from "../_shared/fund-score.ts";
+import { CURATED as INSTRUMENTS } from "../_shared/instrument-master.ts";
 
 function num(v: unknown): number | null {
   if (v == null) return null;
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v4:${symbol}`;
+    const cacheKey = `fund:v5:${symbol}`;
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
@@ -171,8 +172,9 @@ Deno.serve(async (req) => {
     const worstAnnual = annualReturns.length
       ? Math.min(...annualReturns.map((r) => (r.fund ?? 0)))
       : null;
+    const master = INSTRUMENTS[symbol] ?? null;
     const terValue = [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
-      .find((v) => v != null && v > 0) ?? null;
+      .find((v) => v != null && v > 0) ?? master?.ter ?? null;
 
     const velaScore = computeFundScore({
       quoteType,
@@ -309,6 +311,13 @@ Deno.serve(async (req) => {
       },
       ratings,
       velaScore,
+      identifiers: {
+        isin,
+        domicile: master?.domicile ?? null,
+        ucits: master?.ucits ?? null,
+        replication: master?.replication ?? null,
+        distribution: master?.distribution ?? null,
+      },
       distributions: corporate.dividends,
       splits: corporate.splits,
     };

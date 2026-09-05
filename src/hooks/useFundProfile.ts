@@ -55,6 +55,13 @@ export interface FundProfileData {
     esgPercentile: number | null;
     sustainability: number | null;
   };
+  identifiers?: {
+    isin: string | null;
+    domicile: string | null;
+    ucits: boolean | null;
+    replication: string | null;
+    distribution: string | null;
+  };
   velaScore?: {
     finalScore: number | null;
     grade: string | null;

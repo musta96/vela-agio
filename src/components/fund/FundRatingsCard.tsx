@@ -40,7 +40,7 @@ export function FundRatingsCard({ data }: { data: FundProfileData }) {
   const r = data.ratings;
   const v = data.velaScore;
   const hasExternal = !!r && [r.morningstarOverall, r.morningstarRisk, r.morningstarReturn, r.esgTotal]
-    .some((x) => x != null);
+    .some((x) => x != null && x !== 0);
   if (!v?.finalScore && !hasExternal) return null;
 
   return (
@@ -118,15 +118,15 @@ export function FundRatingsCard({ data }: { data: FundProfileData }) {
         <CardContent className="space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Morningstar overall</span>
-            {r?.morningstarOverall != null ? <Stars value={r.morningstarOverall} /> : <span>—</span>}
+            {r?.morningstarOverall ? <Stars value={r.morningstarOverall} /> : <span>—</span>}
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Morningstar return</span>
-            {r?.morningstarReturn != null ? <Stars value={r.morningstarReturn} /> : <span>—</span>}
+            {r?.morningstarReturn ? <Stars value={r.morningstarReturn} /> : <span>—</span>}
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Morningstar risk</span>
-            <span className="tabular-nums">{r?.morningstarRisk ?? "—"}</span>
+            <span className="tabular-nums">{r?.morningstarRisk ? `${r.morningstarRisk}/5` : "—"}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Morningstar category</span>
@@ -143,6 +143,13 @@ export function FundRatingsCard({ data }: { data: FundProfileData }) {
           </div>
           {r?.esgPeerGroup ? (
             <p className="text-[11px] text-muted-foreground">Peer group: {r.esgPeerGroup}</p>
+          ) : null}
+          {data.identifiers?.ucits != null || data.identifiers?.domicile ? (
+            <p className="text-[11px] text-muted-foreground">
+              {data.identifiers?.ucits ? "UCITS" : "Non-UCITS"}
+              {data.identifiers?.domicile ? ` · domiciled in ${data.identifiers.domicile}` : ""}
+              {data.identifiers?.distribution ? ` · ${data.identifiers.distribution}` : ""}
+            </p>
           ) : null}
           {data.isin ? (
             <p className="border-t border-border/60 pt-3 text-[11px] text-muted-foreground">

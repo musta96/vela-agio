@@ -42,6 +42,28 @@ export interface FundProfileData {
     rSquared: number | null; stdDev: number | null; sharpeRatio: number | null; treynorRatio: number | null;
   }[];
   fees?: Record<string, unknown> & { category?: Record<string, number | null> };
+  ratings?: {
+    morningstarOverall: number | null;
+    morningstarRisk: number | null;
+    morningstarReturn: number | null;
+    morningstarCategory: string | null;
+    esgTotal: number | null;
+    esgEnvironment: number | null;
+    esgSocial: number | null;
+    esgGovernance: number | null;
+    esgPeerGroup: string | null;
+    esgPercentile: number | null;
+    sustainability: number | null;
+  };
+  velaScore?: {
+    finalScore: number | null;
+    grade: string | null;
+    riskScore: number | null;
+    riskLabel: string | null;
+    coverage: number;
+    methodology: string;
+    pillars: { key: string; label: string; score: number; weight: number; detail: string }[];
+  };
   distributions?: { date: string; amount: number }[];
   splits?: { date: string; ratio: string }[];
 }

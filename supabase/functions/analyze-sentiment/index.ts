@@ -382,9 +382,42 @@ Deno.serve(async (req) => {
       });
     }
     if (aiRes.status === 402) {
-      return new Response(JSON.stringify({ error: isByo ? "Your selected AI provider rejected the request because its quota or billing is unavailable. Check that provider account, or switch provider in Settings > Connections." : "Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections." }), {
-        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Degrade gracefully: keyword scoring over the headlines we already fetched,
+      // so the page renders real data instead of blanking on a billing error.
+      const POS = ["beat", "beats", "surge", "surges", "rally", "record", "upgrade", "upgraded", "growth", "profit", "strong", "buy", "outperform", "raises", "wins", "gain", "gains", "rises", "rise"];
+      const NEG = ["miss", "misses", "plunge", "plunges", "fall", "falls", "drop", "drops", "downgrade", "downgraded", "loss", "losses", "weak", "sell", "underperform", "cuts", "probe", "lawsuit", "warns", "slump"];
+      const scoreOf = (t: string) => {
+        const s = t.toLowerCase();
+        const p = POS.filter((w) => s.includes(w)).length;
+        const n = NEG.filter((w) => s.includes(w)).length;
+        if (p === 0 && n === 0) return 50;
+        return Math.max(0, Math.min(100, Math.round(50 + ((p - n) / (p + n)) * 40)));
+      };
+      const scored = articles.map((a) => {
+        const sc = scoreOf(`${a.title} ${a.description || ""}`);
+        return { ...a, score: sc, sentiment: sc > 55 ? "positive" : sc < 45 ? "negative" : "neutral" };
       });
+      const overall = Math.round(scored.reduce((s, a) => s + a.score, 0) / scored.length);
+      const label = overall >= 70 ? "bullish" : overall >= 55 ? "bullish" : overall <= 30 ? "bearish" : overall <= 45 ? "bearish" : "neutral";
+      const bySrc = new Map<string, { total: number; count: number }>();
+      scored.forEach((a) => {
+        const cur = bySrc.get(a.source) || { total: 0, count: 0 };
+        cur.total += a.score; cur.count += 1; bySrc.set(a.source, cur);
+      });
+      return new Response(JSON.stringify({
+        symbol,
+        score: overall,
+        label,
+        summary: `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
+        degraded: true,
+        degradedReason: isByo
+          ? "Your selected AI provider rejected the request (quota or billing). Check that provider account, or switch provider in Settings > Connections."
+          : "Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections.",
+        drivers: scored.filter((a) => a.score !== 50).slice(0, 5).map((a) => ({ title: a.title, impact: a.sentiment })),
+        articles: scored,
+        sources: Array.from(bySrc.entries()).map(([source, v]) => ({ source, avgScore: Math.round(v.total / v.count), count: v.count })),
+        analystOpinions: [],
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (!aiRes.ok) {
       const t = await aiRes.text();

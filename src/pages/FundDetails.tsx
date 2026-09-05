@@ -16,6 +16,7 @@ import { useOHLCHistory, compactAxisTick, type OHLCRange } from "@/hooks/useOHLC
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { FundRatingsCard } from "@/components/fund/FundRatingsCard";
 
 const FUND_FEATURE = "fund.deep_data";
 
@@ -190,6 +191,17 @@ const FundDetails = () => {
                 <Fact label="Avg. volume" value={compact(kf.averageVolume)} />
                 <Fact label="Beta (3y)" value={num(kf.beta3Year)} />
                 <Fact label="Currency" value={currency ?? "—"} />
+                <Fact label="ISIN" value={data.isin ?? "—"} />
+                <Fact
+                  label="Vela score"
+                  value={data.velaScore?.finalScore != null ? `${data.velaScore.finalScore}/100` : "—"}
+                  hint={data.velaScore?.grade ? `Grade ${data.velaScore.grade}` : undefined}
+                />
+                <Fact
+                  label="Risk score"
+                  value={data.velaScore?.riskScore != null ? `${data.velaScore.riskScore}/100` : "—"}
+                  hint={data.velaScore?.riskLabel ?? undefined}
+                />
               </CardContent>
             </Card>
 
@@ -232,6 +244,7 @@ const FundDetails = () => {
 
               {/* OVERVIEW — free */}
               <TabsContent value="overview" className="space-y-4 pt-4">
+                <FundRatingsCard data={data} />
                 <Card>
                   <CardHeader><CardTitle className="text-base">Objective</CardTitle></CardHeader>
                   <CardContent className="text-sm leading-relaxed text-muted-foreground">

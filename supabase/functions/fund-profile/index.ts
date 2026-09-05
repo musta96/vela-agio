@@ -17,6 +17,9 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { fetchQuoteSummary, fetchCorporateEvents } from "../_shared/fundamentals.ts";
 import { getCached, setCached } from "../_shared/profile-cache.ts";
 import { isIsin, resolveIsin } from "../_shared/isin-resolver.ts";
+import { lookupIsin } from "../_shared/isin-lookup.ts";
+import { computeFundScore } from "../_shared/fund-score.ts";
+import { CURATED as INSTRUMENTS } from "../_shared/instrument-master.ts";
 
 function num(v: unknown): number | null {
   if (v == null) return null;
@@ -79,13 +82,13 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v3:${symbol}`;
+    const cacheKey = `fund:v5:${symbol}`;
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
     const modules = [
       "quoteType", "price", "summaryDetail", "defaultKeyStatistics", "assetProfile",
-      "fundProfile", "topHoldings", "fundPerformance",
+      "fundProfile", "topHoldings", "fundPerformance", "esgScores",
     ];
 
     const [q, corporate] = await Promise.all([
@@ -110,6 +113,7 @@ Deno.serve(async (req) => {
     const fp = q.fundProfile ?? {};
     const th = q.topHoldings ?? {};
     const perf = q.fundPerformance ?? {};
+    const esg = q.esgScores ?? {};
 
     const quoteType: string = (qt.quoteType || p.quoteType || "").toUpperCase();
     if (quoteType && !FUND_TYPES.has(quoteType)) {
@@ -141,6 +145,57 @@ Deno.serve(async (req) => {
           category: num(r.categoryAnnualValue ?? r.annualValueCat),
         }))
       : [];
+
+    // ISIN backfill: when the caller passed a ticker we still want the
+    // identifier every European investor recognises.
+    if (!isin) isin = await lookupIsin(symbol).catch(() => null);
+
+    const perfOverview = perf.performanceOverview ?? {};
+    const ratings = {
+      morningstarOverall: num(ks.morningStarOverallRating) ?? num(perfOverview.morningStarOverallRating),
+      morningstarRisk: num(ks.morningStarRiskRating) ?? num(perfOverview.morningStarRiskRating),
+      morningstarReturn: num(perfOverview.morningStarReturnRating),
+      morningstarCategory: fp.categoryName ?? null,
+      esgTotal: num(esg.totalEsg),
+      esgEnvironment: num(esg.environmentScore),
+      esgSocial: num(esg.socialScore),
+      esgGovernance: num(esg.governanceScore),
+      esgPeerGroup: esg.peerGroup ?? null,
+      esgPercentile: num(esg.percentile),
+      sustainability: num(esg.sustainabilityScore),
+    };
+
+    const topWeightSum = Array.isArray(th.holdings)
+      ? th.holdings.slice(0, 10).reduce((s: number, h: any) => s + ((num(h.holdingPercent) ?? 0)), 0)
+      : null;
+    const risk3y = riskStats.find((r) => String(r.period ?? "").startsWith("3")) ?? riskStats[0] ?? null;
+    const worstAnnual = annualReturns.length
+      ? Math.min(...annualReturns.map((r) => (r.fund ?? 0)))
+      : null;
+    const master = INSTRUMENTS[symbol] ?? null;
+    const terValue = [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
+      .find((v) => v != null && v > 0) ?? master?.ter ?? null;
+
+    const velaScore = computeFundScore({
+      quoteType,
+      ter: terValue,
+      categoryTer: num(feesCat.annualReportExpenseRatio),
+      stdDev3y: risk3y?.stdDev ?? null,
+      beta3y: risk3y?.beta ?? num(ks.beta3Year),
+      sharpe3y: risk3y?.sharpeRatio ?? null,
+      worstAnnualReturn: worstAnnual,
+      return3y: num(trailing.threeYear) ?? num(ks.threeYearAverageReturn),
+      return5y: num(trailing.fiveYear) ?? num(ks.fiveYearAverageReturn),
+      category3y: num(trailingCat.threeYear),
+      category5y: num(trailingCat.fiveYear),
+      totalAssets: num(sd.totalAssets) ?? num(ks.totalAssets)
+        ?? (num(feesData.totalNetAssets) != null ? (num(feesData.totalNetAssets) as number) * 1e6 : null),
+      inceptionDate: dateOf(ks.fundInceptionDate),
+      morningstarOverall: ratings.morningstarOverall,
+      topHoldingsWeight: topWeightSum,
+      holdingsCount: Array.isArray(th.holdings) ? th.holdings.length : null,
+      sectorCount: weights(th.sectorWeightings).filter((s) => (s.weight ?? 0) > 0).length || null,
+    });
 
     const payload = {
       symbol,
@@ -253,6 +308,15 @@ Deno.serve(async (req) => {
           deferredSalesLoad: num(feesCat.deferredSalesLoad),
           twelveBOne: num(feesCat.twelveBOne),
         },
+      },
+      ratings,
+      velaScore,
+      identifiers: {
+        isin,
+        domicile: master?.domicile ?? null,
+        ucits: master?.ucits ?? null,
+        replication: master?.replication ?? null,
+        distribution: master?.distribution ?? null,
       },
       distributions: corporate.dividends,
       splits: corporate.splits,

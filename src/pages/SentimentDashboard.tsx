@@ -33,6 +33,8 @@ interface SentimentResult {
     tier1Count: number; tier2Count: number; tier3Count: number;
   };
   divergence?: number | null;
+  marketSentiment?: { provider: string; score: number; sampleSize: number; detail: string }[];
+  measuredScore?: number | null;
   momentum?: {
     d7: number | null; d30: number | null; trend: string;
     history: { t: string; score: number }[];
@@ -244,6 +246,32 @@ const SentimentDashboard = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {result.marketSentiment && result.marketSentiment.length > 0 && (
+                <Card className="card-gradient border-border">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Measured sentiment feeds</CardTitle>
+                    <CardDescription className="text-xs">
+                      Scores calculated by the data providers themselves, not estimated
+                      {typeof result.measuredScore === "number" ? ` — blended ${result.measuredScore}/100` : ""}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {result.marketSentiment.map((r) => (
+                      <div key={r.provider} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground truncate pr-2">{r.provider}</span>
+                          <span className="flex items-center gap-2">
+                            <span className={`font-bold ${scoreColor(r.score)}`}>{r.score}</span>
+                            <Badge variant="outline" className="text-[10px]">{r.sampleSize}</Badge>
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{r.detail}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="card-gradient border-border">
                 <CardHeader className="pb-2">

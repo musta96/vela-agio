@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { fetchAllByoNews } from "../_shared/data-provider.ts";
 import { resolveAIConfig } from "../_shared/ai-provider.ts";
+import { fetchRealSentiment, blendReadings, type SentimentReading } from "../_shared/sentiment-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -268,6 +269,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Real, provider-computed sentiment (StockTwits crowd data is keyless;
+    // Alpha Vantage / Marketaux / Finnhub join in when the user saved a key).
+    let readings: SentimentReading[] = [];
+    try { readings = await fetchRealSentiment(auth, symbol); } catch (e) { console.warn("real sentiment failed", e); }
+    const measured = blendReadings(readings);
+    const providerScoreByUrl = new Map<string, number>();
+    for (const r of readings) for (const a of r.articleScores ?? []) providerScoreByUrl.set(a.url, a.score);
+
     // Free + public sources
     const freeArticles = await fetchHeadlines(symbol, name);
     // Phase 2: BYO premium news (NewsAPI / Marketaux / Finnhub / Benzinga)
@@ -278,12 +287,23 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn("BYO news fetch failed", e); }
     const articles = dedupe([...byo, ...freeArticles], 70);
     if (articles.length === 0) {
+      const score = measured ? measured.score : 50;
       return new Response(JSON.stringify({
-        symbol, score: 50, label: "neutral",
-        summary: "No recent news, Reddit threads, Seeking Alpha posts, or social chatter were found for this ticker.",
+        symbol,
+        score,
+        weightedScore: score,
+        label: labelFor(score),
+        summary: measured
+          ? `No headlines were found, but live sentiment feeds (${readings.map((r) => r.provider).join(", ")}) score this ${labelFor(score)} at ${score}/100.`
+          : "No recent news, Reddit threads, Seeking Alpha posts, or social chatter were found for this ticker.",
         drivers: [], articles: [], sources: [],
+        marketSentiment: readings,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const measuredText = readings.length
+      ? `\n\nIndependently measured sentiment feeds (real provider scores, 0-100 where 50 is neutral):\n${readings.map((r) => `- ${r.provider}: ${r.score}/100 from ${r.sampleSize} items — ${r.detail}`).join("\n")}\nTreat these measured scores as evidence and stay close to their blended level (${measured?.score ?? 50}/100) unless the headlines clearly justify a different read; explain any divergence.`
+      : "";
 
     const newsText = articles
       .map(
@@ -318,7 +338,7 @@ Deno.serve(async (req) => {
           },
           {
             role: "user",
-            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed reputable sources:\n\n${newsText}\n\nReturn:\n- An overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish).\n- A label.\n- A 2-sentence summary that explicitly notes whether news and social sentiment agree or diverge.\n- Key drivers.\n- A per-item sentiment (positive/neutral/negative) with a 0-100 score.\n- A synthesis of the distinct analyst opinions / camps (typically 2-4 camps such as "Bull case", "Bear case", "Neutral/Hold"). For each camp give a stance label, a 1-sentence thesis, the main arguments (bullet list), and which source titles support that camp (by their index numbers).`,
+            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed reputable sources:\n\n${newsText}${measuredText}\n\nReturn:\n- An overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish).\n- A label.\n- A 2-sentence summary that explicitly notes whether news and social sentiment agree or diverge.\n- Key drivers.\n- A per-item sentiment (positive/neutral/negative) with a 0-100 score.\n- A synthesis of the distinct analyst opinions / camps (typically 2-4 camps such as "Bull case", "Bear case", "Neutral/Hold"). For each camp give a stance label, a 1-sentence thesis, the main arguments (bullet list), and which source titles support that camp (by their index numbers).`,
           },
         ],
         tools: [{

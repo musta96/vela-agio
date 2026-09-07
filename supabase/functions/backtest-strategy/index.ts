@@ -1,4 +1,5 @@
 import { getDailyHistory } from "../_shared/price-provider.ts";
+import { evalStrategyCondition, unsupportedConditions } from "../_shared/ta/conditions.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

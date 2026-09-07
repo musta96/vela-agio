@@ -4,6 +4,8 @@ import { FileDown } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Activity, MessageSquare, Sparkles, BarChart3, Star, Globe, Calculator, Target, ShieldAlert, Lightbulb, Briefcase } from "lucide-react";
+import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
+import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";

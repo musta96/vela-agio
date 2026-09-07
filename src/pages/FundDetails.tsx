@@ -19,6 +19,8 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 import { FundRatingsCard } from "@/components/fund/FundRatingsCard";
 import { FundAnalysisTab } from "@/components/fund/FundAnalysisTab";
 import { FundGeographyCard } from "@/components/fund/FundGeographyCard";
+import { FundVerdictCard } from "@/components/fund/FundVerdictCard";
+import { FundPeersTab } from "@/components/fund/FundPeersTab";
 import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
 import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
 
@@ -215,6 +217,9 @@ const FundDetails = () => {
                 />
               </CardContent>
             </Card>
+
+            {/* What to do — blended read on the vehicle */}
+            <FundVerdictCard data={data} bars={bars} />
 
             {/* Price chart */}
             <Card>

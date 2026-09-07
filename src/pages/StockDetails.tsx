@@ -1127,6 +1127,8 @@ const StockDetails = () => {
           </TabsContent>
           {/* SOURCES */}
           <TabsContent value="sources" className="space-y-4">
+            <CompanyWebsiteFacts symbol={sym} name={profile?.name ?? undefined} defaultWebsite={profile?.website ?? undefined} />
+
             <Card>
               <CardHeader>
                 <CardTitle>All Sources</CardTitle>

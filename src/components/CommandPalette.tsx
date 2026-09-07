@@ -10,6 +10,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
+import { classifyInstrument, detailPathFor } from "@/lib/instrumentType";
 import { BarChart3, Activity, MessageSquare, Sparkles, Briefcase, Star, Settings as SettingsIcon, GitCompare, Grid3x3, Search, Compass, Loader2, Info } from "lucide-react";
 
 const PAGES = [
@@ -145,6 +146,51 @@ export const CommandPalette = () => {
     return { kind: "disambiguate" };
   };
 
+  const pagesGroup = (
+          <CommandGroup heading="Pages">
+            {visiblePages.map((p) => (
+              <CommandItem key={p.to} value={`page ${p.label}`} onSelect={() => go(p.to)}>
+                <p.icon className="mr-2 h-4 w-4" />
+                {p.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+  );
+
+  const marketsGroup = (
+          <CommandGroup heading={
+            loading
+              ? "Markets (searching…)"
+              : privateHint
+                ? `Related to ${privateHint.canonical}`
+                : "Markets"
+          }>
+            {tickerResults.map((s) => (
+              <CommandItem
+                key={`${s.symbol}-${s.exchange}`}
+                value={`${s.symbol} ${s.name} ${s.exchange} ${s.type} ${s.category ?? ""}`}
+                onSelect={() => go(`/stock/${encodeURIComponent(s.symbol)}`)}
+              >
+                <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="font-mono mr-2">{s.symbol}</span>
+                <span className="text-muted-foreground text-sm truncate">{s.name}</span>
+                <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
+                  {[s.category, s.exchange, s.type].filter(Boolean).join(" · ")}
+                </span>
+              </CommandItem>
+            ))}
+            {query.trim().length >= 2 && (
+              <CommandItem
+                value={`explore ${query}`}
+                onSelect={() => go(`/explore?q=${encodeURIComponent(query.trim())}`)}
+              >
+                <Compass className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>Open Explore for "{query.trim()}"</span>
+              </CommandItem>
+            )}
+          </CommandGroup>
+  );
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
       <CommandInput
@@ -187,46 +233,19 @@ export const CommandPalette = () => {
             </span>
           )}
         </CommandEmpty>
-        <CommandGroup heading="Pages">
-          {visiblePages.map((p) => (
-            <CommandItem key={p.to} value={`page ${p.label}`} onSelect={() => go(p.to)}>
-              <p.icon className="mr-2 h-4 w-4" />
-              {p.label}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading={
-          loading
-            ? "Markets (searching…)"
-            : privateHint
-              ? `Related to ${privateHint.canonical}`
-              : "Markets"
-        }>
-          {tickerResults.map((s) => (
-            <CommandItem
-              key={`${s.symbol}-${s.exchange}`}
-              value={`${s.symbol} ${s.name} ${s.exchange} ${s.type} ${s.category ?? ""}`}
-              onSelect={() => go(`/stock/${encodeURIComponent(s.symbol)}`)}
-            >
-              <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-              <span className="font-mono mr-2">{s.symbol}</span>
-              <span className="text-muted-foreground text-sm truncate">{s.name}</span>
-              <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
-                {[s.category, s.exchange, s.type].filter(Boolean).join(" · ")}
-              </span>
-            </CommandItem>
-          ))}
-          {query.trim().length >= 2 && (
-            <CommandItem
-              value={`explore ${query}`}
-              onSelect={() => go(`/explore?q=${encodeURIComponent(query.trim())}`)}
-            >
-              <Compass className="mr-2 h-4 w-4 text-muted-foreground" />
-              <span>Open Explore for "{query.trim()}"</span>
-            </CommandItem>
-          )}
-        </CommandGroup>
+        {searching ? (
+          <>
+            {marketsGroup}
+            <CommandSeparator />
+            {pagesGroup}
+          </>
+        ) : (
+          <>
+            {pagesGroup}
+            <CommandSeparator />
+            {marketsGroup}
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );

@@ -146,8 +146,15 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
 
   async function placeOrder() {
     if (!user || !activeId || !selected) return;
-    const px = quotes[selected.symbol]?.price;
-    if (!px) { toast({ title: "No price yet", description: "Waiting for live quote. Try again in a second." }); return; }
+    let px = quotes[selected.symbol]?.price;
+    if (!px) {
+      // Not in the polled batch yet (freshly searched instrument): fetch it now.
+      const { data } = await supabase.functions.invoke("market-data", { body: { action: "quote", symbols: [selected.symbol] } });
+      const p = (data?.quotes ?? {})[selected.symbol]?.price;
+      if (typeof p === "number" && Number.isFinite(p) && p > 0) px = p;
+    }
+    if (!px) { toast({ title: "No live price available", description: `We could not get a price for ${selected.symbol} right now. Try again shortly or pick another instrument.`, variant: "destructive" }); return; }
+
     const quantity = Math.max(0, Number(qty));
     if (!quantity) return;
     const notional = px * quantity;

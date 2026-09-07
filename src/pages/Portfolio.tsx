@@ -671,7 +671,7 @@ const Portfolio = () => {
             className="gap-2 hover-scale"
           >
             <Plus className="h-4 w-4" />
-            Add Stock
+            Add instrument
           </Button>
             <Button
             variant="outline"

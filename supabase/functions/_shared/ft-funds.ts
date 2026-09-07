@@ -101,7 +101,10 @@ export function parseFtSummary(html: string, isin: string): FTFundData | null {
   const priceBlock = html.match(/mod-tearsheet-overview__quote">([\s\S]{0,600})/)?.[1] ?? "";
   const currency = priceBlock.match(/Price\s*\(([A-Za-z]{2,4})\)/)?.[1]?.toUpperCase() ?? null;
   const nav = num(priceBlock.match(/Price\s*\([A-Za-z]{2,4}\)[\s\S]{0,200}?>([\d.,]+)</)?.[1]);
-  const changePct = num(html.match(/mod-format--(?:pos|neg)[^>]*>\s*([+-]?[\d.,]+)%/)?.[1]);
+  // Only the overview block carries the daily move; elsewhere on the page
+  // "%" values are performance figures that would look like a 500% day.
+  const rawChange = num(priceBlock.match(/mod-format--(?:pos|neg)[^>]*>\s*([+-]?[\d.,]+)%/)?.[1]);
+  const changePct = rawChange != null && Math.abs(rawChange) <= 50 ? rawChange : null;
   const name = strip(html.match(/<h1[^>]*>([\s\S]{0,200}?)<\/h1>/)?.[1] ?? "") || null;
   const asOf =
     parseFtDate(html.match(/as of ([A-Za-z]{3,9}\s+\d{1,2}\s+\d{4})/i)?.[1] ?? null) ??

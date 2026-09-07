@@ -446,7 +446,7 @@ Deno.serve(async (req) => {
     }
 
     const aiJson = await aiRes.json();
-    await logAiUsage({ userId: access.userId, feature: "sentiment", model: cfg.model, provider: isByo ? "byo" : "lovable", success: true });
+    await logAiUsage({ userId: access.userId, feature: "sentiment", model: usedCfg.model, provider: usedCfg.source === "user" || isByo ? "byo" : "lovable", success: true });
     const call = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
     let parsed: any = {};
     try { parsed = JSON.parse(call?.function?.arguments || "{}"); } catch {}

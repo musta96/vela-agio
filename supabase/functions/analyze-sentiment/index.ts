@@ -303,9 +303,10 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
         };
-    const aiRes = await fetch(`${cfg.baseURL}/chat/completions`, {
+    const callAI = (c: { baseURL: string; model: string; headers: Record<string, string> }) =>
+      fetch(`${c.baseURL}/chat/completions`, {
       method: "POST",
-      headers: cfg.headers,
+      headers: c.headers,
       body: JSON.stringify({
         model: cfg.model,
         messages: [

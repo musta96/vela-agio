@@ -49,7 +49,7 @@ const SUFFIX_COUNTRY: Record<string, string> = {
   ".T": "JP", ".JP": "JP", ".SS": "CN", ".SZ": "CN", ".HK": "HK", ".TW": "TW", ".TWO": "TW",
   ".KS": "KR", ".KQ": "KR", ".SI": "SG", ".NS": "IN", ".BO": "IN", ".JK": "ID", ".KL": "MY",
   ".BK": "TH", ".PS": "PH", ".VN": "VN", ".AX": "AU", ".NZ": "NZ",
-  ".SR": "SA", ".AD": "AE", ".DU": "AE", ".DFM": "AE", ".QA": "QA", ".KW": "KW",
+  ".SR": "SA", ".AD": "AE", ".DFM": "AE", ".QA": "QA", ".KW": "KW",
   ".BH": "BH", ".OM": "OM", ".TA": "IL", ".CA": "EG", ".JO": "ZA", ".MA": "MA",
   ".LG": "NG", ".NR": "KE",
 };

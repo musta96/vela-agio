@@ -1,4 +1,5 @@
 import { getDailyHistory } from "../_shared/price-provider.ts";
+import { evalStrategyCondition, unsupportedConditions } from "../_shared/ta/conditions.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -111,74 +112,10 @@ function rsi(closes: number[], i: number, period = 14): number | null {
   return 100 - 100 / (1 + rs);
 }
 
-function evalCondition(c: CustomCondition, closes: number[], i: number): boolean {
-  const smaAt = (n: number, idx: number) => sma(closes, n, idx);
-  switch (c.type) {
-    case "rsi_below": {
-      const r = rsi(closes, i);
-      return r !== null && r < (c.value ?? 30);
-    }
-    case "rsi_above": {
-      const r = rsi(closes, i);
-      return r !== null && r > (c.value ?? 70);
-    }
-    case "sma_cross_up": {
-      const f = c.fast ?? 20, s = c.slow ?? 50;
-      const a = smaAt(f, i), b = smaAt(s, i);
-      const ap = smaAt(f, i - 1), bp = smaAt(s, i - 1);
-      return !!(a && b && ap && bp && ap <= bp && a > b);
-    }
-    case "sma_cross_down": {
-      const f = c.fast ?? 20, s = c.slow ?? 50;
-      const a = smaAt(f, i), b = smaAt(s, i);
-      const ap = smaAt(f, i - 1), bp = smaAt(s, i - 1);
-      return !!(a && b && ap && bp && ap >= bp && a < b);
-    }
-    case "price_above_sma": {
-      const v = smaAt(c.period ?? 50, i);
-      return v !== null && closes[i] > v;
-    }
-    case "price_below_sma": {
-      const v = smaAt(c.period ?? 50, i);
-      return v !== null && closes[i] < v;
-    }
-    case "macd_cross_up": {
-      const m = macdAt(closes, i);
-      const mp = macdAt(closes, i - 1);
-      return !!(m && mp && mp.macd <= mp.signal && m.macd > m.signal);
-    }
-    case "macd_cross_down": {
-      const m = macdAt(closes, i);
-      const mp = macdAt(closes, i - 1);
-      return !!(m && mp && mp.macd >= mp.signal && m.macd < m.signal);
-    }
-    case "price_pct_change": {
-      const n = c.period ?? 5;
-      if (i - n < 0) return false;
-      const chg = (closes[i] - closes[i - n]) / closes[i - n] * 100;
-      const thr = c.value ?? 5;
-      return thr >= 0 ? chg >= thr : chg <= thr;
-    }
-    case "ema_cross_up": {
-      const f = c.fast ?? 12, s = c.slow ?? 26;
-      const a = ema(closes, f, i), b = ema(closes, s, i);
-      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
-      return !!(a && b && ap && bp && ap <= bp && a > b);
-    }
-    case "ema_cross_down": {
-      const f = c.fast ?? 12, s = c.slow ?? 26;
-      const a = ema(closes, f, i), b = ema(closes, s, i);
-      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
-      return !!(a && b && ap && bp && ap >= bp && a < b);
-    }
-    case "atr_breakout":
-    case "adx_above":
-    case "volume_spike":
-      // OHLC/Volume aggregation exists but rule logic not yet updated to use them
-      return false;
-    default:
-      return false;
-  }
+// Full condition evaluation (classic + advanced pattern rules) lives in the
+// shared TA module so client preview and server run agree.
+function evalCondition(c: CustomCondition, bars: Bar[], i: number): boolean {
+  return evalStrategyCondition(c, bars, i);
 }
 
 function ema(closes: number[], period: number, i: number): number | null {
@@ -267,10 +204,10 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
         else if (rules.risk?.targetPct && chg >= Math.abs(rules.risk.targetPct)) { sell(i); }
       }
       if (shares === 0) {
-        const entryOk = rules.entry.length > 0 && rules.entry.every(c => evalCondition(c, closes, i));
+        const entryOk = rules.entry.length > 0 && rules.entry.every(c => evalCondition(c, bars, i));
         if (entryOk) buy(i);
       } else {
-        const exitOk = rules.exit.length > 0 && rules.exit.every(c => evalCondition(c, closes, i));
+        const exitOk = rules.exit.length > 0 && rules.exit.every(c => evalCondition(c, bars, i));
         if (exitOk) sell(i);
       }
     }
@@ -386,6 +323,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Custom strategy requires at least one entry rule" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (strategy === "custom" && rules) {
+      const bad = unsupportedConditions([...rules.entry, ...rules.exit]);
+      if (bad.length) {
+        return new Response(JSON.stringify({
+          error: "unsupported_rules",
+          message: `This run uses rules the backtest engine cannot evaluate: ${bad.join(", ")}. Remove or replace them and run again.`,
+          unsupported: bad,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
     const result = simulate(basketBars, strategy, initial, rules, costs);
 

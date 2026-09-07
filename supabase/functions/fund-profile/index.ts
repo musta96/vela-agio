@@ -172,7 +172,11 @@ Deno.serve(async (req) => {
     const worstAnnual = annualReturns.length
       ? Math.min(...annualReturns.map((r) => (r.fund ?? 0)))
       : null;
-    const master = INSTRUMENTS[symbol] ?? null;
+    // Reference data is curated per listing, but the same fund trades on
+    // several venues (VWCE.DE / VWCE.MI / VWCE.AS share ISIN IE00BK5BQT80),
+    // so fall back to an ISIN match before giving up on TER/domicile/UCITS.
+    const master = INSTRUMENTS[symbol]
+      ?? (isin ? Object.values(INSTRUMENTS).find((r) => r.isin && r.isin === isin) ?? null : null);
     const terValue = [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
       .find((v) => v != null && v > 0) ?? master?.ter ?? null;
 

@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: c.headers,
       body: JSON.stringify({
-        model: cfg.model,
+        model: c.model,
         messages: [
           {
             role: "system",

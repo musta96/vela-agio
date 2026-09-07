@@ -63,6 +63,8 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
   useEffect(() => { refreshPortfolios?.(); }, [refreshPortfolios]);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [watchOpen, setWatchOpen] = useState(false);
 
   const [cash, setCash] = useState<Cash | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);

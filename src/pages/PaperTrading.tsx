@@ -210,9 +210,46 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
       title: `${side === "short" ? "SHORT SELL" : side.toUpperCase()} simulated`,
       description: `${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}${side === "short" ? " · unlimited-loss risk noted" : ""}`,
     });
-    setSelected(null); setQ(""); setQty("10");
+    setSelected(null); setQ(""); setQty("10"); setPriceOverride("");
     refresh(activeId);
   }
+
+  /** Persist edited simulation settings (name, currency, invested total, cash). */
+  async function saveSettings(v: { name: string; currency: string; startingCash: number; cash: number }) {
+    if (!activeId || !user) return;
+    await updatePortfolio(activeId, { name: v.name, base_currency: v.currency });
+    if (cash) {
+      await (supabase as any).from("paper_cash")
+        .update({ currency: v.currency, starting_cash: v.startingCash, cash: v.cash })
+        .eq("portfolio_id", activeId);
+    } else {
+      await (supabase as any).from("paper_cash")
+        .insert({ user_id: user.id, portfolio_id: activeId, currency: v.currency, starting_cash: v.startingCash, cash: v.cash });
+    }
+    await refreshPortfolios?.();
+    await refresh(activeId);
+    toast({ title: "Simulation updated", description: `${v.name} · ${fmt(v.startingCash, v.currency)} invested.` });
+  }
+
+  /** Wipe every simulated trade and put all money back into cash. */
+  async function resetSimulation() {
+    if (!activeId) return;
+    await (supabase as any).from("paper_trades").delete().eq("portfolio_id", activeId);
+    await (supabase as any).from("paper_cash").update({ cash: cash?.starting_cash || 0 }).eq("portfolio_id", activeId);
+    await refresh(activeId);
+    toast({ title: "Simulation reset", description: "All trades removed and cash restored." });
+  }
+
+  async function deleteSimulation() {
+    if (!activeId) return;
+    await (supabase as any).from("paper_trades").delete().eq("portfolio_id", activeId);
+    await (supabase as any).from("paper_cash").delete().eq("portfolio_id", activeId);
+    await removePortfolio(activeId);
+    setActiveId(null);
+    await refreshPortfolios?.();
+    toast({ title: "Simulation deleted" });
+  }
+
 
   async function deleteTrade(id: string) {
     if (!confirm("Delete this paper trade? Cash will not be rebalanced automatically.")) return;

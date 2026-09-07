@@ -153,12 +153,19 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
       const p = (data?.quotes ?? {})[selected.symbol]?.price;
       if (typeof p === "number" && Number.isFinite(p) && p > 0) px = p;
     }
-    if (!px) { toast({ title: "No live price available", description: `We could not get a price for ${selected.symbol} right now. Try again shortly or pick another instrument.`, variant: "destructive" }); return; }
+    // A manually typed fill price wins over the live quote (what-if pricing).
+    const manual = Number(priceOverride);
+    if (Number.isFinite(manual) && manual > 0) px = manual;
+    if (!px) { toast({ title: "No live price available", description: `We could not get a price for ${selected.symbol} right now. Try again shortly, or type a price yourself.`, variant: "destructive" }); return; }
 
-    const quantity = Math.max(0, Number(qty));
+    // Size either by number of units or by the amount of money to commit.
+    const quantity = sizeMode === "amount"
+      ? Math.max(0, Math.floor(((Number(amount) || 0) / px) * 1e6) / 1e6)
+      : Math.max(0, Number(qty));
     if (!quantity) return;
     const notional = px * quantity;
     const currentCash = cash?.cash || 0;
+
     const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
     if (side === "buy" && notional > currentCash) {
       toast({ title: "Insufficient virtual cash", description: `Need ${fmt(notional)}, have ${fmt(currentCash)}.`, variant: "destructive" });

@@ -244,6 +244,14 @@ async function fetchHeadlines(symbol: string, name?: string): Promise<Article[]>
   return dedupe(merged, 60);
 }
 
+function labelFor(score: number): string {
+  if (score >= 70) return "very bullish";
+  if (score >= 56) return "bullish";
+  if (score <= 30) return "very bearish";
+  if (score <= 44) return "bearish";
+  return "neutral";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -433,11 +441,13 @@ Deno.serve(async (req) => {
         return Math.max(0, Math.min(100, Math.round(50 + ((p - n) / (p + n)) * 40)));
       };
       const scored = articles.map((a) => {
-        const sc = scoreOf(`${a.title} ${a.description || ""}`);
+        const sc = providerScoreByUrl.get(a.link) ?? scoreOf(`${a.title} ${a.description || ""}`);
         return { ...a, score: sc, sentiment: sc > 55 ? "positive" : sc < 45 ? "negative" : "neutral" };
       });
-      const overall = Math.round(scored.reduce((s, a) => s + a.score, 0) / scored.length);
-      const label = overall >= 70 ? "bullish" : overall >= 55 ? "bullish" : overall <= 30 ? "bearish" : overall <= 45 ? "bearish" : "neutral";
+      const headlineAvg = Math.round(scored.reduce((s, a) => s + a.score, 0) / scored.length);
+      // Real measured feeds outrank the keyword estimate whenever we have them.
+      const overall = measured ? Math.round(measured.score * 0.75 + headlineAvg * 0.25) : headlineAvg;
+      const label = labelFor(overall);
       const bySrc = new Map<string, { total: number; count: number }>();
       scored.forEach((a) => {
         const cur = bySrc.get(a.source) || { total: 0, count: 0 };
@@ -447,9 +457,14 @@ Deno.serve(async (req) => {
         symbol,
         score: overall,
         label,
-        summary: `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
-        degraded: true,
-        degradedReason: usedCfg.source === "user"
+        summary: measured
+          ? `Live sentiment feeds (${readings.map((r) => `${r.provider} ${r.score}/100`).join(", ")}) put ${name || symbol} at ${overall}/100 — ${labelFor(overall)} — across ${scored.length} recent items. The AI write-up is unavailable right now, but these scores are measured, not estimated.`
+          : `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
+        degraded: !measured,
+        marketSentiment: readings,
+        degradedReason: measured
+          ? null
+          : usedCfg.source === "user"
           ? "Your own API key was used but the provider rejected the request (quota or billing). Check that provider account in Settings > Connections."
           : "No AI credits are available and no personal API key is saved. Add your own key in Settings > Connections to get real scored analysis.",
         drivers: scored.filter((a) => a.score !== 50).slice(0, 5).map((a) => ({ title: a.title, impact: a.sentiment })),

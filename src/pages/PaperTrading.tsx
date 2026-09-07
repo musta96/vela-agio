@@ -578,7 +578,7 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                 <Button
                   className={`w-full ${side === "short" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
                   onClick={placeOrder}
-                  disabled={!selected || !Number(qty)}
+                  disabled={!selected || (sizeMode === "qty" ? !Number(qty) : !Number(amount))}
                 >
                   Simulate {side === "short" ? "SHORT SELL" : side.toUpperCase()}
                 </Button>

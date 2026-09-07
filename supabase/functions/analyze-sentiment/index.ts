@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
       )
       .join("\n");
 
-    const cfg = isByo
+    const cfg: { baseURL: string; model: string; headers: Record<string, string>; source: "user" | "default" } = isByo
       ? await resolveAIConfig(auth)
       : {
           baseURL: "https://ai.gateway.lovable.dev/v1",
@@ -302,6 +302,7 @@ Deno.serve(async (req) => {
             "X-Lovable-AIG-SDK": "direct-fetch",
             "Content-Type": "application/json",
           },
+          source: "default",
         };
     const callAI = (c: { baseURL: string; model: string; headers: Record<string, string> }) =>
       fetch(`${c.baseURL}/chat/completions`, {

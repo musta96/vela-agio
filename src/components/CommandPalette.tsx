@@ -109,6 +109,16 @@ export const CommandPalette = () => {
     return out;
   }, [query, remote]);
 
+  // When the user is typing, only keep pages that actually match — otherwise
+  // the 11 static pages push live market results below the fold.
+  const visiblePages = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return PAGES;
+    return PAGES.filter((p) => p.label.toLowerCase().includes(q));
+  }, [query]);
+
+  const searching = query.trim().length >= 2;
+
   const go = (path: string) => {
     setOpen(false);
     navigate(path);
@@ -178,7 +188,7 @@ export const CommandPalette = () => {
           )}
         </CommandEmpty>
         <CommandGroup heading="Pages">
-          {PAGES.map((p) => (
+          {visiblePages.map((p) => (
             <CommandItem key={p.to} value={`page ${p.label}`} onSelect={() => go(p.to)}>
               <p.icon className="mr-2 h-4 w-4" />
               {p.label}

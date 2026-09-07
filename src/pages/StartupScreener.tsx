@@ -68,7 +68,7 @@ export default function StartupScreener() {
           filters: { countries, sectors, stages },
         },
       });
-      if (error) throw new Error(await readEdgeError(error));
+      if (error) throw new Error((await readEdgeError(error)).message);
       if (data?.error) throw new Error(data.message ?? data.error);
       setRows(data.rows ?? []);
       if (!data.rows?.length) toast.info("No startups matched. Add startups to your watchlist or relax the filters.");

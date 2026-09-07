@@ -92,6 +92,13 @@
       "when": 1788539002397,
       "tag": "0012_allow_fund_profile_cache_kind_and_fund_feature",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788796880215,
+      "tag": "0013_unlock_advisor_preference_fields",
+      "breakpoints": true
     }
   ]
 }

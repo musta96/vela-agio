@@ -302,9 +302,18 @@ export function valueStartup(inputRaw: StartupInputs): StartupValuationOutput {
   const bench = benchmarkPreMoney(i);
   const irr = requiredIrr(i);
 
+  // The VC method runs on the market benchmark return; the required-IRR
+  // variant only earns its own line when the user supplies a fund hurdle
+  // different from that benchmark.
+  const benchIrr = (BASE_IRR[i.stage] ?? 0.5) + (REGION_IRR_ADJ[bench.region] ?? 0.02);
+  const vc = vcMethod(i, benchIrr, `VC method (benchmark ${(benchIrr * 100).toFixed(0)}%)`, 'vc_method', 1);
+  const hurdle = irr.source === 'user'
+    ? vcMethod(i, irr.irr, `Required-IRR method (your hurdle ${(irr.irr * 100).toFixed(0)}%)`, 'required_irr', 1)
+    : { key: 'required_irr', label: 'Required-IRR method', preMoney: null, postMoney: null, applicable: false, weight: 0, detail: `No fund hurdle supplied — the VC method already uses the ${bench.region} ${i.stage.replace('_', ' ')} benchmark of ${(benchIrr * 100).toFixed(0)}%.` } as MethodResult;
+
   const methods: MethodResult[] = [
-    vcMethod(i, irr.irr, 'VC method (benchmark exit)', 'vc_method', 1),
-    vcMethod(i, irr.irr, `Required-IRR method (${(irr.irr * 100).toFixed(0)}%)`, 'required_irr', 0.9),
+    vc,
+    hurdle,
     scorecardMethod(i, bench.median),
     berkusMethod(i, bench.median),
     riskFactorMethod(i, bench.median),

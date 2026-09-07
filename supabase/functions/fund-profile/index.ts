@@ -398,11 +398,12 @@ Deno.serve(async (req) => {
       velaScore,
       identifiers: {
         isin,
-        domicile: master?.domicile ?? null,
-        ucits: master?.ucits ?? null,
+        domicile: master?.domicile ?? ftData?.domicile ?? null,
+        ucits: master?.ucits ?? (/ireland|luxembourg/i.test(ftData?.domicile ?? "") ? true : null),
         replication: master?.replication ?? null,
-        distribution: master?.distribution ?? null,
+        distribution: master?.distribution ?? ftData?.incomeTreatment ?? null,
       },
+
       distributions: corporate.dividends,
       splits: corporate.splits,
     };

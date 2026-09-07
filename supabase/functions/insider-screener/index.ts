@@ -79,11 +79,12 @@ async function mapLimited<T, R>(items: T[], limit: number, fn: (t: T) => Promise
 function rationale(symbol: string, s: InsiderSignal): string {
   if (!s.transactions) return 'No disclosed transactions in the window.';
   const money = (v: number) => Math.abs(Math.round(v)).toLocaleString();
+  const awardNote = s.awards > 0 ? ` ${s.awards} filing${s.awards === 1 ? ' was' : 's were'} equity awards, which are compensation rather than conviction.` : '';
   if (s.score > 0) {
-    return `${s.uniqueBuyers} insider${s.uniqueBuyers === 1 ? '' : 's'} bought ${money(s.buyValue)} against ${money(s.sellValue)} sold${s.cluster ? '; cluster buying (3+ insiders) is the historically informative pattern' : ''}. Last filing ${s.lastDate}.`;
+    return `${s.uniqueBuyers} insider${s.uniqueBuyers === 1 ? '' : 's'} bought ${money(s.buyValue)} against ${money(s.sellValue)} sold${s.cluster ? '; cluster buying (3+ insiders) is the historically informative pattern' : ''}. Last filing ${s.lastDate}.${awardNote}`;
   }
   if (s.score < 0) {
-    return `Insiders sold ${money(s.sellValue)} against ${money(s.buyValue)} bought across ${s.uniqueSellers} seller${s.uniqueSellers === 1 ? '' : 's'}. Persistent selling by officers is a headwind, though it is often scheduled compensation. Last filing ${s.lastDate}.`;
+    return `Insiders sold ${money(s.sellValue)} against ${money(s.buyValue)} bought across ${s.uniqueSellers} seller${s.uniqueSellers === 1 ? '' : 's'}. Persistent selling by officers is a headwind, though it is often scheduled compensation. Last filing ${s.lastDate}.${awardNote}`;
   }
   return `Buying and selling roughly balance over ${s.lookbackDays} days.`;
 }

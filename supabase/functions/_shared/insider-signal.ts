@@ -18,8 +18,9 @@ export interface InsiderTx {
 export interface InsiderSignal {
   score: number;               // -100 (heavy selling) .. +100 (heavy buying)
   label: 'strong_buy' | 'buy' | 'neutral' | 'sell' | 'strong_sell';
-  buys: number;
+  buys: number;              // open-market purchases only
   sells: number;
+  awards: number;            // grants / vesting, not conviction buying
   buyValue: number;
   sellValue: number;
   netValue: number;
@@ -40,9 +41,22 @@ export function scoreInsiderTransactions(txs: InsiderTx[], lookbackDays = 90): I
   const cutoff = new Date(Date.now() - lookbackDays * 86400000).toISOString().slice(0, 10);
   const win = (txs ?? []).filter((t) => t && typeof t.date === 'string' && t.date >= cutoff);
 
-  const buys = win.filter((t) => t.acquired && (t.code === 'P' || t.code === 'A'));
+  // Median traded price, used to value rows that disclose shares but no price
+  // (equity awards are routinely filed at price 0).
+  const prices = win.map((t) => Number(t.price)).filter((p) => Number.isFinite(p) && p > 0).sort((a, b) => a - b);
+  const refPrice = prices.length ? prices[Math.floor(prices.length / 2)] : 0;
+  const val = (t: InsiderTx) => {
+    if (Number.isFinite(t.value) && t.value > 0) return t.value;
+    const p = Number.isFinite(t.price) && t.price > 0 ? t.price : refPrice;
+    return Math.abs((Number(t.shares) || 0) * p);
+  };
+
+  // Only open-market purchases carry information. Awards and grants are
+  // compensation, so they are tracked but never scored as conviction buying.
+  const buys = win.filter((t) => t.acquired && t.code === 'P');
+  const awards = win.filter((t) => t.acquired && t.code !== 'P');
   const sells = win.filter((t) => !t.acquired && t.code === 'S');
-  const val = (t: InsiderTx) => (Number.isFinite(t.value) && t.value > 0 ? t.value : Math.abs(t.shares * t.price) || 0);
+
   const buyValue = buys.reduce((s, t) => s + val(t), 0);
   const sellValue = sells.reduce((s, t) => s + val(t), 0);
   const uniqueBuyers = new Set(buys.map((t) => t.insider)).size;
@@ -50,10 +64,13 @@ export function scoreInsiderTransactions(txs: InsiderTx[], lookbackDays = 90): I
 
   const denom = buyValue + sellValue;
   const bias = denom > 0 ? ((buyValue - sellValue) / denom) * 100 : 0;
-  const clusterBoost = Math.min(20, uniqueBuyers * 4) - Math.min(12, uniqueSellers * 2);
+  const clusterBoost = Math.min(20, uniqueBuyers * 5) - Math.min(12, uniqueSellers * 2);
   // Thin samples should not produce extreme readings.
   const confidence = Math.min(1, (buys.length + sells.length) / 4);
-  const score = Math.max(-100, Math.min(100, (bias + clusterBoost) * confidence));
+  // Routine compensation selling (awards vest, holder sells) is the norm at
+  // large caps, so pure selling with no open-market buying is damped.
+  const routine = buys.length === 0 && awards.length > 0 ? 0.55 : 1;
+  const score = Math.max(-100, Math.min(100, (bias + clusterBoost) * confidence * routine));
 
   const label: InsiderSignal['label'] =
     score >= 55 ? 'strong_buy' : score >= 20 ? 'buy' : score <= -55 ? 'strong_sell' : score <= -20 ? 'sell' : 'neutral';
@@ -64,6 +81,7 @@ export function scoreInsiderTransactions(txs: InsiderTx[], lookbackDays = 90): I
     label,
     buys: buys.length,
     sells: sells.length,
+    awards: awards.length,
     buyValue,
     sellValue,
     netValue: buyValue - sellValue,
@@ -79,5 +97,5 @@ export function scoreInsiderTransactions(txs: InsiderTx[], lookbackDays = 90): I
 export function insiderSignalSentence(symbol: string, s: InsiderSignal): string {
   if (!s.transactions) return `${symbol}: no insider transactions disclosed in the last ${s.lookbackDays} days.`;
   const dir = s.netValue >= 0 ? 'net buying' : 'net selling';
-  return `${symbol}: insider signal ${s.score > 0 ? '+' : ''}${s.score} (${s.label.replace('_', ' ')}) — ${dir} of ${Math.abs(Math.round(s.netValue)).toLocaleString()} over ${s.lookbackDays} days across ${s.transactions} filings, ${s.uniqueBuyers} distinct buyers and ${s.uniqueSellers} distinct sellers${s.cluster ? ', cluster buying detected' : ''}.`;
+  return `${symbol}: insider signal ${s.score > 0 ? '+' : ''}${s.score} (${s.label.replace('_', ' ')}) — ${dir} of ${Math.abs(Math.round(s.netValue)).toLocaleString()} over ${s.lookbackDays} days across ${s.transactions} filings (${s.awards} of them awards), ${s.uniqueBuyers} distinct open-market buyers and ${s.uniqueSellers} distinct sellers${s.cluster ? ', cluster buying detected' : ''}.`;
 }

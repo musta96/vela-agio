@@ -1043,170 +1043,29 @@ const Portfolio = () => {
         {/* Add Stock Form */}
         {showAddForm && (
           <Card className="p-4 sm:p-6 mb-8 card-gradient border-border animate-fade-in">
-            <h3 className="text-lg font-semibold mb-4">Add New Stock</h3>
+            <h3 className="text-lg font-semibold mb-4">Add instrument</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-                <label className="text-sm text-muted-foreground mb-2 block">Symbol</label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={symbolPickerOpen}
-                  className="w-full justify-between font-normal pointer-events-auto h-11"
-                  onClick={() => {
-                    console.log("[Portfolio] symbol picker toggle", { wasOpen: symbolPickerOpen });
-                    setSymbolPickerOpen((open) => !open);
+              <div className="relative md:col-span-2">
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Instrument — stock, ETF, fund, bond, crypto or FX
+                </label>
+                <TickerSearch
+                  value={symbolSearch}
+                  onValueChange={setSymbolSearch}
+                  placeholder="Search any instrument worldwide…"
+                  inputClassName="h-11"
+                  onSelect={(hit) => {
+                    setNewStock({ ...newStock, symbol: hit.symbol, name: hit.name });
+                    setNewCurrency((hit.currency || "USD").toUpperCase());
+                    setNewDisplayName(hit.name);
+                    setSymbolSearch(`${hit.symbol} — ${hit.name}`);
                   }}
-                >
-                  <span className="truncate">
-                    {selectedCatalog
-                      ? `${selectedCatalog.symbol} - ${selectedCatalog.name}`
-                      : "Search stock or ETF…"}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-                {symbolPickerOpen && (
-                  <div className="absolute left-0 top-full z-[60] mt-2 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg pointer-events-auto">
-                    <Input
-                      autoFocus
-                      value={symbolSearch}
-                      onChange={(e) => setSymbolSearch(e.target.value)}
-                      placeholder="Search by symbol, name, or market…"
-                      className="rounded-b-none border-0 border-b border-border focus-visible:ring-0 focus-visible:ring-offset-0 h-11 text-base"
-                    />
-                    <div className="max-h-[60vh] sm:max-h-72 overflow-y-auto overscroll-contain p-1">
-                      {filteredCatalog.length === 0 && extraRemote.length === 0 ? (
-                        <div className="px-3 py-4 text-sm">
-                          <p className="text-muted-foreground mb-3">
-                            {remoteLoading ? "Searching global markets…" : "No match found. Use it anyway as a custom symbol:"}
-                          </p>
-                          {symbolSearch.trim() && (
-                            <button
-                              type="button"
-                              className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
-                              onClick={() => {
-                                const sym = symbolSearch.trim().toUpperCase();
-                                setNewStock({ ...newStock, symbol: sym, name: sym });
-                                setNewDisplayName("");
-                                setNewCurrency(sym.endsWith(".MI") || sym.endsWith(".DE") || sym.endsWith(".PA") || sym.endsWith(".AS") || sym.endsWith(".BR") || sym.endsWith(".MC") ? "EUR" : sym.endsWith(".L") ? "GBP" : sym.endsWith(".SW") ? "CHF" : "USD");
-                                setSymbolSearch("");
-                                setSymbolPickerOpen(false);
-                              }}
-                            >
-                              <span className="font-semibold mr-2">+ Use</span>
-                              <span className="font-mono">{symbolSearch.trim().toUpperCase()}</span>
-                              <span className="ml-auto text-[10px] text-muted-foreground">Custom symbol</span>
-                            </button>
-                          )}
-                          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                            Use Yahoo Finance suffixes: <code>.MI</code> Milan, <code>.DE</code> Xetra,
-                            <code>.L</code> London, <code>.PA</code> Paris, <code>.AS</code> Amsterdam,
-                            <code>.SW</code> Swiss. Example: <code>1PLTR.MI</code>, <code>BCHN.MI</code>.
-                          </p>
-                          <div className="mt-3 pt-3 border-t border-border/60">
-                            <button
-                              type="button"
-                              disabled={aiLoading || !symbolSearch.trim()}
-                              onClick={askAiToFind}
-                              className="flex w-full items-center justify-center rounded-sm px-3 py-2 text-xs font-medium border border-primary/40 bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
-                            >
-                              {aiLoading ? "AI searching…" : "✨ Ask AI to find this instrument"}
-                            </button>
-                            {aiError && <p className="text-[11px] text-destructive mt-2">{aiError}</p>}
-                            {aiCandidates.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">AI suggestions</p>
-                                {aiCandidates.map((c) => (
-                                  <button
-                                    key={`ai-${c.symbol}`}
-                                    type="button"
-                                    className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-accent transition-colors border border-border/60"
-                                    onClick={() => {
-                                      setNewStock({ ...newStock, symbol: c.symbol, name: c.name });
-                                      setNewCurrency(c.currency || "USD");
-                                      setNewDisplayName(c.name);
-                                      setSymbolSearch("");
-                                      setSymbolPickerOpen(false);
-                                      setAiCandidates([]);
-                                    }}
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-mono font-semibold">{c.symbol}</span>
-                                        {c.exchange && <Badge variant="outline" className="text-[10px]">{c.exchange}</Badge>}
-                                        {c.currency && <Badge variant="outline" className="text-[10px]">{c.currency}</Badge>}
-                                        {c.verified ? <Badge className="text-[10px]">verified</Badge> : <Badge variant="secondary" className="text-[10px]">unverified</Badge>}
-                                        {typeof c.confidence === 'number' && <span className="text-[10px] text-muted-foreground">{Math.round(c.confidence * 100)}%</span>}
-                                      </div>
-                                      <p className="truncate text-xs text-muted-foreground">{c.name}{c.reason ? ` - ${c.reason}` : ''}</p>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                        {filteredCatalog.map((stock) => (
-                          <button
-                            key={stock.symbol}
-                            type="button"
-                            className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent pointer-events-auto"
-                            onClick={() => {
-                              console.log("[Portfolio] symbol option clicked", stock.symbol);
-                              setNewStock({ ...newStock, symbol: stock.symbol, name: stock.name });
-                              setNewCurrency(stock.currency);
-                              setNewDisplayName("");
-                              setSymbolSearch("");
-                              setSymbolPickerOpen(false);
-                            }}
-                          >
-                            <Check className={`mr-2 h-4 w-4 ${newStock.symbol === stock.symbol ? "opacity-100" : "opacity-0"}`} />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">{stock.symbol}</span>
-                                <Badge variant="outline" className="text-[10px]">{stock.market}</Badge>
-                                <Badge variant="outline" className="text-[10px]">{stock.currency}</Badge>
-                              </div>
-                              <p className="truncate text-xs text-muted-foreground">{stock.name}</p>
-                            </div>
-                          </button>
-                        ))}
-                        {extraRemote.length > 0 && (
-                          <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground border-t border-border/60 mt-1">
-                            Global markets {remoteLoading && "(searching…)"}
-                          </div>
-                        )}
-                        {extraRemote.map((r) => (
-                          <button
-                            key={`r-${r.symbol}`}
-                            type="button"
-                            className="flex w-full items-center rounded-sm px-3 py-3 min-h-[44px] text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground active:bg-accent pointer-events-auto"
-                            onClick={() => {
-                              setNewStock({ ...newStock, symbol: r.symbol, name: r.name });
-                              setNewCurrency(r.currency || "USD");
-                              setNewDisplayName(r.name);
-                              setSymbolSearch("");
-                              setSymbolPickerOpen(false);
-                            }}
-                          >
-                            <Check className={`mr-2 h-4 w-4 ${newStock.symbol === r.symbol ? "opacity-100" : "opacity-0"}`} />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">{r.symbol}</span>
-                                {r.exchange && <Badge variant="outline" className="text-[10px]">{r.exchange}</Badge>}
-                                {r.type && <Badge variant="outline" className="text-[10px]">{r.type}</Badge>}
-                                {r.currency && <Badge variant="outline" className="text-[10px]">{r.currency}</Badge>}
-                              </div>
-                              <p className="truncate text-xs text-muted-foreground">{r.name}</p>
-                            </div>
-                          </button>
-                        ))}
-                        </>
-                      )}
-                    </div>
-                  </div>
+                />
+                {newStock.symbol && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Selected: <span className="font-mono text-foreground">{newStock.symbol}</span>
+                    {newDisplayName ? ` · ${newDisplayName}` : ""}
+                  </p>
                 )}
               </div>
               {isCustomSymbol && (

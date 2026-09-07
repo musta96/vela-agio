@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine } from "lucide-react";
+import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine, FileSpreadsheet, Eye } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { ShortRiskChecklist } from "@/components/shorts/ShortRiskChecklist";
 import { buildShortChecklist, estimateBorrow, loadShortPrefs, saveShortPrefs } from "@/lib/shorts";
+import { SheetImportDialog, type ParsedRow } from "@/components/paper/SheetImportDialog";
+import { WatchlistImportDialog } from "@/components/paper/WatchlistImportDialog";
 
 /**
  * Paper Trading Lab.
@@ -61,6 +63,8 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
   useEffect(() => { refreshPortfolios?.(); }, [refreshPortfolios]);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [watchOpen, setWatchOpen] = useState(false);
 
   const [cash, setCash] = useState<Cash | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -265,6 +269,49 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
     }
   }
 
+  /**
+   * Shared entry point for spreadsheet and watchlist imports: rows without a
+   * price are filled with the current live quote, then booked as paper trades
+   * and settled against the virtual cash balance.
+   */
+  async function importRows(rows: ParsedRow[]) {
+    if (!user || !activeId || rows.length === 0) return;
+    const need = Array.from(new Set(rows.filter((r) => !r.price).map((r) => r.symbol)));
+    let live: Record<string, { price?: number; currency?: string; name?: string }> = {};
+    if (need.length) {
+      const { data } = await supabase.functions.invoke("market-data", { body: { action: "quote", symbols: need } });
+      live = (data?.quotes ?? {}) as typeof live;
+    }
+    const baseCcy = cash?.currency || "EUR";
+    const priced = rows.map((r) => {
+      const q = live[r.symbol];
+      const price = r.price ?? (typeof q?.price === "number" ? q.price : null);
+      return { ...r, price, name: r.name ?? q?.name ?? null, currency: r.currency ?? q?.currency ?? baseCcy };
+    });
+    const usable = priced.filter((r) => r.price != null && r.price > 0);
+    if (!usable.length) {
+      toast({ title: "Nothing imported", description: "No live price could be found for these instruments.", variant: "destructive" });
+      return;
+    }
+    await (supabase as any).from("paper_trades").insert(
+      usable.map((r) => ({
+        user_id: user.id, portfolio_id: activeId, symbol: r.symbol, name: r.name,
+        side: r.side, quantity: r.quantity, price: r.price, currency: r.currency,
+        executed_at: r.executedAt || new Date().toISOString(),
+        notes: "imported",
+      })),
+    );
+    const net = usable.reduce((s, r) => s + (r.side === "buy" ? -1 : 1) * r.quantity * (r.price as number), 0);
+    await (supabase as any).from("paper_cash").update({ cash: (cash?.cash || 0) + net }).eq("portfolio_id", activeId);
+    await refresh(activeId);
+    const skipped = priced.length - usable.length;
+    toast({
+      title: "Import complete",
+      description: `${usable.length} position${usable.length === 1 ? "" : "s"} added${skipped ? ` · ${skipped} skipped (no price)` : ""}.`,
+    });
+  }
+
+
   return (
     <>
       {!embedded && (
@@ -304,8 +351,14 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
               <Button variant="outline" size="sm" onClick={exportSimulation} disabled={!activeId} className="gap-1">
                 <Download className="h-3.5 w-3.5" /> Export
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setSheetOpen(true)} disabled={!activeId} className="gap-1">
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Import spreadsheet
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setWatchOpen(true)} disabled={!activeId} className="gap-1">
+                <Eye className="h-3.5 w-3.5" /> Import watchlist
+              </Button>
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1">
-                <Upload className="h-3.5 w-3.5" /> Import
+                <Upload className="h-3.5 w-3.5" /> Restore backup
               </Button>
               <input
                 ref={fileRef}
@@ -319,6 +372,10 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                 }}
               />
             </Card>
+
+            <SheetImportDialog open={sheetOpen} onOpenChange={setSheetOpen} onImport={importRows} />
+            <WatchlistImportDialog open={watchOpen} onOpenChange={setWatchOpen} onImport={importRows} />
+
 
             {sims.length > 1 && (
               <div className="mb-4 flex flex-wrap gap-2">

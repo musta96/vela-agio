@@ -489,7 +489,19 @@ Deno.serve(async (req) => {
 
     const enrichedArticles = articles.map((a, i) => {
       const ai = (parsed.articles || []).find((x: any) => x.index === i + 1);
-      return { ...a, sentiment: ai?.sentiment || "neutral", score: typeof ai?.score === "number" ? ai.score : 50 };
+      // A provider-measured score for this exact article beats the model's read.
+      const provider = providerScoreByUrl.get(a.link);
+      const score = typeof provider === "number"
+        ? provider
+        : (typeof ai?.score === "number" ? ai.score : 50);
+      return {
+        ...a,
+        sentiment: typeof provider === "number"
+          ? (provider > 55 ? "positive" : provider < 45 ? "negative" : "neutral")
+          : (ai?.sentiment || "neutral"),
+        score,
+        scoreSource: typeof provider === "number" ? "provider" : "ai",
+      };
     });
 
     // Per-source breakdown (average score) so UI can show which channels are bullish/bearish
@@ -614,6 +626,8 @@ Deno.serve(async (req) => {
       articles: enrichedArticles,
       sources,
       analystOpinions: parsed.analystOpinions || [],
+      marketSentiment: readings,
+      measuredScore: measured?.score ?? null,
       generatedAt: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

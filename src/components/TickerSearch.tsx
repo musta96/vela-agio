@@ -90,7 +90,9 @@ function localMatches(query: string, limit = 6): TickerHit[] {
     } as TickerHit,
     score: localScore(q, s.symbol, s.name, s.market),
   }))
-    .filter((x) => x.score > 0)
+    // Only keep meaningfully strong local hits; weak token overlaps (e.g. the
+    // word "tech" in a query) must never outrank real exchange results.
+    .filter((x) => x.score >= 50)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
   return scored.map((x) => x.hit);
@@ -102,7 +104,7 @@ export function TickerSearch({
   value,
   onValueChange,
   onSelect,
-  placeholder = "Search any company, ETF, index, crypto…",
+  placeholder = "Search any instrument — stock, ETF, fund, bond, crypto, FX…",
   autoFocus,
   disabled,
   className,

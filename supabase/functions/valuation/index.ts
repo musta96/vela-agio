@@ -239,15 +239,27 @@ async function researchWebsite(
   const sys = `You read a company's own website to support a valuation.
 Return STRICT JSON {"summary":"","products":[],"customers":[],"markets":[],"team":[],"funding":[],"facts":[{"field":"","value":"","source":"<page url>"}],"missing":[]}.
 HARD RULES: use ONLY text present in the supplied pages. Never infer, estimate or invent revenue, headcount, funding, customers or dates. Every entry in "facts" must quote or closely paraphrase the page and cite the exact page URL it came from. Put anything a valuer would need but the site does not state into "missing". Keep it factual, no marketing adjectives.`;
-  const digest = read.pages.map((pg: SitePage) => `### ${pg.title}\nURL: ${pg.url}\n${pg.text.slice(0, 7000)}`).join('\n\n');
+  // Large marketing sites can blow past the model's context; retry on a
+  // shorter digest rather than losing the website evidence entirely.
+  const build = (per: number, cap: number) =>
+    read.pages.map((pg: SitePage) => `### ${pg.title}\nURL: ${pg.url}\n${pg.text.slice(0, per)}`).join('\n\n').slice(0, cap);
+  const attempts = [build(7000, 60_000), build(2500, 22_000)];
   try {
-    const r = await chatComplete(cfg, {
-      messages: [{ role: 'system', content: sys }, { role: 'user', content: digest.slice(0, 60_000) }],
-      temperature: 0, response_format: { type: 'json_object' },
-    });
-    if (!r.ok) throw new Error('ai_failed');
-    const j = await r.json();
-    const parsed = JSON.parse((j?.choices?.[0]?.message?.content ?? '{}').replace(/^```json\s*|```$/g, ''));
+    let parsed: Record<string, unknown> | null = null;
+    for (const digest of attempts) {
+      try {
+        const r = await chatComplete(cfg, {
+          messages: [{ role: 'system', content: sys }, { role: 'user', content: digest }],
+          temperature: 0, response_format: { type: 'json_object' },
+        });
+        if (!r.ok) continue;
+        const j = await r.json();
+        const content = j?.choices?.[0]?.message?.content ?? '';
+        const candidate = JSON.parse(String(content).replace(/^```json\s*|```$/g, ''));
+        if (candidate && (candidate.summary || (Array.isArray(candidate.facts) && candidate.facts.length))) { parsed = candidate; break; }
+      } catch { /* try the shorter digest */ }
+    }
+    if (!parsed) throw new Error('ai_failed');
     const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 12) : []);
     const pageUrls = new Set(read.pages.map((pg) => pg.url));
     return {

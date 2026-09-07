@@ -265,6 +265,49 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
     }
   }
 
+  /**
+   * Shared entry point for spreadsheet and watchlist imports: rows without a
+   * price are filled with the current live quote, then booked as paper trades
+   * and settled against the virtual cash balance.
+   */
+  async function importRows(rows: ParsedRow[]) {
+    if (!user || !activeId || rows.length === 0) return;
+    const need = Array.from(new Set(rows.filter((r) => !r.price).map((r) => r.symbol)));
+    let live: Record<string, { price?: number; currency?: string; name?: string }> = {};
+    if (need.length) {
+      const { data } = await supabase.functions.invoke("market-data", { body: { action: "quote", symbols: need } });
+      live = (data?.quotes ?? {}) as typeof live;
+    }
+    const baseCcy = cash?.currency || "EUR";
+    const priced = rows.map((r) => {
+      const q = live[r.symbol];
+      const price = r.price ?? (typeof q?.price === "number" ? q.price : null);
+      return { ...r, price, name: r.name ?? q?.name ?? null, currency: r.currency ?? q?.currency ?? baseCcy };
+    });
+    const usable = priced.filter((r) => r.price != null && r.price > 0);
+    if (!usable.length) {
+      toast({ title: "Nothing imported", description: "No live price could be found for these instruments.", variant: "destructive" });
+      return;
+    }
+    await (supabase as any).from("paper_trades").insert(
+      usable.map((r) => ({
+        user_id: user.id, portfolio_id: activeId, symbol: r.symbol, name: r.name,
+        side: r.side, quantity: r.quantity, price: r.price, currency: r.currency,
+        executed_at: r.executedAt || new Date().toISOString(),
+        notes: "imported",
+      })),
+    );
+    const net = usable.reduce((s, r) => s + (r.side === "buy" ? -1 : 1) * r.quantity * (r.price as number), 0);
+    await (supabase as any).from("paper_cash").update({ cash: (cash?.cash || 0) + net }).eq("portfolio_id", activeId);
+    await refresh(activeId);
+    const skipped = priced.length - usable.length;
+    toast({
+      title: "Import complete",
+      description: `${usable.length} position${usable.length === 1 ? "" : "s"} added${skipped ? ` · ${skipped} skipped (no price)` : ""}.`,
+    });
+  }
+
+
   return (
     <>
       {!embedded && (

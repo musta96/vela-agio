@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine } from "lucide-react";
+import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine, FileSpreadsheet, Eye } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";

@@ -19,6 +19,9 @@ import { ShortRiskChecklist } from "@/components/shorts/ShortRiskChecklist";
 import { buildShortChecklist, estimateBorrow, loadShortPrefs, saveShortPrefs } from "@/lib/shorts";
 import { SheetImportDialog, type ParsedRow } from "@/components/paper/SheetImportDialog";
 import { WatchlistImportDialog } from "@/components/paper/WatchlistImportDialog";
+import { SimulationSettingsDialog } from "@/components/paper/SimulationSettingsDialog";
+import { SimulationReview } from "@/components/paper/SimulationReview";
+
 
 /**
  * Paper Trading Lab.

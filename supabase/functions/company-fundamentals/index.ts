@@ -9,7 +9,7 @@
 //   POST { action: "peers", symbol }
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { fetchQuoteSummary } from "../_shared/fundamentals.ts";
+import { fetchQuoteSummary, getCrumb } from "../_shared/fundamentals.ts";
 import { getCached, setCached } from "../_shared/profile-cache.ts";
 
 const UA =
@@ -155,12 +155,22 @@ Deno.serve(async (req) => {
       const hit = await getCached<unknown>(key);
       if (hit) return json({ ...(hit as object), cached: true });
 
-      const peerSyms = await discoverPeers(symbol);
+      let source = "recommendations";
+      let sector: string | null = null;
+      let industry: string | null = null;
+      let peerSyms = await discoverPeers(symbol);
+      if (!peerSyms.length) {
+        const fb = await screenerPeers(symbol);
+        peerSyms = fb.peers;
+        sector = fb.sector;
+        industry = fb.industry;
+        source = peerSyms.length ? "sector_screen" : "none";
+      }
       const syms = Array.from(new Set([symbol, ...peerSyms])).slice(0, 7);
       // Parallel, not sequential: the old client version fetched one at a time.
       const settled = await Promise.all(syms.map((s) => peerRow(s).catch(() => null)));
       const rows = settled.filter(Boolean);
-      const payload = { symbol, rows, asOf: new Date().toISOString() };
+      const payload = { symbol, rows, sector, industry, source, asOf: new Date().toISOString() };
       if (rows.length) await setCached(key, "peers", symbol, payload, 60 * 60);
       return json(payload);
     }

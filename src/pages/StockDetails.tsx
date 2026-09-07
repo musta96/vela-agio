@@ -1228,44 +1228,6 @@ const StockDetails = () => {
       </div>
     </main>
 
-    <Dialog open={addOpen} onOpenChange={setAddOpen}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add {sym} to portfolio</DialogTitle>
-          <DialogDescription>
-            If you already hold {sym}, your average price will be recalculated automatically.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Shares</label>
-            <Input type="number" inputMode="decimal" value={addShares} onChange={(e) => setAddShares(e.target.value)} placeholder="0" />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">
-              Avg buy price ({currency})
-            </label>
-            <Input type="number" inputMode="decimal" step="0.0001" value={addAvg} onChange={(e) => setAddAvg(e.target.value)} />
-            {price > 0 && (
-              <button type="button" className="text-xs text-primary hover:underline mt-1" onClick={() => setAddAvg(String(price.toFixed(4)))}>
-                Use current price ({sign}{price.toFixed(2)})
-              </button>
-            )}
-          </div>
-          {!user && (
-            <p className="text-xs text-muted-foreground">
-              Not signed in - this will be saved locally on this device only.
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-          <Button onClick={saveToPortfolio} disabled={addSaving}>
-            {addSaving ? "Saving…" : "Add to portfolio"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
     </div>
   );
 };

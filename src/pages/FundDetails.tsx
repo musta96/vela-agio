@@ -17,6 +17,10 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { FundRatingsCard } from "@/components/fund/FundRatingsCard";
+import { FundAnalysisTab } from "@/components/fund/FundAnalysisTab";
+import { FundGeographyCard } from "@/components/fund/FundGeographyCard";
+import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
+import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
 
 const FUND_FEATURE = "fund.deep_data";
 

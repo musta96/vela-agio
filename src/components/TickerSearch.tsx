@@ -5,6 +5,7 @@ import { Loader2, Search, Sparkles, X } from "lucide-react";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { classifyInstrument, INSTRUMENT_BADGE, INSTRUMENT_LABEL } from "@/lib/instrumentType";
 
 /**
  * TickerSearch — universal typeahead for any instrument on any exchange.
@@ -85,7 +86,9 @@ function localMatches(query: string, limit = 6): TickerHit[] {
       name: s.name,
       exchange: s.market,
       currency: (s as any).currency,
-      type: "Equity",
+      // Catalogue rows carry no explicit type, so classify from symbol + name
+      // (ETFs, funds, crypto pairs and FX crosses all live in there too).
+      type: classifyInstrument((s as any).type, s.symbol, s.name),
       source: "local" as const,
     } as TickerHit,
     score: localScore(q, s.symbol, s.name, s.market),
@@ -323,7 +326,15 @@ export function TickerSearch({
               <span className="truncate text-foreground">{h.name}</span>
               <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
                 {h.source === "ai" && <Sparkles className="h-3 w-3 text-primary" />}
-                {[h.exchange, h.type, h.currency].filter(Boolean).join(" · ")}
+                {[h.exchange, h.currency].filter(Boolean).join(" · ")}
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    INSTRUMENT_BADGE[classifyInstrument(h.type, h.symbol, h.name)],
+                  )}
+                >
+                  {INSTRUMENT_LABEL[classifyInstrument(h.type, h.symbol, h.name)]}
+                </span>
               </span>
             </button>
           ))}

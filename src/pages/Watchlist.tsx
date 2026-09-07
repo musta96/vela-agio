@@ -16,6 +16,9 @@ import { TickerSearch } from "@/components/TickerSearch";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { LimitReachedCTA } from "@/components/gating/LimitReachedCTA";
 import { ProgressiveHint } from "@/components/onboarding/ProgressiveHint";
+import { useWatchlistInsights } from "@/hooks/useWatchlistInsights";
+import { classifyInstrument, detailPathFor, INSTRUMENT_BADGE, INSTRUMENT_LABEL } from "@/lib/instrumentType";
+import { Sparkline } from "@/components/watchlist/Sparkline";
 
 const Watchlist = () => {
   const { items, remove, add, isWatched } = useWatchlist();
@@ -23,6 +26,7 @@ const Watchlist = () => {
   const symbols = useMemo(() => items.map((i) => i.symbol), [items]);
   const { quotes, loading, lastUpdated, refresh } = useLiveQuotes(symbols, 30000);
   const { rules, history, clearHistory } = useAlerts();
+  const { insights, history: snapshots } = useWatchlistInsights(items, quotes);
   useAlertMonitor();
   const [filter, setFilter] = useState("");
   const limits = usePlanLimits();
@@ -34,7 +38,7 @@ const Watchlist = () => {
     toast({ title: "Removed from watchlist", description: `${symbol} - ${name}` });
   };
 
-  const handleAdd = (hit: { symbol: string; name: string }) => {
+  const handleAdd = (hit: { symbol: string; name: string; type?: string }) => {
     if (isWatched(hit.symbol)) {
       toast({ title: "Already on watchlist", description: `${hit.symbol} — ${hit.name}` });
       return;
@@ -47,7 +51,7 @@ const Watchlist = () => {
       });
       return;
     }
-    add(hit.symbol, hit.name);
+    add(hit.symbol, hit.name, hit.type ?? null);
     toast({ title: "Added to watchlist", description: `${hit.symbol} — ${hit.name}` });
   };
 
@@ -62,7 +66,7 @@ const Watchlist = () => {
       <PageHeader
         icon={Eye}
         title="Watchlist"
-        description={`${items.length} stock${items.length === 1 ? "" : "s"} tracked · ${armed} alert${armed === 1 ? "" : "s"} armed · ${history.length} firing right now`}
+        description={`${items.length} instrument${items.length === 1 ? "" : "s"} tracked · ${armed} alert${armed === 1 ? "" : "s"} armed · ${history.length} firing right now`}
         actions={
           <>
             <Button variant="outline" size="sm" className="gap-2">
@@ -123,8 +127,8 @@ const Watchlist = () => {
           {visible.length === 0 ? (
             <div className="px-5 py-16 text-center">
               <Star className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="font-semibold mb-1">No stocks on your watchlist yet</p>
-              <p className="text-sm text-muted-foreground mb-4">Tap the star on any stock to track it here.</p>
+              <p className="font-semibold mb-1">Nothing on your watchlist yet</p>
+              <p className="text-sm text-muted-foreground mb-4">Add stocks, ETFs or funds above and track their price, rating and Vela score here.</p>
               <Button asChild size="sm"><Link to="/dashboard">Browse stocks</Link></Button>
             </div>
           ) : (
@@ -138,24 +142,62 @@ const Watchlist = () => {
                   ? [rule.priceAbove, rule.priceBelow, rule.changeUpPct, rule.changeDownPct, rule.sentimentAbove, rule.sentimentBelow].filter((v) => v != null).length
                   : 0;
                 const trend: "up" | "down" | "flat" = change > 0.05 ? "up" : change < -0.05 ? "down" : "flat";
+                const kind = classifyInstrument(item.type ?? q?.quoteType, item.symbol, item.name);
+                const ins = insights[item.symbol];
+                const points = snapshots[item.symbol] ?? [];
+                const currency = q?.currency === "USD" ? "$" : q?.currency === "GBP" ? "£" : "€";
                 return (
-                  <li key={item.symbol} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
+                  <li key={item.symbol} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <Link to={`/stock/${item.symbol}`} className="min-w-0">
-                      <div className="font-bold text-sm">{item.symbol}</div>
+                    <Link to={detailPathFor(kind, item.symbol)} className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{item.symbol}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${INSTRUMENT_BADGE[kind]}`}>
+                          {INSTRUMENT_LABEL[kind]}
+                        </span>
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">{item.name}</div>
                     </Link>
-                    <div className="text-right tabular-nums font-semibold text-sm w-20">
-                      {q ? `€${q.price.toFixed(2)}` : "-"}
+                    <div className="text-right tabular-nums font-semibold text-sm w-24">
+                      {q ? `${currency}${q.price.toFixed(2)}` : "-"}
                     </div>
                     <div className="w-16 text-right">
                       {q && <ChangePill pct={change} />}
                     </div>
-                    <MiniSparkline trend={trend} width={90} height={26} />
-                    <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[11px] font-medium w-20 text-center ${alertCount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      {alertCount} alert{alertCount === 1 ? "" : "s"}
-                    </span>
+                    <div className="w-24 text-right text-xs">
+                      {ins?.loading ? (
+                        <span className="text-muted-foreground">…</span>
+                      ) : ins?.velaScore != null ? (
+                        <>
+                          <div className="font-semibold tabular-nums">{Math.round(ins.velaScore)}<span className="text-muted-foreground">/100</span></div>
+                          <div className="text-[11px] text-muted-foreground">Vela {ins.velaGrade ?? ""}{ins.riskLabel ? ` · ${ins.riskLabel} risk` : ""}</div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                    <div className="w-20 text-right text-xs">
+                      {ins?.morningstar != null ? (
+                        <>
+                          <div className="font-semibold">{"★".repeat(Math.round(ins.morningstar))}</div>
+                          <div className="text-[11px] text-muted-foreground">Morningstar</div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                    {points.length >= 2 ? (
+                      <Sparkline
+                        values={points.map((p) => p.price).filter((v): v is number => v != null)}
+                        width={90}
+                        height={26}
+                        label={`${points.length} days tracked`}
+                      />
+                    ) : (
+                      <MiniSparkline trend={trend} width={90} height={26} />
+                    )}
                     <div className="flex items-center gap-1">
+                      <span className="sr-only">{alertCount} alerts</span>
                       <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={q?.price} />
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
                         <MoreHorizontal className="h-4 w-4 text-muted-foreground" />

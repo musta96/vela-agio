@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { normalizeSymbol } from "@/lib/symbolNormalize";
 
-function dedupe(items: { symbol: string; name: string | null; addedAt: number }[]) {
+function dedupe(items: { symbol: string; name: string | null; addedAt: number; type?: string | null }[]) {
   const map = new Map<string, typeof items[number]>();
   for (const it of items) {
     const key = normalizeSymbol(it.symbol);
@@ -21,6 +21,8 @@ export interface WatchlistItem {
   symbol: string;
   name: string;
   addedAt: number;
+  /** Raw instrument type (Yahoo quoteType or catalogue hint), when known. */
+  type?: string | null;
 }
 
 const read = (): WatchlistItem[] => {
@@ -70,18 +72,18 @@ export function useWatchlist() {
         const local = read();
         if (local.length) {
           await supabase.from("watchlist_items").upsert(
-            local.map((i) => ({ user_id: user.id, symbol: i.symbol, name: i.name })),
+            local.map((i) => ({ user_id: user.id, symbol: i.symbol, name: i.name, instrument_type: i.type ?? null })),
             { onConflict: "user_id,symbol", ignoreDuplicates: true }
           );
         }
       }
       const { data } = await supabase
         .from("watchlist_items")
-        .select("symbol,name,created_at")
+        .select("symbol,name,instrument_type,created_at")
         .order("created_at", { ascending: true });
       if (cancelled || !data) return;
       const next: WatchlistItem[] = dedupe(data.map((r) => ({
-        symbol: r.symbol, name: r.name, addedAt: new Date(r.created_at).getTime(),
+        symbol: r.symbol, name: r.name, type: (r as { instrument_type?: string | null }).instrument_type ?? null, addedAt: new Date(r.created_at).getTime(),
       })));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setItems(next);
@@ -98,11 +100,11 @@ export function useWatchlist() {
       async () => {
         const { data } = await supabase
           .from("watchlist_items")
-          .select("symbol,name,created_at")
+          .select("symbol,name,instrument_type,created_at")
           .order("created_at", { ascending: true });
         if (!data) return;
         const next: WatchlistItem[] = dedupe(data.map((r) => ({
-          symbol: r.symbol, name: r.name, addedAt: new Date(r.created_at).getTime(),
+          symbol: r.symbol, name: r.name, type: (r as { instrument_type?: string | null }).instrument_type ?? null, addedAt: new Date(r.created_at).getTime(),
         })));
         write(next);
       }
@@ -115,13 +117,13 @@ export function useWatchlist() {
     [items]
   );
 
-  const add = useCallback((symbol: string, name: string) => {
+  const add = useCallback((symbol: string, name: string, type?: string | null) => {
     const current = read();
     if (current.some((i) => i.symbol === symbol)) return;
-    write([...current, { symbol, name, addedAt: Date.now() }]);
+    write([...current, { symbol, name, type: type ?? null, addedAt: Date.now() }]);
     if (user) {
       supabase.from("watchlist_items")
-        .upsert({ user_id: user.id, symbol, name }, { onConflict: "user_id,symbol", ignoreDuplicates: true })
+        .upsert({ user_id: user.id, symbol, name, instrument_type: type ?? null }, { onConflict: "user_id,symbol", ignoreDuplicates: true })
         .then();
     }
   }, [user]);
@@ -134,12 +136,12 @@ export function useWatchlist() {
   }, [user]);
 
   const toggle = useCallback(
-    (symbol: string, name: string) => {
+    (symbol: string, name: string, type?: string | null) => {
       if (isWatched(symbol)) {
         remove(symbol);
         return false;
       }
-      add(symbol, name);
+      add(symbol, name, type);
       return true;
     },
     [isWatched, add, remove]

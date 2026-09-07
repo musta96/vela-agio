@@ -99,6 +99,13 @@
       "when": 1788796880215,
       "tag": "0013_unlock_advisor_preference_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788797093065,
+      "tag": "0014_watchlist_types_and_snapshots",
+      "breakpoints": true
     }
   ]
 }

@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     }
     const cfg = await resolveAIConfig(auth);
     const research = await researchWebsite(cfg, website, Math.min(10, Math.max(3, Number(body?.maxPages) || 8)));
-    await logAiUsage({ userId: access.userId, access_feature: undefined, feature: 'site_facts', credits: 2 } as never).catch(() => {});
+    await logAiUsage({ userId: access.userId, feature: 'site_facts', credits: 2 }).catch(() => {});
     return json({ website, symbol: body?.symbol ?? null, research });
   } catch (e) {
     return json({ error: 'failed', message: e instanceof Error ? e.message : 'Website research failed' }, 500);

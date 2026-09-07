@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { InsiderScreener } from "@/components/insider/InsiderScreener";
 import {
   Users, ExternalLink, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Banknote, Activity, Gauge,
@@ -283,6 +284,7 @@ export default function Insider() {
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="screener">Screener</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
           </TabsList>
@@ -309,6 +311,10 @@ export default function Insider() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="screener">
+            <InsiderScreener />
           </TabsContent>
 
           <TabsContent value="transactions">

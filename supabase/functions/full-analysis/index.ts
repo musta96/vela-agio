@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveAIConfig } from '../_shared/ai-provider.ts';
+import { scoreInsiderTransactions, insiderSignalSentence } from '../_shared/insider-signal.ts';
 
 // =====================================================================
 // full-analysis — one orchestrated institutional run.
@@ -67,6 +68,20 @@ Deno.serve(async (req) => {
       }),
     ]);
 
+    // ---- 1b. Insider / PDMR conviction on each name ----
+    const insider = await Promise.all(positions.slice(0, 6).map(async (p) => {
+      const r = await edge(auth, 'insider-global', { symbol: p.symbol });
+      const signal = scoreInsiderTransactions(r?.transactions ?? [], 180);
+      return {
+        symbol: p.symbol,
+        signal,
+        summary: insiderSignalSentence(p.symbol, signal),
+        method: r?.method ?? null,
+        coverage: r?.coverage ?? 'none',
+        sources: (r?.sources ?? []).slice(0, 3),
+      };
+    }));
+
     const sources = research.flatMap((r: any) => (r?.sources ?? []).map((s: any) => ({
       title: s.title, url: s.url, domain: s.domain, primary_source: s.primary_source,
     })));
@@ -88,6 +103,9 @@ ${JSON.stringify(master?.records ?? []).slice(0, 6000)}
 SECURITY FUNDAMENTALS & VALUATION:
 ${JSON.stringify(fundamentals).slice(0, 9000)}
 
+INSIDER / PDMR ACTIVITY (director dealings; treat as a lagging, noisy confirmation signal, never a thesis on its own):
+${JSON.stringify(insider.map((i) => ({ symbol: i.symbol, score: i.signal.score, label: i.signal.label, net_value: i.signal.netValue, buyers: i.signal.uniqueBuyers, sellers: i.signal.uniqueSellers, cluster: i.signal.cluster, coverage: i.coverage }))).slice(0, 2500)}
+
 SIMULATION (historical bootstrap with regime switching, frictions, margin mechanics):
 ${JSON.stringify(sim?.result ?? sim).slice(0, 4000)}
 
@@ -97,7 +115,7 @@ ${evidence.slice(0, 20000)}
 Return STRICT JSON with this shape:
 {
  "executive_summary": string,
- "security_analysis": [{"symbol":string,"thesis":string,"variant_view":string,"valuation":string,"bear_base_bull":string,"key_risks":[string],"evidence_urls":[string]}],
+ "security_analysis": [{"symbol":string,"thesis":string,"variant_view":string,"valuation":string,"bear_base_bull":string,"key_risks":[string],"insider_signal":string,"evidence_urls":[string]}],
  "portfolio_construction": {"rationale":string,"weights":[{"symbol":string,"weight":number,"role":string}],"instrument_notes":[string],"cost_and_tax":string},
  "risks": [{"risk":string,"severity":"low"|"medium"|"high","mitigation":string}],
  "scenarios": [{"name":string,"probability":number,"drivers":string,"portfolio_impact":string}],
@@ -140,6 +158,7 @@ Rules: quantify with the simulation numbers where relevant (CVaR, max drawdown, 
       instruments: master?.records ?? [],
       unverified_instruments: master?.unverified ?? [],
       fundamentals,
+      insider,
       sources,
       disclaimer: 'Educational research output. Not investment advice.',
     });

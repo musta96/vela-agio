@@ -642,6 +642,20 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                 )}
               </Card>
             </div>
+
+            <SimulationReview
+              positions={positions.map((p) => ({
+                symbol: p.symbol,
+                name: p.name,
+                qty: p.qty,
+                avgCost: p.qty ? p.cost / p.qty : 0,
+                last: quotes[p.symbol]?.price || 0,
+                currency: p.currency,
+              }))}
+              cash={cash?.cash || 0}
+              currency={cash?.currency || "EUR"}
+            />
+
           </>
         )}
         <AiDisclaimerStrip />

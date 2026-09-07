@@ -3519,6 +3519,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          instrument_type: string | null
           name: string
           symbol: string
           user_id: string
@@ -3526,6 +3527,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          instrument_type?: string | null
           name: string
           symbol: string
           user_id: string
@@ -3533,9 +3535,55 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          instrument_type?: string | null
           name?: string
           symbol?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      watchlist_snapshots: {
+        Row: {
+          captured_on: string
+          change_pct: number | null
+          created_at: string
+          currency: string | null
+          id: string
+          instrument_type: string | null
+          morningstar_rating: number | null
+          price: number | null
+          symbol: string
+          user_id: string
+          vela_risk_score: number | null
+          vela_score: number | null
+        }
+        Insert: {
+          captured_on?: string
+          change_pct?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          instrument_type?: string | null
+          morningstar_rating?: number | null
+          price?: number | null
+          symbol: string
+          user_id: string
+          vela_risk_score?: number | null
+          vela_score?: number | null
+        }
+        Update: {
+          captured_on?: string
+          change_pct?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          instrument_type?: string | null
+          morningstar_rating?: number | null
+          price?: number | null
+          symbol?: string
+          user_id?: string
+          vela_risk_score?: number | null
+          vela_score?: number | null
         }
         Relationships: []
       }

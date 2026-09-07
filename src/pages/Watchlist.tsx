@@ -159,11 +159,14 @@ const Watchlist = () => {
                       <div className="text-xs text-muted-foreground truncate">{item.name}</div>
                     </Link>
                     <div className="text-right tabular-nums font-semibold text-sm w-24">
-                      {q ? `${currency}${q.price.toFixed(2)}` : "-"}
+                      {typeof q?.price === "number" && Number.isFinite(q.price)
+                        ? `${currency}${q.price.toFixed(2)}`
+                        : "—"}
                     </div>
                     <div className="w-16 text-right">
-                      {q && <ChangePill pct={change} />}
+                      {typeof change === "number" && Number.isFinite(change) && <ChangePill pct={change} />}
                     </div>
+
                     <div className="w-24 text-right text-xs">
                       {ins?.loading ? (
                         <span className="text-muted-foreground">…</span>

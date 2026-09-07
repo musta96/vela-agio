@@ -120,7 +120,9 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setRes(data);
+      onResult?.(data, profile);
       toast.success("Startup valuation ready");
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Valuation failed");
     } finally { setLoading(false); }

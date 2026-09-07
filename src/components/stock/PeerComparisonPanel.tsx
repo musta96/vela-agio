@@ -8,6 +8,9 @@ type Peer = {
   symbol: string;
   name: string;
   pe: number | null;
+  forwardPe: number | null;
+  pb: number | null;
+  dividendYield: number | null;
   evEbitda: number | null;
   revGrowth: number | null;
   grossMargin: number | null;
@@ -31,6 +34,7 @@ function fmt(v: number | null, opts: { pct?: boolean; mc?: boolean } = {}) {
 export function PeerComparisonPanel({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Peer[]>([]);
+  const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
 
@@ -45,7 +49,7 @@ export function PeerComparisonPanel({ symbol }: { symbol: string }) {
       .then(({ data, error: err }) => {
         if (!active) return;
         if (err) { setError(err.message); setRows([]); }
-        else setRows(((data?.rows ?? []) as Peer[]));
+        else { setRows(((data?.rows ?? []) as Peer[])); setSource((data?.source as string) ?? null); }
       })
       .catch((e) => { if (active) setError(String(e?.message ?? e)); })
       .finally(() => { if (active) setLoading(false); });
@@ -61,7 +65,9 @@ export function PeerComparisonPanel({ symbol }: { symbol: string }) {
         <CardContent className="py-8 text-center space-y-3">
           <AlertTriangle className="h-5 w-5 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            {error ? "Peer data could not be loaded right now." : "No comparable peers are published for this listing."}
+            {error
+              ? "Peer data could not be loaded right now."
+              : "No comparable listed peers were found for this instrument (this is normal for ETFs, funds and very small listings)."}
           </p>
           <Button variant="outline" size="sm" onClick={() => setNonce((n) => n + 1)}>
             <RefreshCw className="h-4 w-4 mr-2" /> Retry
@@ -101,7 +107,11 @@ export function PeerComparisonPanel({ symbol }: { symbol: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Peer comparison</CardTitle>
-          <CardDescription>Peers discovered via Yahoo Finance recommendations. Subject highlighted.</CardDescription>
+          <CardDescription>
+            {source === "sector_screen"
+              ? "Peers selected from the same sector and listing region, largest by market value. Subject highlighted."
+              : "Peers discovered from market co-ownership data. Subject highlighted."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -110,10 +120,13 @@ export function PeerComparisonPanel({ symbol }: { symbol: string }) {
                 <th className="text-left py-2 font-medium">Symbol</th>
                 <th className="text-left py-2 font-medium">Name</th>
                 <th className="text-right py-2 font-medium">P/E</th>
+                <th className="text-right py-2 font-medium">Fwd P/E</th>
+                <th className="text-right py-2 font-medium">P/B</th>
                 <th className="text-right py-2 font-medium">EV/EBITDA</th>
                 <th className="text-right py-2 font-medium">Rev growth</th>
                 <th className="text-right py-2 font-medium">Gross margin</th>
                 <th className="text-right py-2 font-medium">ROE</th>
+                <th className="text-right py-2 font-medium">Div yield</th>
                 <th className="text-right py-2 font-medium">Mkt cap</th>
               </tr>
             </thead>
@@ -125,10 +138,13 @@ export function PeerComparisonPanel({ symbol }: { symbol: string }) {
                     <td className="py-2 font-mono">{r.symbol}</td>
                     <td className="py-2 truncate max-w-[180px]">{r.name}</td>
                     <td className="text-right font-mono py-2">{fmt(r.pe)}</td>
+                    <td className="text-right font-mono py-2">{fmt(r.forwardPe)}</td>
+                    <td className="text-right font-mono py-2">{fmt(r.pb)}</td>
                     <td className="text-right font-mono py-2">{fmt(r.evEbitda)}</td>
                     <td className="text-right font-mono py-2">{fmt(r.revGrowth, { pct: true })}</td>
                     <td className="text-right font-mono py-2">{fmt(r.grossMargin, { pct: true })}</td>
                     <td className="text-right font-mono py-2">{fmt(r.roe, { pct: true })}</td>
+                    <td className="text-right font-mono py-2">{fmt(r.dividendYield, { pct: true })}</td>
                     <td className="text-right font-mono py-2">{fmt(r.mcap, { mc: true })}</td>
                   </tr>
                 );

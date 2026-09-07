@@ -167,8 +167,11 @@ function vcMethod(i: StartupInputs, irr: number, label: string, key: string, wei
   const years = clamp(num(i.yearsToExit, YEARS_TO_EXIT[i.stage] ?? 6), 1, 12);
   const growth = clamp(num(i.revenueGrowth, i.stage === 'pre_seed' ? 1.5 : i.stage === 'seed' ? 1.2 : 0.7), -0.5, 4);
   const rev = num(i.revenue, 0);
-  const exitRevenue = num(i.exitRevenue, rev > 0 ? rev * Math.pow(1 + growth * 0.6, years) : 0);
-  const exitMult = num(i.exitMultiple, Math.max(REVENUE_MULTIPLE[i.stage] * 0.35, 3));
+  // A blank exit-revenue field arrives as 0; fall back to the growth path.
+  const plannedExit = num(i.exitRevenue, 0);
+  const exitRevenue = plannedExit > 0 ? plannedExit : (rev > 0 ? rev * Math.pow(1 + growth * 0.6, years) : 0);
+  const exitMultRaw = num(i.exitMultiple, 0);
+  const exitMult = exitMultRaw > 0 ? exitMultRaw : Math.max(REVENUE_MULTIPLE[i.stage] * 0.35, 3);
   if (!(exitRevenue > 0)) {
     return { key, label, preMoney: null, postMoney: null, applicable: false, weight: 0, detail: 'Needs revenue today or a planned exit revenue.' };
   }

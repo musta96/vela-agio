@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { OHLCBar } from "@/lib/technicalIndicators";
 import { returns, beta, correlation, realizedVol, valueAtRisk, sharpe, sortino, maxDrawdown } from "@/lib/riskMetrics";
 import { findCatalogEntry } from "@/data/stockCatalog";
+import { aggregate, geoFromSymbol } from "@/lib/geography";
 
 export interface PortfolioAnalytics {
   vol: number;

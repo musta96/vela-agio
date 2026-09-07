@@ -133,6 +133,31 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [holdings, weights]);
 
+  // Geography: listing country / broad region of each position
+  const geographyExposure = useMemo(() => {
+    const regions: Array<[string, number]> = [];
+    const countries: Array<[string, number]> = [];
+    holdings.forEach((h, i) => {
+      const geo = geoFromSymbol(h.symbol);
+      regions.push([geo?.region ?? "Unclassified", weights[i]]);
+      countries.push([geo?.country ?? "Unclassified", weights[i]]);
+    });
+    return { regions: aggregate(regions), countries: aggregate(countries) };
+  }, [holdings, weights]);
+
+  // Sector: pulled from the fundamentals service, unavailable for funds/ETFs
+  const sectorExposure = useMemo(() => {
+    const rows: Array<[string, number]> = [];
+    let covered = 0;
+    holdings.forEach((h, i) => {
+      const s = sectors[h.symbol];
+      if (!s) return;
+      covered += weights[i];
+      rows.push([s, weights[i]]);
+    });
+    return { rows: aggregate(rows), covered };
+  }, [holdings, weights, sectors]);
+
   // Concentration: Herfindahl-Hirschman Index over weights
   const hhi = useMemo(() => weights.reduce((a, w) => a + w * w, 0), [weights]);
   const top3Weight = useMemo(() => [...weights].sort((a, b) => b - a).slice(0, 3).reduce((a, w) => a + w, 0), [weights]);

@@ -61,14 +61,27 @@ const pct = (v: number | null | undefined, d = 0) => (v == null || !Number.isFin
 interface PrevRound { stage: string; date: string; amount: string; postMoney: string; investors: string }
 const emptyRound = (): PrevRound => ({ stage: "seed", date: "", amount: "", postMoney: "", investors: "" });
 
-export function StartupValuationPanel() {
-  const [profile, setProfile] = useState({ name: "", country: "IT", currency: "EUR", sector: "software", website: "", description: "" });
+export interface StartupPanelProfile { name: string; country: string; currency: string; sector: string; website: string; description: string }
+
+interface StartupPanelProps {
+  /** Prefill the profile (used by the startup watchlist). */
+  initialProfile?: Partial<StartupPanelProfile>;
+  /** Prefill traction / round inputs. */
+  initialForm?: Record<string, string>;
+  /** Fires whenever a valuation completes, so a parent can save it. */
+  onResult?: (result: Record<string, unknown>, profile: StartupPanelProfile) => void;
+}
+
+export function StartupValuationPanel({ initialProfile, initialForm, onResult }: StartupPanelProps = {}) {
+  const [profile, setProfile] = useState<StartupPanelProfile>({ name: "", country: "IT", currency: "EUR", sector: "software", website: "", description: "", ...initialProfile });
   const [form, setForm] = useState({
     stage: "seed",
     revenue: "", revenueGrowth: "0.8", grossMargin: "0.75", burnRate: "", cashOnHand: "", users: "",
     roundSize: "", targetOwnership: "", optionPool: "0.1",
     requiredIrr: "", yearsToExit: "", exitMultiple: "", exitRevenue: "",
+    ...initialForm,
   });
+
   const [rounds, setRounds] = useState<PrevRound[]>([]);
   const [scorecard, setScorecard] = useState<Record<string, number>>(Object.fromEntries(SCORECARD.map((s) => [s.key, 1])));
   const [risks, setRisks] = useState<Record<string, number>>(Object.fromEntries(RISKS.map((r) => [r, 0])));

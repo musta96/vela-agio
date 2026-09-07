@@ -14,7 +14,7 @@ interface Row {
   stance: "long_candidate" | "short_candidate" | "no_edge";
   rationale: string;
   signal: {
-    score: number; label: string; buys: number; sells: number;
+    score: number; label: string; buys: number; sells: number; awards?: number;
     buyValue: number; sellValue: number; netValue: number;
     uniqueBuyers: number; uniqueSellers: number; cluster: boolean;
     lastDate: string | null; transactions: number;

@@ -326,6 +326,44 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
               </CardContent>
             </Card>
 
+            {/* Geography */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Geographic exposure</CardTitle>
+                <CardDescription className="text-xs">By listing country of each position</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                {geographyExposure.regions.map(([r, w]) => (
+                  <Bar key={r} label={r} pct={w} />
+                ))}
+                {geographyExposure.countries.length > 1 && (
+                  <div className="pt-2 text-xs text-muted-foreground">
+                    Top countries: {geographyExposure.countries.slice(0, 4).map(([c, w]) => `${c} ${(w * 100).toFixed(0)}%`).join(" · ")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sector */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Sector exposure</CardTitle>
+                <CardDescription className="text-xs">
+                  {sectorExposure.covered > 0
+                    ? `${(sectorExposure.covered * 100).toFixed(0)}% of the portfolio classified`
+                    : "Funds and ETFs carry no single sector"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                {sectorExposure.rows.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No sector data for these holdings yet.</p>
+                ) : (
+                  sectorExposure.rows.map(([s, w]) => <Bar key={s} label={s} pct={w} />)
+                )}
+              </CardContent>
+            </Card>
+
+
             {/* Top contributors */}
             <Card>
               <CardHeader className="pb-2">

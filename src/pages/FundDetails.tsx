@@ -19,6 +19,8 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 import { FundRatingsCard } from "@/components/fund/FundRatingsCard";
 import { FundAnalysisTab } from "@/components/fund/FundAnalysisTab";
 import { FundGeographyCard } from "@/components/fund/FundGeographyCard";
+import { FundVerdictCard } from "@/components/fund/FundVerdictCard";
+import { FundPeersTab } from "@/components/fund/FundPeersTab";
 import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
 import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
 
@@ -216,6 +218,9 @@ const FundDetails = () => {
               </CardContent>
             </Card>
 
+            {/* What to do — blended read on the vehicle */}
+            <FundVerdictCard data={data} bars={bars} />
+
             {/* Price chart */}
             <Card>
               <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
@@ -247,6 +252,7 @@ const FundDetails = () => {
               <TabsList className="flex w-full flex-wrap justify-start">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="analysis">Analysis</TabsTrigger>
+                <TabsTrigger value="peers">Peers</TabsTrigger>
                 <TabsTrigger value="holdings">Holdings</TabsTrigger>
                 <TabsTrigger value="geography">Geography</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -263,6 +269,11 @@ const FundDetails = () => {
                   data={data}
                   bars={bars}
                 />
+              </TabsContent>
+
+              {/* PEERS — similar vehicles and better alternatives */}
+              <TabsContent value="peers" className="space-y-4 pt-4">
+                <FundPeersTab data={data} />
               </TabsContent>
 
               {/* GEOGRAPHY */}

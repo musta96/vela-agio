@@ -429,9 +429,9 @@ Deno.serve(async (req) => {
         label,
         summary: `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
         degraded: true,
-        degradedReason: isByo
-          ? "Your selected AI provider rejected the request (quota or billing). Check that provider account, or switch provider in Settings > Connections."
-          : "Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections.",
+        degradedReason: usedCfg.source === "user"
+          ? "Your own API key was used but the provider rejected the request (quota or billing). Check that provider account in Settings > Connections."
+          : "No AI credits are available and no personal API key is saved. Add your own key in Settings > Connections to get real scored analysis.",
         drivers: scored.filter((a) => a.score !== 50).slice(0, 5).map((a) => ({ title: a.title, impact: a.sentiment })),
         articles: scored,
         sources: Array.from(bySrc.entries()).map(([source, v]) => ({ source, avgScore: Math.round(v.total / v.count), count: v.count })),

@@ -204,10 +204,10 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
         else if (rules.risk?.targetPct && chg >= Math.abs(rules.risk.targetPct)) { sell(i); }
       }
       if (shares === 0) {
-        const entryOk = rules.entry.length > 0 && rules.entry.every(c => evalCondition(c, closes, i));
+        const entryOk = rules.entry.length > 0 && rules.entry.every(c => evalCondition(c, bars, i));
         if (entryOk) buy(i);
       } else {
-        const exitOk = rules.exit.length > 0 && rules.exit.every(c => evalCondition(c, closes, i));
+        const exitOk = rules.exit.length > 0 && rules.exit.every(c => evalCondition(c, bars, i));
         if (exitOk) sell(i);
       }
     }
@@ -323,6 +323,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Custom strategy requires at least one entry rule" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (strategy === "custom" && rules) {
+      const bad = unsupportedConditions([...rules.entry, ...rules.exit]);
+      if (bad.length) {
+        return new Response(JSON.stringify({
+          error: "unsupported_rules",
+          message: `This run uses rules the backtest engine cannot evaluate: ${bad.join(", ")}. Remove or replace them and run again.`,
+          unsupported: bad,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
     const result = simulate(basketBars, strategy, initial, rules, costs);
 

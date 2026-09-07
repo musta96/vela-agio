@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
 import { toQuotableSymbol, isIsin } from "../_shared/isin-resolver.ts";
 import { fetchBIFundNav } from "../_shared/borsa-italiana-funds.ts";
+import { fetchFtFund } from "../_shared/ft-funds.ts";
 
 
 const corsHeaders = {

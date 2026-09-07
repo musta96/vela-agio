@@ -246,12 +246,36 @@ const FundDetails = () => {
             <Tabs defaultValue="overview">
               <TabsList className="flex w-full flex-wrap justify-start">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="analysis">Analysis</TabsTrigger>
                 <TabsTrigger value="holdings">Holdings</TabsTrigger>
+                <TabsTrigger value="geography">Geography</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
                 <TabsTrigger value="risk">Risk</TabsTrigger>
                 <TabsTrigger value="costs">Costs</TabsTrigger>
                 <TabsTrigger value="distributions">Distributions</TabsTrigger>
               </TabsList>
+
+              {/* ANALYSIS — trend, quality and sentiment for the vehicle */}
+              <TabsContent value="analysis" className="space-y-4 pt-4">
+                <FundAnalysisTab
+                  symbol={data.symbol}
+                  name={data.profile?.name ?? data.symbol}
+                  data={data}
+                  bars={bars}
+                />
+              </TabsContent>
+
+              {/* GEOGRAPHY */}
+              <TabsContent value="geography" className="space-y-4 pt-4">
+                <FundGeographyCard
+                  holdings={data.holdings?.top ?? []}
+                  fundName={data.profile?.name}
+                  category={data.profile?.category}
+                  description={data.profile?.description}
+                  domicile={(data.identifiers as any)?.domicile ?? null}
+                />
+              </TabsContent>
+
 
               {/* OVERVIEW — free */}
               <TabsContent value="overview" className="space-y-4 pt-4">

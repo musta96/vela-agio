@@ -2,6 +2,9 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { fetchFundamentals } from '../_shared/fundamentals.ts';
 import { computeRoicWacc } from '../_shared/roic-wacc.ts';
 import { resolveAIConfig, chatComplete } from '../_shared/ai-provider.ts';
+import { readCompanySite, type SitePage } from '../_shared/site-research.ts';
+import { valueStartup, type StartupInputs, type Stage } from '../_shared/startup-valuation.ts';
+
 
 // =====================================================================
 // valuation — one endpoint for

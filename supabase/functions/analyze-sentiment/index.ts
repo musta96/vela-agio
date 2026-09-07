@@ -377,6 +377,23 @@ Deno.serve(async (req) => {
       }),
     });
 
+    let usedCfg = cfg;
+    let aiRes = await callAI(cfg);
+
+    // If the shared credits are exhausted or blocked, fall back to the user's
+    // own saved API key (Settings > Connections) before degrading to keywords.
+    if (!isByo && [401, 402, 403].includes(aiRes.status)) {
+      try {
+        const byoCfg = await resolveAIConfig(auth);
+        if (byoCfg.source === "user") {
+          const retry = await callAI(byoCfg);
+          if (retry.ok) { aiRes = retry; usedCfg = byoCfg; }
+          else if (retry.status !== 402) { aiRes = retry; usedCfg = byoCfg; }
+        }
+      } catch (e) { console.error("BYO fallback failed", e); }
+    }
+
+
     if (aiRes.status === 429) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded, try again in a moment." }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },

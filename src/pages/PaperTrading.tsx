@@ -42,7 +42,7 @@ function fmt(n: number, ccy = "EUR") {
 
 export default function PaperTrading({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
-  const { portfolios, create: createPortfolio, refresh: refreshPortfolios } = usePortfolios();
+  const { portfolios, create: createPortfolio, update: updatePortfolio, remove: removePortfolio, refresh: refreshPortfolios } = usePortfolios();
   const { toast } = useToast();
 
   const sims = useMemo(() => portfolios.filter((p) => p.is_simulation), [portfolios]);

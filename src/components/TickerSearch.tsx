@@ -85,7 +85,9 @@ function localMatches(query: string, limit = 6): TickerHit[] {
       name: s.name,
       exchange: s.market,
       currency: (s as any).currency,
-      type: "Equity",
+      // Catalogue rows carry no explicit type, so classify from symbol + name
+      // (ETFs, funds, crypto pairs and FX crosses all live in there too).
+      type: classifyInstrument((s as any).type, s.symbol, s.name),
       source: "local" as const,
     } as TickerHit,
     score: localScore(q, s.symbol, s.name, s.market),

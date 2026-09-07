@@ -252,6 +252,7 @@ const FundDetails = () => {
               <TabsList className="flex w-full flex-wrap justify-start">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="analysis">Analysis</TabsTrigger>
+                <TabsTrigger value="peers">Peers</TabsTrigger>
                 <TabsTrigger value="holdings">Holdings</TabsTrigger>
                 <TabsTrigger value="geography">Geography</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -268,6 +269,11 @@ const FundDetails = () => {
                   data={data}
                   bars={bars}
                 />
+              </TabsContent>
+
+              {/* PEERS — similar vehicles and better alternatives */}
+              <TabsContent value="peers" className="space-y-4 pt-4">
+                <FundPeersTab data={data} />
               </TabsContent>
 
               {/* GEOGRAPHY */}

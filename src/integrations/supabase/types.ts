@@ -2522,6 +2522,90 @@ export type Database = {
         }
         Relationships: []
       }
+      private_companies: {
+        Row: {
+          amount_invested: number | null
+          country: string
+          created_at: string
+          currency: string
+          current_valuation: number | null
+          description: string | null
+          id: string
+          inputs: Json
+          kind: string
+          last_valuation: Json | null
+          last_valued_at: string | null
+          name: string
+          notes: string | null
+          ownership_pct: number | null
+          post_money: number | null
+          pre_money: number | null
+          round_date: string | null
+          round_name: string | null
+          round_size: number | null
+          sector: string
+          stage: string
+          status: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          amount_invested?: number | null
+          country?: string
+          created_at?: string
+          currency?: string
+          current_valuation?: number | null
+          description?: string | null
+          id?: string
+          inputs?: Json
+          kind?: string
+          last_valuation?: Json | null
+          last_valued_at?: string | null
+          name: string
+          notes?: string | null
+          ownership_pct?: number | null
+          post_money?: number | null
+          pre_money?: number | null
+          round_date?: string | null
+          round_name?: string | null
+          round_size?: number | null
+          sector?: string
+          stage?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          amount_invested?: number | null
+          country?: string
+          created_at?: string
+          currency?: string
+          current_valuation?: number | null
+          description?: string | null
+          id?: string
+          inputs?: Json
+          kind?: string
+          last_valuation?: Json | null
+          last_valued_at?: string | null
+          name?: string
+          notes?: string | null
+          ownership_pct?: number | null
+          post_money?: number | null
+          pre_money?: number | null
+          round_date?: string | null
+          round_name?: string | null
+          round_size?: number | null
+          sector?: string
+          stage?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_model: string | null

@@ -252,12 +252,12 @@ HARD RULES: use ONLY text present in the supplied pages. Never infer, estimate o
           messages: [{ role: 'system', content: sys }, { role: 'user', content: digest }],
           temperature: 0, response_format: { type: 'json_object' },
         });
-        if (!r.ok) continue;
+        if (!r.ok) { console.error('site-research ai error', r.status, (await r.text()).slice(0, 300)); continue; }
         const j = await r.json();
         const content = j?.choices?.[0]?.message?.content ?? '';
         const candidate = JSON.parse(String(content).replace(/^```json\s*|```$/g, ''));
         if (candidate && (candidate.summary || (Array.isArray(candidate.facts) && candidate.facts.length))) { parsed = candidate; break; }
-      } catch { /* try the shorter digest */ }
+      } catch (e) { console.error('site-research parse failed', e instanceof Error ? e.message : e); }
     }
     if (!parsed) throw new Error('ai_failed');
     const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 12) : []);

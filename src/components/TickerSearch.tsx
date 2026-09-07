@@ -5,6 +5,7 @@ import { Loader2, Search, Sparkles, X } from "lucide-react";
 import { STOCK_CATALOG } from "@/data/stockCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { classifyInstrument, INSTRUMENT_BADGE, INSTRUMENT_LABEL } from "@/lib/instrumentType";
 
 /**
  * TickerSearch — universal typeahead for any instrument on any exchange.

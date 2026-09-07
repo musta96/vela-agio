@@ -221,12 +221,18 @@ Deno.serve(async (req) => {
     // identifier every European investor recognises.
     if (!isin) isin = await lookupIsin(symbol).catch(() => null);
 
+    // Yahoo carries no Morningstar rating for most European listings and
+    // often no ongoing charge — FT fills both in when we know the ISIN.
+    const ftData = isin ? await fetchFtFund(isin).catch(() => null) : null;
+
     const perfOverview = perf.performanceOverview ?? {};
     const ratings = {
-      morningstarOverall: num(ks.morningStarOverallRating) ?? num(perfOverview.morningStarOverallRating),
+      morningstarOverall: num(ks.morningStarOverallRating) ?? num(perfOverview.morningStarOverallRating)
+        ?? ftData?.morningstarOverall ?? null,
       morningstarRisk: num(ks.morningStarRiskRating) ?? num(perfOverview.morningStarRiskRating),
       morningstarReturn: num(perfOverview.morningStarReturnRating),
-      morningstarCategory: fp.categoryName ?? null,
+      morningstarCategory: fp.categoryName ?? ftData?.morningstarCategory ?? null,
+      morningstarAsOf: ftData?.morningstarAsOf ?? null,
       esgTotal: num(esg.totalEsg),
       esgEnvironment: num(esg.environmentScore),
       esgSocial: num(esg.socialScore),
@@ -235,6 +241,7 @@ Deno.serve(async (req) => {
       esgPercentile: num(esg.percentile),
       sustainability: num(esg.sustainabilityScore),
     };
+
 
     const topWeightSum = Array.isArray(th.holdings)
       ? th.holdings.slice(0, 10).reduce((s: number, h: any) => s + ((num(h.holdingPercent) ?? 0)), 0)

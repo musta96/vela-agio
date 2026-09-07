@@ -234,11 +234,13 @@ Deno.serve(async (req) => {
         // ETFs, only inside the fee module in millions of the fund currency.
         totalAssets: num(sd.totalAssets) ?? num(ks.totalAssets)
           ?? (num(feesData.totalNetAssets) != null ? (num(feesData.totalNetAssets) as number) * 1e6 : null),
-        ter: [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
-          .find((v) => v != null && v > 0) ?? num(feesData.annualReportExpenseRatio) ?? null,
+        // Reuse the resolved TER (Yahoo modules first, curated instrument
+        // master as fallback). A literal 0 means "Yahoo has no figure" for a
+        // fund, never a free fund — surface it as unknown instead of 0.00%.
+        ter: terValue,
         yield: num(sd.yield) ?? num(ks.yield),
         trailingAnnualDividendYield: num(sd.trailingAnnualDividendYield),
-        ytdReturn: num(sd.ytdReturn) ?? num(ks.ytdReturn) ?? num(trailing.ytd),
+        ytdReturn: [num(sd.ytdReturn), num(ks.ytdReturn), num(trailing.ytd)].find((v) => v != null && v !== 0) ?? null,
         beta3Year: num(ks.beta3Year) ?? num(sd.beta3Year),
         threeYearAverageReturn: num(ks.threeYearAverageReturn),
         fiveYearAverageReturn: num(ks.fiveYearAverageReturn),

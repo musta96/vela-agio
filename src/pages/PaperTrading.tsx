@@ -422,6 +422,9 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
               <Button variant="outline" size="sm" onClick={() => setWatchOpen(true)} disabled={!activeId} className="gap-1">
                 <Eye className="h-3.5 w-3.5" /> Import watchlist
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activeId} className="gap-1">
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Settings
+              </Button>
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1">
                 <Upload className="h-3.5 w-3.5" /> Restore backup
               </Button>
@@ -440,6 +443,20 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
 
             <SheetImportDialog open={sheetOpen} onOpenChange={setSheetOpen} onImport={importRows} />
             <WatchlistImportDialog open={watchOpen} onOpenChange={setWatchOpen} onImport={importRows} />
+            <SimulationSettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              value={{
+                name: sims.find((p) => p.id === activeId)?.name || "Paper Trading Lab",
+                currency: cash?.currency || sims.find((p) => p.id === activeId)?.base_currency || "EUR",
+                startingCash: cash?.starting_cash || 0,
+                cash: cash?.cash || 0,
+              }}
+              onSave={saveSettings}
+              onReset={resetSimulation}
+              onDelete={deleteSimulation}
+            />
+
 
 
             {sims.length > 1 && (

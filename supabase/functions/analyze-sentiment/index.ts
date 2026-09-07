@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
       )
       .join("\n");
 
-    const cfg = isByo
+    const cfg: { baseURL: string; model: string; headers: Record<string, string>; source: "user" | "default" } = isByo
       ? await resolveAIConfig(auth)
       : {
           baseURL: "https://ai.gateway.lovable.dev/v1",
@@ -302,12 +302,14 @@ Deno.serve(async (req) => {
             "X-Lovable-AIG-SDK": "direct-fetch",
             "Content-Type": "application/json",
           },
+          source: "default",
         };
-    const aiRes = await fetch(`${cfg.baseURL}/chat/completions`, {
+    const callAI = (c: { baseURL: string; model: string; headers: Record<string, string> }) =>
+      fetch(`${c.baseURL}/chat/completions`, {
       method: "POST",
-      headers: cfg.headers,
+      headers: c.headers,
       body: JSON.stringify({
-        model: cfg.model,
+        model: c.model,
         messages: [
           {
             role: "system",
@@ -376,6 +378,23 @@ Deno.serve(async (req) => {
       }),
     });
 
+    let usedCfg = cfg;
+    let aiRes = await callAI(cfg);
+
+    // If the shared credits are exhausted or blocked, fall back to the user's
+    // own saved API key (Settings > Connections) before degrading to keywords.
+    if (!isByo && [401, 402, 403].includes(aiRes.status)) {
+      try {
+        const byoCfg = await resolveAIConfig(auth);
+        if (byoCfg.source === "user") {
+          const retry = await callAI(byoCfg);
+          if (retry.ok) { aiRes = retry; usedCfg = byoCfg; }
+          else if (retry.status !== 402) { aiRes = retry; usedCfg = byoCfg; }
+        }
+      } catch (e) { console.error("BYO fallback failed", e); }
+    }
+
+
     if (aiRes.status === 429) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded, try again in a moment." }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -410,9 +429,9 @@ Deno.serve(async (req) => {
         label,
         summary: `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
         degraded: true,
-        degradedReason: isByo
-          ? "Your selected AI provider rejected the request (quota or billing). Check that provider account, or switch provider in Settings > Connections."
-          : "Lovable AI credits are unavailable. View Plans & billing, or add your own API key in Settings > Connections.",
+        degradedReason: usedCfg.source === "user"
+          ? "Your own API key was used but the provider rejected the request (quota or billing). Check that provider account in Settings > Connections."
+          : "No AI credits are available and no personal API key is saved. Add your own key in Settings > Connections to get real scored analysis.",
         drivers: scored.filter((a) => a.score !== 50).slice(0, 5).map((a) => ({ title: a.title, impact: a.sentiment })),
         articles: scored,
         sources: Array.from(bySrc.entries()).map(([source, v]) => ({ source, avgScore: Math.round(v.total / v.count), count: v.count })),
@@ -428,7 +447,7 @@ Deno.serve(async (req) => {
     }
 
     const aiJson = await aiRes.json();
-    await logAiUsage({ userId: access.userId, feature: "sentiment", model: cfg.model, provider: isByo ? "byo" : "lovable", success: true });
+    await logAiUsage({ userId: access.userId, feature: "sentiment", model: usedCfg.model, provider: usedCfg.source === "user" || isByo ? "byo" : "lovable", success: true });
     const call = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
     let parsed: any = {};
     try { parsed = JSON.parse(call?.function?.arguments || "{}"); } catch {}

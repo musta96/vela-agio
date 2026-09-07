@@ -246,20 +246,28 @@ HARD RULES: use ONLY text present in the supplied pages. Never infer, estimate o
   const attempts = [build(7000, 60_000), build(2500, 22_000)];
   try {
     let parsed: Record<string, unknown> | null = null;
+    let aiError = '';
     for (const digest of attempts) {
       try {
         const r = await chatComplete(cfg, {
           messages: [{ role: 'system', content: sys }, { role: 'user', content: digest }],
           temperature: 0, response_format: { type: 'json_object' },
         });
-        if (!r.ok) { console.error('site-research ai error', r.status, (await r.text()).slice(0, 300)); continue; }
+        if (!r.ok) {
+          const detail = (await r.text()).slice(0, 300);
+          console.error('site-research ai error', r.status, detail);
+          aiError = r.status === 402 || r.status === 403
+            ? 'AI credits are unavailable, so the pages were fetched but not read. Add credits or your own API key in Settings > Connections.'
+            : `The AI could not read the pages (HTTP ${r.status}).`;
+          continue;
+        }
         const j = await r.json();
         const content = j?.choices?.[0]?.message?.content ?? '';
         const candidate = JSON.parse(String(content).replace(/^```json\s*|```$/g, ''));
         if (candidate && (candidate.summary || (Array.isArray(candidate.facts) && candidate.facts.length))) { parsed = candidate; break; }
       } catch (e) { console.error('site-research parse failed', e instanceof Error ? e.message : e); }
     }
-    if (!parsed) throw new Error('ai_failed');
+    if (!parsed) throw new Error(aiError || 'ai_failed');
     const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 12) : []);
     const pageUrls = new Set(read.pages.map((pg) => pg.url));
     return {
@@ -274,11 +282,12 @@ HARD RULES: use ONLY text present in the supplied pages. Never infer, estimate o
         .filter((f: { source: string; value: string }) => f.value && (pageUrls.has(f.source) || [...pageUrls].some((u) => f.source.startsWith(u))))
         .slice(0, 40),
     };
-  } catch {
+  } catch (e) {
+    const why = e instanceof Error && e.message !== 'ai_failed' ? e.message : 'The pages were fetched but could not be summarised.';
     return {
       site: read.site, pagesRead: read.pages.map((pg) => ({ url: pg.url, title: pg.title })),
       facts: [], summary: '', products: [], customers: [], markets: [], team: [], funding: [],
-      missing: ['Website was read but could not be summarised'],
+      missing: [why],
     };
   }
 }

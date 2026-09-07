@@ -27,6 +27,21 @@ function num(v: unknown): number | null {
   return null;
 }
 
+/** Yahoo listing suffix -> screener region code. */
+const REGION_BY_SUFFIX: Record<string, string> = {
+  MI: "it", DE: "de", F: "de", PA: "fr", AS: "nl", BR: "be", LS: "pt", MC: "es",
+  SW: "ch", VI: "at", ST: "se", OL: "no", CO: "dk", HE: "fi", IR: "ie", L: "gb",
+  TO: "ca", V: "ca", MX: "mx", SA: "br", BA: "ar", SN: "cl",
+  T: "jp", HK: "hk", SS: "cn", SZ: "cn", KS: "kr", KQ: "kr", TW: "tw", TWO: "tw",
+  NS: "in", BO: "in", SI: "sg", KL: "my", BK: "th", JK: "id", AX: "au", NZ: "nz",
+  JO: "za", TA: "il", SR: "sa", AE: "ae", QA: "qa", IS: "tr",
+};
+
+function regionFor(symbol: string): string {
+  const suf = symbol.includes(".") ? symbol.split(".").pop()!.toUpperCase() : "";
+  return REGION_BY_SUFFIX[suf] ?? "us";
+}
+
 /** Peer universe from Yahoo's own "people also watch" recommendations. */
 async function discoverPeers(symbol: string): Promise<string[]> {
   for (const host of ["query2", "query1"]) {
@@ -47,6 +62,56 @@ async function discoverPeers(symbol: string): Promise<string[]> {
   }
   return [];
 }
+
+/**
+ * Fallback peer universe: same sector, same listing region, ranked by market cap.
+ * Yahoo's recommendation endpoint is empty for many non-US and small caps, which
+ * is what used to leave the panel with nothing but a Retry button.
+ */
+async function screenerPeers(symbol: string): Promise<{ peers: string[]; sector: string | null; industry: string | null }> {
+  const prof = await fetchQuoteSummary(symbol, ["assetProfile"]).catch(() => null);
+  const sector: string | null = prof?.assetProfile?.sector ?? null;
+  const industry: string | null = prof?.assetProfile?.industry ?? null;
+  if (!sector) return { peers: [], sector, industry };
+
+  const build = (withRegion: boolean) => ({
+    size: 12,
+    offset: 0,
+    sortField: "intradaymarketcap",
+    sortType: "DESC",
+    quoteType: "EQUITY",
+    query: {
+      operator: "AND",
+      operands: [
+        { operator: "EQ", operands: ["sector", sector] },
+        ...(withRegion ? [{ operator: "EQ", operands: ["region", regionFor(symbol)] }] : []),
+      ],
+    },
+    userId: "",
+    userIdType: "guid",
+  });
+
+  for (const withRegion of [true, false]) {
+    try {
+      const { crumb, cookie } = await getCrumb();
+      const r = await fetch(`https://query2.finance.yahoo.com/v1/finance/screener?crumb=${encodeURIComponent(crumb)}`, {
+        method: "POST",
+        headers: { "User-Agent": UA, "Content-Type": "application/json", Accept: "application/json", Cookie: cookie },
+        body: JSON.stringify(build(withRegion)),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const quotes: Array<{ symbol?: string }> = j?.finance?.result?.[0]?.quotes ?? [];
+      const syms = quotes.map((q) => q?.symbol).filter((s): s is string => !!s && s.toUpperCase() !== symbol.toUpperCase());
+      if (syms.length) return { peers: syms.slice(0, 6), sector, industry };
+    } catch {
+      // try the wider, region-free query
+    }
+  }
+  return { peers: [], sector, industry };
+}
+
 
 async function peerRow(symbol: string) {
   const r = await fetchQuoteSummary(symbol, PEER_MODULES).catch(() => null);

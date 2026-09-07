@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine, FileSpreadsheet, Eye } from "lucide-react";
+import { FlaskConical, Search, AlertTriangle, TrendingUp, TrendingDown, Trash2, RotateCcw, Download, Upload, ArrowDownFromLine, FileSpreadsheet, Eye, SlidersHorizontal } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -19,6 +19,9 @@ import { ShortRiskChecklist } from "@/components/shorts/ShortRiskChecklist";
 import { buildShortChecklist, estimateBorrow, loadShortPrefs, saveShortPrefs } from "@/lib/shorts";
 import { SheetImportDialog, type ParsedRow } from "@/components/paper/SheetImportDialog";
 import { WatchlistImportDialog } from "@/components/paper/WatchlistImportDialog";
+import { SimulationSettingsDialog } from "@/components/paper/SimulationSettingsDialog";
+import { SimulationReview } from "@/components/paper/SimulationReview";
+
 
 /**
  * Paper Trading Lab.
@@ -42,7 +45,7 @@ function fmt(n: number, ccy = "EUR") {
 
 export default function PaperTrading({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
-  const { portfolios, create: createPortfolio, refresh: refreshPortfolios } = usePortfolios();
+  const { portfolios, create: createPortfolio, update: updatePortfolio, remove: removePortfolio, refresh: refreshPortfolios } = usePortfolios();
   const { toast } = useToast();
 
   const sims = useMemo(() => portfolios.filter((p) => p.is_simulation), [portfolios]);
@@ -76,6 +79,12 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
   const [selected, setSelected] = useState<SearchHit | null>(null);
   const [side, setSide] = useState<"buy" | "sell" | "short">("buy");
   const [qty, setQty] = useState<string>("10");
+  // Every ticket input is editable: size by units or by money, and override the fill price.
+  const [sizeMode, setSizeMode] = useState<"qty" | "amount">("qty");
+  const [amount, setAmount] = useState<string>("1000");
+  const [priceOverride, setPriceOverride] = useState<string>("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
 
   // Symbol search (debounced)
   useEffect(() => {
@@ -153,12 +162,19 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
       const p = (data?.quotes ?? {})[selected.symbol]?.price;
       if (typeof p === "number" && Number.isFinite(p) && p > 0) px = p;
     }
-    if (!px) { toast({ title: "No live price available", description: `We could not get a price for ${selected.symbol} right now. Try again shortly or pick another instrument.`, variant: "destructive" }); return; }
+    // A manually typed fill price wins over the live quote (what-if pricing).
+    const manual = Number(priceOverride);
+    if (Number.isFinite(manual) && manual > 0) px = manual;
+    if (!px) { toast({ title: "No live price available", description: `We could not get a price for ${selected.symbol} right now. Try again shortly, or type a price yourself.`, variant: "destructive" }); return; }
 
-    const quantity = Math.max(0, Number(qty));
+    // Size either by number of units or by the amount of money to commit.
+    const quantity = sizeMode === "amount"
+      ? Math.max(0, Math.floor(((Number(amount) || 0) / px) * 1e6) / 1e6)
+      : Math.max(0, Number(qty));
     if (!quantity) return;
     const notional = px * quantity;
     const currentCash = cash?.cash || 0;
+
     const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
     if (side === "buy" && notional > currentCash) {
       toast({ title: "Insufficient virtual cash", description: `Need ${fmt(notional)}, have ${fmt(currentCash)}.`, variant: "destructive" });
@@ -197,9 +213,46 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
       title: `${side === "short" ? "SHORT SELL" : side.toUpperCase()} simulated`,
       description: `${quantity} ${selected.symbol} @ ${fmt(px, selected.currency)}${side === "short" ? " · unlimited-loss risk noted" : ""}`,
     });
-    setSelected(null); setQ(""); setQty("10");
+    setSelected(null); setQ(""); setQty("10"); setPriceOverride("");
     refresh(activeId);
   }
+
+  /** Persist edited simulation settings (name, currency, invested total, cash). */
+  async function saveSettings(v: { name: string; currency: string; startingCash: number; cash: number }) {
+    if (!activeId || !user) return;
+    await updatePortfolio(activeId, { name: v.name, base_currency: v.currency });
+    if (cash) {
+      await (supabase as any).from("paper_cash")
+        .update({ currency: v.currency, starting_cash: v.startingCash, cash: v.cash })
+        .eq("portfolio_id", activeId);
+    } else {
+      await (supabase as any).from("paper_cash")
+        .insert({ user_id: user.id, portfolio_id: activeId, currency: v.currency, starting_cash: v.startingCash, cash: v.cash });
+    }
+    await refreshPortfolios?.();
+    await refresh(activeId);
+    toast({ title: "Simulation updated", description: `${v.name} · ${fmt(v.startingCash, v.currency)} invested.` });
+  }
+
+  /** Wipe every simulated trade and put all money back into cash. */
+  async function resetSimulation() {
+    if (!activeId) return;
+    await (supabase as any).from("paper_trades").delete().eq("portfolio_id", activeId);
+    await (supabase as any).from("paper_cash").update({ cash: cash?.starting_cash || 0 }).eq("portfolio_id", activeId);
+    await refresh(activeId);
+    toast({ title: "Simulation reset", description: "All trades removed and cash restored." });
+  }
+
+  async function deleteSimulation() {
+    if (!activeId) return;
+    await (supabase as any).from("paper_trades").delete().eq("portfolio_id", activeId);
+    await (supabase as any).from("paper_cash").delete().eq("portfolio_id", activeId);
+    await removePortfolio(activeId);
+    setActiveId(null);
+    await refreshPortfolios?.();
+    toast({ title: "Simulation deleted" });
+  }
+
 
   async function deleteTrade(id: string) {
     if (!confirm("Delete this paper trade? Cash will not be rebalanced automatically.")) return;
@@ -369,6 +422,9 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
               <Button variant="outline" size="sm" onClick={() => setWatchOpen(true)} disabled={!activeId} className="gap-1">
                 <Eye className="h-3.5 w-3.5" /> Import watchlist
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activeId} className="gap-1">
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Settings
+              </Button>
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1">
                 <Upload className="h-3.5 w-3.5" /> Restore backup
               </Button>
@@ -387,6 +443,20 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
 
             <SheetImportDialog open={sheetOpen} onOpenChange={setSheetOpen} onImport={importRows} />
             <WatchlistImportDialog open={watchOpen} onOpenChange={setWatchOpen} onImport={importRows} />
+            <SimulationSettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              value={{
+                name: sims.find((p) => p.id === activeId)?.name || "Paper Trading Lab",
+                currency: cash?.currency || sims.find((p) => p.id === activeId)?.base_currency || "EUR",
+                startingCash: cash?.starting_cash || 0,
+                cash: cash?.cash || 0,
+              }}
+              onSave={saveSettings}
+              onReset={resetSimulation}
+              onDelete={deleteSimulation}
+            />
+
 
 
             {sims.length > 1 && (
@@ -456,17 +526,35 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                     ))}
                   </Card>
                 )}
-                <Label className="text-xs">Quantity</Label>
-                <Input type="number" min="0" step="1" value={qty} onChange={(e) => setQty(e.target.value)} className="mb-3" />
-                {selected && quotes[selected.symbol]?.price && (() => {
-                  const px = quotes[selected.symbol].price;
-                  const notional = px * Number(qty || 0);
+                <div className="flex gap-2 mb-2">
+                  <Badge variant={sizeMode === "qty" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSizeMode("qty")}>By quantity</Badge>
+                  <Badge variant={sizeMode === "amount" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSizeMode("amount")}>By amount</Badge>
+                </div>
+                {sizeMode === "qty" ? (
+                  <>
+                    <Label className="text-xs">Quantity</Label>
+                    <Input type="number" min="0" step="1" value={qty} onChange={(e) => setQty(e.target.value)} className="mb-3" />
+                  </>
+                ) : (
+                  <>
+                    <Label className="text-xs">Amount to invest ({cash?.currency || "EUR"})</Label>
+                    <Input type="number" min="0" step="100" value={amount} onChange={(e) => setAmount(e.target.value)} className="mb-3" />
+                  </>
+                )}
+                <Label className="text-xs">Fill price (leave empty for live price)</Label>
+                <Input type="number" min="0" step="0.01" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} placeholder="Live" className="mb-3" />
+                {selected && (quotes[selected.symbol]?.price || Number(priceOverride) > 0) && (() => {
+                  const manual = Number(priceOverride);
+                  const px = Number.isFinite(manual) && manual > 0 ? manual : quotes[selected.symbol].price;
+                  const units = sizeMode === "amount" ? (px ? (Number(amount) || 0) / px : 0) : Number(qty || 0);
+                  const notional = px * units;
                   const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
                   const currentCash = cash?.cash || 0;
                   const marginReq = notional * 0.5;
                   return (
                     <div className="text-xs text-muted-foreground mb-3 space-y-0.5">
-                      <div>Live: <span className="font-semibold tabular-nums">{fmt(px, selected.currency)}</span> · Notional ≈ <span className="font-semibold tabular-nums">{fmt(notional, selected.currency)}</span></div>
+                      <div>Price: <span className="font-semibold tabular-nums">{fmt(px, selected.currency)}</span> · Units ≈ <span className="font-semibold tabular-nums">{units.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span> · Notional ≈ <span className="font-semibold tabular-nums">{fmt(notional, selected.currency)}</span></div>
+
                       {side === "short" && (
                         <>
                           <div>Position held: <span className="font-mono">{heldQty}</span> · Margin req (50%): <span className={`font-semibold ${marginReq > currentCash ? "text-destructive" : ""}`}>{fmt(marginReq, selected.currency)}</span></div>
@@ -490,7 +578,7 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                 <Button
                   className={`w-full ${side === "short" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
                   onClick={placeOrder}
-                  disabled={!selected || !Number(qty)}
+                  disabled={!selected || (sizeMode === "qty" ? !Number(qty) : !Number(amount))}
                 >
                   Simulate {side === "short" ? "SHORT SELL" : side.toUpperCase()}
                 </Button>
@@ -554,6 +642,20 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                 )}
               </Card>
             </div>
+
+            <SimulationReview
+              positions={positions.map((p) => ({
+                symbol: p.symbol,
+                name: p.name,
+                qty: p.qty,
+                avgCost: p.qty ? p.cost / p.qty : 0,
+                last: quotes[p.symbol]?.price || 0,
+                currency: p.currency,
+              }))}
+              cash={cash?.cash || 0}
+              currency={cash?.currency || "EUR"}
+            />
+
           </>
         )}
         <AiDisclaimerStrip />

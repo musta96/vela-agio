@@ -112,74 +112,10 @@ function rsi(closes: number[], i: number, period = 14): number | null {
   return 100 - 100 / (1 + rs);
 }
 
-function evalCondition(c: CustomCondition, closes: number[], i: number): boolean {
-  const smaAt = (n: number, idx: number) => sma(closes, n, idx);
-  switch (c.type) {
-    case "rsi_below": {
-      const r = rsi(closes, i);
-      return r !== null && r < (c.value ?? 30);
-    }
-    case "rsi_above": {
-      const r = rsi(closes, i);
-      return r !== null && r > (c.value ?? 70);
-    }
-    case "sma_cross_up": {
-      const f = c.fast ?? 20, s = c.slow ?? 50;
-      const a = smaAt(f, i), b = smaAt(s, i);
-      const ap = smaAt(f, i - 1), bp = smaAt(s, i - 1);
-      return !!(a && b && ap && bp && ap <= bp && a > b);
-    }
-    case "sma_cross_down": {
-      const f = c.fast ?? 20, s = c.slow ?? 50;
-      const a = smaAt(f, i), b = smaAt(s, i);
-      const ap = smaAt(f, i - 1), bp = smaAt(s, i - 1);
-      return !!(a && b && ap && bp && ap >= bp && a < b);
-    }
-    case "price_above_sma": {
-      const v = smaAt(c.period ?? 50, i);
-      return v !== null && closes[i] > v;
-    }
-    case "price_below_sma": {
-      const v = smaAt(c.period ?? 50, i);
-      return v !== null && closes[i] < v;
-    }
-    case "macd_cross_up": {
-      const m = macdAt(closes, i);
-      const mp = macdAt(closes, i - 1);
-      return !!(m && mp && mp.macd <= mp.signal && m.macd > m.signal);
-    }
-    case "macd_cross_down": {
-      const m = macdAt(closes, i);
-      const mp = macdAt(closes, i - 1);
-      return !!(m && mp && mp.macd >= mp.signal && m.macd < m.signal);
-    }
-    case "price_pct_change": {
-      const n = c.period ?? 5;
-      if (i - n < 0) return false;
-      const chg = (closes[i] - closes[i - n]) / closes[i - n] * 100;
-      const thr = c.value ?? 5;
-      return thr >= 0 ? chg >= thr : chg <= thr;
-    }
-    case "ema_cross_up": {
-      const f = c.fast ?? 12, s = c.slow ?? 26;
-      const a = ema(closes, f, i), b = ema(closes, s, i);
-      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
-      return !!(a && b && ap && bp && ap <= bp && a > b);
-    }
-    case "ema_cross_down": {
-      const f = c.fast ?? 12, s = c.slow ?? 26;
-      const a = ema(closes, f, i), b = ema(closes, s, i);
-      const ap = ema(closes, f, i - 1), bp = ema(closes, s, i - 1);
-      return !!(a && b && ap && bp && ap >= bp && a < b);
-    }
-    case "atr_breakout":
-    case "adx_above":
-    case "volume_spike":
-      // OHLC/Volume aggregation exists but rule logic not yet updated to use them
-      return false;
-    default:
-      return false;
-  }
+// Full condition evaluation (classic + advanced pattern rules) lives in the
+// shared TA module so client preview and server run agree.
+function evalCondition(c: CustomCondition, bars: Bar[], i: number): boolean {
+  return evalStrategyCondition(c, bars, i);
 }
 
 function ema(closes: number[], period: number, i: number): number | null {

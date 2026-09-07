@@ -37,6 +37,32 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const [spxBars, setSpxBars] = useState<OHLCBar[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [sectors, setSectors] = useState<Record<string, string>>({});
+
+  // Sector labels come from the fundamentals service; funds and ETFs simply
+  // have none, so those weights are reported as "not classified".
+  useEffect(() => {
+    let cancelled = false;
+    if (!open || holdings.length === 0) return;
+    (async () => {
+      const found: Record<string, string> = {};
+      await Promise.all(
+        holdings.map(async (h) => {
+          if (sectors[h.symbol]) return;
+          try {
+            const { data } = await supabase.functions.invoke("company-fundamentals", {
+              body: { action: "quoteSummary", symbol: h.symbol, modules: ["assetProfile"] },
+            });
+            const s = data?.quoteSummary?.assetProfile?.sector ?? data?.assetProfile?.sector ?? null;
+            if (s) found[h.symbol] = String(s);
+          } catch { /* ignore */ }
+        })
+      );
+      if (!cancelled && Object.keys(found).length) setSectors((p) => ({ ...p, ...found }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, holdings.map((h) => h.symbol).join(",")]);
 
   useEffect(() => {
     let cancelled = false;

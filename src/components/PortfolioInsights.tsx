@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { OHLCBar } from "@/lib/technicalIndicators";
 import { returns, beta, correlation, realizedVol, valueAtRisk, sharpe, sortino, maxDrawdown } from "@/lib/riskMetrics";
 import { findCatalogEntry } from "@/data/stockCatalog";
+import { aggregate, geoFromSymbol } from "@/lib/geography";
 
 export interface PortfolioAnalytics {
   vol: number;
@@ -36,6 +37,32 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
   const [spxBars, setSpxBars] = useState<OHLCBar[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [sectors, setSectors] = useState<Record<string, string>>({});
+
+  // Sector labels come from the fundamentals service; funds and ETFs simply
+  // have none, so those weights are reported as "not classified".
+  useEffect(() => {
+    let cancelled = false;
+    if (!open || holdings.length === 0) return;
+    (async () => {
+      const found: Record<string, string> = {};
+      await Promise.all(
+        holdings.map(async (h) => {
+          if (sectors[h.symbol]) return;
+          try {
+            const { data } = await supabase.functions.invoke("company-fundamentals", {
+              body: { action: "quoteSummary", symbol: h.symbol, modules: ["assetProfile"] },
+            });
+            const s = data?.quoteSummary?.assetProfile?.sector ?? data?.assetProfile?.sector ?? null;
+            if (s) found[h.symbol] = String(s);
+          } catch { /* ignore */ }
+        })
+      );
+      if (!cancelled && Object.keys(found).length) setSectors((p) => ({ ...p, ...found }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, holdings.map((h) => h.symbol).join(",")]);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +159,31 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [holdings, weights]);
+
+  // Geography: listing country / broad region of each position
+  const geographyExposure = useMemo(() => {
+    const regions: Array<[string, number]> = [];
+    const countries: Array<[string, number]> = [];
+    holdings.forEach((h, i) => {
+      const geo = geoFromSymbol(h.symbol);
+      regions.push([geo?.region ?? "Unclassified", weights[i]]);
+      countries.push([geo?.country ?? "Unclassified", weights[i]]);
+    });
+    return { regions: aggregate(regions), countries: aggregate(countries) };
+  }, [holdings, weights]);
+
+  // Sector: pulled from the fundamentals service, unavailable for funds/ETFs
+  const sectorExposure = useMemo(() => {
+    const rows: Array<[string, number]> = [];
+    let covered = 0;
+    holdings.forEach((h, i) => {
+      const s = sectors[h.symbol];
+      if (!s) return;
+      covered += weights[i];
+      rows.push([s, weights[i]]);
+    });
+    return { rows: aggregate(rows), covered };
+  }, [holdings, weights, sectors]);
 
   // Concentration: Herfindahl-Hirschman Index over weights
   const hhi = useMemo(() => weights.reduce((a, w) => a + w * w, 0), [weights]);
@@ -273,6 +325,44 @@ export const PortfolioInsights = ({ holdings, onAnalytics }: Props) => {
                 ))}
               </CardContent>
             </Card>
+
+            {/* Geography */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Geographic exposure</CardTitle>
+                <CardDescription className="text-xs">By listing country of each position</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                {geographyExposure.regions.map(([r, w]) => (
+                  <Bar key={r} label={r} pct={w} />
+                ))}
+                {geographyExposure.countries.length > 1 && (
+                  <div className="pt-2 text-xs text-muted-foreground">
+                    Top countries: {geographyExposure.countries.slice(0, 4).map(([c, w]) => `${c} ${(w * 100).toFixed(0)}%`).join(" · ")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sector */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Sector exposure</CardTitle>
+                <CardDescription className="text-xs">
+                  {sectorExposure.covered > 0
+                    ? `${(sectorExposure.covered * 100).toFixed(0)}% of the portfolio classified`
+                    : "Funds and ETFs carry no single sector"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                {sectorExposure.rows.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No sector data for these holdings yet.</p>
+                ) : (
+                  sectorExposure.rows.map(([s, w]) => <Bar key={s} label={s} pct={w} />)
+                )}
+              </CardContent>
+            </Card>
+
 
             {/* Top contributors */}
             <Card>

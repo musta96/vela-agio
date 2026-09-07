@@ -17,6 +17,10 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { FundRatingsCard } from "@/components/fund/FundRatingsCard";
+import { FundAnalysisTab } from "@/components/fund/FundAnalysisTab";
+import { FundGeographyCard } from "@/components/fund/FundGeographyCard";
+import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
+import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
 
 const FUND_FEATURE = "fund.deep_data";
 
@@ -169,11 +173,18 @@ const FundDetails = () => {
                       {up ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                       {rawPct(changePct)}
                     </div>
-                    <div className="mt-2 flex justify-end gap-2">
+                    <div className="mt-2 flex flex-wrap justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => void reload()}><RefreshCw className="h-4 w-4" /></Button>
                       <Button size="sm" variant={isWatched(data.symbol) ? "default" : "outline"} onClick={() => toggle(data.symbol, data.profile?.name ?? data.symbol)}>
                         <Star className="mr-1 h-4 w-4" />{isWatched(data.symbol) ? "Watched" : "Watch"}
                       </Button>
+                      <AddToPortfolioButton
+                        symbol={data.symbol}
+                        name={data.profile?.name ?? data.symbol}
+                        price={kf.price ?? null}
+                        currency={currency}
+                      />
+                      <PortfolioFitButton symbol={data.symbol} name={data.profile?.name ?? data.symbol} />
                     </div>
                   </div>
                 </div>
@@ -235,12 +246,36 @@ const FundDetails = () => {
             <Tabs defaultValue="overview">
               <TabsList className="flex w-full flex-wrap justify-start">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="analysis">Analysis</TabsTrigger>
                 <TabsTrigger value="holdings">Holdings</TabsTrigger>
+                <TabsTrigger value="geography">Geography</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
                 <TabsTrigger value="risk">Risk</TabsTrigger>
                 <TabsTrigger value="costs">Costs</TabsTrigger>
                 <TabsTrigger value="distributions">Distributions</TabsTrigger>
               </TabsList>
+
+              {/* ANALYSIS — trend, quality and sentiment for the vehicle */}
+              <TabsContent value="analysis" className="space-y-4 pt-4">
+                <FundAnalysisTab
+                  symbol={data.symbol}
+                  name={data.profile?.name ?? data.symbol}
+                  data={data}
+                  bars={bars}
+                />
+              </TabsContent>
+
+              {/* GEOGRAPHY */}
+              <TabsContent value="geography" className="space-y-4 pt-4">
+                <FundGeographyCard
+                  holdings={data.holdings?.top ?? []}
+                  fundName={data.profile?.name}
+                  category={data.profile?.category}
+                  description={data.profile?.description}
+                  domicile={(data.identifiers as any)?.domicile ?? null}
+                />
+              </TabsContent>
+
 
               {/* OVERVIEW — free */}
               <TabsContent value="overview" className="space-y-4 pt-4">

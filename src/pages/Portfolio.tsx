@@ -28,6 +28,7 @@ import type { HistoryRange } from "@/hooks/useHistoricalPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { STOCK_CATALOG, currencySign, findCatalogEntry } from "@/data/stockCatalog";
+import { TickerSearch } from "@/components/TickerSearch";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { PortfolioSimulator } from "@/components/PortfolioSimulator";

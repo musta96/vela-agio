@@ -354,7 +354,9 @@ const StockDetails = () => {
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <h1 className="text-3xl font-bold">{sym}{name ? ` - ${name}` : ""}</h1>
                 {market && <Badge variant="outline">{market}</Badge>}
-                {!entry && <Badge variant="secondary">Unverified ticker</Badge>}
+                {!entry && price == null && (
+                  <Badge variant="secondary" title="No live price source found for this symbol yet.">No live price</Badge>
+                )}
                 <Button size="icon" variant="ghost" aria-label={isWatched(sym) ? "Remove from watchlist" : "Add to watchlist"} onClick={() => toggle(sym, name)}>
                   <Star className={`h-5 w-5 ${isWatched(sym) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                 </Button>

@@ -139,7 +139,7 @@ export const CommandPalette = () => {
     if (!top.length) return { kind: "navigate", path: `/explore?q=${encodeURIComponent(q)}` };
     const qUpper = q.toUpperCase();
     const exact = top.find((r) => r.symbol.toUpperCase() === qUpper);
-    if (exact) return { kind: "navigate", path: `/stock/${encodeURIComponent(exact.symbol)}` };
+    if (exact) return { kind: "navigate", path: detailPathFor(classifyInstrument(exact.type ?? exact.category, exact.symbol, exact.name), exact.symbol) };
     const companies = top.filter((r) => (r.category ?? "").toLowerCase() === "company");
     if (companies.length === 1) return { kind: "navigate", path: `/stock/${encodeURIComponent(companies[0].symbol)}` };
     // Multiple plausible matches across asset classes — let the user pick.

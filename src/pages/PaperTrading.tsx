@@ -526,17 +526,35 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                     ))}
                   </Card>
                 )}
-                <Label className="text-xs">Quantity</Label>
-                <Input type="number" min="0" step="1" value={qty} onChange={(e) => setQty(e.target.value)} className="mb-3" />
-                {selected && quotes[selected.symbol]?.price && (() => {
-                  const px = quotes[selected.symbol].price;
-                  const notional = px * Number(qty || 0);
+                <div className="flex gap-2 mb-2">
+                  <Badge variant={sizeMode === "qty" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSizeMode("qty")}>By quantity</Badge>
+                  <Badge variant={sizeMode === "amount" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSizeMode("amount")}>By amount</Badge>
+                </div>
+                {sizeMode === "qty" ? (
+                  <>
+                    <Label className="text-xs">Quantity</Label>
+                    <Input type="number" min="0" step="1" value={qty} onChange={(e) => setQty(e.target.value)} className="mb-3" />
+                  </>
+                ) : (
+                  <>
+                    <Label className="text-xs">Amount to invest ({cash?.currency || "EUR"})</Label>
+                    <Input type="number" min="0" step="100" value={amount} onChange={(e) => setAmount(e.target.value)} className="mb-3" />
+                  </>
+                )}
+                <Label className="text-xs">Fill price (leave empty for live price)</Label>
+                <Input type="number" min="0" step="0.01" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} placeholder="Live" className="mb-3" />
+                {selected && (quotes[selected.symbol]?.price || Number(priceOverride) > 0) && (() => {
+                  const manual = Number(priceOverride);
+                  const px = Number.isFinite(manual) && manual > 0 ? manual : quotes[selected.symbol].price;
+                  const units = sizeMode === "amount" ? (px ? (Number(amount) || 0) / px : 0) : Number(qty || 0);
+                  const notional = px * units;
                   const heldQty = positions.find((p) => p.symbol === selected.symbol)?.qty || 0;
                   const currentCash = cash?.cash || 0;
                   const marginReq = notional * 0.5;
                   return (
                     <div className="text-xs text-muted-foreground mb-3 space-y-0.5">
-                      <div>Live: <span className="font-semibold tabular-nums">{fmt(px, selected.currency)}</span> · Notional ≈ <span className="font-semibold tabular-nums">{fmt(notional, selected.currency)}</span></div>
+                      <div>Price: <span className="font-semibold tabular-nums">{fmt(px, selected.currency)}</span> · Units ≈ <span className="font-semibold tabular-nums">{units.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span> · Notional ≈ <span className="font-semibold tabular-nums">{fmt(notional, selected.currency)}</span></div>
+
                       {side === "short" && (
                         <>
                           <div>Position held: <span className="font-mono">{heldQty}</span> · Margin req (50%): <span className={`font-semibold ${marginReq > currentCash ? "text-destructive" : ""}`}>{fmt(marginReq, selected.currency)}</span></div>

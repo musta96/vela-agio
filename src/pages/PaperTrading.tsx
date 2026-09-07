@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { ShortRiskChecklist } from "@/components/shorts/ShortRiskChecklist";
 import { buildShortChecklist, estimateBorrow, loadShortPrefs, saveShortPrefs } from "@/lib/shorts";
+import { SheetImportDialog, type ParsedRow } from "@/components/paper/SheetImportDialog";
+import { WatchlistImportDialog } from "@/components/paper/WatchlistImportDialog";
 
 /**
  * Paper Trading Lab.

@@ -173,11 +173,18 @@ const FundDetails = () => {
                       {up ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                       {rawPct(changePct)}
                     </div>
-                    <div className="mt-2 flex justify-end gap-2">
+                    <div className="mt-2 flex flex-wrap justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => void reload()}><RefreshCw className="h-4 w-4" /></Button>
                       <Button size="sm" variant={isWatched(data.symbol) ? "default" : "outline"} onClick={() => toggle(data.symbol, data.profile?.name ?? data.symbol)}>
                         <Star className="mr-1 h-4 w-4" />{isWatched(data.symbol) ? "Watched" : "Watch"}
                       </Button>
+                      <AddToPortfolioButton
+                        symbol={data.symbol}
+                        name={data.profile?.name ?? data.symbol}
+                        price={kf.price ?? null}
+                        currency={currency}
+                      />
+                      <PortfolioFitButton symbol={data.symbol} name={data.profile?.name ?? data.symbol} />
                     </div>
                   </div>
                 </div>

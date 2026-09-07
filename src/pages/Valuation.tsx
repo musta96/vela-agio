@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Calculator, FileText, Upload, Download, ExternalLink, Trash2, Plus } from "lucide-react";
 import jsPDF from "jspdf";
+import { StartupValuationPanel } from "@/components/valuation/StartupValuationPanel";
+import { WebsiteEvidence } from "@/components/valuation/WebsiteEvidence";
 
 // ---------------------------------------------------------------- helpers
 const pct = (v: number | null | undefined, d = 1) =>
@@ -74,7 +76,7 @@ export default function Valuation() {
   };
 
   // ---------------- private ----------------
-  const [profile, setProfile] = useState({ name: "", country: "IT", currency: "EUR", sector: "", description: "", employees: "", founded: "" });
+  const [profile, setProfile] = useState({ name: "", country: "IT", currency: "EUR", sector: "", website: "", description: "", employees: "", founded: "" });
   const [rows, setRows] = useState<FinRow[]>([emptyRow(thisYear - 2), emptyRow(thisYear - 1), emptyRow(thisYear)]);
   const [assump, setAssump] = useState({
     riskFree: 0.035, erp: 0.055, beta: 1.1, sizePremium: 0.03, specificPremium: 0.02, countryPremium: 0.015,
@@ -206,6 +208,7 @@ export default function Valuation() {
           <TabsList>
             <TabsTrigger value="listed">Listed company</TabsTrigger>
             <TabsTrigger value="private">Private company (perizia)</TabsTrigger>
+            <TabsTrigger value="startup">Startup</TabsTrigger>
           </TabsList>
 
           {/* ------------------------------------------------ LISTED */}
@@ -305,6 +308,10 @@ export default function Valuation() {
                     </select>
                   </div>
                   <div className="space-y-1"><Label className="text-xs" htmlFor="val-currency">Currency</Label><Input id="val-currency" value={profile.currency} onChange={(e) => setProfile({ ...profile, currency: e.target.value.toUpperCase() })} /></div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs" htmlFor="val-site">Website (the AI reads the real pages — it never invents facts)</Label>
+                    <Input id="val-site" value={profile.website} onChange={(e) => setProfile({ ...profile, website: e.target.value })} placeholder="www.azienda.it" />
+                  </div>
                   <div className="space-y-1 sm:col-span-2">
                     <Label className="text-xs" htmlFor="val-desc">Business description (used to find listed comparables)</Label>
                     <Textarea id="val-desc" rows={4} value={profile.description} onChange={(e) => setProfile({ ...profile, description: e.target.value })} placeholder="What the company does, customers, geography, contracts, competitive edge…" />
@@ -441,6 +448,8 @@ export default function Valuation() {
                   </Card>
                 )}
 
+                {priv.websiteResearch && <WebsiteEvidence research={priv.websiteResearch} />}
+
                 {SECTIONS.filter((s) => selected.includes(s.id) && priv.narrative?.sections?.[s.id]).map((s) => (
                   <Card key={s.id}>
                     <CardHeader><CardTitle className="text-base">{s.label}</CardTitle></CardHeader>
@@ -462,6 +471,10 @@ export default function Valuation() {
                 )}
               </div>
             )}
+          </TabsContent>
+          {/* ----------------------------------------------- STARTUP */}
+          <TabsContent value="startup">
+            <StartupValuationPanel />
           </TabsContent>
         </Tabs>
       </main>

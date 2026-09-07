@@ -4,7 +4,10 @@
 // LLM guess and not a keyword heuristic), so the stock page can show live
 // scores even when AI credits are unavailable.
 //
-//  - StockTwits  : free, no key. Real retail messages tagged Bullish/Bearish.
+//  - Analyst consensus (Yahoo) : free, no key, worldwide. Real broker
+//    recommendation counts + mean rating, converted to a 0-100 sentiment.
+//  - StockTwits  : free, no key. Real retail messages tagged Bullish/Bearish
+//    (frequently rate-limited, so it is best-effort).
 //  - Alpha Vantage NEWS_SENTIMENT : per-article ticker sentiment scores.
 //  - Marketaux   : entity-level sentiment score per article.
 //  - Finnhub     : company news sentiment + bullish percent (US coverage).
@@ -13,6 +16,7 @@
 // upstream never breaks the analysis.
 
 import { getUserDataKey } from './data-provider.ts';
+import { fetchQuoteSummary } from './fundamentals.ts';
 
 export interface SentimentReading {
   /** Provider label shown to the user. */
@@ -68,6 +72,47 @@ export async function fetchStocktwitsSentiment(symbol: string): Promise<Sentimen
       sampleSize: tagged,
       detail: `${bull} bullish vs ${bear} bearish tagged messages from retail traders in the last stream.`,
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Analyst consensus from Yahoo's quoteSummary — a real, measured distribution
+ * of broker recommendations. Works for US, European and Asian listings.
+ */
+export async function fetchAnalystConsensus(symbol: string): Promise<SentimentReading | null> {
+  try {
+    const q = await fetchQuoteSummary(symbol, ['recommendationTrend', 'financialData']);
+    if (!q) return null;
+    const t = q.recommendationTrend?.trend?.[0] as
+      | { strongBuy?: number; buy?: number; hold?: number; sell?: number; strongSell?: number }
+      | undefined;
+    const sb = Number(t?.strongBuy ?? 0), b = Number(t?.buy ?? 0), h = Number(t?.hold ?? 0);
+    const sl = Number(t?.sell ?? 0), ss = Number(t?.strongSell ?? 0);
+    const n = sb + b + h + sl + ss;
+    const mean = Number(q.financialData?.recommendationMean?.raw);
+
+    if (n > 0) {
+      // Weight each bucket from -1 (strong sell) to +1 (strong buy).
+      const signed = (sb * 1 + b * 0.5 + h * 0 + sl * -0.5 + ss * -1) / n;
+      return {
+        provider: 'Analyst consensus',
+        score: fromSigned(signed),
+        sampleSize: n,
+        detail: `${n} broker ratings: ${sb} strong buy, ${b} buy, ${h} hold, ${sl} sell, ${ss} strong sell.`,
+      };
+    }
+    if (Number.isFinite(mean)) {
+      // Yahoo's mean runs 1 (strong buy) to 5 (strong sell).
+      return {
+        provider: 'Analyst consensus',
+        score: clamp(((5 - mean) / 4) * 100),
+        sampleSize: 0,
+        detail: `Mean broker rating of ${mean.toFixed(2)} on a 1 (strong buy) to 5 (strong sell) scale.`,
+      };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -164,6 +209,7 @@ export async function fetchFinnhubSentiment(authHeader: string | null, symbol: s
 /** Run every available real-sentiment feed in parallel. */
 export async function fetchRealSentiment(authHeader: string | null, symbol: string): Promise<SentimentReading[]> {
   const results = await Promise.all([
+    fetchAnalystConsensus(symbol),
     fetchStocktwitsSentiment(symbol),
     fetchAlphaVantageSentiment(authHeader, symbol),
     fetchMarketauxSentiment(authHeader, symbol),
@@ -182,6 +228,7 @@ export function blendReadings(readings: SentimentReading[]): { score: number; we
     'Alpha Vantage news sentiment': 3,
     'Marketaux entity sentiment': 3,
     'Finnhub news sentiment': 2.5,
+    'Analyst consensus': 2.5,
     StockTwits: 1,
   };
   let num = 0;

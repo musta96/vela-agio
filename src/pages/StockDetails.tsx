@@ -38,6 +38,7 @@ import { findCatalogEntry, currencySign } from "@/data/stockCatalog";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { readEdgeError } from "@/lib/edgeError";
 import { useRecommendationVerdicts } from "@/hooks/useRecommendationVerdicts";
 import { FinancialStatementsPanel } from "@/components/stock/FinancialStatementsPanel";
 import { KeyIndicatorsCard } from "@/components/stock/KeyIndicatorsCard";
@@ -228,7 +229,12 @@ const StockDetails = () => {
       if ((data as any)?.error) throw new Error((data as any).error);
       setSentiment(data as SentimentResult);
     } catch (e: any) {
-      toast({ title: "Sentiment unavailable", description: e?.message || "Try again later", variant: "destructive" });
+      const info = await readEdgeError(e);
+      toast({
+        title: info.isEntitlement ? "AI sentiment is locked" : "Sentiment unavailable",
+        description: info.message,
+        variant: info.isEntitlement ? "default" : "destructive",
+      });
     } finally {
       setSentLoading(false);
     }
@@ -245,7 +251,12 @@ const StockDetails = () => {
       if ((data as any)?.error) throw new Error((data as any).error);
       setDeep(data as DeepAnalysis);
     } catch (e: any) {
-      toast({ title: "Deep analysis unavailable", description: e?.message || "Try again later", variant: "destructive" });
+      const info = await readEdgeError(e);
+      toast({
+        title: info.isEntitlement ? "Deep analysis is locked" : "Deep analysis unavailable",
+        description: info.message,
+        variant: info.isEntitlement ? "default" : "destructive",
+      });
     } finally {
       setDeepLoading(false);
     }

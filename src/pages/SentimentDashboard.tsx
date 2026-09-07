@@ -11,6 +11,7 @@ import { AiDisclaimerStrip } from "@/components/AiDisclaimerStrip";
 import { Activity, MessageSquare, Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Sparkles, Building2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { readEdgeError } from "@/lib/edgeError";
 import { STOCK_CATALOG, searchCatalog } from "@/data/stockCatalog";
 import { useSearchParams } from "react-router-dom";
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
@@ -76,7 +77,12 @@ const SentimentDashboard = () => {
         .catch(() => setHoldings(null))
         .finally(() => setHoldingsLoading(false));
     } catch (e: any) {
-      toast({ title: "Sentiment analysis failed", description: e?.message || "Try again later", variant: "destructive" });
+      const info = await readEdgeError(e);
+      toast({
+        title: info.isEntitlement ? "AI sentiment is locked" : "Sentiment analysis failed",
+        description: info.message,
+        variant: info.isEntitlement ? "default" : "destructive",
+      });
     } finally {
       setLoading(false);
     }

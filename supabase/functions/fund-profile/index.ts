@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v5:${symbol}`;
+    const cacheKey = `fund:v7:${symbol}`;
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
@@ -172,7 +172,11 @@ Deno.serve(async (req) => {
     const worstAnnual = annualReturns.length
       ? Math.min(...annualReturns.map((r) => (r.fund ?? 0)))
       : null;
-    const master = INSTRUMENTS[symbol] ?? null;
+    // Reference data is curated per listing, but the same fund trades on
+    // several venues (VWCE.DE / VWCE.MI / VWCE.AS share ISIN IE00BK5BQT80),
+    // so fall back to an ISIN match before giving up on TER/domicile/UCITS.
+    const master = INSTRUMENTS[symbol]
+      ?? (isin ? Object.values(INSTRUMENTS).find((r) => r.isin && r.isin === isin) ?? null : null);
     const terValue = [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
       .find((v) => v != null && v > 0) ?? master?.ter ?? null;
 
@@ -234,11 +238,13 @@ Deno.serve(async (req) => {
         // ETFs, only inside the fee module in millions of the fund currency.
         totalAssets: num(sd.totalAssets) ?? num(ks.totalAssets)
           ?? (num(feesData.totalNetAssets) != null ? (num(feesData.totalNetAssets) as number) * 1e6 : null),
-        ter: [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
-          .find((v) => v != null && v > 0) ?? num(feesData.annualReportExpenseRatio) ?? null,
+        // Reuse the resolved TER (Yahoo modules first, curated instrument
+        // master as fallback). A literal 0 means "Yahoo has no figure" for a
+        // fund, never a free fund — surface it as unknown instead of 0.00%.
+        ter: terValue,
         yield: num(sd.yield) ?? num(ks.yield),
         trailingAnnualDividendYield: num(sd.trailingAnnualDividendYield),
-        ytdReturn: num(sd.ytdReturn) ?? num(ks.ytdReturn) ?? num(trailing.ytd),
+        ytdReturn: [num(sd.ytdReturn), num(ks.ytdReturn), num(trailing.ytd)].find((v) => v != null && v !== 0) ?? null,
         beta3Year: num(ks.beta3Year) ?? num(sd.beta3Year),
         threeYearAverageReturn: num(ks.threeYearAverageReturn),
         fiveYearAverageReturn: num(ks.fiveYearAverageReturn),

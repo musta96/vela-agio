@@ -371,9 +371,8 @@ const StockDetails = () => {
                 <Button size="icon" variant="ghost" aria-label={isWatched(sym) ? "Remove from watchlist" : "Add to watchlist"} onClick={() => toggle(sym, name)}>
                   <Star className={`h-5 w-5 ${isWatched(sym) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                 </Button>
-                <Button size="sm" variant="default" className="gap-1.5" onClick={openAddToPortfolio}>
-                  <Briefcase className="h-4 w-4" /> Add to portfolio
-                </Button>
+                <AddToPortfolioButton symbol={sym} name={name ?? sym} price={price || null} currency={currency} />
+                <PortfolioFitButton symbol={sym} name={name ?? sym} />
                 <Button
                   size="sm"
                   variant="outline"

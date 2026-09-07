@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { fetchAllByoNews } from "../_shared/data-provider.ts";
 import { resolveAIConfig } from "../_shared/ai-provider.ts";
+import { fetchRealSentiment, blendReadings, type SentimentReading } from "../_shared/sentiment-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -243,6 +244,14 @@ async function fetchHeadlines(symbol: string, name?: string): Promise<Article[]>
   return dedupe(merged, 60);
 }
 
+function labelFor(score: number): string {
+  if (score >= 70) return "very bullish";
+  if (score >= 56) return "bullish";
+  if (score <= 30) return "very bearish";
+  if (score <= 44) return "bearish";
+  return "neutral";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -268,6 +277,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Real, provider-computed sentiment (StockTwits crowd data is keyless;
+    // Alpha Vantage / Marketaux / Finnhub join in when the user saved a key).
+    let readings: SentimentReading[] = [];
+    try { readings = await fetchRealSentiment(auth, symbol); } catch (e) { console.warn("real sentiment failed", e); }
+    const measured = blendReadings(readings);
+    const providerScoreByUrl = new Map<string, number>();
+    for (const r of readings) for (const a of r.articleScores ?? []) providerScoreByUrl.set(a.url, a.score);
+
     // Free + public sources
     const freeArticles = await fetchHeadlines(symbol, name);
     // Phase 2: BYO premium news (NewsAPI / Marketaux / Finnhub / Benzinga)
@@ -278,12 +295,23 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn("BYO news fetch failed", e); }
     const articles = dedupe([...byo, ...freeArticles], 70);
     if (articles.length === 0) {
+      const score = measured ? measured.score : 50;
       return new Response(JSON.stringify({
-        symbol, score: 50, label: "neutral",
-        summary: "No recent news, Reddit threads, Seeking Alpha posts, or social chatter were found for this ticker.",
+        symbol,
+        score,
+        weightedScore: score,
+        label: labelFor(score),
+        summary: measured
+          ? `No headlines were found, but live sentiment feeds (${readings.map((r) => r.provider).join(", ")}) score this ${labelFor(score)} at ${score}/100.`
+          : "No recent news, Reddit threads, Seeking Alpha posts, or social chatter were found for this ticker.",
         drivers: [], articles: [], sources: [],
+        marketSentiment: readings,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const measuredText = readings.length
+      ? `\n\nIndependently measured sentiment feeds (real provider scores, 0-100 where 50 is neutral):\n${readings.map((r) => `- ${r.provider}: ${r.score}/100 from ${r.sampleSize} items — ${r.detail}`).join("\n")}\nTreat these measured scores as evidence and stay close to their blended level (${measured?.score ?? 50}/100) unless the headlines clearly justify a different read; explain any divergence.`
+      : "";
 
     const newsText = articles
       .map(
@@ -318,7 +346,7 @@ Deno.serve(async (req) => {
           },
           {
             role: "user",
-            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed reputable sources:\n\n${newsText}\n\nReturn:\n- An overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish).\n- A label.\n- A 2-sentence summary that explicitly notes whether news and social sentiment agree or diverge.\n- Key drivers.\n- A per-item sentiment (positive/neutral/negative) with a 0-100 score.\n- A synthesis of the distinct analyst opinions / camps (typically 2-4 camps such as "Bull case", "Bear case", "Neutral/Hold"). For each camp give a stance label, a 1-sentence thesis, the main arguments (bullet list), and which source titles support that camp (by their index numbers).`,
+            content: `Analyze market sentiment for ${name || symbol} (${symbol}) based on these recent items from mixed reputable sources:\n\n${newsText}${measuredText}\n\nReturn:\n- An overall sentiment score 0-100 (0 = very bearish, 50 = neutral, 100 = very bullish).\n- A label.\n- A 2-sentence summary that explicitly notes whether news and social sentiment agree or diverge.\n- Key drivers.\n- A per-item sentiment (positive/neutral/negative) with a 0-100 score.\n- A synthesis of the distinct analyst opinions / camps (typically 2-4 camps such as "Bull case", "Bear case", "Neutral/Hold"). For each camp give a stance label, a 1-sentence thesis, the main arguments (bullet list), and which source titles support that camp (by their index numbers).`,
           },
         ],
         tools: [{
@@ -413,11 +441,13 @@ Deno.serve(async (req) => {
         return Math.max(0, Math.min(100, Math.round(50 + ((p - n) / (p + n)) * 40)));
       };
       const scored = articles.map((a) => {
-        const sc = scoreOf(`${a.title} ${a.description || ""}`);
+        const sc = providerScoreByUrl.get(a.link) ?? scoreOf(`${a.title} ${a.description || ""}`);
         return { ...a, score: sc, sentiment: sc > 55 ? "positive" : sc < 45 ? "negative" : "neutral" };
       });
-      const overall = Math.round(scored.reduce((s, a) => s + a.score, 0) / scored.length);
-      const label = overall >= 70 ? "bullish" : overall >= 55 ? "bullish" : overall <= 30 ? "bearish" : overall <= 45 ? "bearish" : "neutral";
+      const headlineAvg = Math.round(scored.reduce((s, a) => s + a.score, 0) / scored.length);
+      // Real measured feeds outrank the keyword estimate whenever we have them.
+      const overall = measured ? Math.round(measured.score * 0.75 + headlineAvg * 0.25) : headlineAvg;
+      const label = labelFor(overall);
       const bySrc = new Map<string, { total: number; count: number }>();
       scored.forEach((a) => {
         const cur = bySrc.get(a.source) || { total: 0, count: 0 };
@@ -427,9 +457,14 @@ Deno.serve(async (req) => {
         symbol,
         score: overall,
         label,
-        summary: `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
-        degraded: true,
-        degradedReason: usedCfg.source === "user"
+        summary: measured
+          ? `Live sentiment feeds (${readings.map((r) => `${r.provider} ${r.score}/100`).join(", ")}) put ${name || symbol} at ${overall}/100 — ${labelFor(overall)} — across ${scored.length} recent items. The AI write-up is unavailable right now, but these scores are measured, not estimated.`
+          : `AI analysis is temporarily unavailable${isByo ? " from your configured provider" : ""}, so this is a headline-keyword estimate based on ${scored.length} recent items.`,
+        degraded: !measured,
+        marketSentiment: readings,
+        degradedReason: measured
+          ? null
+          : usedCfg.source === "user"
           ? "Your own API key was used but the provider rejected the request (quota or billing). Check that provider account in Settings > Connections."
           : "No AI credits are available and no personal API key is saved. Add your own key in Settings > Connections to get real scored analysis.",
         drivers: scored.filter((a) => a.score !== 50).slice(0, 5).map((a) => ({ title: a.title, impact: a.sentiment })),
@@ -454,7 +489,19 @@ Deno.serve(async (req) => {
 
     const enrichedArticles = articles.map((a, i) => {
       const ai = (parsed.articles || []).find((x: any) => x.index === i + 1);
-      return { ...a, sentiment: ai?.sentiment || "neutral", score: typeof ai?.score === "number" ? ai.score : 50 };
+      // A provider-measured score for this exact article beats the model's read.
+      const provider = providerScoreByUrl.get(a.link);
+      const score = typeof provider === "number"
+        ? provider
+        : (typeof ai?.score === "number" ? ai.score : 50);
+      return {
+        ...a,
+        sentiment: typeof provider === "number"
+          ? (provider > 55 ? "positive" : provider < 45 ? "negative" : "neutral")
+          : (ai?.sentiment || "neutral"),
+        score,
+        scoreSource: typeof provider === "number" ? "provider" : "ai",
+      };
     });
 
     // Per-source breakdown (average score) so UI can show which channels are bullish/bearish
@@ -579,6 +626,8 @@ Deno.serve(async (req) => {
       articles: enrichedArticles,
       sources,
       analystOpinions: parsed.analystOpinions || [],
+      marketSentiment: readings,
+      measuredScore: measured?.score ?? null,
       generatedAt: new Date().toISOString(),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

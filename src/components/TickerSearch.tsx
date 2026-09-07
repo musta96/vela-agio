@@ -326,7 +326,15 @@ export function TickerSearch({
               <span className="truncate text-foreground">{h.name}</span>
               <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
                 {h.source === "ai" && <Sparkles className="h-3 w-3 text-primary" />}
-                {[h.exchange, h.type, h.currency].filter(Boolean).join(" · ")}
+                {[h.exchange, h.currency].filter(Boolean).join(" · ")}
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    INSTRUMENT_BADGE[classifyInstrument(h.type, h.symbol, h.name)],
+                  )}
+                >
+                  {INSTRUMENT_LABEL[classifyInstrument(h.type, h.symbol, h.name)]}
+                </span>
               </span>
             </button>
           ))}

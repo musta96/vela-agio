@@ -131,6 +131,17 @@ Deno.serve(async (req) => {
       isin = symbol;
       const resolved = await resolveIsin(symbol).catch(() => null);
       if (!resolved) {
+        // Unlisted share class: FT publishes NAV, charges and the
+        // Morningstar rating for most European funds Yahoo never sees.
+        const ftKey = `fund:v8:${isin}`;
+        const ftCached = await getCached<Record<string, unknown>>(ftKey);
+        if (ftCached) return json({ ...ftCached, cached: true });
+        const ft = await fetchFtFund(isin).catch(() => null);
+        if (ft && (ft.nav != null || ft.morningstarOverall != null)) {
+          const p = ftOnlyPayload(isin, ft);
+          await setCached(ftKey, "fund-profile", isin, p, 30 * 60);
+          return json(p);
+        }
         return json({
           symbol: raw,
           isin,
@@ -141,7 +152,8 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v7:${symbol}`;
+    const cacheKey = `fund:v8:${symbol}`;
+
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 

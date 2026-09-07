@@ -20,6 +20,65 @@ import { isIsin, resolveIsin } from "../_shared/isin-resolver.ts";
 import { lookupIsin } from "../_shared/isin-lookup.ts";
 import { computeFundScore } from "../_shared/fund-score.ts";
 import { CURATED as INSTRUMENTS } from "../_shared/instrument-master.ts";
+import { fetchFtFund, type FTFundData } from "../_shared/ft-funds.ts";
+
+/** Minimal profile for unlisted share classes that only FT covers. */
+function ftOnlyPayload(isin: string, ft: FTFundData) {
+  const velaScore = computeFundScore({
+    quoteType: "MUTUALFUND",
+    ter: ft.ter ?? null,
+    totalAssets: ft.fundSize ?? null,
+    morningstarOverall: ft.morningstarOverall ?? null,
+  } as Parameters<typeof computeFundScore>[0]);
+  return {
+    symbol: isin,
+    isin,
+    quoteType: "MUTUALFUND",
+    asOf: new Date().toISOString(),
+    currency: ft.currency,
+    source: "ft",
+    profile: {
+      name: ft.name || isin,
+      exchange: null,
+      family: null,
+      category: ft.morningstarCategory ?? null,
+      legalType: ft.fundType ?? null,
+      inceptionDate: ft.launchDate ?? null,
+      benchmark: null,
+      description: null,
+      website: null,
+      phone: null,
+      managers: [],
+    },
+    keyFacts: {
+      price: ft.nav,
+      nav: ft.nav,
+      changePercent: ft.changePct ?? null,
+      totalAssets: ft.fundSize ?? null,
+      ter: ft.ter ?? null,
+      morningstarOverallRating: ft.morningstarOverall ?? null,
+    },
+    holdings: { count: 0, top: [], sectorWeights: [], bondRatings: [] },
+    performance: { trailing: {}, trailingCategory: {}, annual: [] },
+    risk: [],
+    fees: { annualReportExpenseRatio: ft.ter ?? null, category: {} },
+    ratings: {
+      morningstarOverall: ft.morningstarOverall ?? null,
+      morningstarCategory: ft.morningstarCategory ?? null,
+      morningstarAsOf: ft.morningstarAsOf ?? null,
+    },
+    velaScore,
+    identifiers: {
+      isin,
+      domicile: ft.domicile ?? null,
+      ucits: /ireland|luxembourg/i.test(ft.domicile ?? "") ? true : null,
+      replication: null,
+      distribution: ft.incomeTreatment ?? null,
+    },
+    distributions: [],
+    splits: [],
+  };
+}
 
 function num(v: unknown): number | null {
   if (v == null) return null;

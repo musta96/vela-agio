@@ -256,7 +256,8 @@ Deno.serve(async (req) => {
     const master = INSTRUMENTS[symbol]
       ?? (isin ? Object.values(INSTRUMENTS).find((r) => r.isin && r.isin === isin) ?? null : null);
     const terValue = [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
-      .find((v) => v != null && v > 0) ?? master?.ter ?? null;
+      .find((v) => v != null && v > 0) ?? master?.ter ?? ftData?.ter ?? null;
+
 
     const velaScore = computeFundScore({
       quoteType,

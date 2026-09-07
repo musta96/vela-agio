@@ -349,8 +349,14 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
               <Button variant="outline" size="sm" onClick={exportSimulation} disabled={!activeId} className="gap-1">
                 <Download className="h-3.5 w-3.5" /> Export
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setSheetOpen(true)} disabled={!activeId} className="gap-1">
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Import spreadsheet
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setWatchOpen(true)} disabled={!activeId} className="gap-1">
+                <Eye className="h-3.5 w-3.5" /> Import watchlist
+              </Button>
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1">
-                <Upload className="h-3.5 w-3.5" /> Import
+                <Upload className="h-3.5 w-3.5" /> Restore backup
               </Button>
               <input
                 ref={fileRef}
@@ -364,6 +370,10 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
                 }}
               />
             </Card>
+
+            <SheetImportDialog open={sheetOpen} onOpenChange={setSheetOpen} onImport={importRows} />
+            <WatchlistImportDialog open={watchOpen} onOpenChange={setWatchOpen} onImport={importRows} />
+
 
             {sims.length > 1 && (
               <div className="mb-4 flex flex-wrap gap-2">

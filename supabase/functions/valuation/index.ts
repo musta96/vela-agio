@@ -217,6 +217,60 @@ Rules: use ONLY figures present in the documents; omit any field you cannot find
   } catch { return { rows: [], unit: '1', notes: '' }; }
 }
 
+
+/**
+ * Read the company's own website and turn it into *sourced* facts.
+ * The model may only report what is written on the pages: every fact carries
+ * the URL it was read from, and anything absent stays absent.
+ */
+async function researchWebsite(
+  cfg: Awaited<ReturnType<typeof resolveAIConfig>>,
+  website: string,
+): Promise<{
+  site: string; pagesRead: Array<{ url: string; title: string }>; error?: string;
+  facts: Array<{ field: string; value: string; source: string }>;
+  summary: string; products: string[]; customers: string[]; markets: string[];
+  team: string[]; funding: string[]; missing: string[];
+} | null> {
+  const read = await readCompanySite(website, 8);
+  if (!read.pages.length) {
+    return { site: read.site, pagesRead: [], error: read.error ?? 'no_content', facts: [], summary: '', products: [], customers: [], markets: [], team: [], funding: [], missing: ['Website could not be read'] };
+  }
+  const sys = `You read a company's own website to support a valuation.
+Return STRICT JSON {"summary":"","products":[],"customers":[],"markets":[],"team":[],"funding":[],"facts":[{"field":"","value":"","source":"<page url>"}],"missing":[]}.
+HARD RULES: use ONLY text present in the supplied pages. Never infer, estimate or invent revenue, headcount, funding, customers or dates. Every entry in "facts" must quote or closely paraphrase the page and cite the exact page URL it came from. Put anything a valuer would need but the site does not state into "missing". Keep it factual, no marketing adjectives.`;
+  const digest = read.pages.map((pg: SitePage) => `### ${pg.title}\nURL: ${pg.url}\n${pg.text.slice(0, 7000)}`).join('\n\n');
+  try {
+    const r = await chatComplete(cfg, {
+      messages: [{ role: 'system', content: sys }, { role: 'user', content: digest.slice(0, 60_000) }],
+      temperature: 0, response_format: { type: 'json_object' },
+    });
+    if (!r.ok) throw new Error('ai_failed');
+    const j = await r.json();
+    const parsed = JSON.parse((j?.choices?.[0]?.message?.content ?? '{}').replace(/^```json\s*|```$/g, ''));
+    const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 12) : []);
+    const pageUrls = new Set(read.pages.map((pg) => pg.url));
+    return {
+      site: read.site,
+      pagesRead: read.pages.map((pg) => ({ url: pg.url, title: pg.title })),
+      summary: String(parsed.summary ?? ''),
+      products: arr(parsed.products), customers: arr(parsed.customers), markets: arr(parsed.markets),
+      team: arr(parsed.team), funding: arr(parsed.funding), missing: arr(parsed.missing),
+      // Drop any "fact" that does not point at a page we actually fetched.
+      facts: (Array.isArray(parsed.facts) ? parsed.facts : [])
+        .map((f: Record<string, unknown>) => ({ field: String(f.field ?? ''), value: String(f.value ?? ''), source: String(f.source ?? '') }))
+        .filter((f: { source: string; value: string }) => f.value && (pageUrls.has(f.source) || [...pageUrls].some((u) => f.source.startsWith(u))))
+        .slice(0, 40),
+    };
+  } catch {
+    return {
+      site: read.site, pagesRead: read.pages.map((pg) => ({ url: pg.url, title: pg.title })),
+      facts: [], summary: '', products: [], customers: [], markets: [], team: [], funding: [],
+      missing: ['Website was read but could not be summarised'],
+    };
+  }
+}
+
 async function privateValuation(body: Record<string, unknown>, auth: string | null) {
   const profile = (body.profile ?? {}) as Record<string, unknown>;
   const country = String(profile.country ?? 'IT');
@@ -227,6 +281,8 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
   const docs = (Array.isArray(body.documents) ? body.documents : []) as Array<{ name: string; text: string }>;
 
   const cfg = await resolveAIConfig(auth);
+  const website = String(profile.website ?? body.website ?? '').trim();
+  const siteResearch = website ? await researchWebsite(cfg, website) : null;
 
   // A manually typed grid always wins; otherwise read the numbers out of the
   // uploaded statements so an upload alone produces a real valuation.
@@ -268,7 +324,14 @@ async function privateValuation(body: Record<string, unknown>, auth: string | nu
   });
 
   const [compFind, rules] = await Promise.all([
-    findComparables(cfg, { ...profile, description: body.description ?? profile.description, revenue, ebitda }),
+    findComparables(cfg, {
+      ...profile,
+      description: body.description ?? profile.description,
+      website_summary: siteResearch?.summary,
+      website_products: siteResearch?.products,
+      website_markets: siteResearch?.markets,
+      revenue, ebitda,
+    }),
     sections.includes('jurisdiction_requirements') ? jurisdictionRules(country, auth) : Promise.resolve([]),
   ]);
   const peers = (await Promise.all(compFind.tickers.map((t) => fetchFundamentals(t).catch(() => null)))).filter(Boolean) as Array<NonNullable<Awaited<ReturnType<typeof fetchFundamentals>>>>;
@@ -310,6 +373,8 @@ DCF: ${JSON.stringify({ ...dcf, discounted: undefined })}
 COMPARABLES: ${JSON.stringify({ tickers: compFind.tickers, rationale: compFind.rationale, medians: { evEbitda: medEvEbitda, pe: medPe, ps: medPs } })}
 VALUATION CONCLUSIONS (${currency}): ${JSON.stringify({ conclusions, range, illiquidity, control })}
 LOCAL REQUIREMENTS SOURCES: ${JSON.stringify(rules)}
+COMPANY WEBSITE EVIDENCE (read from the company's own site; cite the URL when you use a fact, and never extend beyond it):
+${siteResearch ? JSON.stringify({ site: siteResearch.site, pages: siteResearch.pagesRead, summary: siteResearch.summary, products: siteResearch.products, customers: siteResearch.customers, markets: siteResearch.markets, team: siteResearch.team, funding: siteResearch.funding, facts: siteResearch.facts, not_disclosed: siteResearch.missing }) : '(no website supplied)'}
 CLIENT DOCUMENTS (business plan / statements / contracts):
 ${docDigest || '(none supplied)'}
 SECTIONS REQUESTED: ${sections.join(', ')}`;
@@ -340,9 +405,100 @@ SECTIONS REQUESTED: ${sections.join(', ')}`;
     sensitivity: sensitivity(baseFcf, growth, wacc.wacc, n(a.terminalGrowth, 0.015), netDebt),
     jurisdiction: { country, sources: rules },
     documentsUsed: docs.map((d) => d.name),
+    websiteResearch: siteResearch,
     financials: history,
     financialsSource,
     extractionNotes,
+    narrative,
+  };
+}
+
+
+// -------------------------------------------------------------- Startup
+const STARTUP_SECTIONS = [
+  'executive_summary', 'company_overview', 'market_analysis', 'traction',
+  'methodology', 'method_results', 'round_terms', 'cap_table_impact',
+  'benchmarks', 'risks', 'valuation_conclusion', 'limitations_disclaimer',
+];
+
+async function startupValuation(body: Record<string, unknown>, auth: string | null) {
+  const profile = (body.profile ?? {}) as Record<string, unknown>;
+  const inputs = (body.startup ?? {}) as Record<string, unknown>;
+  const country = String(profile.country ?? 'IT');
+  const currency = String(profile.currency ?? 'EUR');
+  const sections: string[] = Array.isArray(body.sections) && body.sections.length ? (body.sections as string[]) : STARTUP_SECTIONS;
+  const docs = (Array.isArray(body.documents) ? body.documents : []) as Array<{ name: string; text: string }>;
+
+  const cfg = await resolveAIConfig(auth);
+  const website = String(profile.website ?? body.website ?? '').trim();
+  const siteResearch = website ? await researchWebsite(cfg, website) : null;
+
+  const si: StartupInputs = {
+    stage: String(inputs.stage ?? 'seed') as Stage,
+    country, currency,
+    sector: String(profile.sector ?? inputs.sector ?? 'software'),
+    revenue: n(inputs.revenue),
+    revenueGrowth: Number.isFinite(Number(inputs.revenueGrowth)) ? Number(inputs.revenueGrowth) : undefined,
+    grossMargin: Number.isFinite(Number(inputs.grossMargin)) ? Number(inputs.grossMargin) : undefined,
+    burnRate: n(inputs.burnRate),
+    cashOnHand: n(inputs.cashOnHand),
+    users: n(inputs.users),
+    roundSize: n(inputs.roundSize),
+    targetOwnership: n(inputs.targetOwnership),
+    optionPool: n(inputs.optionPool),
+    previousRounds: Array.isArray(inputs.previousRounds) ? inputs.previousRounds as StartupInputs['previousRounds'] : [],
+    requiredIrr: Number.isFinite(Number(inputs.requiredIrr)) && Number(inputs.requiredIrr) > 0 ? Number(inputs.requiredIrr) : undefined,
+    yearsToExit: Number.isFinite(Number(inputs.yearsToExit)) && Number(inputs.yearsToExit) > 0 ? Number(inputs.yearsToExit) : undefined,
+    exitMultiple: Number.isFinite(Number(inputs.exitMultiple)) && Number(inputs.exitMultiple) > 0 ? Number(inputs.exitMultiple) : undefined,
+    exitRevenue: n(inputs.exitRevenue),
+    scorecard: (inputs.scorecard ?? {}) as StartupInputs['scorecard'],
+    riskFactors: (inputs.riskFactors ?? {}) as StartupInputs['riskFactors'],
+    berkus: (inputs.berkus ?? {}) as StartupInputs['berkus'],
+  };
+  const result = valueStartup(si);
+
+  // Listed comparables give a public-market anchor for the sector multiple.
+  const compFind = await findComparables(cfg, {
+    ...profile,
+    description: body.description ?? profile.description,
+    website_summary: siteResearch?.summary,
+    stage: si.stage, revenue: si.revenue,
+  });
+  const peers = (await Promise.all(compFind.tickers.map((t) => fetchFundamentals(t).catch(() => null)))).filter(Boolean) as Array<NonNullable<Awaited<ReturnType<typeof fetchFundamentals>>>>;
+  const peerPs = median(peers.map((p) => n(p.ps, NaN)));
+
+  const sys = `You are a venture capital investment partner writing the valuation section of an investment memo for a ${si.stage.replace('_', ' ')} startup in ${country}.
+Return STRICT JSON {"sections":{"<section_id>":"markdown text"},"key_findings":["..."],"open_items":["..."],"negotiation_range":"..."}.
+Rules: explain WHY each method lands where it does and which ones deserve weight at this stage; never invent traction, funding or customer figures that are not in the inputs or the website evidence; cite the website URL when you use a website fact; state the benchmark source when you use stage/region benchmarks; flag down-round, runway and dilution issues plainly. Language: ${String(body.language ?? (country === 'IT' ? 'it' : 'en'))}.`;
+  const user = `PROFILE: ${JSON.stringify(profile)}
+STARTUP INPUTS: ${JSON.stringify(si)}
+METHOD RESULTS (${currency}): ${JSON.stringify(result)}
+LISTED COMPARABLES: ${JSON.stringify({ tickers: compFind.tickers, rationale: compFind.rationale, medianPs: peerPs })}
+WEBSITE EVIDENCE: ${siteResearch ? JSON.stringify(siteResearch) : '(no website supplied)'}
+DOCUMENTS: ${docs.slice(0, 6).map((d) => `### ${d.name}\n${String(d.text ?? '').slice(0, 6000)}`).join('\n\n') || '(none)'}
+SECTIONS REQUESTED: ${sections.join(', ')}`;
+
+  let narrative: Record<string, unknown> = { sections: {}, key_findings: [], open_items: [] };
+  try {
+    const r = await chatComplete(cfg, {
+      messages: [{ role: 'system', content: sys }, { role: 'user', content: user.slice(0, 90_000) }],
+      temperature: 0.2, response_format: { type: 'json_object' },
+    });
+    if (r.ok) {
+      const j = await r.json();
+      narrative = JSON.parse((j?.choices?.[0]?.message?.content ?? '{}').replace(/^```json\s*|```$/g, ''));
+    }
+  } catch { /* keep empty narrative */ }
+
+  return {
+    mode: 'startup', profile, country, currency, sections,
+    ...result,
+    comparables: {
+      rationale: compFind.rationale, medianPs: peerPs,
+      peers: peers.map((p) => ({ symbol: p.symbol, name: p.name, ps: p.ps, evEbitda: p.evEbitda, marketCap: p.marketCap, sector: p.sector })),
+    },
+    websiteResearch: siteResearch,
+    documentsUsed: docs.map((d) => d.name),
     narrative,
   };
 }
@@ -353,9 +509,11 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization');
     const body = await req.json().catch(() => ({}));
     const mode = String(body.mode ?? 'public');
-    const out = mode === 'private'
-      ? await privateValuation(body, auth)
-      : await publicValuation(String(body.symbol ?? '').toUpperCase(), body, auth);
+    const out = mode === 'startup'
+      ? await startupValuation(body, auth)
+      : mode === 'private'
+        ? await privateValuation(body, auth)
+        : await publicValuation(String(body.symbol ?? '').toUpperCase(), body, auth);
     return json(out);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'valuation failed' }, 500);
@@ -366,4 +524,4 @@ function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
-export { DEFAULT_SECTIONS };
+export { DEFAULT_SECTIONS, STARTUP_SECTIONS };

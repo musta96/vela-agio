@@ -76,6 +76,12 @@ export default function PaperTrading({ embedded = false }: { embedded?: boolean 
   const [selected, setSelected] = useState<SearchHit | null>(null);
   const [side, setSide] = useState<"buy" | "sell" | "short">("buy");
   const [qty, setQty] = useState<string>("10");
+  // Every ticket input is editable: size by units or by money, and override the fill price.
+  const [sizeMode, setSizeMode] = useState<"qty" | "amount">("qty");
+  const [amount, setAmount] = useState<string>("1000");
+  const [priceOverride, setPriceOverride] = useState<string>("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
 
   // Symbol search (debounced)
   useEffect(() => {

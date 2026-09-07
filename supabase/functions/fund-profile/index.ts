@@ -20,6 +20,65 @@ import { isIsin, resolveIsin } from "../_shared/isin-resolver.ts";
 import { lookupIsin } from "../_shared/isin-lookup.ts";
 import { computeFundScore } from "../_shared/fund-score.ts";
 import { CURATED as INSTRUMENTS } from "../_shared/instrument-master.ts";
+import { fetchFtFund, type FTFundData } from "../_shared/ft-funds.ts";
+
+/** Minimal profile for unlisted share classes that only FT covers. */
+function ftOnlyPayload(isin: string, ft: FTFundData) {
+  const velaScore = computeFundScore({
+    quoteType: "MUTUALFUND",
+    ter: ft.ter ?? null,
+    totalAssets: ft.fundSize ?? null,
+    morningstarOverall: ft.morningstarOverall ?? null,
+  } as Parameters<typeof computeFundScore>[0]);
+  return {
+    symbol: isin,
+    isin,
+    quoteType: "MUTUALFUND",
+    asOf: new Date().toISOString(),
+    currency: ft.currency,
+    source: "ft",
+    profile: {
+      name: ft.name || isin,
+      exchange: null,
+      family: null,
+      category: ft.morningstarCategory ?? null,
+      legalType: ft.fundType ?? null,
+      inceptionDate: ft.launchDate ?? null,
+      benchmark: null,
+      description: null,
+      website: null,
+      phone: null,
+      managers: [],
+    },
+    keyFacts: {
+      price: ft.nav,
+      nav: ft.nav,
+      changePercent: ft.changePct ?? null,
+      totalAssets: ft.fundSize ?? null,
+      ter: ft.ter ?? null,
+      morningstarOverallRating: ft.morningstarOverall ?? null,
+    },
+    holdings: { count: 0, top: [], sectorWeights: [], bondRatings: [] },
+    performance: { trailing: {}, trailingCategory: {}, annual: [] },
+    risk: [],
+    fees: { annualReportExpenseRatio: ft.ter ?? null, category: {} },
+    ratings: {
+      morningstarOverall: ft.morningstarOverall ?? null,
+      morningstarCategory: ft.morningstarCategory ?? null,
+      morningstarAsOf: ft.morningstarAsOf ?? null,
+    },
+    velaScore,
+    identifiers: {
+      isin,
+      domicile: ft.domicile ?? null,
+      ucits: /ireland|luxembourg/i.test(ft.domicile ?? "") ? true : null,
+      replication: null,
+      distribution: ft.incomeTreatment ?? null,
+    },
+    distributions: [],
+    splits: [],
+  };
+}
 
 function num(v: unknown): number | null {
   if (v == null) return null;
@@ -72,6 +131,17 @@ Deno.serve(async (req) => {
       isin = symbol;
       const resolved = await resolveIsin(symbol).catch(() => null);
       if (!resolved) {
+        // Unlisted share class: FT publishes NAV, charges and the
+        // Morningstar rating for most European funds Yahoo never sees.
+        const ftKey = `fund:v8:${isin}`;
+        const ftCached = await getCached<Record<string, unknown>>(ftKey);
+        if (ftCached) return json({ ...ftCached, cached: true });
+        const ft = await fetchFtFund(isin).catch(() => null);
+        if (ft && (ft.nav != null || ft.morningstarOverall != null)) {
+          const p = ftOnlyPayload(isin, ft);
+          await setCached(ftKey, "fund-profile", isin, p, 30 * 60);
+          return json(p);
+        }
         return json({
           symbol: raw,
           isin,
@@ -82,7 +152,8 @@ Deno.serve(async (req) => {
       symbol = resolved.symbol;
     }
 
-    const cacheKey = `fund:v7:${symbol}`;
+    const cacheKey = `fund:v8:${symbol}`;
+
     const cached = await getCached<Record<string, unknown>>(cacheKey);
     if (cached) return json({ ...cached, cached: true });
 
@@ -150,12 +221,18 @@ Deno.serve(async (req) => {
     // identifier every European investor recognises.
     if (!isin) isin = await lookupIsin(symbol).catch(() => null);
 
+    // Yahoo carries no Morningstar rating for most European listings and
+    // often no ongoing charge — FT fills both in when we know the ISIN.
+    const ftData = isin ? await fetchFtFund(isin).catch(() => null) : null;
+
     const perfOverview = perf.performanceOverview ?? {};
     const ratings = {
-      morningstarOverall: num(ks.morningStarOverallRating) ?? num(perfOverview.morningStarOverallRating),
+      morningstarOverall: num(ks.morningStarOverallRating) ?? num(perfOverview.morningStarOverallRating)
+        ?? ftData?.morningstarOverall ?? null,
       morningstarRisk: num(ks.morningStarRiskRating) ?? num(perfOverview.morningStarRiskRating),
       morningstarReturn: num(perfOverview.morningStarReturnRating),
-      morningstarCategory: fp.categoryName ?? null,
+      morningstarCategory: fp.categoryName ?? ftData?.morningstarCategory ?? null,
+      morningstarAsOf: ftData?.morningstarAsOf ?? null,
       esgTotal: num(esg.totalEsg),
       esgEnvironment: num(esg.environmentScore),
       esgSocial: num(esg.socialScore),
@@ -164,6 +241,7 @@ Deno.serve(async (req) => {
       esgPercentile: num(esg.percentile),
       sustainability: num(esg.sustainabilityScore),
     };
+
 
     const topWeightSum = Array.isArray(th.holdings)
       ? th.holdings.slice(0, 10).reduce((s: number, h: any) => s + ((num(h.holdingPercent) ?? 0)), 0)
@@ -178,7 +256,8 @@ Deno.serve(async (req) => {
     const master = INSTRUMENTS[symbol]
       ?? (isin ? Object.values(INSTRUMENTS).find((r) => r.isin && r.isin === isin) ?? null : null);
     const terValue = [num(feesData.annualReportExpenseRatio), num(feesData.netExpRatio), num(feesData.grossExpRatio), num(ks.annualReportExpenseRatio)]
-      .find((v) => v != null && v > 0) ?? master?.ter ?? null;
+      .find((v) => v != null && v > 0) ?? master?.ter ?? ftData?.ter ?? null;
+
 
     const velaScore = computeFundScore({
       quoteType,
@@ -319,11 +398,12 @@ Deno.serve(async (req) => {
       velaScore,
       identifiers: {
         isin,
-        domicile: master?.domicile ?? null,
-        ucits: master?.ucits ?? null,
+        domicile: master?.domicile ?? ftData?.domicile ?? null,
+        ucits: master?.ucits ?? (/ireland|luxembourg/i.test(ftData?.domicile ?? "") ? true : null),
         replication: master?.replication ?? null,
-        distribution: master?.distribution ?? null,
+        distribution: master?.distribution ?? ftData?.incomeTreatment ?? null,
       },
+
       distributions: corporate.dividends,
       splits: corporate.splits,
     };

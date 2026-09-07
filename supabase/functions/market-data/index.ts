@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchQuoteWithFallback } from "../_shared/quote-providers.ts";
 import { toQuotableSymbol, isIsin } from "../_shared/isin-resolver.ts";
 import { fetchBIFundNav } from "../_shared/borsa-italiana-funds.ts";
+import { fetchFtFund } from "../_shared/ft-funds.ts";
 
 
 const corsHeaders = {
@@ -213,8 +214,29 @@ Deno.serve(async (req) => {
               await writeCache(`q:${sym}`, "quote", sym, q, TTL.quote);
               return;
             }
+          } catch { /* fall through to the next NAV source */ }
+          // Wider NAV coverage: FT publishes daily NAVs for most European
+          // unlisted share classes that Borsa Italiana does not carry.
+          try {
+            const ft = await fetchFtFund(sym);
+            if (ft?.nav) {
+              const q = {
+                symbol: sym,
+                name: ft.name ?? resolved?.name,
+                price: ft.nav,
+                changePercent: ft.changePct ?? undefined,
+                currency: ft.currency ?? "EUR",
+                quoteType: "MUTUALFUND",
+                source: "ft",
+                asOf: ft.asOf,
+              };
+              out[sym] = q;
+              await writeCache(`q:${sym}`, "quote", sym, q, TTL.quote);
+              return;
+            }
           } catch { /* fall through to stale/error */ }
         }
+
         // Last resort: stale-with-badge from cache regardless of expiry.
         const { data: stale } = await supabase
           .from("market_data_cache").select("payload")

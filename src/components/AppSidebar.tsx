@@ -335,7 +335,20 @@ const ACCOUNT: NavGroup = {
   ],
 };
 
-const NAV_GROUPS: NavGroup[] = [ASSISTANT, DISCOVER, ANALYSE, MACRO_DATA, STRATEGY, PORTFOLIO, ENTERPRISE, LEARN, ACCOUNT];
+const PRIVATE_MARKETS: NavGroup = {
+  title: "Private markets",
+  url: "/startups",
+  icon: Building2,
+  items: [
+    { title: "Startup Watchlist", url: "/startups", icon: Building2, badge: "new" },
+    { title: "Startup Screener", url: "/startup-screener", icon: Filter, badge: "new" },
+    { title: "Private Equity", url: "/private-equity", icon: Briefcase, badge: "new" },
+    { title: "Valuation (DCF/DDM)", url: "/valuation", icon: Calculator },
+  ],
+};
+
+const NAV_GROUPS: NavGroup[] = [ASSISTANT, DISCOVER, ANALYSE, MACRO_DATA, STRATEGY, PORTFOLIO, PRIVATE_MARKETS, ENTERPRISE, LEARN, ACCOUNT];
+
 
 const OWNER_ITEM: Item = { title: "Owner Console", url: "/owner", icon: Crown, badge: "you" };
 

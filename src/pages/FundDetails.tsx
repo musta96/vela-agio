@@ -23,6 +23,8 @@ import { FundVerdictCard } from "@/components/fund/FundVerdictCard";
 import { FundPeersTab } from "@/components/fund/FundPeersTab";
 import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
 import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
+import { CompanyWebsiteFacts } from "@/components/CompanyWebsiteFacts";
+
 
 const FUND_FEATURE = "fund.deep_data";
 
@@ -269,7 +271,9 @@ const FundDetails = () => {
                   data={data}
                   bars={bars}
                 />
+                <CompanyWebsiteFacts symbol={data.symbol} name={data.profile?.name ?? data.symbol} />
               </TabsContent>
+
 
               {/* PEERS — similar vehicles and better alternatives */}
               <TabsContent value="peers" className="space-y-4 pt-4">

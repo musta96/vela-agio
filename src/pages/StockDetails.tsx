@@ -48,6 +48,8 @@ import { EventsDividendsCard } from "@/components/stock/EventsDividendsCard";
 import { useCompanyProfile } from "@/hooks/useCompanyProfile";
 import { RoicWaccPanel } from "@/components/stock/RoicWaccPanel";
 import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
+import { CompanyWebsiteFacts } from "@/components/CompanyWebsiteFacts";
+
 
 function BackLink() {
   const navigate = useNavigate();
@@ -1127,7 +1129,7 @@ const StockDetails = () => {
           </TabsContent>
           {/* SOURCES */}
           <TabsContent value="sources" className="space-y-4">
-            <CompanyWebsiteFacts symbol={sym} name={profile?.name ?? undefined} defaultWebsite={profile?.website ?? undefined} />
+            <CompanyWebsiteFacts symbol={sym} name={companyData?.profile?.name} defaultWebsite={companyData?.profile?.website} />
 
             <Card>
               <CardHeader>

@@ -23,6 +23,8 @@ import { FundVerdictCard } from "@/components/fund/FundVerdictCard";
 import { FundPeersTab } from "@/components/fund/FundPeersTab";
 import { AddToPortfolioButton } from "@/components/portfolio/AddToPortfolioButton";
 import { PortfolioFitButton } from "@/components/portfolio/PortfolioFitButton";
+import { CompanyWebsiteFacts } from "@/components/CompanyWebsiteFacts";
+
 
 const FUND_FEATURE = "fund.deep_data";
 

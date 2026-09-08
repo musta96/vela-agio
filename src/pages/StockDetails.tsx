@@ -48,6 +48,8 @@ import { EventsDividendsCard } from "@/components/stock/EventsDividendsCard";
 import { useCompanyProfile } from "@/hooks/useCompanyProfile";
 import { RoicWaccPanel } from "@/components/stock/RoicWaccPanel";
 import { PeerComparisonPanel } from "@/components/stock/PeerComparisonPanel";
+import { CompanyWebsiteFacts } from "@/components/CompanyWebsiteFacts";
+
 
 function BackLink() {
   const navigate = useNavigate();

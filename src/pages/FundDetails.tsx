@@ -269,7 +269,9 @@ const FundDetails = () => {
                   data={data}
                   bars={bars}
                 />
+                <CompanyWebsiteFacts symbol={data.symbol} name={data.profile?.name ?? data.symbol} />
               </TabsContent>
+
 
               {/* PEERS — similar vehicles and better alternatives */}
               <TabsContent value="peers" className="space-y-4 pt-4">

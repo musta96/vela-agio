@@ -12,6 +12,10 @@ import StrategyLab from "./pages/StrategyLab";
 import Portfolio from "./pages/Portfolio";
 import PortfolioOverview from "./pages/PortfolioOverview";
 import Watchlist from "./pages/Watchlist";
+import StartupWatchlist from "./pages/StartupWatchlist";
+import StartupScreener from "./pages/StartupScreener";
+import PrivateEquity from "./pages/PrivateEquity";
+
 import SmartPicks from "./pages/SmartPicks";
 import TechnicalAnalysis from "./pages/TechnicalAnalysis";
 import Compare from "./pages/Compare";

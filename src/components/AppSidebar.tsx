@@ -341,6 +341,7 @@ const PRIVATE_MARKETS: NavGroup = {
   icon: Building2,
   items: [
     { title: "Startup Watchlist", url: "/startups", icon: Building2, badge: "new" },
+    { title: "Startup Portfolio", url: "/startup-portfolio", icon: Rocket, badge: "new" },
     { title: "Startup Screener", url: "/startup-screener", icon: Filter, badge: "new" },
     { title: "Private Equity", url: "/private-equity", icon: Briefcase, badge: "new" },
     { title: "Valuation (DCF/DDM)", url: "/valuation", icon: Calculator },

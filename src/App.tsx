@@ -13,6 +13,7 @@ import Portfolio from "./pages/Portfolio";
 import PortfolioOverview from "./pages/PortfolioOverview";
 import Watchlist from "./pages/Watchlist";
 import StartupWatchlist from "./pages/StartupWatchlist";
+import StartupPortfolio from "./pages/StartupPortfolio";
 import StartupScreener from "./pages/StartupScreener";
 import PrivateEquity from "./pages/PrivateEquity";
 
@@ -178,6 +179,7 @@ const App = () => (
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/startups" element={<StartupWatchlist />} />
+            <Route path="/startup-portfolio" element={<StartupPortfolio />} />
             <Route path="/startup-screener" element={<StartupScreener />} />
             <Route path="/private-equity" element={<PrivateEquity />} />
 

@@ -56,7 +56,27 @@ export function StartupFilingsCard({ name, country }: Props) {
 
   useEffect(() => { setShowAll(false); void run(); }, [run]);
 
-  const filings = data?.filings ?? [];
+  // Some registries return nested objects for text fields — never render them raw.
+  const asText = (v: unknown): string | null => {
+    if (v == null) return null;
+    if (typeof v === "string") return v.trim() || null;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (Array.isArray(v)) {
+      const parts = v.map(asText).filter(Boolean) as string[];
+      return parts.length ? parts.join(", ") : null;
+    }
+    const o = v as Record<string, unknown>;
+    return asText(o.title ?? o.name ?? o.value ?? o.label ?? o.code ?? null);
+  };
+  const filings = (data?.filings ?? []).map((f) => ({
+    ...f,
+    form: asText(f.form) ?? "Filing",
+    title: asText(f.title) ?? "Untitled record",
+    summary: asText(f.summary),
+    source: asText(f.source) ?? "",
+    jurisdiction: asText(f.jurisdiction),
+    date: asText(f.date),
+  }));
   const verified = filings.filter((f) => f.verified);
   const pointers = filings.filter((f) => !f.verified);
   const shown = showAll ? verified : verified.slice(0, 8);

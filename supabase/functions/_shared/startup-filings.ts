@@ -173,7 +173,8 @@ async function sec(name: string): Promise<{ filings: StartupFiling[]; entities: 
     }
 
     // Offering size lives inside the Form D document itself.
-    const docs = await Promise.allSettled(formDDocs.map((d) => tget(d.url)));
+    // The rendered viewer path (xslFormDX01) hides the raw XML values.
+    const docs = await Promise.allSettled(formDDocs.map((d) => tget(d.url.replace(/xslFormDX01\//, ''))));
     docs.forEach((res, k) => {
       if (res.status !== 'fulfilled' || !res.value) return;
       const parsed = parseFormD(res.value);

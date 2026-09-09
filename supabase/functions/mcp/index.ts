@@ -7,7 +7,7 @@ import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.22.2";
 
 // src/lib/mcp/tools/get-quote.ts
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z } from "npm:zod@^4.4.3";
+import { z } from "npm:zod@^4.5.4";
 async function fetchQuote(symbol) {
   const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
   const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2d&interval=1d`;
@@ -62,7 +62,7 @@ var get_quote_default = defineTool({
 
 // src/lib/mcp/tools/search-strategies.ts
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z2 } from "npm:zod@^4.4.3";
+import { z as z2 } from "npm:zod@^4.5.4";
 var STRATEGY_CATALOG = [
   {
     id: "buy_hold",
@@ -112,11 +112,11 @@ var search_strategies_default = defineTool2({
 });
 
 // src/lib/mcp/tools/get-watchlist.ts
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.22.2";
 
 // src/lib/mcp/lib/instrument.ts
-import { createClient } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient } from "npm:@supabase/supabase-js@^2.116.0";
 function supabaseFor(ctx) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -214,7 +214,7 @@ var get_watchlist_default = defineTool3({
 });
 
 // src/lib/mcp/tools/get-portfolio.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.22.2";
 function supabaseForUser2(ctx) {
   return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
@@ -246,7 +246,7 @@ var get_portfolio_default = defineTool4({
 });
 
 // src/lib/mcp/tools/get-net-worth.ts
-import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.22.2";
 function supabaseForUser3(ctx) {
   return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
@@ -287,9 +287,9 @@ var get_net_worth_default = defineTool5({
 });
 
 // src/lib/mcp/tools/list-cash-flow.ts
-import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z3 } from "npm:zod@^4.4.3";
+import { z as z3 } from "npm:zod@^4.5.4";
 function supabaseForUser4(ctx) {
   return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
@@ -323,9 +323,9 @@ var list_cash_flow_default = defineTool6({
 });
 
 // src/lib/mcp/tools/add-cash-flow-entry.ts
-import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z4 } from "npm:zod@^4.4.3";
+import { z as z4 } from "npm:zod@^4.5.4";
 function supabaseForUser5(ctx) {
   return createClient6(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
@@ -374,7 +374,7 @@ var add_cash_flow_entry_default = defineTool7({
 
 // src/lib/mcp/tools/project-dividends.ts
 import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z5 } from "npm:zod@^4.4.3";
+import { z as z5 } from "npm:zod@^4.5.4";
 
 // src/lib/dividends/project.ts
 function projectDividends(input) {
@@ -547,7 +547,7 @@ var project_dividends_default = defineTool8({
 
 // src/lib/mcp/tools/run-backtest.ts
 import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z6 } from "npm:zod@^4.4.3";
+import { z as z6 } from "npm:zod@^4.5.4";
 async function fetchHistory(symbol, range) {
   const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36";
   const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`;
@@ -735,9 +735,9 @@ var run_backtest_default = defineTool9({
 });
 
 // src/lib/mcp/tools/start-run.ts
-import { createClient as createClient7 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient7 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z7 } from "npm:zod@^4.4.3";
+import { z as z7 } from "npm:zod@^4.5.4";
 
 // src/lib/mcp/lib/backtest.ts
 async function fetchHistory2(symbol, range) {
@@ -1079,9 +1079,9 @@ var start_run_default = defineTool10({
 });
 
 // src/lib/mcp/tools/get-run.ts
-import { createClient as createClient8 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient8 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z8 } from "npm:zod@^4.4.3";
+import { z as z8 } from "npm:zod@^4.5.4";
 function sbUser2(ctx) {
   return createClient8(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
@@ -1155,9 +1155,9 @@ var getRunLogs = defineTool11({
 });
 
 // src/lib/mcp/tools/cancel-run.ts
-import { createClient as createClient9 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient9 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z9 } from "npm:zod@^4.4.3";
+import { z as z9 } from "npm:zod@^4.5.4";
 function sbUser3(ctx) {
   return createClient9(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
@@ -1211,9 +1211,9 @@ var cancel_run_default = defineTool12({
 });
 
 // src/lib/mcp/tools/watchlist-updates.ts
-import { createClient as createClient10 } from "npm:@supabase/supabase-js@^2.106.1";
+import { createClient as createClient10 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z10 } from "npm:zod@^4.4.3";
+import { z as z10 } from "npm:zod@^4.5.4";
 function sbUser4(ctx) {
   return createClient10(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
@@ -1325,7 +1325,7 @@ var watchlist_updates_default = defineTool13({
 
 // src/lib/mcp/tools/list-tool-docs.ts
 import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z11 } from "npm:zod@^4.4.3";
+import { z as z11 } from "npm:zod@^4.5.4";
 
 // .lovable/mcp/manifest.json
 var manifest_default = {

@@ -22,8 +22,8 @@ interface Filing {
 interface FilingsResult {
   company: string;
   filings: Filing[];
-  sourcesQueried: string[];
-  warnings: string[];
+  sourcesQueried: unknown[];
+  warnings: unknown[];
   asOf: string;
 }
 
@@ -34,6 +34,27 @@ interface Props {
 
 const fmtAmount = (n: number, ccy?: string | null) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: ccy || "USD", maximumFractionDigits: 0 }).format(n);
+
+// Government APIs frequently return localized text as nested records rather
+// than strings. Keep all values crossing that boundary safe for React.
+const asText = (value: unknown, seen = new WeakSet<object>()): string | null => {
+  if (value == null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map((item) => asText(item, seen)).filter((item): item is string => Boolean(item));
+    return parts.length ? parts.join(", ") : null;
+  }
+  if (typeof value !== "object" || seen.has(value)) return null;
+
+  seen.add(value);
+  const record = value as Record<string, unknown>;
+  for (const key of ["title", "name", "value", "label", "code", "id", "rcn"]) {
+    const text = asText(record[key], seen);
+    if (text) return text;
+  }
+  return null;
+};
 
 /** Official filings for a private company: SEC EDGAR, national registers, EU databases. */
 export function StartupFilingsCard({ name, country }: Props) {
@@ -56,27 +77,20 @@ export function StartupFilingsCard({ name, country }: Props) {
 
   useEffect(() => { setShowAll(false); void run(); }, [run]);
 
-  // Some registries return nested objects for text fields — never render them raw.
-  const asText = (v: unknown): string | null => {
-    if (v == null) return null;
-    if (typeof v === "string") return v.trim() || null;
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
-    if (Array.isArray(v)) {
-      const parts = v.map(asText).filter(Boolean) as string[];
-      return parts.length ? parts.join(", ") : null;
-    }
-    const o = v as Record<string, unknown>;
-    return asText(o.title ?? o.name ?? o.value ?? o.label ?? o.code ?? null);
-  };
   const filings = (data?.filings ?? []).map((f) => ({
-    ...f,
     form: asText(f.form) ?? "Filing",
     title: asText(f.title) ?? "Untitled record",
     summary: asText(f.summary),
     source: asText(f.source) ?? "",
     jurisdiction: asText(f.jurisdiction),
     date: asText(f.date),
+    url: asText(f.url) ?? "",
+    amount: typeof f.amount === "number" && Number.isFinite(f.amount) ? f.amount : null,
+    currency: asText(f.currency),
+    verified: f.verified === true,
   }));
+  const warnings = (data?.warnings ?? []).map((warning) => asText(warning)).filter((warning): warning is string => Boolean(warning));
+  const sources = (data?.sourcesQueried ?? []).map((source) => asText(source)).filter((source): source is string => Boolean(source));
   const verified = filings.filter((f) => f.verified);
   const pointers = filings.filter((f) => !f.verified);
   const shown = showAll ? verified : verified.slice(0, 8);
@@ -149,14 +163,14 @@ export function StartupFilingsCard({ name, country }: Props) {
           <p className="text-sm text-muted-foreground">No official filing matched this name yet.</p>
         )}
 
-        {data?.warnings?.length ? (
+        {warnings.length ? (
           <ul className="text-xs text-muted-foreground space-y-1">
-            {data.warnings.map((w, i) => <li key={i}>• {w}</li>)}
+            {warnings.map((warning, i) => <li key={i}>• {warning}</li>)}
           </ul>
         ) : null}
 
-        {data?.sourcesQueried?.length ? (
-          <p className="text-[11px] text-muted-foreground">Sources: {data.sourcesQueried.join(" · ")}</p>
+        {sources.length ? (
+          <p className="text-[11px] text-muted-foreground">Sources: {sources.join(" · ")}</p>
         ) : null}
       </CardContent>
     </Card>

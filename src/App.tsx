@@ -177,6 +177,10 @@ const App = () => (
             <Route path="/net-worth" element={<NetWorth />} />
             <Route path="/net-worth/:category" element={<NetWorthCategory />} />
             <Route path="/watchlist" element={<Watchlist />} />
+            <Route path="/startups" element={<StartupWatchlist />} />
+            <Route path="/startup-screener" element={<StartupScreener />} />
+            <Route path="/private-equity" element={<PrivateEquity />} />
+
             <Route path="/explore" element={<Explore />} />
             <Route path="/explore/themes" element={<ExploreThemes />} />
             <Route path="/explore/themes/company/:symbol" element={<ThematicCompanyDrilldown />} />

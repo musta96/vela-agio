@@ -69,13 +69,16 @@ async function isAuthorized(req: Request): Promise<boolean> {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (!(await isAuthorized(req))) return json({ error: 'Unauthorized' }, 401);
   try {
     const body = await req.json();
     const query = String(body.query ?? '').trim().slice(0, 300);
     const lane = String(body.lane ?? 'any') as keyof typeof OFFICIAL_DOMAINS;
     const maxResults = Math.min(Math.max(Number(body.max_results ?? 5), 1), 8);
     const fetchPages = body.fetch_pages !== false;
-    const extraUrls: string[] = Array.isArray(body.urls) ? body.urls.slice(0, 5).map(String) : [];
+    const extraUrls: string[] = Array.isArray(body.urls)
+      ? body.urls.slice(0, 5).map(String).filter(isSafePublicUrl)
+      : [];
 
     if (!query && !extraUrls.length) return json({ error: 'Provide a query or urls[].' }, 400);
 

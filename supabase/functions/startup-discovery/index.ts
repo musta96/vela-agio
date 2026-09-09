@@ -36,6 +36,26 @@ Deno.serve(async (req) => {
       limit: Number(body?.limit) || 25,
       authHeader: auth,
     });
+
+    // Official registers: confirm the candidates that exist in a public company
+    // register and attach the register entry, so nothing rests on press alone.
+    const wantsRegistry = Array.isArray(body?.sources) && body.sources.includes('registry');
+    if (wantsRegistry && Array.isArray(result?.candidates)) {
+      const top = result.candidates.slice(0, 12);
+      const checked = await Promise.allSettled(
+        top.map((c: any) => lookupRegistries(c.name, c.country || body?.country)),
+      );
+      checked.forEach((r, i) => {
+        if (r.status !== 'fulfilled') return;
+        const hit = (r.value.records ?? []).find((rec: any) => rec.identifier);
+        if (!hit) return;
+        top[i].registry = hit;
+        top[i].registryFilings = (r.value.filings ?? []).slice(0, 5);
+        if (top[i].confidence === 'low') top[i].confidence = 'medium';
+      });
+      (result.sources ??= []).push('registry');
+    }
+
     return json(result);
   } catch (e) {
     console.error('startup-discovery error', e);

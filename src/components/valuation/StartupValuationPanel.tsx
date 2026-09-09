@@ -247,7 +247,16 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
         </Card>
       </div>
 
+      <StartupSentimentCard
+        name={profile.name}
+        website={profile.website}
+        sector={profile.sector}
+        country={profile.country}
+        onScore={setSentiment}
+      />
+
       <div className="grid gap-4 lg:grid-cols-3">
+
         <Card>
           <CardHeader><CardTitle className="text-base">Scorecard factors</CardTitle></CardHeader>
           <CardContent className="space-y-3">

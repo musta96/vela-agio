@@ -264,16 +264,30 @@ async function cordis(name: string): Promise<StartupFiling[]> {
     {}, 15000,
   );
   const rows: any[] = j?.payload?.results ?? [];
+  // CORDIS returns some fields (title, programme) as nested objects — flatten to plain text.
+  const text = (v: any): string | null => {
+    if (v == null) return null;
+    if (typeof v === 'string') return v.trim() || null;
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    if (Array.isArray(v)) {
+      const parts = v.map(text).filter(Boolean) as string[];
+      return parts.length ? parts.join(', ') : null;
+    }
+    if (typeof v === 'object') {
+      return text(v.title ?? v.name ?? v.value ?? v.label ?? v.code ?? null);
+    }
+    return null;
+  };
   return rows.slice(0, 8).map((r) => {
-    const id = r.id ?? r.rcn ?? '';
+    const id = text(r.id) ?? text(r.rcn) ?? '';
     return {
       source: 'CORDIS (European Commission)',
       jurisdiction: 'EU',
       form: 'EU-funded project',
-      title: r.title ?? `Project ${id}`,
-      date: (r.startDate ?? r.contentUpdateDate ?? '').slice(0, 10) || null,
+      title: text(r.title) ?? `Project ${id}`,
+      date: String(r.startDate ?? r.contentUpdateDate ?? '').slice(0, 10) || null,
       url: id ? `https://cordis.europa.eu/project/id/${id}` : 'https://cordis.europa.eu/projects',
-      summary: r.programme ?? r.frameworkProgramme ?? null,
+      summary: text(r.programme) ?? text(r.frameworkProgramme) ?? null,
       amount: Number(r.ecMaxContribution) || null,
       currency: Number(r.ecMaxContribution) ? 'EUR' : null,
       verified: true,

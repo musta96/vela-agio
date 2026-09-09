@@ -3,11 +3,12 @@
 //
 // Purely deterministic: it runs the same benchmark engine used by the startup
 // valuation tab over every candidate, so no AI access is needed. Candidates
-// come from the caller's saved startups and/or an inline list.
+// come from the caller's saved startups, an inline list, or external discovery.
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { valueStartup, type StartupInputs, type Stage, STAGES } from '../_shared/startup-valuation.ts';
+import { discoverStartups, type StartupCandidate } from '../_shared/startup-discovery.ts';
 
 interface Candidate {
   id?: string;
@@ -26,6 +27,52 @@ function json(body: unknown, status = 200) {
 
 const asStage = (s: unknown): Stage => (STAGES.includes(String(s) as Stage) ? (String(s) as Stage) : 'seed');
 
+function candidateFromDiscovery(c: StartupCandidate): Candidate {
+  return {
+    name: c.name,
+    country: normalizeCountry(c.country),
+    sector: normalizeSector(c.sector),
+    stage: asStage(c.stage),
+    currency: (c.currency || 'USD').toUpperCase(),
+    website: c.website ?? undefined,
+    inputs: {
+      roundSize: c.roundSize ?? undefined,
+      previousRounds: c.roundSize ? [{ stage: c.stage || 'seed', amount: c.roundSize, date: c.roundDate || undefined, postMoney: c.valuation ?? undefined, investors: c.investors }] : undefined,
+    },
+  };
+}
+
+function normalizeCountry(c?: string): string {
+  if (!c) return 'US';
+  const s = c.toUpperCase().trim();
+  if (s === 'USA' || s === 'UNITED STATES') return 'US';
+  if (s === 'UK' || s === 'UNITED KINGDOM' || s === 'GREAT BRITAIN') return 'GB';
+  if (s === 'ITALY' || s === 'ITALIA') return 'IT';
+  if (s === 'FRANCE') return 'FR';
+  if (s === 'GERMANY' || s === 'DEUTSCHLAND') return 'DE';
+  if (s === 'ISRAEL') return 'IL';
+  if (s === 'INDIA') return 'IN';
+  if (s === 'SINGAPORE') return 'SG';
+  if (s === 'CANADA') return 'CA';
+  return s.slice(0, 2);
+}
+
+function normalizeSector(s?: string): string {
+  if (!s) return 'software';
+  const k = s.toLowerCase().replace(/[^a-z]/g, '');
+  const map: Record<string, string> = {
+    ai: 'ai', artificialintelligence: 'ai', machinelearning: 'ai', fintech: 'fintech',
+    insurtech: 'insurtech', healthtech: 'healthtech', biotech: 'biotech', medtech: 'medtech',
+    saas: 'saas', software: 'software', marketplace: 'marketplace', ecommerce: 'ecommerce',
+    cybersecurity: 'cybersecurity', deeptech: 'deeptech', semiconductors: 'semiconductors',
+    climate: 'climate', energy: 'energy', mobility: 'mobility', robotics: 'robotics',
+    space: 'space', foodtech: 'foodtech', edtech: 'edtech', proptech: 'proptech',
+    agritech: 'agritech', logistics: 'logistics', gaming: 'gaming', consumer: 'consumer',
+    hardware: 'hardware', services: 'services', data: 'software', devtools: 'software',
+  };
+  return map[k] || 'software';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -34,11 +81,13 @@ Deno.serve(async (req) => {
     const filters = (body?.filters ?? {}) as { countries?: string[]; sectors?: string[]; stages?: string[] };
     const hurdle = Number(body?.requiredIrr);
     const rank = String(body?.rank ?? 'required_irr'); // 'required_irr' | 'scorecard' | 'upside'
+    const source = String(body?.source ?? 'saved'); // 'saved' | 'discover'
 
     const candidates: Candidate[] = Array.isArray(body?.candidates) ? body.candidates.slice(0, 100) : [];
+    const warnings: string[] = [];
 
     // Pull the caller's saved startups when asked. RLS scopes them to the user.
-    if (body?.includeSaved !== false && auth) {
+    if (source !== 'discover' && body?.includeSaved !== false && auth) {
       const sb = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -54,6 +103,23 @@ Deno.serve(async (req) => {
           inputs: (row.inputs ?? {}) as Partial<StartupInputs>,
         });
       }
+    }
+
+    // Discover external candidates when the caller asks for it.
+    if (source === 'discover') {
+      const discovery = await discoverStartups({
+        query: body?.query,
+        sector: body?.filters?.sectors?.[0],
+        stage: body?.filters?.stages?.[0],
+        country: body?.filters?.countries?.[0],
+        sources: body?.discoverySources || ['news', 'sec_formd'],
+        limit: Math.min(Number(body?.limit) || 25, 100),
+        authHeader: auth,
+      });
+      for (const c of discovery.candidates) {
+        candidates.push(candidateFromDiscovery(c));
+      }
+      warnings.push(...discovery.warnings);
     }
 
     const filtered = candidates.filter((c) => {
@@ -107,7 +173,7 @@ Deno.serve(async (req) => {
       return bv - av;
     });
 
-    return json({ rank, count: rows.length, requiredIrr: Number.isFinite(hurdle) ? hurdle : null, rows });
+    return json({ rank, count: rows.length, requiredIrr: Number.isFinite(hurdle) ? hurdle : null, rows, warnings, source });
   } catch (e) {
     return json({ error: 'failed', message: e instanceof Error ? e.message : 'Screening failed' }, 500);
   }

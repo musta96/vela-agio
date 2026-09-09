@@ -47,14 +47,33 @@ function parseRss(xml: string, max = 20): Article[] {
   return out;
 }
 
-async function googleNews(query: string): Promise<Article[]> {
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+/** GDELT global news index — free, no key, worldwide press including small startups. */
+async function gdelt(query: string): Promise<Article[]> {
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=artlist&maxrecords=25&format=json&sort=datedesc&timespan=6months`;
+  try {
+    const r = await fetch(url, { headers: UA });
+    if (!r.ok) return [];
+    const j = await r.json().catch(() => null);
+    return (j?.articles ?? []).map((a: Record<string, string>) => {
+      const d = String(a.seendate ?? "");
+      const iso = d.length >= 15
+        ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(9, 11)}:${d.slice(11, 13)}:${d.slice(13, 15)}Z`
+        : new Date().toISOString();
+      return { title: a.title ?? "", link: a.url ?? "", source: a.domain ?? "News", pubDate: iso, description: "" };
+    }).filter((a: Article) => a.title && a.link);
+  } catch { return []; }
+}
+
+/** Bing News RSS — free, no key, good coverage of press releases and trade titles. */
+async function bingNews(query: string): Promise<Article[]> {
+  const url = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=RSS`;
   try {
     const r = await fetch(url, { headers: UA });
     if (!r.ok) return [];
     return parseRss(await r.text());
   } catch { return []; }
 }
+
 
 // --- transparent keyword model (always available, used as the fallback) ---
 const POS = ["raises", "raised", "funding", "series a", "series b", "series c", "seed round", "oversubscribed",

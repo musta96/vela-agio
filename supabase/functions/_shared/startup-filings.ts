@@ -365,6 +365,17 @@ export async function fetchStartupFilings(input: {
     warnings.push('The Italian innovative-startup section is published behind a browser check, so its entries are shown as official links to confirm, not as fetched records.');
   }
 
+  // Two registers can report the same event; keep one row per document.
+  const seen = new Set<string>();
+  const unique = filings.filter((f) => {
+    const k = `${f.source}|${f.form}|${f.date ?? ''}|${(f.url || '').replace(/xslFormDX01\//, '')}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  filings.length = 0;
+  filings.push(...unique);
+
   filings.sort((a, b) => {
     if (a.verified !== b.verified) return a.verified ? -1 : 1;
     return String(b.date ?? '').localeCompare(String(a.date ?? ''));

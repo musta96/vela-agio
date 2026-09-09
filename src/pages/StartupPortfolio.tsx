@@ -10,6 +10,7 @@ import { Loader2, Plus, Rocket, Pencil, Trash2, ExternalLink } from "lucide-reac
 import { CompanyFormDialog } from "@/components/company/CompanyFormDialog";
 import { StartupSentimentCard } from "@/components/valuation/StartupSentimentCard";
 import { StartupRegistryCard } from "@/components/valuation/StartupRegistryCard";
+import { StartupFilingsCard } from "@/components/valuation/StartupFilingsCard";
 import { StartupRiskCard } from "@/components/valuation/StartupRiskCard";
 import { usePrivateCompanies, money, REGION_OF, STAGE_OPTIONS, type PrivateCompany } from "@/hooks/usePrivateCompanies";
 
@@ -226,6 +227,12 @@ export default function StartupPortfolio() {
               name={(focus ?? items[0]).name}
               country={(focus ?? items[0]).country}
             />
+            <StartupFilingsCard
+              key={`fil-${focus?.id ?? items[0].id}`}
+              name={(focus ?? items[0]).name}
+              country={(focus ?? items[0]).country}
+            />
+
           </div>
         )}
       </div>

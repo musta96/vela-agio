@@ -1245,6 +1245,11 @@ const Portfolio = () => {
           )}
         </div>
 
+        <PrivateHoldingsSection
+          listedValue={portfolioTotal}
+          listedCost={portfolio.reduce((s, p) => s + toEur(p.shares * p.avgPrice, p.currency), 0)}
+        />
+
         {/* Bottom row - Allocation / Risk / Italian capital gains (mockup v2) */}
         <div className="grid lg:grid-cols-3 gap-6 mt-8">
           <Card className="p-6 rounded-2xl">

@@ -326,7 +326,18 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
                 <Badge variant="outline">Required return {pct(res.requiredIrr?.irr)}</Badge>
                 {res.runwayMonths != null && <Badge variant="outline">Runway {Math.round(res.runwayMonths)} months</Badge>}
                 {res.round?.downRound && <Badge variant="destructive">Down round</Badge>}
+                {sentiment?.score != null && (
+                  <Badge variant={sentiment.score >= 15 ? "secondary" : sentiment.score <= -15 ? "destructive" : "outline"}>
+                    Press sentiment {sentiment.score > 0 ? `+${sentiment.score}` : sentiment.score}
+                  </Badge>
+                )}
               </div>
+              {sentiment?.score != null && Math.abs(sentiment.score) >= 25 && (
+                <p className="text-xs text-muted-foreground">
+                  Live press coverage is {sentiment.label}. That is not in the numbers above — treat it as a reason to
+                  {sentiment.score > 0 ? " push the range toward the high end." : " lean toward the low end."}
+                </p>
+              )}
               {!!res.notes?.length && (
                 <ul className="list-disc pl-5 text-sm text-muted-foreground">
                   {res.notes.map((n: string, i: number) => <li key={i}>{n}</li>)}

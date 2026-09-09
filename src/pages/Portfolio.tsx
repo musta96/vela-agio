@@ -34,6 +34,7 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { PortfolioSimulator } from "@/components/PortfolioSimulator";
 import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
 import { ProgressiveHint } from "@/components/onboarding/ProgressiveHint";
+import { PrivateHoldingsSection } from "@/components/portfolio/PrivateHoldingsSection";
 
 interface PortfolioStock {
   symbol: string;
@@ -1244,6 +1245,11 @@ const Portfolio = () => {
             })
           )}
         </div>
+
+        <PrivateHoldingsSection
+          listedValue={portfolioTotal}
+          listedCost={portfolio.reduce((s, p) => s + toEur(p.shares * p.avgPrice, p.currency), 0)}
+        />
 
         {/* Bottom row - Allocation / Risk / Italian capital gains (mockup v2) */}
         <div className="grid lg:grid-cols-3 gap-6 mt-8">

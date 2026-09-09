@@ -200,7 +200,7 @@ function parseResults(html: string): Hit[] {
     let url = decodeEntities(m[1]);
     const uddg = url.match(/uddg=([^&]+)/);
     if (uddg) url = decodeURIComponent(uddg[1]);
-    if (!/^https?:\/\//i.test(url)) continue;
+    if (!isSafePublicUrl(url)) continue;
     let domain = '';
     try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch { continue; }
     // Drop engine chrome / social links.

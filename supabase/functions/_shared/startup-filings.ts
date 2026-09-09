@@ -352,6 +352,26 @@ export async function fetchStartupFilings(input: {
     }
   }
 
+  // Trade names rarely equal the legal name ("Satispay" vs "SATISPAY S.P.A.").
+  // GLEIF's fuzzy index bridges the two without guessing.
+  if (entities.filter((e) => e.identifier).length === 0) {
+    const fuzzy = await gleifFuzzy(name, cc || undefined);
+    entities.push(...fuzzy);
+    for (const r of fuzzy) {
+      filings.push({
+        source: r.register,
+        jurisdiction: r.jurisdiction || cc,
+        form: 'Registration',
+        title: `${r.legalName} registered (${r.identifierType} ${r.identifier})`,
+        date: r.registeredAt,
+        url: r.url ?? '',
+        summary: [r.status, r.address].filter(Boolean).join(' · ') || null,
+        verified: true,
+      });
+    }
+  }
+
+
   // Italy: official VAT check where a register gave us a numeric identifier,
   // plus the official innovative-startup entry points.
   if (wantsIT && (cc === 'IT' || entities.some((e) => e.jurisdiction === 'IT'))) {

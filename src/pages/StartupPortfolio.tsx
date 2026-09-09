@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Plus, Rocket, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { CompanyFormDialog } from "@/components/company/CompanyFormDialog";
 import { StartupSentimentCard } from "@/components/valuation/StartupSentimentCard";
+import { StartupRegistryCard } from "@/components/valuation/StartupRegistryCard";
+import { StartupRiskCard } from "@/components/valuation/StartupRiskCard";
 import { usePrivateCompanies, money, REGION_OF, STAGE_OPTIONS, type PrivateCompany } from "@/hooks/usePrivateCompanies";
 
 const stageLabel = (id: string) => STAGE_OPTIONS.find((s) => s.id === id)?.label ?? id;
@@ -196,13 +198,35 @@ export default function StartupPortfolio() {
         </div>
 
         {items.length > 0 && (
-          <StartupSentimentCard
+          <StartupRiskCard
+            money={(n) => money(n)}
+            rows={items.map((c) => ({
+              id: c.id,
+              name: c.name,
+              stage: c.stage,
+              method: methodOf(c),
+              sentiment: null,
+              value: holdingValue(c),
+              invested: Number(c.amount_invested) || 0,
+            }))}
+          />
+        )}
+
+        {items.length > 0 && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <StartupSentimentCard
             key={focus?.id ?? items[0].id}
             name={(focus ?? items[0]).name}
             website={(focus ?? items[0]).website ?? undefined}
             sector={(focus ?? items[0]).sector}
-            country={(focus ?? items[0]).country}
-          />
+              country={(focus ?? items[0]).country}
+            />
+            <StartupRegistryCard
+              key={`reg-${focus?.id ?? items[0].id}`}
+              name={(focus ?? items[0]).name}
+              country={(focus ?? items[0]).country}
+            />
+          </div>
         )}
       </div>
 

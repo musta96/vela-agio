@@ -34,6 +34,13 @@ export const PROVIDERS: ProviderSpec[] = [
   { id: 'orbisa', name: 'Orbisa / S3 borrow', category: 'borrow', cost: 'paid', minTier: 'enterprise', envKey: 'ORBISA_API_KEY', vaultKey: 'orbisa', description: 'Institutional securities-lending: utilisation, real borrow fee curves, recall risk.' },
   { id: 'opra', name: 'OPRA options chain', category: 'options', cost: 'paid', minTier: 'pro', envKey: 'OPRA_API_KEY', vaultKey: 'opra', description: 'Real-time consolidated US options quotes and full volatility surface.' },
   { id: 'refinitiv_insider', name: 'Global insider vendor', category: 'insider', cost: 'paid', minTier: 'enterprise', envKey: 'INSIDER_VENDOR_API_KEY', vaultKey: 'insider_vendor', description: 'Normalized worldwide insider/PDMR transactions with history.' },
+  { id: 'longbridge', name: 'Longbridge OpenAPI', category: 'prices', cost: 'free', minTier: 'free', envKey: 'LONGBRIDGE_APP_KEY', vaultKey: 'LONGBRIDGE_APP_KEY', description: 'HK / US / China quotes and trading. Free self-serve key from a Longbridge account.', docsUrl: 'https://open.longbridge.com/en' },
+  { id: 'quartr', name: 'Quartr', category: 'research', cost: 'paid', minTier: 'pro', envKey: 'QUARTR_API_KEY', vaultKey: 'QUARTR_API_KEY', description: 'Earnings calls, transcripts and investor presentations.', docsUrl: 'https://quartr.com/solutions/api' },
+  { id: 'daloopa', name: 'Daloopa', category: 'fundamentals', cost: 'paid', minTier: 'enterprise', envKey: 'DALOOPA_API_KEY', vaultKey: 'DALOOPA_API_KEY', description: 'Analyst-grade standardized fundamentals sourced from filings.' },
+  { id: 'third_bridge', name: 'Third Bridge Forum', category: 'research', cost: 'paid', minTier: 'enterprise', envKey: 'THIRD_BRIDGE_API_KEY', vaultKey: 'THIRD_BRIDGE_API_KEY', description: 'Expert-network interview transcripts.' },
+  { id: 'bigdata', name: 'Bigdata.com (RavenPack)', category: 'news', cost: 'paid', minTier: 'enterprise', envKey: 'BIGDATA_API_KEY', vaultKey: 'BIGDATA_API_KEY', description: 'News analytics and entity-level sentiment at scale.' },
+  { id: 'datasite', name: 'Datasite', category: 'research', cost: 'paid', minTier: 'enterprise', envKey: 'DATASITE_API_KEY', vaultKey: 'DATASITE_API_KEY', description: 'M&A deal-room documents and diligence workflow.' },
+  { id: 'mergerlinks', name: 'MergerLinks', category: 'news', cost: 'paid', minTier: 'pro', envKey: 'MERGERLINKS_API_KEY', vaultKey: 'MERGERLINKS_API_KEY', description: 'M&A transactions, advisors and league-table news.' },
 ];
 
 const ORDER: Tier[] = ['free', 'plus', 'pro', 'enterprise'];

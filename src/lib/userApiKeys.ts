@@ -203,6 +203,20 @@ export const API_KEY_SPECS: ApiKeySpec[] = [
   { id: "CBINSIGHTS_API_KEY", label: "CB Insights", description: "Tech market intelligence.", category: "market", signupUrl: "https://www.cbinsights.com/" },
   { id: "ALPHASENSE_API_KEY", label: "AlphaSense", description: "AI search across filings, transcripts, broker research.", category: "market", signupUrl: "https://www.alpha-sense.com/" },
 
+  // --- Broker / market APIs with free self-serve access ---
+  { id: "LONGBRIDGE_APP_KEY", label: "Longbridge App Key", description: "Longbridge OpenAPI: HK, US and China quotes plus trading. Free with a Longbridge account.", category: "market", signupUrl: "https://open.longbridge.com/en" },
+  { id: "LONGBRIDGE_APP_SECRET", label: "Longbridge App Secret", description: "Paired with the Longbridge app key.", category: "market", signupUrl: "https://open.longbridge.com/en", serverOnly: true },
+  { id: "LONGBRIDGE_ACCESS_TOKEN", label: "Longbridge Access Token", description: "Session token issued in the Longbridge developer console.", category: "market", signupUrl: "https://open.longbridge.com/en", serverOnly: true },
+
+  // --- Enterprise research vendors (contract required; bring your firm's key) ---
+  { id: "QUARTR_API_KEY", label: "Quartr", description: "Earnings calls, transcripts and investor presentations. Paid API.", category: "market", signupUrl: "https://quartr.com/solutions/api" },
+  { id: "DALOOPA_API_KEY", label: "Daloopa", description: "Analyst-grade standardized fundamentals from filings. Enterprise contract.", category: "market", signupUrl: "https://daloopa.com/" },
+  { id: "THIRD_BRIDGE_API_KEY", label: "Third Bridge Forum", description: "Expert-network interview transcripts. Enterprise contract.", category: "market", signupUrl: "https://www.thirdbridge.com/" },
+  { id: "BIGDATA_API_KEY", label: "Bigdata.com (RavenPack)", description: "News analytics and entity sentiment at scale. Enterprise contract.", category: "market", signupUrl: "https://bigdata.com/" },
+  { id: "DATASITE_API_KEY", label: "Datasite", description: "M&A deal-room documents and diligence workflow. Enterprise contract.", category: "market", signupUrl: "https://www.datasite.com/" },
+  { id: "MERGERLINKS_API_KEY", label: "MergerLinks", description: "M&A transaction and advisor league-table news. Subscription.", category: "market", signupUrl: "https://news.mergerlinks.com/" },
+
+
   // --- News & sentiment (extended) ---
   { id: "MARKETAUX_API_KEY", label: "Marketaux", description: "Financial news + entity-tagged sentiment.", category: "social", signupUrl: "https://www.marketaux.com/account/dashboard" },
   { id: "BENZINGA_API_KEY", label: "Benzinga", description: "Real-time news, ratings, analyst actions.", category: "social", signupUrl: "https://cloud.benzinga.com/" },

@@ -1738,7 +1738,32 @@ var manifest_default = {
           idempotentHint: false,
           openWorldHint: true
         },
-        inputSchema: null,
+        inputSchema: {
+          $schema: "http://json-schema.org/draft-07/schema#",
+          type: "object",
+          properties: {
+            kind: {
+              type: "string",
+              enum: [
+                "backtest",
+                "sensitivity"
+              ],
+              description: "What to run"
+            },
+            input: {
+              type: "object",
+              propertyNames: {
+                type: "string"
+              },
+              additionalProperties: {},
+              description: "For kind='backtest': BacktestInput { symbol, preset, range, initial_capital, fast, slow, rsi_period, rsi_buy, rsi_sell, stop_pct, target_pct }. For kind='sensitivity': BacktestInput + `sweep` object with arrays of values for fast/slow/rsi_period/rsi_buy/rsi_sell (max 64 combinations)."
+            }
+          },
+          required: [
+            "kind",
+            "input"
+          ]
+        },
         outputSchema: null
       },
       {

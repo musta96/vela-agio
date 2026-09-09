@@ -16,6 +16,7 @@
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { discoverStartups } from '../_shared/startup-discovery.ts';
+import { lookupRegistries } from '../_shared/company-registries.ts';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

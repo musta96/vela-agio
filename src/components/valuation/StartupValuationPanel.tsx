@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, Rocket, Plus, Trash2, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import { WebsiteEvidence } from "@/components/valuation/WebsiteEvidence";
+import { StartupSentimentCard, type StartupSentiment } from "@/components/valuation/StartupSentimentCard";
 
 const STAGES = [
   { id: "pre_seed", label: "Pre-seed" },
@@ -88,6 +89,7 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
   const [berkus, setBerkus] = useState<Record<string, number>>(Object.fromEntries(BERKUS.map((b) => [b.key, 0.5])));
   const [loading, setLoading] = useState(false);
   const [res, setRes] = useState<Record<string, any> | null>(null);
+  const [sentiment, setSentiment] = useState<StartupSentiment | null>(null);
 
   const numOrUndef = (v: string) => (v.trim() === "" ? undefined : Number(v));
 

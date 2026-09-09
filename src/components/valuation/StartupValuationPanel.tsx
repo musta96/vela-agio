@@ -13,6 +13,7 @@ import { Loader2, Rocket, Plus, Trash2, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import { WebsiteEvidence } from "@/components/valuation/WebsiteEvidence";
 import { StartupSentimentCard, type StartupSentiment } from "@/components/valuation/StartupSentimentCard";
+import { StartupFilingsCard } from "@/components/valuation/StartupFilingsCard";
 
 const STAGES = [
   { id: "pre_seed", label: "Pre-seed" },
@@ -256,6 +257,11 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
         country={profile.country}
         onScore={setSentiment}
       />
+
+      {profile.name.trim().length >= 2 && (
+        <StartupFilingsCard name={profile.name} country={profile.country} />
+      )}
+
 
       <div className="grid gap-4 lg:grid-cols-3">
 

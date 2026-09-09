@@ -9,7 +9,7 @@ import {
   Home, Briefcase, Eye, Filter, Repeat, Sparkles, Bell, Newspaper, Wallet as WalletIcon,
   Lightbulb, Bot, Globe2, ShieldAlert, Wallet, Target, Settings as SettingsIcon, Crown,
   BookOpen, ScrollText, GraduationCap, Handshake, History, User, ShieldCheck, Network, Radar,
-  ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard,
+  ChevronDown, Banknote, PiggyBank, Bitcoin, Home as HomeIcon, Car, Watch, Building2, Boxes, CreditCard, Rocket,
   ClipboardCheck, Compass, Activity, FlaskConical, ArrowDownFromLine, Users, Calculator,
   GitCompare, Scale, Flame, Zap, CalendarClock, FileText, UserSquare, LineChart, BarChart3,
   StickyNote, FolderOpen, ClipboardList, Coins, Rows3, TrendingUp, Gauge, Users2,
@@ -341,6 +341,7 @@ const PRIVATE_MARKETS: NavGroup = {
   icon: Building2,
   items: [
     { title: "Startup Watchlist", url: "/startups", icon: Building2, badge: "new" },
+    { title: "Startup Portfolio", url: "/startup-portfolio", icon: Rocket, badge: "new" },
     { title: "Startup Screener", url: "/startup-screener", icon: Filter, badge: "new" },
     { title: "Private Equity", url: "/private-equity", icon: Briefcase, badge: "new" },
     { title: "Valuation (DCF/DDM)", url: "/valuation", icon: Calculator },

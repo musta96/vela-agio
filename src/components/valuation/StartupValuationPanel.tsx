@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, Rocket, Plus, Trash2, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import { WebsiteEvidence } from "@/components/valuation/WebsiteEvidence";
+import { StartupSentimentCard, type StartupSentiment } from "@/components/valuation/StartupSentimentCard";
 
 const STAGES = [
   { id: "pre_seed", label: "Pre-seed" },
@@ -88,6 +89,7 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
   const [berkus, setBerkus] = useState<Record<string, number>>(Object.fromEntries(BERKUS.map((b) => [b.key, 0.5])));
   const [loading, setLoading] = useState(false);
   const [res, setRes] = useState<Record<string, any> | null>(null);
+  const [sentiment, setSentiment] = useState<StartupSentiment | null>(null);
 
   const numOrUndef = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
@@ -247,7 +249,16 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
         </Card>
       </div>
 
+      <StartupSentimentCard
+        name={profile.name}
+        website={profile.website}
+        sector={profile.sector}
+        country={profile.country}
+        onScore={setSentiment}
+      />
+
       <div className="grid gap-4 lg:grid-cols-3">
+
         <Card>
           <CardHeader><CardTitle className="text-base">Scorecard factors</CardTitle></CardHeader>
           <CardContent className="space-y-3">
@@ -315,7 +326,18 @@ export function StartupValuationPanel({ initialProfile, initialForm, onResult }:
                 <Badge variant="outline">Required return {pct(res.requiredIrr?.irr)}</Badge>
                 {res.runwayMonths != null && <Badge variant="outline">Runway {Math.round(res.runwayMonths)} months</Badge>}
                 {res.round?.downRound && <Badge variant="destructive">Down round</Badge>}
+                {sentiment?.score != null && (
+                  <Badge variant={sentiment.score >= 15 ? "secondary" : sentiment.score <= -15 ? "destructive" : "outline"}>
+                    Press sentiment {sentiment.score > 0 ? `+${sentiment.score}` : sentiment.score}
+                  </Badge>
+                )}
               </div>
+              {sentiment?.score != null && Math.abs(sentiment.score) >= 25 && (
+                <p className="text-xs text-muted-foreground">
+                  Live press coverage is {sentiment.label}. That is not in the numbers above — treat it as a reason to
+                  {sentiment.score > 0 ? " push the range toward the high end." : " lean toward the low end."}
+                </p>
+              )}
               {!!res.notes?.length && (
                 <ul className="list-disc pl-5 text-sm text-muted-foreground">
                   {res.notes.map((n: string, i: number) => <li key={i}>{n}</li>)}

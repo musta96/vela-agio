@@ -300,7 +300,8 @@ async function gleifFuzzy(name: string, country?: string): Promise<RegistryRecor
     const a = r.value.data.attributes;
     const e = a.entity;
     const jur = (e.jurisdiction ?? e.legalAddress?.country ?? '').slice(0, 2).toUpperCase();
-    if (country && jur && jur !== country.toUpperCase()) continue;
+    // Group companies often register in another EU state; keep the record and
+    // show its real jurisdiction rather than dropping it.
     out.push({
       register: 'GLEIF (global LEI index)',
       jurisdiction: jur,

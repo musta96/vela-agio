@@ -152,25 +152,29 @@ Deno.serve(async (req) => {
     const domain = website ? String(website).replace(/^https?:\/\//, "").replace(/\/.*$/, "") : "";
 
     const queries = [
-      `"${company}" (funding OR startup OR raises OR investors)`,
-      sector ? `"${company}" ${sector}` : `"${company}" company`,
+      `"${company}"`,
+      sector ? `"${company}" ${sector}` : `"${company}" startup funding`,
       domain ? `"${domain}"` : "",
     ].filter(Boolean);
 
-    const [rssBatches, byo] = await Promise.all([
-      Promise.all(queries.map((q) => googleNews(q))),
+    const [gdeltBatches, bingBatches, byo] = await Promise.all([
+      Promise.all(queries.slice(0, 2).map((q) => gdelt(q))),
+      Promise.all(queries.map((q) => bingNews(q))),
       fetchAllByoNews(auth, company, company).catch(() => []),
     ]);
 
     const seen = new Set<string>();
-    const articles: Article[] = [...rssBatches.flat(), ...(byo as Article[])]
+    const articles: Article[] = [...gdeltBatches.flat(), ...bingBatches.flat(), ...(byo as Article[])]
       .filter((a) => {
         const k = a.title.toLowerCase().slice(0, 90);
         if (seen.has(k)) return false;
         seen.add(k);
-        // Keep only pieces that actually mention the company or its domain.
+        // Keep only pieces that actually mention the company or come from its own domain.
         const hay = `${a.title} ${a.description ?? ""}`.toLowerCase();
-        return hay.includes(company.toLowerCase()) || (!!domain && hay.includes(domain.toLowerCase()));
+        const first = company.toLowerCase().split(/\s+/)[0];
+        return hay.includes(company.toLowerCase())
+          || (first.length >= 4 && hay.includes(first))
+          || (!!domain && (hay.includes(domain.toLowerCase()) || a.link.toLowerCase().includes(domain.toLowerCase())));
       })
       .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
       .slice(0, 24);
@@ -178,8 +182,11 @@ Deno.serve(async (req) => {
     if (articles.length === 0) {
       return json({
         company, country: country ?? null, score: null, label: "no coverage",
-        summary: `No press coverage found for ${company} in the free and connected news sources. Add a website or connect a news API key in Settings → Connections for wider reach.`,
-        drivers: [], articles: [], sources: ["Google News"], articleCount: 0,
+        summary: `No press coverage found for ${company} in the free and connected news sources. Add the company website, or connect a news API key in Settings → Connections, for wider reach.`,
+        drivers: [], articles: [], sources: ["GDELT", "Bing News"], articleCount: 0,
+        method: "none", asOf: new Date().toISOString(),
+      });
+    }
         method: "none", asOf: new Date().toISOString(),
       });
     }

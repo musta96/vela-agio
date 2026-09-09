@@ -24,7 +24,7 @@ const stageLabel = (id: string) => STAGE_OPTIONS.find((s) => s.id === id)?.label
 const pct = (v: number | null | undefined, d = 0) => (v == null || !Number.isFinite(v) ? "—" : `${(v * 100).toFixed(d)}%`);
 
 /** Multi-select rendered as toggle chips — no hidden menus. */
-function Chips({ label, options, value, onChange }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void }) {
+function Chips({ label, options, value, onChange, labels }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void; labels?: Record<string, string> }) {
   return (
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
@@ -39,7 +39,7 @@ function Chips({ label, options, value, onChange }: { label: string; options: st
               onClick={() => onChange(on ? value.filter((v) => v !== o) : [...value, o])}
               className={`rounded-full border px-2.5 py-1 text-xs capitalize transition-colors ${on ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted"}`}
             >
-              {o}
+              {labels?.[o] ?? o}
             </button>
           );
         })}
@@ -97,7 +97,7 @@ export default function StartupScreener() {
             <div className="grid gap-4 lg:grid-cols-3">
               <Chips label="Country" options={COUNTRY_OPTIONS} value={countries} onChange={setCountries} />
               <Chips label="Sector" options={SECTOR_OPTIONS} value={sectors} onChange={setSectors} />
-              <Chips label="Stage" options={STAGE_OPTIONS.map((s) => s.id)} value={stages} onChange={setStages} />
+              <Chips label="Stage" options={STAGE_OPTIONS.map((s) => s.id)} value={stages} onChange={setStages} labels={Object.fromEntries(STAGE_OPTIONS.map((s) => [s.id, s.label]))} />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1">

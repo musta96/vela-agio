@@ -281,6 +281,42 @@ async function cordis(name: string): Promise<StartupFiling[]> {
   });
 }
 
+// ------------------------------------------------------------- GLEIF fuzzy
+
+/** Resolve a trade name to legal entities through the GLEIF fuzzy index. */
+async function gleifFuzzy(name: string, country?: string): Promise<RegistryRecord[]> {
+  const j = await jget(`https://api.gleif.org/api/v1/fuzzycompletions?field=entity.legalName&q=${encodeURIComponent(name)}`);
+  const ids: string[] = [];
+  for (const row of j?.data ?? []) {
+    const value = row?.attributes?.value ?? '';
+    const lei = row?.relationships?.['lei-records']?.data?.id;
+    if (lei && similar(value, name)) ids.push(lei);
+    if (ids.length >= 4) break;
+  }
+  const recs = await Promise.allSettled(ids.map((lei) => jget(`https://api.gleif.org/api/v1/lei-records/${lei}`)));
+  const out: RegistryRecord[] = [];
+  for (const r of recs) {
+    if (r.status !== 'fulfilled' || !r.value?.data) continue;
+    const a = r.value.data.attributes;
+    const e = a.entity;
+    const jur = (e.jurisdiction ?? e.legalAddress?.country ?? '').slice(0, 2).toUpperCase();
+    if (country && jur && jur !== country.toUpperCase()) continue;
+    out.push({
+      register: 'GLEIF (global LEI index)',
+      jurisdiction: jur,
+      legalName: e.legalName?.name ?? name,
+      identifier: e.registeredAs || a.lei,
+      identifierType: e.registeredAs ? 'Company / VAT number' : 'LEI',
+      status: e.status ?? null,
+      registeredAt: a.registration?.initialRegistrationDate?.slice(0, 10) ?? null,
+      address: [e.legalAddress?.addressLines?.join(' '), e.legalAddress?.city, e.legalAddress?.country].filter(Boolean).join(', ') || null,
+      activity: e.legalForm?.id ? `Legal form ${e.legalForm.id}` : null,
+      url: `https://search.gleif.org/#/record/${a.lei}`,
+    });
+  }
+  return out;
+}
+
 // --------------------------------------------------------------- entrypoint
 
 export async function fetchStartupFilings(input: {

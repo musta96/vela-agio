@@ -1,7 +1,7 @@
 // startup-sentiment — real, live sentiment for a PRIVATE company / startup.
 //
 // Private companies have no ticker, so we read what the press actually writes
-// about them: Google News RSS (free, no key) for the company name and, when the
+// about them: the GDELT global news index and Bing News RSS (both free, no key) and, when the
 // user has their own news keys saved, NewsAPI / Marketaux / Finnhub / Benzinga
 // through the shared BYO helpers. Headlines are then scored — with the user's
 // AI provider when available, with a transparent keyword model otherwise.

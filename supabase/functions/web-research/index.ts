@@ -215,6 +215,7 @@ function parseResults(html: string): Hit[] {
 }
 
 async function readable(url: string): Promise<string> {
+  if (!isSafePublicUrl(url)) return '[fetch blocked: only public http(s) addresses are allowed]';
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12_000);

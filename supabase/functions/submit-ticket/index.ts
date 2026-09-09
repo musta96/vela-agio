@@ -81,12 +81,16 @@ Deno.serve(async (req) => {
   const [{ count: recent10 }, { count: recent24h }, { data: dupe }] = await Promise.all([
     admin.from("support_tickets").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", tenMinAgo),
     admin.from("support_tickets").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", dayAgo),
-    admin.from("support_tickets").select("id").eq("user_id", user.id).eq("subject", subject).eq("message", message).gte("created_at", fiveMinAgo).limit(1),
+    admin.from("support_tickets").select("id, created_at").eq("user_id", user.id).eq("subject", subject).eq("message", message).gte("created_at", fiveMinAgo).limit(1),
   ]);
 
   if ((recent10 ?? 0) >= 5)  return json({ error: "Too many submissions. Please wait 10 minutes before submitting again." }, 429);
   if ((recent24h ?? 0) >= 20) return json({ error: "Daily ticket limit reached. Please email support directly." }, 429);
-  if (dupe && dupe.length > 0) return json({ error: "This looks like a duplicate of a ticket you just submitted. Please wait a few minutes or change the subject/message." }, 429);
+  // Idempotent: an identical resubmit (double-click, retry) returns the existing ticket instead of erroring.
+  if (dupe && dupe.length > 0) {
+    const existing = dupe[0] as { id: string; created_at: string };
+    return json({ ok: true, duplicate: true, id: existing.id, created_at: existing.created_at });
+  }
 
   // ---- Insert ----
   const { data: ticket, error: insErr } = await admin

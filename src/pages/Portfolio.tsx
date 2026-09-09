@@ -34,6 +34,7 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { PortfolioSimulator } from "@/components/PortfolioSimulator";
 import { PortfolioSuggestions } from "@/components/PortfolioSuggestions";
 import { ProgressiveHint } from "@/components/onboarding/ProgressiveHint";
+import { PrivateHoldingsSection } from "@/components/portfolio/PrivateHoldingsSection";
 
 interface PortfolioStock {
   symbol: string;

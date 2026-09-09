@@ -41,6 +41,13 @@ export const PROVIDERS: ProviderSpec[] = [
   { id: 'bigdata', name: 'Bigdata.com (RavenPack)', category: 'news', cost: 'paid', minTier: 'enterprise', envKey: 'BIGDATA_API_KEY', vaultKey: 'BIGDATA_API_KEY', description: 'News analytics and entity-level sentiment at scale.' },
   { id: 'datasite', name: 'Datasite', category: 'research', cost: 'paid', minTier: 'enterprise', envKey: 'DATASITE_API_KEY', vaultKey: 'DATASITE_API_KEY', description: 'M&A deal-room documents and diligence workflow.' },
   { id: 'mergerlinks', name: 'MergerLinks', category: 'news', cost: 'paid', minTier: 'pro', envKey: 'MERGERLINKS_API_KEY', vaultKey: 'MERGERLINKS_API_KEY', description: 'M&A transactions, advisors and league-table news.' },
+
+  // --- Startup / private-market discovery ---
+  { id: 'sec_formd', name: 'SEC Form D filings', category: 'research', cost: 'free', minTier: 'free', description: 'Recent US private-company fundraising filings from SEC EDGAR.' },
+  { id: 'startup_news', name: 'Startup funding news', category: 'news', cost: 'free', minTier: 'free', description: 'Google News funding-announcement search for private companies.' },
+  { id: 'crunchbase_api', name: 'Crunchbase', category: 'research', cost: 'paid', minTier: 'plus', envKey: 'CRUNCHBASE_API_KEY', vaultKey: 'CRUNCHBASE_API_KEY', description: 'Private-company profiles, funding rounds and investors.' },
+  { id: 'pitchbook_api', name: 'PitchBook', category: 'research', cost: 'paid', minTier: 'enterprise', envKey: 'PITCHBOOK_API_KEY', vaultKey: 'PITCHBOOK_API_KEY', description: 'PE/VC deal flow, valuations and LP data.' },
+  { id: 'dealroom_api', name: 'Dealroom', category: 'research', cost: 'paid', minTier: 'enterprise', envKey: 'DEALROOM_API_KEY', vaultKey: 'DEALROOM_API_KEY', description: 'European and global startup ecosystem data.' },
 ];
 
 const ORDER: Tier[] = ['free', 'plus', 'pro', 'enterprise'];

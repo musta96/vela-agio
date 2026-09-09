@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
     const candidates: Candidate[] = Array.isArray(body?.candidates) ? body.candidates.slice(0, 100) : [];
     const warnings: string[] = [];
 
-    // Pull the caller's saved startups when asked. RLS scopes them to the user.
-    if (source !== 'discover' && body?.includeSaved !== false && auth) {
+    // Pull the caller's saved startups only when explicitly requested. RLS scopes them to the user.
+    if ((source === 'saved' || body?.includeSaved === true) && auth) {
       const sb = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_ANON_KEY')!,

@@ -187,9 +187,6 @@ Deno.serve(async (req) => {
         method: "none", asOf: new Date().toISOString(),
       });
     }
-        method: "none", asOf: new Date().toISOString(),
-      });
-    }
 
     let score: number;
     let summary = "";

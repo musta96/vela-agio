@@ -22,7 +22,30 @@ async function fetchQuotes(symbols: string[]): Promise<Record<string, LiveQuote>
     body: { action: "quote", symbols },
   });
   if (error || !data?.quotes) return {};
-  return data.quotes as Record<string, LiveQuote>;
+  const rawQuotes = data.quotes;
+  if (typeof rawQuotes !== "object" || rawQuotes === null || Array.isArray(rawQuotes)) return {};
+
+  const normalized: Record<string, LiveQuote> = {};
+  for (const [symbol, raw] of Object.entries(rawQuotes as Record<string, unknown>)) {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
+    const quote = raw as Record<string, unknown>;
+    const finiteNumber = (value: unknown, fallback = 0) =>
+      typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    normalized[symbol] = {
+      symbol: typeof quote.symbol === "string" ? quote.symbol : symbol,
+      price: finiteNumber(quote.price, Number.NaN),
+      change: finiteNumber(quote.change),
+      previousClose: finiteNumber(quote.previousClose, Number.NaN),
+      currency: typeof quote.currency === "string" ? quote.currency : undefined,
+      marketState: typeof quote.marketState === "string" ? quote.marketState : undefined,
+      updatedAt: finiteNumber(quote.updatedAt, Date.now()),
+      source: typeof quote.source === "string" ? quote.source : undefined,
+      asOf: typeof quote.asOf === "number" && Number.isFinite(quote.asOf) ? quote.asOf : undefined,
+      stale: typeof quote.stale === "boolean" ? quote.stale : undefined,
+      quoteType: typeof quote.quoteType === "string" ? quote.quoteType : undefined,
+    };
+  }
+  return normalized;
 }
 
 export interface UseLiveQuotesResult {

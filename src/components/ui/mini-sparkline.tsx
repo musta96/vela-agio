@@ -61,7 +61,7 @@ export function ChangePill({ pct, className = "" }: { pct: number; className?: s
   const sign = positive ? "+" : "";
   return (
     <span className={`text-sm font-semibold tabular-nums ${cls} ${className}`}>
-      {sign}{pct.toFixed(2)}%
+      {sign}{value.toFixed(2)}%
     </span>
   );
 }

@@ -136,7 +136,7 @@ const Watchlist = () => {
             <ul className="divide-y divide-border min-w-[680px]">
               {visible.map((item) => {
                 const q = quotes[item.symbol];
-                const change = q?.change ?? 0;
+                const change = typeof q?.change === "number" && Number.isFinite(q.change) ? q.change : 0;
                 const rule = rules.find((r) => r.symbol === item.symbol);
                 const alertCount = rule?.enabled
                   ? [rule.priceAbove, rule.priceBelow, rule.changeUpPct, rule.changeDownPct, rule.sentimentAbove, rule.sentimentBelow].filter((v) => v != null).length

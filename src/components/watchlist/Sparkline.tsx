@@ -7,7 +7,9 @@ interface Props {
 
 /** Tiny inline trend line built from stored watchlist snapshots. */
 export function Sparkline({ values, width = 90, height = 26, label }: Props) {
-  if (values.length < 2) return null;
+  const clean = (values ?? []).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (clean.length < 2) return null;
+  values = clean;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;

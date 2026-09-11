@@ -19,7 +19,8 @@ export function MiniSparkline({
   stroke,
 }: MiniSparklineProps) {
   const data = useMemo(() => {
-    if (points && points.length > 1) return points;
+    const clean = (points ?? []).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (clean.length > 1) return clean;
     if (trend === "down") return [9, 8, 9, 7, 8, 6, 5, 4, 3];
     if (trend === "flat") return [5, 5, 6, 5, 5, 6, 5, 5, 5];
     return [3, 4, 4, 5, 6, 6, 8, 9, 10];
@@ -49,7 +50,8 @@ export function MiniSparkline({
 }
 
 export function ChangePill({ pct, className = "" }: { pct: number; className?: string }) {
-  const positive = pct > 0.005;
+  const value = typeof pct === "number" && Number.isFinite(pct) ? pct : 0;
+  const positive = value > 0.005;
   const negative = pct < -0.005;
   const cls = positive
     ? "text-success"
@@ -59,7 +61,7 @@ export function ChangePill({ pct, className = "" }: { pct: number; className?: s
   const sign = positive ? "+" : "";
   return (
     <span className={`text-sm font-semibold tabular-nums ${cls} ${className}`}>
-      {sign}{pct.toFixed(2)}%
+      {sign}{value.toFixed(2)}%
     </span>
   );
 }

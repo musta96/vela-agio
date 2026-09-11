@@ -20,6 +20,14 @@ import { useWatchlistInsights } from "@/hooks/useWatchlistInsights";
 import { classifyInstrument, detailPathFor, INSTRUMENT_BADGE, INSTRUMENT_LABEL } from "@/lib/instrumentType";
 import { Sparkline } from "@/components/watchlist/Sparkline";
 
+const finiteNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const formatPrice = (value: unknown, currency: string): string => {
+  const price = finiteNumber(value);
+  return price === null ? "—" : `${currency}${price.toFixed(2)}`;
+};
+
 const Watchlist = () => {
   const { items, remove, add, isWatched } = useWatchlist();
   const { toast } = useToast();
@@ -136,7 +144,8 @@ const Watchlist = () => {
             <ul className="divide-y divide-border min-w-[680px]">
               {visible.map((item) => {
                 const q = quotes[item.symbol];
-                const change = typeof q?.change === "number" && Number.isFinite(q.change) ? q.change : 0;
+                const change = finiteNumber(q?.change) ?? 0;
+                const price = finiteNumber(q?.price);
                 const rule = rules.find((r) => r.symbol === item.symbol);
                 const alertCount = rule?.enabled
                   ? [rule.priceAbove, rule.priceBelow, rule.changeUpPct, rule.changeDownPct, rule.sentimentAbove, rule.sentimentBelow].filter((v) => v != null).length
@@ -159,9 +168,7 @@ const Watchlist = () => {
                       <div className="text-xs text-muted-foreground truncate">{item.name}</div>
                     </Link>
                     <div className="text-right tabular-nums font-semibold text-sm w-24">
-                      {typeof q?.price === "number" && Number.isFinite(q.price)
-                        ? `${currency}${q.price.toFixed(2)}`
-                        : "—"}
+                      {formatPrice(price, currency)}
                     </div>
                     <div className="w-16 text-right">
                       {typeof change === "number" && Number.isFinite(change) && <ChangePill pct={change} />}
@@ -201,7 +208,7 @@ const Watchlist = () => {
                     )}
                     <div className="flex items-center gap-1">
                       <span className="sr-only">{alertCount} alerts</span>
-                      <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={q?.price} />
+                      <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={price ?? undefined} />
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
                         <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                       </Button>

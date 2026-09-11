@@ -28,6 +28,9 @@ const numOrNull = (v: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+const formatCurrentPrice = (value: unknown): string =>
+  typeof value === "number" && Number.isFinite(value) ? ` Current price: ${value.toFixed(2)}.` : "";
+
 export const AlertSettingsDialog = ({ symbol, name, currentPrice }: Props) => {
   const { getRule, upsertRule, removeRule } = useAlerts();
   const { toast } = useToast();
@@ -113,7 +116,7 @@ export const AlertSettingsDialog = ({ symbol, name, currentPrice }: Props) => {
           <DialogTitle>Alerts for {symbol}</DialogTitle>
           <DialogDescription>
             Get notified when price or sentiment matches your conditions.
-            {typeof currentPrice === "number" ? ` Current price: ${currentPrice.toFixed(2)}.` : ""}
+            {formatCurrentPrice(currentPrice)}
           </DialogDescription>
         </DialogHeader>
 

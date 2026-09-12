@@ -126,7 +126,7 @@ const Watchlist = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
         {/* Main list */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="min-w-0 rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-5 py-4 flex flex-wrap items-center gap-2 border-b border-border">
             <Input
               value={filter}
@@ -145,8 +145,8 @@ const Watchlist = () => {
               <Button asChild size="sm"><Link to="/dashboard">Browse stocks</Link></Button>
             </div>
           ) : (
-            <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-            <ul className="divide-y divide-border min-w-[680px]">
+            <div className="min-w-0 md:overflow-x-auto [-webkit-overflow-scrolling:touch]">
+            <ul className="divide-y divide-border md:min-w-[680px]">
               {visible.map((item) => {
                 const q = quotes[item.symbol];
                 const change = finiteNumber(q?.change) ?? 0;

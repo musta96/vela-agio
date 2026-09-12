@@ -161,25 +161,34 @@ const Watchlist = () => {
                 const points = snapshots[item.symbol] ?? [];
                 const currency = q?.currency === "USD" ? "$" : q?.currency === "GBP" ? "£" : "€";
                 return (
-                  <li key={item.symbol} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
+                  <li key={item.symbol} className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] items-center gap-3 md:gap-4 px-4 md:px-5 py-3 hover:bg-muted/40 transition-colors">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                     <Link to={detailPathFor(kind, item.symbol)} className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span className="font-bold text-sm">{item.symbol}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${INSTRUMENT_BADGE[kind]}`}>
                           {INSTRUMENT_LABEL[kind]}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground truncate">{item.name}</div>
+                      <div className="md:hidden mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        {ins?.velaScore != null && (
+                          <span className="tabular-nums">Vela {Math.round(ins.velaScore)}/100</span>
+                        )}
+                        {ins?.morningstar != null && <span>{"★".repeat(Math.round(ins.morningstar))}</span>}
+                      </div>
                     </Link>
-                    <div className="text-right tabular-nums font-semibold text-sm w-24">
+                    <div className="text-right tabular-nums font-semibold text-sm md:w-24">
                       {formatPrice(price, currency)}
+                      <div className="md:hidden mt-0.5 flex justify-end">
+                        {typeof change === "number" && Number.isFinite(change) && <ChangePill pct={change} />}
+                      </div>
                     </div>
-                    <div className="w-16 text-right">
+                    <div className="hidden md:block w-16 text-right">
                       {typeof change === "number" && Number.isFinite(change) && <ChangePill pct={change} />}
                     </div>
 
-                    <div className="w-24 text-right text-xs">
+                    <div className="hidden md:block w-24 text-right text-xs">
                       {ins?.loading ? (
                         <span className="text-muted-foreground">…</span>
                       ) : ins?.velaScore != null ? (
@@ -191,7 +200,7 @@ const Watchlist = () => {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </div>
-                    <div className="w-20 text-right text-xs">
+                    <div className="hidden md:block w-20 text-right text-xs">
                       {ins?.morningstar != null ? (
                         <>
                           <div className="font-semibold">{"★".repeat(Math.round(ins.morningstar))}</div>
@@ -201,24 +210,27 @@ const Watchlist = () => {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </div>
-                    {points.length >= 2 ? (
-                      <Sparkline
-                        values={points.map((p) => p.price).filter((v): v is number => v != null)}
-                        width={90}
-                        height={26}
-                        label={`${points.length} days tracked`}
-                      />
-                    ) : (
-                      <MiniSparkline trend={trend} width={90} height={26} />
-                    )}
-                    <div className="flex items-center gap-1">
+                    <div className="hidden md:block">
+                      {points.length >= 2 ? (
+                        <Sparkline
+                          values={points.map((p) => p.price).filter((v): v is number => v != null)}
+                          width={90}
+                          height={26}
+                          label={`${points.length} days tracked`}
+                        />
+                      ) : (
+                        <MiniSparkline trend={trend} width={90} height={26} />
+                      )}
+                    </div>
+                    <div className="col-span-3 md:col-span-1 flex items-center justify-end gap-1">
                       <span className="sr-only">{alertCount} alerts</span>
                       <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={price ?? undefined} />
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 md:h-7 md:w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
                         <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </li>
+
                 );
               })}
             </ul>

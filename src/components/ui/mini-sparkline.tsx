@@ -1,5 +1,10 @@
 import { useMemo } from "react";
 
+const roundCoordinate = (value: number, decimals: number): string => {
+  const factor = 10 ** decimals;
+  return String(Math.round(value * factor) / factor);
+};
+
 interface MiniSparklineProps {
   trend?: "up" | "down" | "flat";
   points?: number[];
@@ -31,7 +36,7 @@ export function MiniSparkline({
   const range = max - min || 1;
   const stepX = width / (data.length - 1);
   const path = data
-    .map((v, i) => `${i === 0 ? "M" : "L"}${(i * stepX).toFixed(2)},${(height - ((v - min) / range) * (height - 4) - 2).toFixed(2)}`)
+    .map((v, i) => `${i === 0 ? "M" : "L"}${roundCoordinate(i * stepX, 2)},${roundCoordinate(height - ((v - min) / range) * (height - 4) - 2, 2)}`)
     .join(" ");
 
   const inferred = (() => {
@@ -52,7 +57,7 @@ export function MiniSparkline({
 export function ChangePill({ pct, className = "" }: { pct: number; className?: string }) {
   const value = typeof pct === "number" && Number.isFinite(pct) ? pct : 0;
   const positive = value > 0.005;
-  const negative = pct < -0.005;
+  const negative = value < -0.005;
   const cls = positive
     ? "text-success"
     : negative
@@ -61,7 +66,7 @@ export function ChangePill({ pct, className = "" }: { pct: number; className?: s
   const sign = positive ? "+" : "";
   return (
     <span className={`text-sm font-semibold tabular-nums ${cls} ${className}`}>
-      {sign}{value.toFixed(2)}%
+      {sign}{new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%
     </span>
   );
 }

@@ -23,9 +23,14 @@ import { Sparkline } from "@/components/watchlist/Sparkline";
 const finiteNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
+const fixedTwo = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const formatPrice = (value: unknown, currency: string): string => {
   const price = finiteNumber(value);
-  return price === null ? "—" : `${currency}${price.toFixed(2)}`;
+  return price === null ? "—" : `${currency}${fixedTwo.format(price)}`;
 };
 
 const Watchlist = () => {

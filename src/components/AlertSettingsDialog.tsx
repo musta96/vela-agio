@@ -28,8 +28,13 @@ const numOrNull = (v: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+const fixedTwo = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const formatCurrentPrice = (value: unknown): string =>
-  typeof value === "number" && Number.isFinite(value) ? ` Current price: ${value.toFixed(2)}.` : "";
+  typeof value === "number" && Number.isFinite(value) ? ` Current price: ${fixedTwo.format(value)}.` : "";
 
 export const AlertSettingsDialog = ({ symbol, name, currentPrice }: Props) => {
   const { getRule, upsertRule, removeRule } = useAlerts();

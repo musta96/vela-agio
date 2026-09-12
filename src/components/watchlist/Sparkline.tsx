@@ -5,6 +5,8 @@ interface Props {
   label?: string;
 }
 
+const roundCoordinate = (value: number): string => String(Math.round(value * 10) / 10);
+
 /** Tiny inline trend line built from stored watchlist snapshots. */
 export function Sparkline({ values, width = 90, height = 26, label }: Props) {
   const clean = (values ?? []).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
@@ -15,7 +17,7 @@ export function Sparkline({ values, width = 90, height = 26, label }: Props) {
   const span = max - min || 1;
   const step = width / (values.length - 1);
   const d = values
-    .map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(height - ((v - min) / span) * (height - 4) - 2).toFixed(1)}`)
+    .map((v, i) => `${i === 0 ? "M" : "L"}${roundCoordinate(i * step)},${roundCoordinate(height - ((v - min) / span) * (height - 4) - 2)}`)
     .join(" ");
   const rising = values[values.length - 1] >= values[0];
   return (

@@ -68,7 +68,7 @@ export function ConsentBanner() {
         <div
           role="dialog"
           aria-label="Cookie consent"
-          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-md z-[100]
+          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-md z-[100] max-h-[70vh] overflow-y-auto
             rounded-xl border border-border bg-card shadow-2xl p-4 animate-in slide-in-from-bottom-4"
         >
           <div className="flex items-start gap-3 mb-3">

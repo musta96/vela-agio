@@ -1252,8 +1252,8 @@ const Portfolio = () => {
         />
 
         {/* Bottom row - Allocation / Risk / Italian capital gains (mockup v2) */}
-        <div className="grid lg:grid-cols-3 gap-6 mt-8">
-          <Card className="p-6 rounded-2xl">
+        <div className="grid lg:grid-cols-3 gap-4 mt-6 sm:gap-6 sm:mt-8">
+          <Card className="p-4 sm:p-6 rounded-2xl">
             <h3 className="text-sm font-semibold mb-4">{t("portfolio.allocationBySector")}</h3>
             <div className="space-y-3">
               {(() => {
@@ -1289,7 +1289,7 @@ const Portfolio = () => {
             </div>
           </Card>
 
-          <Card className="p-6 rounded-2xl">
+          <Card className="p-4 sm:p-6 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Risk snapshot</h3>
               <Link to="/risk" className="text-xs text-primary hover:underline">Open Risk Engine →</Link>
@@ -1314,7 +1314,7 @@ const Portfolio = () => {
             </div>
           </Card>
 
-          <Card className="p-6 rounded-2xl">
+          <Card className="p-4 sm:p-6 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Italian capital gains</h3>
               <span className="inline-flex items-center rounded-full bg-warning/15 text-warning text-[11px] font-semibold px-2.5 py-0.5">26% TUIR</span>

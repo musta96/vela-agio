@@ -916,22 +916,22 @@ const Portfolio = () => {
         />
 
         {/* KPI strip - mockup v2 */}
-        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
-          <div className="p-5 flex flex-col gap-1.5">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-5 sm:mb-8">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.totalValue")}</span>
-            <div className="text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <span className="text-[11px] text-muted-foreground">{t("portfolio.allTime")}</span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.today")}</span>
-            <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+            <div className={`text-xl sm:text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{Math.abs(gainBase * 0.01).toFixed(2)}
             </div>
             <span className="text-[11px] text-muted-foreground">{t("portfolio.vsBenchmark")}</span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.unrealisedGain")}</span>
-            <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+            <div className={`text-xl sm:text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{gainBase.toFixed(2)}
             </div>
             <span className="text-[11px] text-muted-foreground">
@@ -943,14 +943,14 @@ const Portfolio = () => {
               })}
             </span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Italian tax (26%)</span>
-            <div className="text-2xl font-bold tracking-tight">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</div>
             <span className="text-[11px] text-muted-foreground">Net after tax {baseSign}{(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}</span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Holdings</span>
-            <div className="text-2xl font-bold tracking-tight">{portfolio.length}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{portfolio.length}</div>
             <span className="text-[11px] text-muted-foreground">across {new Set(portfolio.map(p => p.currency)).size} currencies</span>
           </div>
         </div>

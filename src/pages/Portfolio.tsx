@@ -577,8 +577,8 @@ const Portfolio = () => {
       <main>
 
       {/* Portfolio Header */}
-      <section className="p-6 sm:p-8">
-        <div className="mb-6"><BrokerSyncCard /></div>
+      <section className="px-4 py-5 sm:p-8">
+        <div className="mb-4 sm:mb-6"><BrokerSyncCard /></div>
         <div className="mb-4">
           <ProgressiveHint
             hintKey="portfolio-first-stress-test"
@@ -588,13 +588,13 @@ const Portfolio = () => {
             cta={{ to: "/risk", label: "Open Risk Engine" }}
           />
         </div>
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <div className="min-w-0 flex items-start gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5 sm:gap-4 sm:mb-8">
+          <div className="min-w-0 flex items-start gap-3 sm:gap-4">
             <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Briefcase className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-3xl font-bold tracking-tight leading-tight flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight flex flex-wrap items-center gap-2">
                 {active?.name || "My Portfolio"}
                 {active?.id && active.id === primaryId && (
                   <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10"><Star className="h-3 w-3 fill-current" /> Main</Badge>
@@ -615,7 +615,7 @@ const Portfolio = () => {
           </div>
 
           {/* Portfolio switcher + actions */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-hide [-webkit-overflow-scrolling:touch] pb-1 lg:flex-wrap lg:overflow-visible lg:pb-0 [&>*]:shrink-0">
             {user && portfolios.length > 0 && (
               <Select value={activeId || undefined} onValueChange={(v) => setActiveId(v)}>
                 <SelectTrigger className="w-[200px]">
@@ -916,22 +916,22 @@ const Portfolio = () => {
         />
 
         {/* KPI strip - mockup v2 */}
-        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
-          <div className="p-5 flex flex-col gap-1.5">
+        <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-5 sm:mb-8">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.totalValue")}</span>
-            <div className="text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <span className="text-[11px] text-muted-foreground">{t("portfolio.allTime")}</span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.today")}</span>
-            <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+            <div className={`text-xl sm:text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{Math.abs(gainBase * 0.01).toFixed(2)}
             </div>
             <span className="text-[11px] text-muted-foreground">{t("portfolio.vsBenchmark")}</span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.unrealisedGain")}</span>
-            <div className={`text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
+            <div className={`text-xl sm:text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
               {gainBase >= 0 ? '+' : ''}{baseSign}{gainBase.toFixed(2)}
             </div>
             <span className="text-[11px] text-muted-foreground">
@@ -943,14 +943,14 @@ const Portfolio = () => {
               })}
             </span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Italian tax (26%)</span>
-            <div className="text-2xl font-bold tracking-tight">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</div>
             <span className="text-[11px] text-muted-foreground">Net after tax {baseSign}{(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}</span>
           </div>
-          <div className="p-5 flex flex-col gap-1.5">
+          <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Holdings</span>
-            <div className="text-2xl font-bold tracking-tight">{portfolio.length}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{portfolio.length}</div>
             <span className="text-[11px] text-muted-foreground">across {new Set(portfolio.map(p => p.currency)).size} currencies</span>
           </div>
         </div>
@@ -1175,24 +1175,24 @@ const Portfolio = () => {
               const isForeign = stock.currency && stock.currency !== "EUR";
 
               return (
-                <Card key={stock.symbol} className="p-6 card-gradient border-border hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-start justify-between">
-                    <Link to={`/stock/${stock.symbol}`} className="flex-1 hover:opacity-80 transition-opacity">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div>
-                          <h3 className="text-xl font-bold text-foreground">{stock.symbol}</h3>
-                          <p className="text-sm text-muted-foreground">{stock.name}</p>
+                <Card key={stock.symbol} className="p-4 sm:p-6 card-gradient border-border hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link to={`/stock/${stock.symbol}`} className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+                        <div className="min-w-0">
+                          <h3 className="text-lg sm:text-xl font-bold text-foreground">{stock.symbol}</h3>
+                          <p className="truncate text-sm text-muted-foreground">{stock.name}</p>
                         </div>
                         <Badge variant={isPositive ? "default" : "destructive"} className={isPositive ? "bg-success/10 text-success" : ""}>
                           {isPositive ? "+" : ""}{gainPercent.toFixed(2)}%
                         </Badge>
-                        <Badge variant="secondary" className="text-xs" aria-label={`Instrument type: ${holdingClasses.get(stock.symbol) ?? "Stocks"}`}>
+                        <Badge variant="secondary" className="hidden sm:inline-flex text-xs" aria-label={`Instrument type: ${holdingClasses.get(stock.symbol) ?? "Stocks"}`}>
                           {holdingClasses.get(stock.symbol) ?? "Stocks"}
                         </Badge>
                         {isForeign && <Badge variant="outline" className="text-xs">{stock.currency}</Badge>}
                       </div>
 
-                      <div className="grid md:grid-cols-5 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-2.5 sm:gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground mb-1">{t("portfolio.shares")}</p>
                           <p className="font-semibold text-foreground">{stock.shares}</p>
@@ -1252,8 +1252,8 @@ const Portfolio = () => {
         />
 
         {/* Bottom row - Allocation / Risk / Italian capital gains (mockup v2) */}
-        <div className="grid lg:grid-cols-3 gap-6 mt-8">
-          <Card className="p-6 rounded-2xl">
+        <div className="grid lg:grid-cols-3 gap-4 mt-6 sm:gap-6 sm:mt-8">
+          <Card className="p-4 sm:p-6 rounded-2xl">
             <h3 className="text-sm font-semibold mb-4">{t("portfolio.allocationBySector")}</h3>
             <div className="space-y-3">
               {(() => {
@@ -1289,7 +1289,7 @@ const Portfolio = () => {
             </div>
           </Card>
 
-          <Card className="p-6 rounded-2xl">
+          <Card className="p-4 sm:p-6 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Risk snapshot</h3>
               <Link to="/risk" className="text-xs text-primary hover:underline">Open Risk Engine →</Link>
@@ -1314,7 +1314,7 @@ const Portfolio = () => {
             </div>
           </Card>
 
-          <Card className="p-6 rounded-2xl">
+          <Card className="p-4 sm:p-6 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Italian capital gains</h3>
               <span className="inline-flex items-center rounded-full bg-warning/15 text-warning text-[11px] font-semibold px-2.5 py-0.5">26% TUIR</span>

@@ -588,13 +588,13 @@ const Portfolio = () => {
             cta={{ to: "/risk", label: "Open Risk Engine" }}
           />
         </div>
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <div className="min-w-0 flex items-start gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5 sm:gap-4 sm:mb-8">
+          <div className="min-w-0 flex items-start gap-3 sm:gap-4">
             <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Briefcase className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-3xl font-bold tracking-tight leading-tight flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight flex flex-wrap items-center gap-2">
                 {active?.name || "My Portfolio"}
                 {active?.id && active.id === primaryId && (
                   <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10"><Star className="h-3 w-3 fill-current" /> Main</Badge>
@@ -615,7 +615,7 @@ const Portfolio = () => {
           </div>
 
           {/* Portfolio switcher + actions */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-hide [-webkit-overflow-scrolling:touch] pb-1 lg:flex-wrap lg:overflow-visible lg:pb-0 [&>*]:shrink-0">
             {user && portfolios.length > 0 && (
               <Select value={activeId || undefined} onValueChange={(v) => setActiveId(v)}>
                 <SelectTrigger className="w-[200px]">

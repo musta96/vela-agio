@@ -577,8 +577,8 @@ const Portfolio = () => {
       <main>
 
       {/* Portfolio Header */}
-      <section className="p-6 sm:p-8">
-        <div className="mb-6"><BrokerSyncCard /></div>
+      <section className="px-4 py-5 sm:p-8">
+        <div className="mb-4 sm:mb-6"><BrokerSyncCard /></div>
         <div className="mb-4">
           <ProgressiveHint
             hintKey="portfolio-first-stress-test"

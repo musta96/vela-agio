@@ -107,7 +107,8 @@ export function BrokerSyncCard() {
           </>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">Connect Interactive Brokers, Robinhood, Schwab, Questrade and 20+ more brokers to import your real holdings read-only. Configure SnapTrade keys in Settings → Data Providers first.</p>
+            <p className="hidden sm:block text-sm text-muted-foreground">Connect Interactive Brokers, Robinhood, Schwab, Questrade and 20+ more brokers to import your real holdings read-only. Configure SnapTrade keys in Settings → Data Providers first.</p>
+            <p className="sm:hidden text-sm text-muted-foreground">Import your real holdings read-only from 20+ brokers.</p>
             <Button size="sm" onClick={openConfirm} disabled={!!busy}>{busy === "login" ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ExternalLink className="h-3 w-3 mr-1" />} Connect a broker</Button>
           </>
         )}

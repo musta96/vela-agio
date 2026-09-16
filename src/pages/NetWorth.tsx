@@ -20,12 +20,13 @@ import { usePortfolios } from "@/hooks/usePortfolios";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import { supabase } from "@/integrations/supabase/client";
 import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 import { CATEGORY_META as CATEGORIES, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { CashFlowPanel } from "@/components/networth/CashFlowPanel";
 import {
   Wallet, Banknote, Briefcase, Home as HomeIcon, Car, Watch, Building2, Bitcoin,
   PiggyBank, Boxes, CreditCard, Plus, Pencil, Trash2, TrendingUp, TrendingDown,
-  Camera, RefreshCw,
+  Camera, RefreshCw, Eye, EyeOff,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
@@ -55,13 +56,16 @@ interface NWSnapshot {
   currency: string;
 }
 
-const fmt = (n: number, ccy = "EUR") =>
+const fmtRaw = (n: number, ccy = "EUR") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(n || 0);
 
 const NetWorth = () => {
   const { user } = useAuth();
   const { portfolios } = usePortfolios();
   const { toast } = useToast();
+  const { hidden: amountsHidden, toggle: toggleAmounts, mask } = usePrivacyMode();
+  // Privacy-aware formatter: shadows module-level fmt so every amount masks when hidden.
+  const fmt = (n: number, ccy = "EUR") => mask(fmtRaw(n, ccy));
 
   const [accounts, setAccounts] = useState<NWAccount[]>([]);
   const [breakdownTab, setBreakdownTab] = useState<"overview" | "accounts" | "history" | "cashflow">("overview");
@@ -246,6 +250,15 @@ const NetWorth = () => {
         description="A complete picture of what you own and what you owe - live-linked to your Vela portfolios."
         actions={
           <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleAmounts}
+              aria-label={amountsHidden ? "Show amounts" : "Hide amounts"}
+            >
+              {amountsHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {amountsHidden ? "Show amounts" : "Hide amounts"}
+            </Button>
             <Button variant="outline" size="sm" onClick={refreshQuotes} disabled={quotesLoading}>
               <RefreshCw className={`h-4 w-4 ${quotesLoading ? "animate-spin" : ""}`} /> Refresh prices
             </Button>
@@ -788,6 +801,8 @@ const NetWorth = () => {
 
 function KPI({ title, value, sub, change, changeAbs, icon, accent }: { title: string; value: string; sub?: string; change?: number; changeAbs?: number; icon?: React.ReactNode; accent?: boolean }) {
   const positive = (change ?? 0) >= 0;
+  const { mask } = usePrivacyMode();
+  const fmt = (n: number, ccy = "EUR") => mask(fmtRaw(n, ccy));
   return (
     <Card className={`p-5 ${accent ? "border-primary/30 bg-primary/5" : ""}`}>
       <div className="flex items-center justify-between mb-2">

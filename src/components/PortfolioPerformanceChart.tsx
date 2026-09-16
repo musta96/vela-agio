@@ -17,6 +17,7 @@ import {
   useHistoricalPrices,
   type HistoryRange,
 } from "@/hooks/useHistoricalPrices";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 
 export interface PortfolioHolding {
   symbol: string;

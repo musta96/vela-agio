@@ -16,6 +16,7 @@ import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { trackFirstCoreAction } from "@/lib/signupAnalytics";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 import { hasSeenDashboardTour, loadDashboardTourState } from "@/components/dashboard/DashboardTour";
 import { FirstRunJourney } from "@/components/onboarding/FirstRunJourney";
 import { NextStepsStrip } from "@/components/dashboard/NextStepsStrip";
@@ -89,6 +90,7 @@ function Sparkline({ trend }: { trend: "up" | "down" | "flat" }) {
 export default function Index() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { mask } = usePrivacyMode();
   const { primary } = usePortfolios();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
   const [range, setRange] = useState<"1D"|"1W"|"1M"|"3M"|"YTD"|"1Y">("1W");
@@ -249,19 +251,19 @@ export default function Index() {
             const cards = [
               {
                 label: "Portfolio value",
-                value: empty ? "-" : fmtMoney(portfolio.value),
+                value: empty ? "-" : mask(fmtMoney(portfolio.value)),
                 chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
                 sub: empty ? "Add a holding to track" : portfolio.hasPrice ? "vs last close" : "cost basis (no live price)",
               },
               {
                 label: "Today's P&L",
-                value: empty ? "-" : `${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`,
+                value: empty ? "-" : mask(`${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`),
                 chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
                 sub: empty ? "-" : "vs yesterday",
               },
               {
                 label: "Net worth",
-                value: netWorth.accountCount === 0 ? "-" : fmtMoney(netWorth.total),
+                value: netWorth.accountCount === 0 ? "-" : mask(fmtMoney(netWorth.total)),
                 chg: 0,
                 sub: netWorth.accountCount === 0 ? "Add accounts in Net Worth" : `${netWorth.accountCount} accounts · FX-adjusted`,
               },

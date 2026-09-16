@@ -112,6 +112,7 @@ import { AuthProvider } from "./hooks/useAuth";
 import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
 import { ThemeProvider } from "./hooks/useTheme";
+import { PrivacyModeProvider } from "./hooks/usePrivacyMode";
 import AdminSettings from "./pages/AdminSettings";
 import AdminAiQuotas from "./pages/AdminAiQuotas";
 import AiUsageHistory from "./pages/AiUsageHistory";

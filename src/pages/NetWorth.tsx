@@ -801,6 +801,8 @@ const NetWorth = () => {
 
 function KPI({ title, value, sub, change, changeAbs, icon, accent }: { title: string; value: string; sub?: string; change?: number; changeAbs?: number; icon?: React.ReactNode; accent?: boolean }) {
   const positive = (change ?? 0) >= 0;
+  const { mask } = usePrivacyMode();
+  const fmt = (n: number, ccy = "EUR") => mask(fmtRaw(n, ccy));
   return (
     <Card className={`p-5 ${accent ? "border-primary/30 bg-primary/5" : ""}`}>
       <div className="flex items-center justify-between mb-2">

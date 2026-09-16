@@ -142,6 +142,7 @@ const App = () => (
         <AuthProvider>
         <FeatureFlagsProvider>
         <PortfoliosProvider>
+        <PrivacyModeProvider>
         <ConsentBanner />
         <Routes>
           <Route path="/" element={<Home />} />

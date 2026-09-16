@@ -16,6 +16,7 @@ import { useNetWorthTotal } from "@/hooks/useNetWorthTotal";
 import { trackFirstCoreAction } from "@/lib/signupAnalytics";
 import { CATEGORY_META, CATEGORY_ORDER, type CategoryKey } from "@/data/netWorthCategories";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 import { hasSeenDashboardTour, loadDashboardTourState } from "@/components/dashboard/DashboardTour";
 import { FirstRunJourney } from "@/components/onboarding/FirstRunJourney";
 import { NextStepsStrip } from "@/components/dashboard/NextStepsStrip";
@@ -89,6 +90,7 @@ function Sparkline({ trend }: { trend: "up" | "down" | "flat" }) {
 export default function Index() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { mask } = usePrivacyMode();
   const { primary } = usePortfolios();
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "trader";
   const [range, setRange] = useState<"1D"|"1W"|"1M"|"3M"|"YTD"|"1Y">("1W");

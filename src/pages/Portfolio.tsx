@@ -559,6 +559,7 @@ const Portfolio = () => {
 
   const baseCcy = active?.base_currency || "EUR";
   const baseSign = baseCcy === "USD" ? "$" : baseCcy === "GBP" ? "£" : baseCcy === "EUR" ? "€" : baseCcy + " ";
+  const { hidden: amountsHidden, toggle: toggleAmounts, mask } = usePrivacyMode();
   // Convert helper using selected base currency (we have EUR rates; for non-EUR base, approximate via cross)
   const toBase = (amount: number, currency: string) => {
     if (currency === baseCcy) return amount;
@@ -617,6 +618,15 @@ const Portfolio = () => {
 
           {/* Portfolio switcher + actions */}
           <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-hide [-webkit-overflow-scrolling:touch] pb-1 lg:flex-wrap lg:overflow-visible lg:pb-0 [&>*]:shrink-0">
+            <Button
+              variant="outline"
+              size="icon"
+              title={amountsHidden ? "Show amounts" : "Hide amounts"}
+              aria-label={amountsHidden ? "Show amounts" : "Hide amounts"}
+              onClick={toggleAmounts}
+            >
+              {amountsHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
             {user && portfolios.length > 0 && (
               <Select value={activeId || undefined} onValueChange={(v) => setActiveId(v)}>
                 <SelectTrigger className="w-[200px]">
@@ -920,20 +930,20 @@ const Portfolio = () => {
         <div className="bg-card border border-border rounded-2xl dark:bg-[hsl(var(--surface-glass))] dark:backdrop-blur-xl dark:border-[hsl(var(--border-glass))] dark:shadow-[var(--shadow-glass)] divide-y sm:divide-y-0 sm:divide-x divide-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-5 sm:mb-8">
           <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.totalValue")}</span>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight">{baseSign}{totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{mask(`${baseSign}${totalBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}</div>
             <span className="text-[11px] text-muted-foreground">{t("portfolio.allTime")}</span>
           </div>
           <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.today")}</span>
             <div className={`text-xl sm:text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {gainBase >= 0 ? '+' : ''}{baseSign}{Math.abs(gainBase * 0.01).toFixed(2)}
+              {mask(`${gainBase >= 0 ? '+' : ''}${baseSign}${Math.abs(gainBase * 0.01).toFixed(2)}`)}
             </div>
             <span className="text-[11px] text-muted-foreground">{t("portfolio.vsBenchmark")}</span>
           </div>
           <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("portfolio.unrealisedGain")}</span>
             <div className={`text-xl sm:text-2xl font-bold tracking-tight ${gainBase >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {gainBase >= 0 ? '+' : ''}{baseSign}{gainBase.toFixed(2)}
+              {mask(`${gainBase >= 0 ? '+' : ''}${baseSign}${gainBase.toFixed(2)}`)}
             </div>
             <span className="text-[11px] text-muted-foreground">
               {t("portfolio.breakdown", {
@@ -946,8 +956,8 @@ const Portfolio = () => {
           </div>
           <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Italian tax (26%)</span>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight">{baseSign}{Math.max(0, gainBase * 0.26).toFixed(2)}</div>
-            <span className="text-[11px] text-muted-foreground">Net after tax {baseSign}{(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}</span>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">{mask(`${baseSign}${Math.max(0, gainBase * 0.26).toFixed(2)}`)}</div>
+            <span className="text-[11px] text-muted-foreground">Net after tax {mask(`${baseSign}${(gainBase - Math.max(0, gainBase * 0.26)).toFixed(2)}`)}</span>
           </div>
           <div className="p-3.5 sm:p-5 flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Holdings</span>
@@ -1195,12 +1205,12 @@ const Portfolio = () => {
 
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-2.5 sm:gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground mb-1">{t("portfolio.shares")}</p>
-                          <p className="font-semibold text-foreground">{stock.shares}</p>
+                           <p className="text-muted-foreground mb-1">{t("portfolio.shares")}</p>
+                           <p className="font-semibold text-foreground">{mask(String(stock.shares))}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground mb-1">{t("portfolio.avgPrice")}</p>
-                          <p className="font-semibold text-foreground">{sym}{stock.avgPrice.toFixed(2)}</p>
+                           <p className="text-muted-foreground mb-1">{t("portfolio.avgPrice")}</p>
+                           <p className="font-semibold text-foreground">{mask(`${sym}${stock.avgPrice.toFixed(2)}`)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">{t("portfolio.currentPrice")}</p>
@@ -1208,14 +1218,14 @@ const Portfolio = () => {
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">{t("portfolio.totalValue")}</p>
-                          <p className="font-semibold text-foreground">{sym}{totalValue.toFixed(2)}</p>
-                          {isForeign && <p className="text-xs text-muted-foreground">≈ €{totalValueEur.toFixed(2)}</p>}
+                           <p className="font-semibold text-foreground">{mask(`${sym}${totalValue.toFixed(2)}`)}</p>
+                           {isForeign && <p className="text-xs text-muted-foreground">≈ {mask(`€${totalValueEur.toFixed(2)}`)}</p>}
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">{t("portfolio.gainLoss")}</p>
-                          <p className={`font-semibold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                            {sym}{gain.toFixed(2)}
-                          </p>
+                           <p className={`font-semibold ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                             {mask(`${sym}${gain.toFixed(2)}`)}
+                           </p>
                         </div>
                       </div>
                     </Link>

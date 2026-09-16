@@ -249,19 +249,19 @@ export default function Index() {
             const cards = [
               {
                 label: "Portfolio value",
-                value: empty ? "-" : fmtMoney(portfolio.value),
+                value: empty ? "-" : mask(fmtMoney(portfolio.value)),
                 chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
                 sub: empty ? "Add a holding to track" : portfolio.hasPrice ? "vs last close" : "cost basis (no live price)",
               },
               {
                 label: "Today's P&L",
-                value: empty ? "-" : `${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`,
+                value: empty ? "-" : mask(`${pnlSign}${fmtMoney(Math.abs(portfolio.dayPnl))}`),
                 chg: empty ? 0 : Number(portfolio.dayPct.toFixed(2)),
                 sub: empty ? "-" : "vs yesterday",
               },
               {
                 label: "Net worth",
-                value: netWorth.accountCount === 0 ? "-" : fmtMoney(netWorth.total),
+                value: netWorth.accountCount === 0 ? "-" : mask(fmtMoney(netWorth.total)),
                 chg: 0,
                 sub: netWorth.accountCount === 0 ? "Add accounts in Net Worth" : `${netWorth.accountCount} accounts · FX-adjusted`,
               },

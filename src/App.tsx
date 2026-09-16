@@ -273,6 +273,7 @@ const App = () => (
           <Route path="/owner/*" element={<OwnerRoute><OwnerConsole /></OwnerRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </PrivacyModeProvider>
         </PortfoliosProvider>
         </FeatureFlagsProvider>
         </AuthProvider>

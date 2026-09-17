@@ -24,6 +24,8 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { Input } from "@/components/ui/input";
 import { Search as SearchIcon, X as XIcon } from "lucide-react";
 import { getActiveNewBadgeUrls } from "@/lib/sidebarBadges";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /** Map nav-item URLs to their gating feature keys (from feature_catalog). */
 const ITEM_FEATURE_KEY: Record<string, string> = {
@@ -890,6 +892,15 @@ export function AppSidebar() {
                   <XIcon className="h-3.5 w-3.5" />
                 </button>
               )}
+            </div>
+          </div>
+        )}
+        {!collapsed && (
+          <div className="md:hidden px-3 pb-3 flex items-center justify-between gap-2">
+            <span className="text-[11px] uppercase tracking-wide text-sidebar-foreground/50">Language & theme</span>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <ThemeToggle />
             </div>
           </div>
         )}

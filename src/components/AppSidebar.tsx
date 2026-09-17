@@ -24,6 +24,8 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { Input } from "@/components/ui/input";
 import { Search as SearchIcon, X as XIcon } from "lucide-react";
 import { getActiveNewBadgeUrls } from "@/lib/sidebarBadges";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /** Map nav-item URLs to their gating feature keys (from feature_catalog). */
 const ITEM_FEATURE_KEY: Record<string, string> = {

@@ -61,6 +61,11 @@ export default function Copilot() {
               {SUGGESTED.map((p) => (
                 <button
                   key={p}
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("copilot:ask", { detail: p }));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
                   className="w-full text-left text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted/60 transition-colors"
                 >
                   {p}

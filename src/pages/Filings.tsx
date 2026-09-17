@@ -57,10 +57,10 @@ export default function Filings() {
     <div className="min-h-screen bg-background">
       <SEO title="SEC Filings | Vela.ai" description="10-K, 10-Q, 8-K, 13F filings from SEC EDGAR" path="/filings" />
       <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
+      <main className="container mx-auto px-4 py-5 sm:px-6 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">{t("pages.filings.title")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{t("pages.filings.title")}</h1>
         </div>
         <p className="text-muted-foreground">{t("pages.filings.subtitle")}</p>
         <div className="flex gap-2 max-w-md items-end">
@@ -68,27 +68,29 @@ export default function Filings() {
           <Button onClick={load} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("pages.filings.load")}</Button>
         </div>
         {note && <p className="text-sm text-muted-foreground">{note}</p>}
-        <div className="space-y-2">
-          {items.map((f, i) => (
-            <Card key={i}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary">{f.form}</Badge>
-                  <span className="font-mono text-sm">{f.date}</span>
-                  <span className="text-sm text-muted-foreground">{f.accession}</span>
-                </div>
-                <div className="flex gap-2">
-                  {['10-K','10-Q','8-K','20-F','6-K'].includes(f.form) && (
-                    <Button size="sm" onClick={() => analyzeFiling(f)}>
-                      <Sparkles className="h-3 w-3 mr-1" /> AI Analyze
-                    </Button>
-                  )}
-                  <Button asChild variant="outline" size="sm"><a href={f.url} target="_blank" rel="noreferrer">Open <ExternalLink className="h-3 w-3 ml-1" /></a></Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {items.length > 0 && (
+          <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch] md:max-h-none md:overflow-visible md:pr-0">
+            {items.map((f, i) => (
+              <Card key={i} className="min-w-0">
+                <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-x-3 gap-y-2 justify-between min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <Badge variant="secondary" className="shrink-0">{f.form}</Badge>
+                    <span className="font-mono text-xs sm:text-sm shrink-0">{f.date}</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground truncate">{f.accession}</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {['10-K','10-Q','8-K','20-F','6-K'].includes(f.form) && (
+                      <Button size="sm" onClick={() => analyzeFiling(f)}>
+                        <Sparkles className="h-3 w-3 mr-1" /> AI Analyze
+                      </Button>
+                    )}
+                    <Button asChild variant="outline" size="sm"><a href={f.url} target="_blank" rel="noreferrer">Open <ExternalLink className="h-3 w-3 ml-1" /></a></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
         <SavedResearchNotes symbol={symbol} onReopen={reopenNote} refreshKey={notesRefresh} />
         <AIEquityAnalystDialog
           open={analystOpen}

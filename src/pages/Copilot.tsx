@@ -7,12 +7,12 @@ import { CopilotChat } from "@/components/CopilotChat";
 import { Link } from "react-router-dom";
 
 const SUGGESTED = [
-  "Brief me on today's macro",
-  "Explain UCG.MI in 3 bullets",
-  "Find me a hedge for EU banks",
-  "Italian tax impact if I sell ENEL",
-  "Build a 3-ETF passive allocation",
-  "Why is gold rallying?",
+  "Review my holdings and flag the biggest risks",
+  "How concentrated is my portfolio right now?",
+  "Summarise the latest filings for my largest holding",
+  "What did Apple's most recent 10-K say about margins?",
+  "Which of my watchlist names reported news this week?",
+  "Italian tax impact if I sell my worst performer",
 ];
 
 const CONTEXT_PILLS = ["Portfolio", "Watchlist", "Risk Engine", "Macro feed"];
@@ -61,6 +61,11 @@ export default function Copilot() {
               {SUGGESTED.map((p) => (
                 <button
                   key={p}
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("copilot:ask", { detail: p }));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
                   className="w-full text-left text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted/60 transition-colors"
                 >
                   {p}

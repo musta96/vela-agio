@@ -161,7 +161,7 @@ const Watchlist = () => {
                 const points = snapshots[item.symbol] ?? [];
                 const currency = q?.currency === "USD" ? "$" : q?.currency === "GBP" ? "£" : "€";
                 return (
-                  <li key={item.symbol} className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] items-center gap-3 md:gap-4 px-4 md:px-5 py-3 hover:bg-muted/40 transition-colors">
+                  <li key={item.symbol} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] items-center gap-2 md:gap-4 px-3 md:px-5 py-2.5 md:py-3 hover:bg-muted/40 transition-colors min-w-0">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                     <Link to={detailPathFor(kind, item.symbol)} className="min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -222,10 +222,10 @@ const Watchlist = () => {
                         <MiniSparkline trend={trend} width={90} height={26} />
                       )}
                     </div>
-                    <div className="col-span-3 md:col-span-1 flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-0.5 md:gap-1 shrink-0">
                       <span className="sr-only">{alertCount} alerts</span>
                       <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={price ?? undefined} />
-                      <Button variant="ghost" size="icon" className="h-9 w-9 md:h-7 md:w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 md:h-7 md:w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">
                         <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </div>

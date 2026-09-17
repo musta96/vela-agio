@@ -185,6 +185,7 @@ export default function AppShell() {
 
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <MarketStatusPill />
+              <PrivacyToggle />
               <NotificationBell />
               {/* Secondary controls — hidden on phones; available from the "More" sheet via bottom nav. */}
               <div className="hidden md:flex items-center gap-2">

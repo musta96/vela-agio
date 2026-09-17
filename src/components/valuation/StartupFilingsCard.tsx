@@ -131,7 +131,7 @@ export function StartupFilingsCard({ name: rawName, country }: Props) {
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <span className="text-xs text-muted-foreground truncate">{f.source}</span>
                   {f.url && (
-                    <a href={f.url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">
+                    <a href={f.url} target="_blank" rel="noreferrer" className="shrink-0 whitespace-nowrap text-xs text-primary inline-flex items-center gap-1">
                       Open filing <ExternalLink className="h-3 w-3" />
                     </a>
                   )}

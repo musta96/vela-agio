@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface LiveQuote {
   symbol: string;
-  price: number;
+  price?: number;
   change: number; // percent
-  previousClose: number;
+  previousClose?: number;
   currency?: string;
   marketState?: string;
   updatedAt: number;

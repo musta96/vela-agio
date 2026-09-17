@@ -99,6 +99,7 @@ function sameSiteLinks(html: string, base: string): string[] {
     try {
       const u = new URL(m[1], base);
       if (u.origin !== origin) continue;
+      if (!isSafePublicUrl(u.toString())) continue;
       if (/\.(pdf|jpg|jpeg|png|svg|gif|webp|zip|mp4|css|js)$/i.test(u.pathname)) continue;
       u.hash = '';
       out.add(u.toString().replace(/\/$/, ''));

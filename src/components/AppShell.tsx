@@ -2,7 +2,8 @@ import { Outlet, useLocation } from "react-router-dom";
 import { TrialStatusBanner } from "@/components/trial/TrialStatusBanner";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Search } from "lucide-react";
+import { Search, Eye, EyeOff } from "lucide-react";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 import { NotificationBell } from "@/components/NotificationBell";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AuthButton } from "@/components/AuthButton";
@@ -31,6 +32,23 @@ function CloseMobileSidebarOnNav() {
     if (isMobile) setOpenMobile(false);
   }, [pathname, isMobile, setOpenMobile]);
   return null;
+}
+
+/** Header privacy toggle: hides portfolio/net-worth amounts everywhere. */
+function PrivacyToggle() {
+  const { hidden, toggle } = usePrivacyMode();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-pressed={hidden}
+      title={hidden ? "Show amounts" : "Hide amounts"}
+      aria-label={hidden ? "Show amounts" : "Hide amounts"}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+    >
+      {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  );
 }
 
 /**
@@ -167,6 +185,7 @@ export default function AppShell() {
 
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <MarketStatusPill />
+              <PrivacyToggle />
               <NotificationBell />
               {/* Secondary controls — hidden on phones; available from the "More" sheet via bottom nav. */}
               <div className="hidden md:flex items-center gap-2">

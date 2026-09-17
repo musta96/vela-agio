@@ -222,7 +222,7 @@ const Watchlist = () => {
                         <MiniSparkline trend={trend} width={90} height={26} />
                       )}
                     </div>
-                    <div className="col-span-3 md:col-span-1 flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-0.5 md:gap-1 shrink-0">
                       <span className="sr-only">{alertCount} alerts</span>
                       <AlertSettingsDialog symbol={item.symbol} name={item.name} currentPrice={price ?? undefined} />
                       <Button variant="ghost" size="icon" className="h-9 w-9 md:h-7 md:w-7" onClick={() => handleRemove(item.symbol, item.name)} aria-label="Remove">

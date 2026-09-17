@@ -117,8 +117,8 @@ export function StartupFilingsCard({ name: rawName, country }: Props) {
         {shown.length > 0 && (
           <div className="space-y-2">
             {shown.map((f, i) => (
-              <div key={`${f.source}-${f.date ?? i}-${i}`} className="rounded-md border p-3 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
+              <div key={`${f.source}-${f.date ?? i}-${i}`} className="rounded-md border p-2.5 sm:p-3 space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <Badge variant="secondary">{f.form}</Badge>
                   {f.date && <span className="font-mono text-xs text-muted-foreground">{f.date}</span>}
                   {typeof f.amount === "number" && f.amount > 0 && (
@@ -126,10 +126,10 @@ export function StartupFilingsCard({ name: rawName, country }: Props) {
                   )}
                   {f.jurisdiction && <Badge variant="outline">{f.jurisdiction}</Badge>}
                 </div>
-                <p className="text-sm">{f.title}</p>
-                {f.summary && <p className="text-xs text-muted-foreground">{f.summary}</p>}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{f.source}</span>
+                <p className="text-sm break-words">{f.title}</p>
+                {f.summary && <p className="text-xs text-muted-foreground line-clamp-3 break-words">{f.summary}</p>}
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-xs text-muted-foreground truncate">{f.source}</span>
                   {f.url && (
                     <a href={f.url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">
                       Open filing <ExternalLink className="h-3 w-3" />

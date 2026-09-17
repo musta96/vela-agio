@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,19 +58,23 @@ const asText = (value: unknown, seen = new WeakSet<object>()): string | null => 
 };
 
 /** Official filings for a private company: SEC EDGAR, national registers, EU databases. */
-export function StartupFilingsCard({ name, country }: Props) {
+export function StartupFilingsCard({ name: rawName, country }: Props) {
+  const name = useDebouncedValue(rawName, 800);
   const [data, setData] = useState<FilingsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const reqId = useRef(0);
 
   const run = useCallback(async () => {
     if (!name || name.trim().length < 2) return;
+    const myReq = ++reqId.current;
     setLoading(true);
     setError(null);
     const { data: res, error: err } = await supabase.functions.invoke("startup-filings", {
       body: { name: name.trim(), country },
     });
+    if (myReq !== reqId.current) return; // superseded by a newer request
     if (err) setError((await readEdgeError(err)).message);
     else setData(res as FilingsResult);
     setLoading(false);

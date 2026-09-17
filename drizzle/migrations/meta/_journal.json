@@ -120,6 +120,13 @@
       "when": 1788948852404,
       "tag": "0016_revoke_function_execute_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789685623374,
+      "tag": "0017_revoke_anon_execute_user_scoped_definers",
+      "breakpoints": true
     }
   ]
 }

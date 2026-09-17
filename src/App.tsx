@@ -113,6 +113,7 @@ import { FeatureFlagsProvider } from "./hooks/useFeatureFlags";
 import { PortfoliosProvider } from "./hooks/usePortfolios";
 import { ThemeProvider } from "./hooks/useTheme";
 import { PrivacyModeProvider } from "./hooks/usePrivacyMode";
+import { NativePushRegistrar } from "./components/NativePushRegistrar";
 import AdminSettings from "./pages/AdminSettings";
 import AdminAiQuotas from "./pages/AdminAiQuotas";
 import AiUsageHistory from "./pages/AiUsageHistory";
@@ -144,6 +145,7 @@ const App = () => (
         <FeatureFlagsProvider>
         <PortfoliosProvider>
         <PrivacyModeProvider>
+        <NativePushRegistrar />
         <ConsentBanner />
         <Routes>
           <Route path="/" element={<Home />} />

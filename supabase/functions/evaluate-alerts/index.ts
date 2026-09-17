@@ -277,6 +277,44 @@ async function insertNotification(
     .from("alert_rules")
     .update({ last_fired_at: new Date().toISOString() })
     .eq("id", rule.id);
+
+  // Real device notification (APNs on iOS, FCM on Android, Web Push in browsers).
+  await sendPush(rule, title, body, payload);
+}
+
+/**
+ * Fan the notification out to the user's registered devices via `send-push`.
+ * Server-to-server: authenticated with CRON_SECRET, never blocks the alert.
+ */
+async function sendPush(
+  rule: Rule,
+  title: string,
+  body: string,
+  payload: Record<string, unknown> = {},
+) {
+  try {
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`;
+    const path = rule.symbol ? `/stock/${encodeURIComponent(rule.symbol)}` : "/alerts";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-cron-secret": Deno.env.get("CRON_SECRET") ?? "",
+        authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({
+        user_id: rule.user_id,
+        title,
+        body,
+        url: path,
+        tag: `alert-${rule.id}`,
+        data: { path, kind: rule.kind, symbol: rule.symbol ?? "", ...payload },
+      }),
+    });
+    if (!res.ok) console.warn("send-push failed", res.status, await res.text());
+  } catch (e) {
+    console.warn("send-push error", e);
+  }
 }
 
 function inCooldown(rule: Rule): boolean {

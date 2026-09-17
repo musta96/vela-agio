@@ -3,8 +3,6 @@
   "appName": "Vela",
   "webDir": "dist",
   "server": {
-    "url": "https://vela-agio.lovable.app",
-    "hostname": "vela-agio.lovable.app",
     "androidScheme": "https",
     "iosScheme": "https",
     "cleartext": false

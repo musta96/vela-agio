@@ -42,6 +42,7 @@ const RANGES: HistoryRange[] = ["1W", "1M", "3M", "6M", "YTD", "1Y"];
 export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, liveValue }: Props) => {
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const { data, loading, error } = useHistoricalPrices(symbols, range);
+  const { hidden: amountsHidden, mask } = usePrivacyMode();
 
   const costBasis = useMemo(
     () => holdings.reduce((s, h) => s + h.shares * h.avgPrice, 0),
@@ -121,13 +122,13 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, live
             Modelled history → current live
           </p>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <p className="text-3xl font-bold">€{last.toFixed(2)}</p>
+            <p className="text-3xl font-bold">{mask(`€${last.toFixed(2)}`)}</p>
             <Badge
               variant={isPositive ? "default" : "destructive"}
               className={`gap-1 ${isPositive ? "bg-success/10 text-success hover:bg-success/20" : ""}`}
             >
               {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-              {isPositive ? "+" : ""}€{periodGain.toFixed(2)} ({isPositive ? "+" : ""}
+              {mask(`${isPositive ? "+" : ""}€${periodGain.toFixed(2)}`)} ({isPositive ? "+" : ""}
               {periodPct.toFixed(2)}%)
             </Badge>
             <span className="text-sm text-muted-foreground">over {range}</span>
@@ -190,7 +191,7 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, live
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => `€${Number(v).toLocaleString()}`}
+                tickFormatter={(v) => (amountsHidden ? "•••" : `€${Number(v).toLocaleString()}`)}
                 width={70}
               />
               <Tooltip
@@ -202,7 +203,7 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, live
                 }}
                 labelFormatter={(t) => new Date(t as number).toLocaleString()}
                 formatter={(value: number, name: string) => [
-                  `€${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+                  mask(`€${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`),
                   name === "value" ? "Portfolio Value" : "Cost Basis",
                 ]}
               />

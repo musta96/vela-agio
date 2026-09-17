@@ -483,7 +483,9 @@ Deno.serve(async (req) => {
     let evaluated = 0;
     for (const rule of (rules ?? []) as Rule[]) {
       try {
-        if (rule.kind.startsWith("portfolio_")) {
+        if (rule.kind === "portfolio_filing" || rule.kind === "new_filing") {
+          await evaluateFilingRule(rule);
+        } else if (rule.kind.startsWith("portfolio_")) {
           await evaluatePortfolioRules(rule);
         } else {
           await evaluateSymbolRule(rule);

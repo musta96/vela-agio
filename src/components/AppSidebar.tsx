@@ -894,6 +894,15 @@ export function AppSidebar() {
           </div>
         )}
         {!collapsed && (
+          <div className="md:hidden px-3 pb-3 flex items-center justify-between gap-2">
+            <span className="text-[11px] uppercase tracking-wide text-sidebar-foreground/50">Language & theme</span>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <ThemeToggle />
+            </div>
+          </div>
+        )}
+        {!collapsed && (
           <div className="px-3 pb-2 flex items-center justify-between gap-2">
             <NavLink
               to="/plans-billing"

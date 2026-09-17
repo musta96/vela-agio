@@ -45,9 +45,9 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
   {
     key: "stats", kind: "stats", sort_order: 20, enabled: true,
     content: { items: [
-      { k: "8 000+", v: "Instruments covered" },
+      { k: "6+", v: "Asset classes covered" },
+      { k: "SEC · CONSOB", v: "Official filings indexed" },
       { k: "20 yrs", v: "Historical backtests" },
-      { k: "<150 ms", v: "AI response latency" },
       { k: "100 %", v: "Educational - never advice" },
     ]},
   },
@@ -72,7 +72,10 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
         { icon: "BarChart3", title: "Optimizer & Rebalance", desc: "Mean-variance, risk-parity and factor-tilt optimisers, plus one-click rebalance plans for any portfolio." },
         { icon: "Shield", title: "Risk Engine & Simulations", desc: "VaR/CVaR, Monte Carlo simulations, drawdown analytics and stress tests across market regimes." },
         { icon: "FlaskConical", title: "Quant Alpha & Event Study", desc: "Institutional-grade quant factors, event studies, peer analysis, ETF overlap and 13F replication." },
-        { icon: "Bell", title: "Smart Alerts & Signals", desc: "Price, technical, fundamental and news alerts via email, push or webhook. Never miss what matters." },
+        { icon: "Bell", title: "Smart Alerts & Filing Alerts", desc: "Price, technical and signal alerts - plus a notification the moment a new 10-K, 10-Q, 8-K or proxy lands on any holding in your portfolio." },
+        { icon: "Rocket", title: "Startup & Private Markets", desc: "Value startups with real SEC Form D filings, official EU and Italian registries (incl. Startup Innovativa) and live sentiment - not just press clippings." },
+        { icon: "Smartphone", title: "Web & iOS", desc: "The full workspace on the web and a native-feel iOS app with bottom navigation, so your research travels with you." },
+        { icon: "Eye", title: "Privacy Mode", desc: "Hide every portfolio amount and net-worth figure with one tap - in the app, on the chart, everywhere. Ideal for sharing your screen." },
         { icon: "Receipt", title: "Tax, Reports & Corp. Actions", desc: "Tax-loss harvesting, corporate-action tracking, one-click PDF reports and a tamper-evident audit log." },
         { icon: "ShieldCheck", title: "Suitability & MiFID II", desc: "Advisor seats, client mandates, MiFID II suitability questionnaires, KIDs and audit-ready trails." },
         { icon: "Building2", title: "Deal Flow & Related Graph", desc: "Deal-flow feed, related-instruments graph and thematic drill-downs for research-driven investors." },

@@ -224,6 +224,18 @@ export function CopilotChat({ compact = false, initialIntro, showThreads = true 
     await streamTurn(next, sentAttachments, text, tid);
   };
 
+  // Let pages outside the chat (suggested prompts, quick actions) ask a question.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail === "string" && detail.trim()) void sendRef.current(detail.trim());
+    };
+    window.addEventListener("copilot:ask", onAsk as EventListener);
+    return () => window.removeEventListener("copilot:ask", onAsk as EventListener);
+  }, []);
+
   /**
    * Retry the last turn: drop the trailing assistant reply and re-run the same
    * user message. Useful when a long tool run failed or the answer was cut off.

@@ -149,6 +149,113 @@ function fiftyTwoWeekBreakout(closes: number[]): "high" | "low" | null {
   return null;
 }
 
+// ---------- SEC filings ----------
+const SEC_UA = "Vela Analytics alerts@vela-agio.lovable.app";
+const WATCHED_FORMS = ["10-K", "10-Q", "8-K", "20-F", "6-K", "DEF 14A", "13F-HR"];
+
+let secTickerMap: Record<string, string> | null = null;
+async function secCik(symbol: string): Promise<string | null> {
+  try {
+    if (!secTickerMap) {
+      const r = await fetch("https://www.sec.gov/files/company_tickers.json", { headers: { "User-Agent": SEC_UA } });
+      if (!r.ok) return null;
+      const j = await r.json();
+      secTickerMap = {};
+      for (const k of Object.keys(j)) {
+        const row = j[k];
+        if (row?.ticker) secTickerMap[String(row.ticker).toUpperCase()] = String(row.cik_str).padStart(10, "0");
+      }
+    }
+    // Yahoo suffixes (ENEL.MI) never appear in EDGAR — try the root too.
+    const up = symbol.toUpperCase();
+    return secTickerMap[up] ?? secTickerMap[up.split(".")[0]] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+type Filing = { symbol: string; form: string; date: string; accession: string; url: string };
+
+async function recentFilings(symbol: string, limit = 10): Promise<Filing[]> {
+  const cik = await secCik(symbol);
+  if (!cik) return [];
+  try {
+    const res = await fetch(`https://data.sec.gov/submissions/CIK${cik}.json`, { headers: { "User-Agent": SEC_UA } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const recent = data?.filings?.recent ?? {};
+    const forms: string[] = recent.form ?? [];
+    const dates: string[] = recent.filingDate ?? [];
+    const accs: string[] = recent.accessionNumber ?? [];
+    const docs: string[] = recent.primaryDocument ?? [];
+    return forms
+      .map((form, i) => ({
+        symbol: symbol.toUpperCase(),
+        form,
+        date: dates[i] ?? "",
+        accession: accs[i] ?? "",
+        url: `https://www.sec.gov/Archives/edgar/data/${parseInt(cik, 10)}/${(accs[i] ?? "").replace(/-/g, "")}/${docs[i] ?? ""}`,
+      }))
+      .filter((f) => f.accession && WATCHED_FORMS.includes(f.form))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Notifies when a new SEC filing lands on a symbol, or on any portfolio holding.
+ * Already-seen accession numbers are remembered in rule.params so the same
+ * filing never fires twice; the first run only records the baseline.
+ */
+async function evaluateFilingRule(rule: Rule) {
+  if (inCooldown(rule)) return;
+
+  let symbols: string[] = [];
+  if (rule.kind === "portfolio_filing") {
+    const { data: holdings } = await supabase
+      .from("portfolio_holdings")
+      .select("symbol")
+      .eq("user_id", rule.user_id);
+    symbols = [...new Set((holdings ?? []).map((h: { symbol: string }) => String(h.symbol).toUpperCase()))].slice(0, 40);
+  } else if (rule.symbol) {
+    symbols = [rule.symbol.toUpperCase()];
+  }
+  if (symbols.length === 0) return;
+
+  const params = (rule.params ?? {}) as Record<string, unknown>;
+  const seen = new Set(Array.isArray(params.seen_accessions) ? (params.seen_accessions as string[]) : []);
+  const firstRun = seen.size === 0 && params.baseline_at == null;
+
+  const fresh: Filing[] = [];
+  const allAccessions: string[] = [];
+  for (const sym of symbols) {
+    const filings = await recentFilings(sym, firstRun ? 10 : 6);
+    for (const f of filings) {
+      allAccessions.push(f.accession);
+      if (!seen.has(f.accession)) fresh.push(f);
+    }
+  }
+  if (allAccessions.length === 0) return;
+
+  // Keep the memory bounded, newest first.
+  const nextSeen = [...new Set([...allAccessions, ...seen])].slice(0, 400);
+  await supabase.from("alert_rules").update({
+    params: { ...params, seen_accessions: nextSeen, baseline_at: params.baseline_at ?? new Date().toISOString() },
+  }).eq("id", rule.id);
+
+  if (firstRun || fresh.length === 0) return;
+
+  fresh.sort((a, b) => (a.date < b.date ? 1 : -1));
+  const top = fresh.slice(0, 5);
+  const title = fresh.length === 1
+    ? `${top[0].symbol}: new ${top[0].form} filing`
+    : `${fresh.length} new filings on your holdings`;
+  const body = top.map((f) => `${f.symbol} ${f.form} filed ${f.date}`).join(" · ")
+    + (fresh.length > top.length ? ` · +${fresh.length - top.length} more` : "");
+  await insertNotification(rule, title, body, "info", { filings: top });
+}
+
 async function insertNotification(
   rule: Rule,
   title: string,
@@ -376,7 +483,9 @@ Deno.serve(async (req) => {
     let evaluated = 0;
     for (const rule of (rules ?? []) as Rule[]) {
       try {
-        if (rule.kind.startsWith("portfolio_")) {
+        if (rule.kind === "portfolio_filing" || rule.kind === "new_filing") {
+          await evaluateFilingRule(rule);
+        } else if (rule.kind.startsWith("portfolio_")) {
           await evaluatePortfolioRules(rule);
         } else {
           await evaluateSymbolRule(rule);

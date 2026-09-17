@@ -31,11 +31,14 @@ async function fetchQuotes(symbols: string[]): Promise<Record<string, LiveQuote>
     const quote = raw as Record<string, unknown>;
     const finiteNumber = (value: unknown, fallback = 0) =>
       typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    // Missing/invalid prices stay `undefined` so downstream `?? fallback` works.
+    const optionalNumber = (value: unknown) =>
+      typeof value === "number" && Number.isFinite(value) ? value : undefined;
     normalized[symbol] = {
       symbol: typeof quote.symbol === "string" ? quote.symbol : symbol,
-      price: finiteNumber(quote.price, Number.NaN),
+      price: optionalNumber(quote.price),
       change: finiteNumber(quote.change),
-      previousClose: finiteNumber(quote.previousClose, Number.NaN),
+      previousClose: optionalNumber(quote.previousClose),
       currency: typeof quote.currency === "string" ? quote.currency : undefined,
       marketState: typeof quote.marketState === "string" ? quote.marketState : undefined,
       updatedAt: finiteNumber(quote.updatedAt, Date.now()),

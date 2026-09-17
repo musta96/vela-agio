@@ -2,14 +2,14 @@ import {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
   UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt, Repeat,
-  Smartphone,
+  Smartphone, Eye,
 } from "lucide-react";
 
 export const ICONS: Record<string, any> = {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
   UserPlus, Link2, Rocket, Wallet, FlaskConical, Newspaper, ShieldCheck, Receipt, Repeat,
-  Smartphone,
+  Smartphone, Eye,
 };
 
 export type LandingSectionRow = {
@@ -100,8 +100,8 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       items: [
         { icon: "UserPlus", title: "Sign Up", desc: "Create account in seconds with email or OAuth." },
         { icon: "Link2", title: "Connect Portfolio", desc: "Link your broker or upload portfolio data." },
-        { icon: "Brain", title: "Get AI Insights", desc: "Neural engine analyzes and delivers alpha." },
-        { icon: "Rocket", title: "Start Trading Better", desc: "Act on real-time intelligence." },
+        { icon: "Brain", title: "Ask the AI Copilot", desc: "Plain-English answers about your holdings, filings and markets - always with cited sources." },
+        { icon: "Rocket", title: "Decide with Confidence", desc: "Set alerts, backtest ideas and track your net worth over time." },
       ],
     },
   },
@@ -162,7 +162,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
     key: "cta", kind: "cta", sort_order: 90, enabled: true,
     content: {
       title: "Ready to research smarter?",
-      subtitle: "Join thousands of investors and advisors using Vela.ai every day.",
+      subtitle: "Create your free account and go from question to cited answer in minutes.",
       primaryCta: { label: "Create your free account", href: "/auth" },
       secondaryCta: { label: "Compare plans", href: "#pricing" },
     },

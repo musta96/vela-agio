@@ -236,8 +236,11 @@ export default function Support() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Name</label>
+                <label htmlFor="support-name" className="text-xs font-medium mb-1.5 block">Name</label>
                 <Input
+                  id="support-name"
+                  name="name"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
@@ -245,8 +248,11 @@ export default function Support() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Email</label>
+                <label htmlFor="support-email" className="text-xs font-medium mb-1.5 block">Email</label>
                 <Input
+                  id="support-email"
+                  name="email"
+                  autoComplete="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -256,8 +262,10 @@ export default function Support() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium mb-1.5 block">Message</label>
+              <label htmlFor="support-message" className="text-xs font-medium mb-1.5 block">Message</label>
               <Textarea
+                id="support-message"
+                name="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Describe your issue or question..."

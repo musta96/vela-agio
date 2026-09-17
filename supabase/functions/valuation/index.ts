@@ -1,7 +1,9 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fetchFundamentals } from '../_shared/fundamentals.ts';
 import { computeRoicWacc } from '../_shared/roic-wacc.ts';
 import { resolveAIConfig, chatComplete } from '../_shared/ai-provider.ts';
+import { resolveAiAccess, aiDeniedResponse } from '../_shared/ai-access.ts';
 import { readCompanySite, type SitePage } from '../_shared/site-research.ts';
 import { valueStartup, type StartupInputs, type Stage } from '../_shared/startup-valuation.ts';
 
@@ -524,12 +526,36 @@ SECTIONS REQUESTED: ${sections.join(', ')}`;
   };
 }
 
+/** Verify the caller has a valid Supabase user JWT (or service-role token). */
+async function isAuthorized(req: Request): Promise<boolean> {
+  const header = req.headers.get('Authorization') ?? '';
+  if (!header.startsWith('Bearer ')) return false;
+  const token = header.slice(7).trim();
+  if (!token) return false;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (serviceKey && token === serviceKey) return true;
+  try {
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await sb.auth.getClaims(token);
+    return !error && !!data?.claims?.sub;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (!(await isAuthorized(req))) return json({ error: 'Unauthorized' }, 401);
   try {
     const auth = req.headers.get('Authorization');
     const body = await req.json().catch(() => ({}));
     const mode = String(body.mode ?? 'public');
+    if (mode === 'private' || mode === 'startup') {
+      const access = await resolveAiAccess(auth);
+      if (!access.allowed) return aiDeniedResponse(access, corsHeaders);
+    }
     const out = mode === 'startup'
       ? await startupValuation(body, auth)
       : mode === 'private'

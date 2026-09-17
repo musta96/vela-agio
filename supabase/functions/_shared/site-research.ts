@@ -36,6 +36,28 @@ export function normaliseWebsite(input: string): string | null {
   } catch { return null; }
 }
 
+/** Block internal / non-public targets so this helper cannot be used as an SSRF proxy. */
+function isSafePublicUrl(raw: string): boolean {
+  let u: URL;
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return false;
+  if (host === '0.0.0.0' || host === '::1' || host === '::') return false;
+  if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:')) return false; // IPv6 ULA / link-local
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 10 || a === 127 || a === 0) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 169 && b === 254) return false; // cloud metadata service
+    if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT
+    if (a >= 224) return false; // multicast / reserved
+  }
+  return true;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -56,11 +78,13 @@ function titleOf(html: string, fallback: string): string {
 }
 
 async function fetchPage(url: string, timeoutMs = 12_000): Promise<{ html: string; finalUrl: string } | null> {
+  if (!isSafePublicUrl(url)) return null;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html,*/*' }, signal: ctrl.signal, redirect: 'follow' });
     if (!r.ok) return null;
+    if (!isSafePublicUrl(r.url)) return null;
     const ct = r.headers.get('content-type') ?? '';
     if (!ct.includes('html') && !ct.includes('text')) return null;
     const html = (await r.text()).slice(0, 400_000);
@@ -75,6 +99,7 @@ function sameSiteLinks(html: string, base: string): string[] {
     try {
       const u = new URL(m[1], base);
       if (u.origin !== origin) continue;
+      if (!isSafePublicUrl(u.toString())) continue;
       if (/\.(pdf|jpg|jpeg|png|svg|gif|webp|zip|mp4|css|js)$/i.test(u.pathname)) continue;
       u.hash = '';
       out.add(u.toString().replace(/\/$/, ''));

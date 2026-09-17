@@ -57,7 +57,7 @@ export default function Filings() {
     <div className="min-h-screen bg-background">
       <SEO title="SEC Filings | Vela.ai" description="10-K, 10-Q, 8-K, 13F filings from SEC EDGAR" path="/filings" />
       <TopNav />
-      <main className="container mx-auto px-6 py-8 space-y-6">
+      <main className="container mx-auto px-4 py-5 sm:px-6 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
           <h1 className="text-3xl font-bold">{t("pages.filings.title")}</h1>

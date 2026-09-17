@@ -191,7 +191,7 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, live
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => `€${Number(v).toLocaleString()}`}
+                tickFormatter={(v) => (amountsHidden ? "•••" : `€${Number(v).toLocaleString()}`)}
                 width={70}
               />
               <Tooltip
@@ -203,7 +203,7 @@ export const PortfolioPerformanceChart = ({ holdings, range, onRangeChange, live
                 }}
                 labelFormatter={(t) => new Date(t as number).toLocaleString()}
                 formatter={(value: number, name: string) => [
-                  `€${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+                  mask(`€${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`),
                   name === "value" ? "Portfolio Value" : "Cost Basis",
                 ]}
               />

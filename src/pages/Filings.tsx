@@ -60,7 +60,7 @@ export default function Filings() {
       <main className="container mx-auto px-4 py-5 sm:px-6 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">{t("pages.filings.title")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{t("pages.filings.title")}</h1>
         </div>
         <p className="text-muted-foreground">{t("pages.filings.subtitle")}</p>
         <div className="flex gap-2 max-w-md items-end">

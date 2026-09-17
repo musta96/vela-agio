@@ -39,20 +39,25 @@ const tone = (score: number | null) =>
     : score <= -15 ? "text-destructive"
     : "text-foreground";
 
-export function StartupSentimentCard({ name, website, sector, country, onScore, refreshMs = 300000 }: Props) {
+export function StartupSentimentCard({ name: rawName, website: rawWebsite, sector, country, onScore, refreshMs = 300000 }: Props) {
+  const name = useDebouncedValue(rawName, 800);
+  const website = useDebouncedValue(rawWebsite, 800);
   const [data, setData] = useState<StartupSentiment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cb = useRef(onScore);
   cb.current = onScore;
+  const reqId = useRef(0);
 
   const run = useCallback(async () => {
     if (!name || name.trim().length < 2) return;
+    const myReq = ++reqId.current;
     setLoading(true);
     setError(null);
     const { data: res, error: err } = await supabase.functions.invoke("startup-sentiment", {
       body: { name: name.trim(), website, sector, country },
     });
+    if (myReq !== reqId.current) return; // a newer request superseded this one
     if (err) {
       setError((await readEdgeError(err)).message);
     } else {

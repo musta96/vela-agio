@@ -131,7 +131,7 @@ export default function Landing() {
           name: "Vela",
           applicationCategory: "FinanceApplication",
           operatingSystem: "Web, iOS",
-          description: "AI-powered stock research and wealth tracking: real-time alpha signals, sentiment, backtesting, and portfolio analytics across global markets.",
+          description: "AI-powered investment research and wealth tracking: a cited AI copilot, official SEC and CONSOB filings, startup valuation, backtesting, and portfolio and net-worth analytics across stocks, ETFs, crypto, FX and more.",
           url: "https://vela-agio.lovable.app/",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         })}</script>
@@ -261,8 +261,8 @@ export default function Landing() {
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Alpha Signal</div>
-                <div className="text-2xl font-bold" style={{ color: "#1D9E75" }}>+14.2%</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Asset classes</div>
+                <div className="text-2xl font-bold" style={{ color: "#1D9E75" }}>6+</div>
               </div>
             </div>
           </div>
@@ -272,8 +272,8 @@ export default function Landing() {
                 <Shield className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Risk Index</div>
-                <div className="text-2xl font-bold" style={{ color: "#042C53" }}>SECURE</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Your data</div>
+                <div className="text-2xl font-bold" style={{ color: "#042C53" }}>EU-hosted</div>
               </div>
             </div>
           </div>
@@ -283,8 +283,8 @@ export default function Landing() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>AI Coverage</div>
-                <div className="text-2xl font-bold" style={{ color: "#042C53" }}>12,400+</div>
+                <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#3d4f66" }}>Official filings</div>
+                <div className="text-2xl font-bold" style={{ color: "#042C53" }}>SEC · CONSOB</div>
               </div>
             </div>
           </div>
@@ -313,9 +313,9 @@ export default function Landing() {
               "linear-gradient(135deg,#1D9E75,#7CD0AE)",
             ];
             const metrics = [
-              ["99.8% ACCURACY", "4.2s LATENCY"],
-              ["LIVE STREAM", "MILSEC SPEED"],
-              ["SOC2 TYPE II", "AUTO-HEDGE"],
+              ["CITED SOURCES", "PLAIN ENGLISH"],
+              ["LIVE DATA", "GLOBAL COVERAGE"],
+              ["EU-HOSTED", "GDPR READY"],
             ];
             return (
               <div key={i} className="glass-card group p-6 sm:p-8 rounded-3xl">

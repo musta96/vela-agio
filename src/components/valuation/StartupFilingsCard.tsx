@@ -110,7 +110,7 @@ export function StartupFilingsCard({ name: rawName, country }: Props) {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
         </Button>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 min-w-0 max-h-[60vh] overflow-y-auto [-webkit-overflow-scrolling:touch] md:max-h-none md:overflow-visible">
         {error && <p className="text-sm text-destructive">{error}</p>}
         {!error && loading && !data && <p className="text-sm text-muted-foreground">Reading government filing databases…</p>}
 

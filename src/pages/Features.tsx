@@ -131,6 +131,7 @@ export default function Features() {
         { label: "Screeners & filters", hint: "Multi-factor screeners across fundamentals, technicals and sentiment.",         values: { explorer: false,      plus: false,       pro: true,        enterprise: true } },
         { label: "Explore, movers & sector heatmaps", hint: "Curated discovery rails, top movers and sector-level heatmaps across every covered market.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
         { label: "Filings, earnings & insider feed",  hint: "SEC/CONSOB filings, earnings calendar, insider transactions and buyback tracking.",           values: { explorer: "Delayed", plus: true, pro: true, enterprise: true } },
+        { label: "Startup & private markets",        hint: "Startup valuation with real SEC Form D filings, official EU and Italian registries (incl. Startup Innovativa) and live sentiment.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
         { label: "Options chains & futures curves",   hint: "Options chains, futures curves, credit spreads and bond calculator for derivatives research.", values: { explorer: false, plus: "Delayed", pro: true, enterprise: true } },
         { label: "Intraday minute data",              hint: "1-minute intraday bars for event-driven and short-horizon research.",                          values: { explorer: false, plus: false, pro: true, enterprise: true } },
         { label: "Backtesting engine",  hint: "Simulate strategies against historical data with slippage and costs modeled.",   values: { explorer: false,      plus: false,       pro: true,        enterprise: true } },
@@ -156,6 +157,9 @@ export default function Features() {
         { label: "Goals, budget & dividend planner",    hint: "Set financial goals, run a monthly budget and forecast dividend income with reinvestment scenarios.",         values: { explorer: true, plus: true, pro: true, enterprise: true } },
         { label: "Paper trading & blotter",             hint: "Practise strategies in a simulated environment with a full order blotter and short-selling tools.",           values: { explorer: false, plus: true, pro: true, enterprise: true } },
         { label: "Smart alerts (price, signal, events)", hint: "Alerts on price moves, AI signals and calendar events, delivered by email or push.", values: { explorer: false, plus: true,  pro: true, enterprise: true } },
+        { label: "Filing alerts on your holdings",   hint: "Get notified the moment a new 10-K, 10-Q, 8-K, 20-F, proxy or 13F lands on a company you own.", values: { explorer: false, plus: true, pro: true, enterprise: true } },
+        { label: "Privacy mode (hide amounts)",      hint: "One tap masks every portfolio value and net-worth figure, charts included. Your choice is remembered.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
+        { label: "iOS app",                          hint: "Native-feel iOS app with bottom navigation, built with Capacitor.",                          values: { explorer: true, plus: true, pro: true, enterprise: true } },
         { label: "DCF / DDM intrinsic value",           hint: "Discounted cash-flow and dividend-discount models with editable assumptions.", values: { explorer: false, plus: false, pro: true, enterprise: true } },
         { label: "Optimizer & rebalance planner",       hint: "Mean-variance, risk-parity and factor-tilt optimisers plus one-click rebalance plans.",                     values: { explorer: false, plus: false, pro: true, enterprise: true } },
         { label: "Risk analytics (VaR / Monte Carlo)",  hint: "Value-at-Risk and Monte Carlo simulations for portfolio stress-testing.",       values: { explorer: false, plus: false, pro: true, enterprise: true } },
@@ -346,7 +350,7 @@ export default function Features() {
             Everything inside Vela.ai
           </h1>
           <p className="mt-4 text-base sm:text-lg" style={{ color: "#3d4f66" }}>
-            AI research, live markets, portfolio analytics, backtesting, sentiment, screeners, alerts and risk tools — all under one roof.
+            AI research, live markets, portfolio analytics, startup valuation, backtesting, sentiment, filing alerts and risk tools — all under one roof, on web and iOS.
           </p>
         </div>
       </section>

@@ -34,6 +34,23 @@ function CloseMobileSidebarOnNav() {
   return null;
 }
 
+/** Header privacy toggle: hides portfolio/net-worth amounts everywhere. */
+function PrivacyToggle() {
+  const { hidden, toggle } = usePrivacyMode();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-pressed={hidden}
+      title={hidden ? "Show amounts" : "Hide amounts"}
+      aria-label={hidden ? "Show amounts" : "Hide amounts"}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+    >
+      {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  );
+}
+
 /**
  * Auto-hide the top header on scroll-down, reveal on scroll-up (mobile only).
  * Keeps quick access to search/menu just one small flick away.

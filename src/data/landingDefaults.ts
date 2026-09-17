@@ -36,7 +36,7 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
         { icon: "Lock", label: "GDPR & EU-hosted" },
         { icon: "Shield", label: "MiFID II ready" },
         { icon: "Globe", label: "CONSOB & SEC filings" },
-        { icon: "Star", label: "4.8 / 5 from early users" },
+        { icon: "Smartphone", label: "Web & iOS" },
       ],
     },
   },

@@ -134,6 +134,13 @@
       "when": 1789686628727,
       "tag": "0018_revoke_anon_definer_execute",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790096939695,
+      "tag": "0019_tighten_shared_catalog_read_policies",
+      "breakpoints": true
     }
   ]
 }

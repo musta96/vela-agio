@@ -1,3 +1,4 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getDailyHistory } from "../_shared/price-provider.ts";
 import { evalStrategyCondition, unsupportedConditions } from "../_shared/ta/conditions.ts";
 const corsHeaders = {
@@ -251,10 +252,37 @@ function simulate(bars: Bar[], strategy: Strategy, initial: number, rules?: Cust
   }};
 }
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+// Backtesting is a paid feature: require a verified session and a server-side
+// entitlement check. Never trust the client's own gating.
+async function authorize(req: Request): Promise<{ ok: true; userId: string } | { ok: false; status: number; error: string }> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return { ok: false, status: 401, error: "unauthenticated" };
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: auth } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await sb.auth.getUser();
+  const userId = data?.user?.id;
+  if (error || !userId) return { ok: false, status: 401, error: "unauthenticated" };
+  const { data: allowed, error: featErr } = await sb.rpc("has_feature", { _user_id: userId, _key: "ai.backtests" });
+  if (featErr) return { ok: false, status: 500, error: "entitlement_check_failed" };
+  if (allowed !== true) return { ok: false, status: 403, error: "upgrade_required" };
+  return { ok: true, userId };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const auth = await authorize(req);
+    if (!auth.ok) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const body = await req.json();
     const holdings: Holding[] = body.holdings || [];
     const strategy: Strategy = body.strategy || "buy_hold";

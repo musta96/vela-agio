@@ -71,7 +71,9 @@ function toCSV(rows: Record<string, unknown>[]): string {
   const cols = Object.keys(rows[0]);
   const escape = (v: unknown) => {
     if (v == null) return "";
-    const s = typeof v === "string" ? v : JSON.stringify(v);
+    let s = typeof v === "string" ? v : JSON.stringify(v);
+    // Neutralise spreadsheet formula injection from untrusted values.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");

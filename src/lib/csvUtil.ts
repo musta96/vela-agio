@@ -9,7 +9,9 @@ export type CsvRow = CsvCell[];
 
 export function csvEscape(value: CsvCell): string {
   if (value === null || value === undefined) return "";
-  const s = String(value);
+  let s = String(value);
+  // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR triggers).
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

@@ -64,7 +64,9 @@ export default function BlogLeads() {
       "created_at","kind","post_title","post_slug","email","first_name","last_name","company","role","country","consent","source",
     ];
     const escape = (v: any) => {
-      const s = v === null || v === undefined ? "" : String(v);
+      let s = v === null || v === undefined ? "" : String(v);
+      // Neutralise spreadsheet formula injection from attacker-supplied lead text.
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const lines = [headers.join(",")].concat(

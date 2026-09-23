@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const {
-      priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment,
+      priceId, customerEmail, userId: bodyUserId, returnUrl, environment,
       referralCode, promoCode, correlationId,
       expectedTotalCents, expectedCurrency,
     } = body ?? {};
@@ -170,7 +170,9 @@ Deno.serve(async (req) => {
     }
 
     const session = await stripe.checkout.sessions.create({
-      line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
+      // Quantity is fixed server-side: the client must not be able to change
+      // the amount billed by inflating the line-item quantity.
+      line_items: [{ price: stripePrice.id, quantity: 1 }],
       mode: isRecurring ? "subscription" : "payment",
       ui_mode: "embedded_page",
       return_url: returnUrl,

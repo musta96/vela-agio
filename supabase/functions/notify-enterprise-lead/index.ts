@@ -24,8 +24,10 @@ Deno.serve(async (req) => {
     const presented = req.headers.get("x-internal-secret");
     const trustedServer = !!internalSecret && presented === internalSecret;
 
+    let callerId: string | null = null;
     if (!trustedServer) {
       const uid = await requireUserId(req);
+      callerId = uid;
       if (!uid) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -57,10 +59,27 @@ Deno.serve(async (req) => {
 
     const { data: lead, error: leadErr } = await sb
       .from("enterprise_leads")
-      .select("id,first_name,last_name,email,company,firm_name,num_clients,message,role,created_at")
+      .select("id,user_id,first_name,last_name,email,company,firm_name,num_clients,message,role,created_at")
       .eq("id", lead_id)
       .maybeSingle();
     if (leadErr || !lead) throw leadErr ?? new Error("lead not found");
+
+    // A signed-in caller may only notify for a lead they themselves submitted,
+    // unless they hold an admin role. Otherwise any account could enumerate
+    // lead ids and spam admin notifications/emails.
+    if (!trustedServer) {
+      const ownsLead = !!callerId && lead.user_id === callerId;
+      let isAdmin = false;
+      if (callerId && !ownsLead) {
+        const { data: adminRole } = await sb.rpc("has_role", { _user_id: callerId, _role: "admin" });
+        isAdmin = adminRole === true;
+      }
+      if (!ownsLead && !isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const firm = lead.firm_name || lead.company || "—";
     const contactName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim() || lead.email;

@@ -28,8 +28,14 @@ export default function OwnerAuditLog() {
 
   function exportCsv() {
     const headers = ["timestamp","actor","action","entity","entity_id","ip"];
+    // Prefix formula triggers so untrusted audit values can't execute in a spreadsheet.
+    const cell = (v: unknown) => {
+      let s = String(v ?? "");
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const lines = [headers.join(",")].concat(filtered.map(r =>
-      [r.ts, r.actor_email || "", r.action, r.entity || "", r.entity_id || "", r.ip || ""].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")
+      [r.ts, r.actor_email || "", r.action, r.entity || "", r.entity_id || "", r.ip || ""].map(cell).join(",")
     ));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

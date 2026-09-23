@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { rateLimit } from "../_shared/rate-limit.ts";
 
 // Called from the trial-signup return page AFTER Stripe validates the card.
 // Verifies the checkout session, creates the Supabase account, backfills
@@ -15,6 +16,11 @@ Deno.serve(async (req) => {
       billingCycle, // 'monthly' | 'annual'
       consent = {},
     } = body ?? {};
+
+    // Public by necessity (the account does not exist yet) — throttled per IP
+    // and per checkout session so the endpoint cannot be brute-forced.
+    const ipLimited = await rateLimit(req, { scope: "finalize-trial-signup", limit: 10, windowSeconds: 900 }, corsHeaders);
+    if (ipLimited) return ipLimited;
 
     if (!sessionId || typeof sessionId !== "string") throw new Error("sessionId required");
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Valid email required");
@@ -65,6 +71,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Single-use: a checkout session that already produced an entitlement can
+    // never be replayed to mint another account or re-grant a subscription.
+    const { data: existingSub } = await sb
+      .from("subscriptions")
+      .select("id")
+      .eq("stripe_subscription_id", subscription.id)
+      .maybeSingle();
+    if (existingSub) {
+      return new Response(
+        JSON.stringify({ error: "This checkout has already been completed. Please sign in." }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Create the Supabase account NOW (auto-confirmed since Stripe validated the card).
     const { data: created, error: createErr } = await sb.auth.admin.createUser({

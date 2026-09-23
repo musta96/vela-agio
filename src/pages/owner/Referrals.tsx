@@ -71,7 +71,9 @@ function toCSV(rows: Record<string, unknown>[]): string {
   const cols = Object.keys(rows[0]);
   const escape = (v: unknown) => {
     if (v == null) return "";
-    const s = typeof v === "string" ? v : JSON.stringify(v);
+    let s = typeof v === "string" ? v : JSON.stringify(v);
+    // Neutralise spreadsheet formula injection from untrusted values.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
@@ -84,9 +86,20 @@ function downloadCSV(filename: string, csv: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function rand(len = 8) {
+function rand(len = 12) {
   const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: len }, () => a[Math.floor(Math.random() * a.length)]).join("");
+  // Cryptographically secure, rejection-sampled so the alphabet stays uniform.
+  const out: string[] = [];
+  const buf = new Uint8Array(len * 2);
+  while (out.length < len) {
+    crypto.getRandomValues(buf);
+    for (let i = 0; i < buf.length && out.length < len; i++) {
+      const v = buf[i];
+      if (v >= 256 - (256 % a.length)) continue; // reject to avoid modulo bias
+      out.push(a[v % a.length]);
+    }
+  }
+  return out.join("");
 }
 
 export default function OwnerReferralsPage() {

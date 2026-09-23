@@ -72,9 +72,19 @@ Deno.serve(async (req) => {
     }
 
     const cfg = await resolveAIConfig(authHeader);
-    const sym = body.symbol.toUpperCase();
-    const name = body.name || sym;
-    const focusLine = body.focus?.trim() ? `The trader is focused on: ${body.focus.trim()}.` : '';
+    // Strip anything that could be read as prompt structure/instructions out of
+    // caller-controlled free text before it reaches the model.
+    const sanitize = (v: unknown, max: number) =>
+      String(v ?? '')
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(/["'`{}<>\\]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, max);
+    const sym = sanitize(body.symbol, 24).toUpperCase();
+    const name = sanitize(body.name, 80) || sym;
+    const focus = sanitize(body.focus, 200);
+    const focusLine = focus ? `The trader is focused on: ${focus}.` : '';
 
     const systemPrompt = `You are a senior technical strategist writing a trade thesis for ${name} (${sym}).
 You are given a JSON object with candlestick patterns, chart patterns, market-structure shifts, support/resistance zones,

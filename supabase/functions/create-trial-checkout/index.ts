@@ -4,6 +4,11 @@ import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 import { resolveVelaCoupon } from "../_shared/velaCoupon.ts";
 import { rateLimit } from "../_shared/rate-limit.ts";
 
+// Single ineligibility message shared by every refusal path so the response
+// never discloses whether an email already has an account.
+const TRIAL_INELIGIBLE =
+  "This email can't start a new trial. If you already have a Vela account, sign in and upgrade from Settings.";
+
 // Public, unauthenticated: this runs BEFORE the Supabase account exists.
 // The account is created after Stripe validates the card (see finalize-trial-signup).
 Deno.serve(async (req) => {
@@ -91,7 +96,7 @@ Deno.serve(async (req) => {
       ]);
       if (subs.data.length > 0 || invoices.data.length > 0) {
         return new Response(
-          JSON.stringify({ error: "This email already has a Vela billing history. Please sign in and upgrade from Settings — trials are for first-time customers only." }),
+          JSON.stringify({ error: TRIAL_INELIGIBLE }),
           { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }

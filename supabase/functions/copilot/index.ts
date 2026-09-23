@@ -1409,7 +1409,15 @@ ${PLATFORM_MAP}`;
       provider: access.source === "byo" ? "byo" : "lovable",
     });
     // Inject attachments into the last user message as multimodal content parts (Gemini/OpenAI compatible).
-    const incoming = [...(messages ?? [])];
+    // Client-supplied history may only carry user/assistant turns. Any other
+    // role (system, tool, developer…) would let a caller rewrite the server
+    // instructions, so it is coerced to a plain user turn or dropped.
+    const incoming = (Array.isArray(messages) ? messages : [])
+      .filter((m: any) => m && (typeof m.content === 'string' || Array.isArray(m.content)))
+      .map((m: any) => ({
+        ...m,
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+      }));
     const atts: Array<{ name: string; mime: string; dataUrl: string }> = Array.isArray(attachments) ? attachments : [];
     if (atts.length > 0 && incoming.length > 0) {
       const last = incoming[incoming.length - 1];

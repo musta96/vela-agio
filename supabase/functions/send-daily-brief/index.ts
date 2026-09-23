@@ -64,6 +64,17 @@ function localDateInTz(tz: string, now: Date): string {
   }
 }
 
+// HTML-escape any user-controlled text (tickers, names, AI insight) before it
+// is embedded into outgoing email markup.
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function yahooQuote(symbol: string) {
   try {
     const r = await fetch(
@@ -236,10 +247,10 @@ async function buildPortfolioBrief(userId: string, dateISO: string): Promise<Bri
       Your portfolio is <strong>${fmtPct(totalPct)}</strong> today (${fmtMoney(totalDelta, ccy)}).
     </p>
     <p style="margin:0 0 12px 0;font-size:15px;color:#0f172a">
-      Biggest mover: <strong>${biggest.symbol}</strong> ${fmtPct(biggest.changePct)}.
+      Biggest mover: <strong>${esc(biggest.symbol)}</strong> ${fmtPct(biggest.changePct)}.
     </p>
-    <p style="margin:0 0 20px 0;font-size:15px;color:#475569">${insight}</p>
-    <p style="margin:0;font-size:13px;color:#64748b;font-style:italic">${signoff}</p>`;
+    <p style="margin:0 0 20px 0;font-size:15px;color:#475569">${esc(insight)}</p>
+    <p style="margin:0;font-size:13px;color:#64748b;font-style:italic">${esc(signoff)}</p>`;
   return { title, bodyShort, bodyHtml, url: "/portfolio" };
 }
 
@@ -270,10 +281,10 @@ async function buildWatchlistBrief(userId: string, dateISO: string): Promise<Bri
   const bodyShort = `On your watchlist — ${insight}`;
   const bodyHtml = `
     <p style="margin:0 0 12px 0;font-size:15px;color:#0f172a">
-      Top mover on your watchlist: <strong>${biggest.symbol}</strong> ${fmtPct(biggest.changePct)}.
+      Top mover on your watchlist: <strong>${esc(biggest.symbol)}</strong> ${fmtPct(biggest.changePct)}.
     </p>
-    <p style="margin:0 0 20px 0;font-size:15px;color:#475569">${insight}</p>
-    <p style="margin:0;font-size:13px;color:#64748b;font-style:italic">${signoff}</p>`;
+    <p style="margin:0 0 20px 0;font-size:15px;color:#475569">${esc(insight)}</p>
+    <p style="margin:0;font-size:13px;color:#64748b;font-style:italic">${esc(signoff)}</p>`;
   return { title, bodyShort, bodyHtml, url: "/watchlist" };
 }
 
@@ -300,7 +311,7 @@ async function buildGlobalBrief(dateISO: string): Promise<BriefPayload> {
     <p style="margin:0 0 12px 0;font-size:14px;color:#475569">
       Add your first ticker to get a personalised brief tomorrow.
     </p>
-    <p style="margin:0;font-size:13px;color:#64748b;font-style:italic">${signoff}</p>`;
+    <p style="margin:0;font-size:13px;color:#64748b;font-style:italic">${esc(signoff)}</p>`;
   return { title, bodyShort, bodyHtml, url: "/watchlist" };
 }
 

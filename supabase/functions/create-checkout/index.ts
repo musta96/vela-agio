@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const {
-      priceId, quantity, customerEmail, userId: bodyUserId, returnUrl, environment,
+      priceId, customerEmail, userId: bodyUserId, returnUrl, environment,
       referralCode, promoCode, correlationId,
       expectedTotalCents, expectedCurrency,
     } = body ?? {};

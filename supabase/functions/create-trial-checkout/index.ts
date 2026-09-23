@@ -42,8 +42,11 @@ Deno.serve(async (req) => {
     // Refuse if this email is already registered — trial signup is for new accounts.
     const { data: existing } = await sb.auth.admin.listUsers({ page: 1, perPage: 200 });
     if (existing?.users?.some((u) => u.email?.toLowerCase() === email.toLowerCase())) {
+      // Deliberately generic: the same message and status are returned for an
+      // existing account and for prior billing history, so this endpoint can't
+      // be used to confirm whether an email is registered.
       return new Response(
-        JSON.stringify({ error: "An account with that email already exists. Please sign in and upgrade from Settings." }),
+        JSON.stringify({ error: TRIAL_INELIGIBLE }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

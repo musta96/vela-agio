@@ -61,6 +61,17 @@ export default function LegalDoc() {
   );
 }
 
+// Only absolute http(s) links, protocol-relative links, in-app paths and
+// anchors/mailto are allowed. Anything else (javascript:, data:, vbscript:…)
+// is neutralised so a stored legal document cannot execute script.
+function safeHref(raw: string): string {
+  const url = raw.trim().replace(/[\u0000-\u001f\u007f]/g, "");
+  if (/^(https?:\/\/|\/\/|\/|#|mailto:)/i.test(url) && !/^\s*javascript:/i.test(url)) {
+    return url.replace(/"/g, "&quot;");
+  }
+  return "#";
+}
+
 function MarkdownBody({ body }: { body: string }) {
   // Lightweight markdown: headings, paragraphs, lists, bold, italic, links.
   // Avoids adding a new dependency for a single page.
@@ -71,7 +82,11 @@ function MarkdownBody({ body }: { body: string }) {
     .replace(/^# (.*)$/gm, "<h1>$1</h1>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(
+      /\[(.+?)\]\((.+?)\)/g,
+      (_m, text: string, href: string) =>
+        `<a href="${safeHref(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`,
+    )
     .replace(/^- (.*)$/gm, "<li>$1</li>")
     .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
     .split(/\n{2,}/).map(b => b.match(/^<(h\d|ul|ol|blockquote)/) ? b : `<p>${b.replace(/\n/g, "<br/>")}</p>`).join("\n");

@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { Wrench, Plus, X, Play, Save, Trash2, Copy, History, BarChart3, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   CONDITION_LABELS,
@@ -39,6 +41,7 @@ const EMPTY_EXIT: Condition[]  = [{ type: "rsi_above", value: 70 }];
 export function StrategyBuilderCard({ symbol, timeframe, presetName, presetEntry, presetExit, presetRisk }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const gate = useFeatureGate();
 
   const [name, setName] = useState<string>(presetName ? `${presetName} · ${symbol}` : `${symbol} · ${timeframe} strategy`);
   const [description, setDescription] = useState<string>("");
@@ -183,10 +186,16 @@ export function StrategyBuilderCard({ symbol, timeframe, presetName, presetEntry
   };
 
   const handlePreviewBacktest = async () => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to preview a backtest.", variant: "destructive" });
+      return;
+    }
+    if (gate.entitlements.loading) return;
     if (hasErrors) {
       toast({ title: "Fix validation errors", description: errors[0].message, variant: "destructive" });
       return;
     }
+    if (!gate.require("ai.backtests")) return;
     setPreviewing(true);
     setPreviewResult(null);
     try {
@@ -199,11 +208,28 @@ export function StrategyBuilderCard({ symbol, timeframe, presetName, presetEntry
           rules: { entry, exit, risk },
         },
       });
-      if (error) throw error;
+      if (error) {
+        // Function errors wrap HTTP responses; read the code without exposing it in the toast.
+        const response = error.context;
+        if (response instanceof Response) {
+          const payload = await response.clone().json().catch(() => null);
+          if (typeof payload?.error === "string") throw new Error(payload.error);
+        }
+        throw error;
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
       setPreviewResult(data as any);
     } catch (e: any) {
-      toast({ title: "Preview failed", description: e?.message ?? "Try again", variant: "destructive" });
+      if (e?.message === "upgrade_required") {
+        gate.promptUpgrade("ai.backtests");
+      } else {
+        const description = e?.message === "unauthenticated"
+          ? "Your session has expired. Sign in again to preview a backtest."
+          : e?.message === "entitlement_check_failed"
+            ? "We couldn't check your plan right now. Please try again."
+            : "We couldn't run this preview. Please try again.";
+        toast({ title: "Preview unavailable", description, variant: "destructive" });
+      }
     } finally {
       setPreviewing(false);
     }
@@ -311,7 +337,7 @@ export function StrategyBuilderCard({ symbol, timeframe, presetName, presetEntry
             <Copy className="h-4 w-4" /> Clone
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing || hasErrors} className="gap-2">
+        <Button size="sm" variant="outline" onClick={handlePreviewBacktest} disabled={previewing || hasErrors || gate.entitlements.loading} className="gap-2">
           <BarChart3 className="h-4 w-4" /> {previewing ? "Running…" : "Preview backtest"}
         </Button>
         {selectedId && versions.length > 0 && (
@@ -415,6 +441,7 @@ export function StrategyBuilderCard({ symbol, timeframe, presetName, presetEntry
           </div>
         </div>
       )}
+      <UpgradeDialog state={gate.prompt} onOpenChange={(open) => gate.setPrompt((prev) => ({ ...prev, open }))} />
     </Card>
   );
 }

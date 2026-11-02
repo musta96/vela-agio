@@ -400,7 +400,6 @@ function NetWorthSubMenu() {
     ? NET_WORTH_SUB.filter((it) => matchesSearch(query, it.title))
     : NET_WORTH_SUB;
   const parentMatches = !query || matchesSearch(query, "Net Worth");
-  if (query && !parentMatches && visibleSub.length === 0) return null;
   const effectiveOpen = query ? true : open;
 
   useEffect(() => {
@@ -409,6 +408,8 @@ function NetWorthSubMenu() {
       saveGroupOpen("net-worth", true);
     }
   }, [onAnyNW]);
+
+  if (query && !parentMatches && visibleSub.length === 0) return null;
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);

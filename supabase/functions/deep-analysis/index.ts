@@ -32,11 +32,13 @@ async function getCrumb(): Promise<{ crumb: string; cookie: string }> {
     if (sc) setCookies.push(sc);
   }
   // Fallback: also hit finance.yahoo.com which reliably sets A1/A3
+  // Yahoo's front page occasionally resets HTTP/2 streams; never let that
+  // abort the whole request — the cookie from fc.yahoo.com is often enough.
   const r2 = await fetch('https://finance.yahoo.com/', {
     headers: { 'User-Agent': UA, Accept: 'text/html' },
     redirect: 'manual',
-  });
-  const sc2 = r2.headers.get('set-cookie');
+  }).catch((e) => { console.warn('finance.yahoo.com cookie fetch failed', e?.message); return null; });
+  const sc2 = r2?.headers.get('set-cookie');
   if (sc2) setCookies.push(sc2);
 
   // Build a minimal Cookie header from set-cookie strings
@@ -52,9 +54,14 @@ async function getCrumb(): Promise<{ crumb: string; cookie: string }> {
   }
   const cookie = cookiePairs.join('; ');
 
-  const r3 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
-    headers: { 'User-Agent': UA, Accept: 'text/plain', Cookie: cookie },
-  });
+  let r3: Response | null = null;
+  for (const host of ['query2', 'query1']) {
+    r3 = await fetch(`https://${host}.finance.yahoo.com/v1/test/getcrumb`, {
+      headers: { 'User-Agent': UA, Accept: 'text/plain', Cookie: cookie },
+    }).catch(() => null);
+    if (r3?.ok) break;
+  }
+  if (!r3) throw new Error('UPSTREAM_UNAVAILABLE');
   if (!r3.ok) throw new Error(`getcrumb ${r3.status}`);
   const crumb = (await r3.text()).trim();
   if (!crumb || crumb.length < 4) throw new Error('Empty crumb');
@@ -291,8 +298,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const q = await fetchQuoteSummary(sym);
-    if (!q) throw new Error('No data from Yahoo');
+    let q: any = null;
+    try { q = await fetchQuoteSummary(sym); } catch (e: any) {
+      console.warn('deep-analysis upstream failure', e?.message);
+    }
+    if (!q) {
+      return new Response(JSON.stringify({
+        error: 'Market data provider is temporarily unavailable. Please try again in a minute.',
+        code: 'upstream_unavailable',
+      }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const fundamentals = extractFundamentals(q);
     // Phase 2: optionally enrich with BYO providers (FMP, AlphaVantage). Never throws.
     const byoFundamentals = await fetchAllByoFundamentals(req.headers.get('Authorization'), sym);

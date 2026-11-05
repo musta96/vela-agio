@@ -11,7 +11,7 @@ export const PUBLIC_PLAN_LIMITS = {
   enterprise: { hostedAi: false, aiMonthlyQuota: -1, portfolios: null, positions: null, watchlist: null },
 } satisfies Record<PlanSlug, { hostedAi: boolean; aiMonthlyQuota: number; portfolios: number | null; positions: number | null; watchlist: number | null }>;
 
-export const PLAN_ACCESS_NOTE = "Standard plan access is shown below. Temporary AI beta access, beta-tester access and your own AI provider can override standard limits. AI allowances are shared across hosted AI requests and reset each calendar month; they are not daily allowances. Market data timing depends on the source and exchange, not a guaranteed live feed.";
+export const PLAN_ACCESS_NOTE = "Standard plan access is shown below. Temporary AI beta access is currently active and can change. Beta-tester access and your own AI provider can also override standard limits. AI allowances are shared across hosted AI requests and reset each calendar month; they are not daily allowances. Market data timing depends on the source and exchange, not a guaranteed live feed.";
 
 export function hostedAiAllowance(slug: PlanSlug): string {
   const plan = PUBLIC_PLAN_LIMITS[slug];

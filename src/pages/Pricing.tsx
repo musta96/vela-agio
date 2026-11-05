@@ -9,21 +9,15 @@ import { PricingSection } from "@/components/landing/pricing-section";
 import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 import { ArrowRight, ChevronDown, Check, X } from "lucide-react";
 import { PLAN_LIST } from "@/lib/planFeatures";
+import { PUBLIC_PLAN_COMPARISON, PLAN_FAQ } from "@/data/publicPlanCatalog";
 
-const COMPARISON: { label: string; values: (string | boolean)[] }[] = [
-  { label: "AI research", values: ["5 questions / day", "100 questions / day", "Unlimited, priority model", "Unlimited, priority model"] },
-  { label: "Market data", values: ["Delayed", "Live EU and US", "Live EU and US", "Live EU and US"] },
-  { label: "Portfolio sync (Plaid / SnapTrade)", values: [false, true, true, true] },
-  { label: "Smart alerts", values: [false, true, true, true] },
-  { label: "Backtesting and optimizer", values: [false, false, true, true] },
-  { label: "MiFID II suitability and KIDs", values: [false, false, true, true] },
-  { label: "Report generation and PDF export", values: [false, false, true, true] },
-  { label: "Multi-client advisor seats", values: [false, false, false, "3 included, add more"] },
-  { label: "API access", values: [false, false, false, true] },
-  { label: "Support", values: ["Community", "Standard", "Priority", "Priority + success manager"] },
-];
+const COMPARISON = PUBLIC_PLAN_COMPARISON.flatMap(group => group.rows).map(row => ({
+  label: row.label,
+  values: PLAN_LIST.map(plan => row.values[plan.slug]),
+}));
 
 const PRICING_FAQ = [
+  ...PLAN_FAQ,
   { q: "Can I upgrade or downgrade at any time?", a: "Yes. You can change plan from the billing page. Upgrades are pro-rated so you only pay the difference for the rest of the current period. Downgrades take effect at the end of the paid period, and your account moves to Explorer after that." },
   { q: "How does annual billing work?", a: "Annual plans are charged once per year. The card on the pricing page shows the effective monthly price. Plus is €108 per year, Pro is €288 per year, Enterprise is €1,500 per year." },
   { q: "What happens if I cancel?", a: "You keep access to all paid features until the end of the current period, then your account moves to Explorer. No further charges are taken." },

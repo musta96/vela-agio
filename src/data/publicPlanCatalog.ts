@@ -31,7 +31,7 @@ const advanced: PlanSlug[] = ["pro", "enterprise"];
 export const PUBLIC_PLAN_COMPARISON: Array<{ category: string; rows: ComparisonRow[] }> = [
   { category: "Market data & research", rows: [
     { label: "Market data", hint: "Public quotes can be delayed. Paid plans include more frequent refresh, not guaranteed exchange-live streaming.", values: values(slug => slug === "explorer" ? "Public quotes" : "More frequent refresh") },
-    { label: "Watchlist items", values: values(slug => PUBLIC_PLAN_LIMITS[slug].watchlist ?? "No plan cap") },
+    { label: "Watchlist items", values: values(slug => PUBLIC_PLAN_LIMITS[slug].watchlist === null ? "No plan cap" : "5 items") },
     { label: "Screeners & filters", values: included(...paid) },
     { label: "Explore, movers & sector heatmaps", values: all() },
     { label: "Filings, earnings & insider feed", hint: "Availability follows the original source; no plan-specific filing delay is configured.", values: all() },

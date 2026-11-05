@@ -10,7 +10,8 @@ import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { useAuth } from "@/hooks/useAuth";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 import { getStripeEnvironment } from "@/lib/stripe";
-import { PLAN_LIST, type PlanDefinition } from "@/lib/planFeatures";
+import { PUBLIC_PLAN_BULLETS, PLAN_ACCESS_NOTE } from "@/data/publicPlanCatalog";
+import { PLAN_LIST, planPriceCaption, type PlanDefinition } from "@/lib/planFeatures";
 import { PlanConfirmDialog, type PendingSelection } from "@/components/pricing/PlanConfirmDialog";
 
 /** Plans rendered on the pricing section (single source of truth in planFeatures.ts). */
@@ -99,7 +100,7 @@ export function PricingSection({ confirmBeforeCheckout = true }: { confirmBefore
           Pricing that scales with you
         </h2>
         <p className="text-base md:text-lg" style={{ color: "#3d4f66" }}>
-          Start free. Move up when you need live data, broker connect, backtesting or team seats.
+          Start free. Move up for more frequent data refresh, email alerts, backtesting or team seats.
           Prices in euros. EU VAT applied where required.
         </p>
       </div>
@@ -113,7 +114,7 @@ export function PricingSection({ confirmBeforeCheckout = true }: { confirmBefore
       </div>
 
       <p className="text-xs text-center max-w-xl" style={{ color: "#6b7a8c" }}>
-        Educational research, not investment advice. Cancel anytime.
+        {PLAN_ACCESS_NOTE} Educational research, not investment advice. Cancel anytime.
       </p>
 
       {/* Stripe Embedded Checkout mounts inline when the hook opens it. */}
@@ -220,6 +221,7 @@ export function PricingCard({
               ? `Billed €${plan.priceAnnualTotal} per year`
               : "Billed monthly"}
         </p>
+        <p className="text-xs">{planPriceCaption(plan)}</p>
       </div>
 
       <div
@@ -228,7 +230,7 @@ export function PricingCard({
           color: plan.highlighted ? "rgba(255,255,255,0.92)" : "#1f3147",
         }}
       >
-        {plan.featureList.map((feature) => (
+        {PUBLIC_PLAN_BULLETS[plan.slug].map((feature) => (
           <div className="flex items-center gap-2" key={feature}>
             <CheckCircle2 className="size-4 shrink-0 mt-0.5" style={{ color: "#1D9E75" }} />
             <p>{feature}</p>

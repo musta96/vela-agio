@@ -1,3 +1,4 @@
+import { PLAN_FAQ } from "@/data/publicPlanCatalog";
 import {
   Brain, LineChart, PieChart, Target, Activity, Bell, Shield, FileText,
   Users, Building2, Zap, BarChart3, Lock, BookOpen, Sparkles, Globe, Star, TrendingUp,
@@ -59,20 +60,20 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       items: [
         { icon: "Brain", title: "AI Research Copilot", desc: "Ask anything about a stock, sector or your portfolio. Get cited, jargon-free answers powered by the latest LLMs." },
         { icon: "Sparkles", title: "AI Radar & Idea Lab", desc: "AI scanners, smart picks and stocks-to-watch surface high-conviction ideas across thousands of instruments every day." },
-        { icon: "LineChart", title: "Live Markets & Charts", desc: "FTSE MIB, pan-European, US stocks, ETFs, FX, commodities and crypto. Real-time quotes, intraday, VWAP and 50+ technical indicators." },
+        { icon: "LineChart", title: "Live Markets & Charts", desc: "FTSE MIB, pan-European, US stocks, ETFs, FX, commodities and crypto. Public quotes, intraday charts, VWAP and technical indicators. Timing depends on the data source; paid plans include more frequent refresh." },
         { icon: "Globe", title: "Explore, Movers & Sectors", desc: "Curated discovery rails, sector heatmaps, thematic watchlists and top movers across every covered market." },
         { icon: "TrendingUp", title: "Options & Futures", desc: "Options chains, futures curves, credit spreads and bond calculator for derivatives-aware research." },
         { icon: "Newspaper", title: "Filings, Earnings & Insider", desc: "SEC/CONSOB filings, earnings calendar, insider transactions, buybacks and corporate actions in one feed." },
-        { icon: "Activity", title: "Sentiment & News", desc: "AI-summarised filings, earnings calls and social sentiment so you spot signals before the crowd." },
+        { icon: "Activity", title: "Sentiment & News", desc: "News and AI briefs for your research. The sentiment dashboard requires Pro or Enterprise, plus available AI access." },
         { icon: "PieChart", title: "Portfolio & Orders", desc: "Manual or broker-connected portfolios with orders, blotter, paper trading and short-selling analytics." },
         { icon: "Wallet", title: "Net Worth & Household", desc: "Track cash, investments, retirement, crypto, real estate, vehicles, collectibles and liabilities across the household." },
         { icon: "Target", title: "Goals, Budget & Dividend Planner", desc: "Set financial goals, run a monthly budget and forecast dividend income with reinvestment scenarios." },
         { icon: "PieChart", title: "Portfolio Coach & Advisor", desc: "Continuous, plain-English suggestions on rebalancing, risk, diversification and factor exposures." },
-        { icon: "Repeat", title: "Backtesting & Strategy Lab", desc: "Design, backtest and walk-forward optimise strategies with transaction costs, slippage and regime breakdowns." },
+        { icon: "Repeat", title: "Backtesting & Strategy Lab", desc: "Design strategies on the research pages; backtests and strategy previews require Pro or Enterprise. Model transaction costs, slippage and market regimes." },
         { icon: "BarChart3", title: "Optimizer & Rebalance", desc: "Mean-variance, risk-parity and factor-tilt optimisers, plus one-click rebalance plans for any portfolio." },
         { icon: "Shield", title: "Risk Engine & Simulations", desc: "VaR/CVaR, Monte Carlo simulations, drawdown analytics and stress tests across market regimes." },
         { icon: "FlaskConical", title: "Quant Alpha & Event Study", desc: "Institutional-grade quant factors, event studies, peer analysis, ETF overlap and 13F replication." },
-        { icon: "Bell", title: "Smart Alerts & Filing Alerts", desc: "Price, technical and signal alerts - plus a notification the moment a new 10-K, 10-Q, 8-K or proxy lands on any holding in your portfolio." },
+        { icon: "Bell", title: "Smart Alerts & Filing Alerts", desc: "Price, technical and signal alerts - plus periodic checks for new filings on portfolio holdings. Email entitlement starts with Plus; push entitlement starts with Pro and requires device setup." },
         { icon: "Rocket", title: "Startup & Private Markets", desc: "Value startups with real SEC Form D filings, official EU and Italian registries (incl. Startup Innovativa) and live sentiment - not just press clippings." },
         { icon: "Smartphone", title: "Web & iOS", desc: "The full workspace on the web and a native-feel iOS app with bottom navigation, so your research travels with you." },
         { icon: "Eye", title: "Privacy Mode", desc: "Hide every portfolio amount and net-worth figure with one tap - in the app, on the chart, everywhere. Ideal for sharing your screen." },
@@ -99,9 +100,9 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
       eyebrow: "How it works",
       items: [
         { icon: "UserPlus", title: "Sign Up", desc: "Create account in seconds with email or OAuth." },
-        { icon: "Link2", title: "Connect Portfolio", desc: "Link your broker or upload portfolio data." },
+        { icon: "Link2", title: "Connect Portfolio", desc: "Add holdings manually, import CSV or connect a supported broker read-only via SnapTrade on any plan." },
         { icon: "Brain", title: "Ask the AI Copilot", desc: "Plain-English answers about your holdings, filings and markets - always with cited sources." },
-        { icon: "Rocket", title: "Decide with Confidence", desc: "Set alerts, backtest ideas and track your net worth over time." },
+        { icon: "Rocket", title: "Decide with Confidence", desc: "Track your net worth on every plan, add email filing alerts with Plus, or backtest ideas with Pro." },
       ],
     },
   },
@@ -116,9 +117,9 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
   {
     key: "launch", kind: "launch", sort_order: 65, enabled: true,
     content: {
-      eyebrow: "Launch Offer · Free Access",
-      title: "Vela.ai is completely free during launch.",
-      subtitle: "Get full access to institutional-grade intelligence - no credit card, no plans, no limits. Founding members keep preferred pricing forever when we introduce paid tiers.",
+      eyebrow: "Start with Explorer",
+      title: "Start your research for free.",
+      subtitle: "Start with Explorer for free. Temporary beta access may extend AI availability, but standard plan limits and feature permissions still apply. Compare plans for email alerts, backtesting and team tools.",
       primaryCta: { label: "Get Started Free", href: "/auth" },
     },
   },
@@ -151,10 +152,10 @@ export const DEFAULT_SECTIONS: LandingSectionRow[] = [
   {
     key: "faq", kind: "faq", sort_order: 80, enabled: true,
     content: { title: "Frequently asked", items: [
+      ...PLAN_FAQ,
       { q: "Is Vela.ai an investment advisor?", a: "No. Vela.ai is an educational research and personal-research platform. We do not provide personalised investment advice, recommendations to buy or sell, or portfolio management services. All outputs are for information and educational purposes only." },
-      { q: "Where does the market data come from?", a: "We aggregate public market data, regulatory filings (e.g. SEC EDGAR, CONSOB) and reputable news sources. Real-time depth is available on paid tiers; delayed quotes are free." },
+      { q: "Where does the market data come from?", a: "We aggregate public market data, regulatory filings (e.g. SEC EDGAR, CONSOB) and reputable news sources. Public quotes may be delayed. Paid plans include more frequent refresh, not guaranteed exchange-live streaming." },
       { q: "Is my data safe?", a: "Yes. Data is encrypted in transit and at rest, hosted in the EU, and protected with row-level security. You can export or delete all of your data at any time (GDPR Art. 17 & 20)." },
-      { q: "Do I need to connect a brokerage?", a: "No. You can manually track portfolios, import CSV, or - on Pro and above - connect supported brokers in read-only mode." },
       { q: "Which markets are covered?", a: "FTSE MIB and pan-European equities, US stocks and ETFs, major crypto, FX and key macro indicators." },
     ]},
   },

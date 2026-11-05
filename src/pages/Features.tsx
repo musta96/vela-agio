@@ -11,7 +11,8 @@ import { trackLandingEvent } from "@/lib/landingAnalytics";
 import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import { PLAN_LIST, PLAN_ORDER, type PlanSlug } from "@/lib/planFeatures";
+import { PLAN_LIST, PLAN_ORDER, type PlanSlug, formatPlanPrice, planPriceCaption } from "@/lib/planFeatures";
+import { PUBLIC_PLAN_COMPARISON, PLAN_ACCESS_NOTE } from "@/data/publicPlanCatalog";
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
   const C = (name && ICONS[name]) || Sparkles;
@@ -107,80 +108,13 @@ export default function Features() {
     PLAN_LIST.map((p) => ({
       key: p.slug,
       name: p.name,
-      price: p.contactSales
-        ? "Custom"
-        : p.priceMonthly === 0
-          ? "Free"
-          : `€${p.priceMonthly} /mo`,
+      price: `${formatPlanPrice(p)} · ${planPriceCaption(p)}`,
       bestFor: p.audience,
       highlight: p.highlighted,
     }));
   type Cell = boolean | string;
 
-  // Rows use a partial map so that if a new plan is added to PLAN_FEATURES,
-  // unknown columns default to "not included" instead of crashing the type.
-  const COMPARISON_RAW: Array<{
-    category: string;
-    rows: Array<{ label: string; hint?: string; values: Partial<Record<PlanKey, Cell>> }>;
-  }> = [
-    {
-      category: "Market data & research",
-      rows: [
-        { label: "Market data",         hint: "Delayed feeds refresh every 15 minutes. Real-time is exchange-live streaming.", values: { explorer: "Delayed",  plus: "Real-time", pro: "Real-time", enterprise: "Real-time" } },
-        { label: "Watchlists",          hint: "Custom lists of tickers you can group, alert on and share across devices.",     values: { explorer: "Up to 3",  plus: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Screeners & filters", hint: "Multi-factor screeners across fundamentals, technicals and sentiment.",         values: { explorer: false,      plus: false,       pro: true,        enterprise: true } },
-        { label: "Explore, movers & sector heatmaps", hint: "Curated discovery rails, top movers and sector-level heatmaps across every covered market.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
-        { label: "Filings, earnings & insider feed",  hint: "SEC/CONSOB filings, earnings calendar, insider transactions and buyback tracking.",           values: { explorer: "Delayed", plus: true, pro: true, enterprise: true } },
-        { label: "Startup & private markets",        hint: "Startup valuation with real SEC Form D filings, official EU and Italian registries (incl. Startup Innovativa) and live sentiment.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
-        { label: "Options chains & futures curves",   hint: "Options chains, futures curves, credit spreads and bond calculator for derivatives research.", values: { explorer: false, plus: "Delayed", pro: true, enterprise: true } },
-        { label: "Intraday minute data",              hint: "1-minute intraday bars for event-driven and short-horizon research.",                          values: { explorer: false, plus: false, pro: true, enterprise: true } },
-        { label: "Backtesting engine",  hint: "Simulate strategies against historical data with slippage and costs modeled.",   values: { explorer: false,      plus: false,       pro: true,        enterprise: true } },
-        { label: "Strategy Lab & walk-forward",       hint: "Design, walk-forward optimise and compare multi-asset strategies with regime breakdowns.",     values: { explorer: false, plus: false, pro: true, enterprise: true } },
-      ],
-    },
-    {
-      category: "AI copilot",
-      rows: [
-        { label: "AI summaries",           hint: "Short AI-written briefs on tickers, news and filings.",                              values: { explorer: "25 / mo", plus: "100 / day", pro: "Unlimited", enterprise: "Unlimited" } },
-        { label: "Deep research reports",  hint: "Multi-page reports combining fundamentals, sentiment, valuation and risk.",         values: { explorer: false,     plus: false,       pro: true,        enterprise: true } },
-        { label: "Portfolio doctor",       hint: "AI review of your holdings with concentration, factor and risk suggestions.",       values: { explorer: false,     plus: false,       pro: true,        enterprise: true } },
-        { label: "AI Radar & Idea Lab",    hint: "AI scanners and smart picks that surface high-conviction ideas across the covered universe.", values: { explorer: "3 ideas / day", plus: true, pro: true, enterprise: true } },
-        { label: "Sentiment & news engine", hint: "AI-summarised filings, earnings calls and social sentiment scoring.",              values: { explorer: false, plus: true, pro: true, enterprise: true } },
-      ],
-    },
-    {
-      category: "Portfolio & analytics",
-      rows: [
-        { label: "Manual portfolio tracking",           hint: "Add trades and cash manually to track performance across accounts.",           values: { explorer: true,  plus: true,  pro: true, enterprise: true } },
-        { label: "Broker connect (read-only)",          hint: "Sync live positions from your broker. Read-only — Vela never places trades.",   values: { explorer: false, plus: true,  pro: true, enterprise: true } },
-        { label: "Net worth & household tracking",      hint: "Track cash, investments, real estate, crypto, vehicles, collectibles and liabilities across the household.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
-        { label: "Goals, budget & dividend planner",    hint: "Set financial goals, run a monthly budget and forecast dividend income with reinvestment scenarios.",         values: { explorer: true, plus: true, pro: true, enterprise: true } },
-        { label: "Paper trading & blotter",             hint: "Practise strategies in a simulated environment with a full order blotter and short-selling tools.",           values: { explorer: false, plus: true, pro: true, enterprise: true } },
-        { label: "Smart alerts (price, signal, events)", hint: "Alerts on price moves, AI signals and calendar events, delivered by email or push.", values: { explorer: false, plus: true,  pro: true, enterprise: true } },
-        { label: "Filing alerts on your holdings",   hint: "Get notified the moment a new 10-K, 10-Q, 8-K, 20-F, proxy or 13F lands on a company you own.", values: { explorer: false, plus: true, pro: true, enterprise: true } },
-        { label: "Privacy mode (hide amounts)",      hint: "One tap masks every portfolio value and net-worth figure, charts included. Your choice is remembered.", values: { explorer: true, plus: true, pro: true, enterprise: true } },
-        { label: "iOS app",                          hint: "Native-feel iOS app with bottom navigation, built with Capacitor.",                          values: { explorer: true, plus: true, pro: true, enterprise: true } },
-        { label: "DCF / DDM intrinsic value",           hint: "Discounted cash-flow and dividend-discount models with editable assumptions.", values: { explorer: false, plus: false, pro: true, enterprise: true } },
-        { label: "Optimizer & rebalance planner",       hint: "Mean-variance, risk-parity and factor-tilt optimisers plus one-click rebalance plans.",                     values: { explorer: false, plus: false, pro: true, enterprise: true } },
-        { label: "Risk analytics (VaR / Monte Carlo)",  hint: "Value-at-Risk and Monte Carlo simulations for portfolio stress-testing.",       values: { explorer: false, plus: false, pro: true, enterprise: true } },
-        { label: "Quant Alpha, event study & 13F",      hint: "Quant factors, event studies, peer analysis, ETF overlap and 13F replication.",                              values: { explorer: false, plus: false, pro: true, enterprise: true } },
-        { label: "Tax-loss harvesting & PDF reports",   hint: "Tax-loss harvesting suggestions, corporate-action tracking and one-click institutional PDF reports.",         values: { explorer: false, plus: false, pro: true, enterprise: true } },
-      ],
-    },
-    {
-      category: "Team, compliance & support",
-      rows: [
-        { label: "Community access",           hint: "Discord community with other investors and the Vela team.",                                 values: { explorer: true,  plus: true,  pro: true,  enterprise: true } },
-        { label: "Learn academy & methodology",hint: "In-app academy, onboarding paths and transparent methodology pages behind every model.",     values: { explorer: true,  plus: true,  pro: true,  enterprise: true } },
-        { label: "Priority support",           hint: "Faster email response times with a dedicated queue for paying customers.",                  values: { explorer: false, plus: false, pro: true,  enterprise: true } },
-        { label: "Advisor seats & MiFID II",   hint: "Multi-seat advisor workspace with client mandates and MiFID II-ready audit trails.",         values: { explorer: false, plus: false, pro: false, enterprise: true } },
-        { label: "Agent integrations (MCP)",   hint: "OAuth-protected MCP server so Claude, ChatGPT and other agents can query Vela on your behalf.", values: { explorer: false, plus: false, pro: true,  enterprise: true } },
-        { label: "REST API & WebSocket",       hint: "Programmatic access to Vela data and signals for internal tools or research pipelines.",     values: { explorer: false, plus: false, pro: false, enterprise: true } },
-        { label: "SSO & audit logs",           hint: "SAML / OIDC single sign-on plus tamper-evident audit logs of every user action.",           values: { explorer: false, plus: false, pro: false, enterprise: true } },
-        { label: "Dedicated success manager",  hint: "Named contact for onboarding, training and quarterly reviews.",                             values: { explorer: false, plus: false, pro: false, enterprise: true } },
-      ],
-    },
-  ];
+  const COMPARISON_RAW = PUBLIC_PLAN_COMPARISON;
 
   // Fill any missing plan cells so every configured tier has a value.
   const COMPARISON: Array<{
@@ -392,7 +326,7 @@ export default function Features() {
               Exactly what's in each tier
             </h2>
             <p className="mt-3 text-sm sm:text-base" style={{ color: "#3d4f66" }}>
-              Every capability, mapped to Explorer, Plus, Pro and Enterprise. No fine print.
+              {PLAN_ACCESS_NOTE}
             </p>
           </div>
 

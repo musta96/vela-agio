@@ -1659,6 +1659,85 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_invite_signups: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          user_id: string
+          visit_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          user_id: string
+          visit_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          user_id?: string
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_invite_signups_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: true
+            referencedRelation: "friend_invite_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_invite_visits: {
+        Row: {
+          browser_session: string
+          created_at: string
+          id: string
+          invite_id: string
+        }
+        Insert: {
+          browser_session: string
+          created_at?: string
+          id?: string
+          invite_id: string
+        }
+        Update: {
+          browser_session?: string
+          created_at?: string
+          id?: string
+          invite_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_invite_visits_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "friend_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_invites: {
+        Row: {
+          created_at: string
+          id: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          token?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gdpr_erasure_requests: {
         Row: {
           certificate_url: string | null
@@ -4106,6 +4185,15 @@ export type Database = {
         Args: { _rows: Json; _user_id: string; _verified_at: string }
         Returns: undefined
       }
+      attribute_friend_signup: {
+        Args: {
+          _confirmed_at: string
+          _created_at: string
+          _user_id: string
+          _visit_id: string
+        }
+        Returns: boolean
+      }
       check_paid_plans_stripe_ids: {
         Args: never
         Returns: {
@@ -4115,6 +4203,7 @@ export type Database = {
           tier: string
         }[]
       }
+      claim_friend_invite: { Args: { _visit_id: string }; Returns: boolean }
       consume_rate_limit: {
         Args: { _key: string; _limit: number; _window_seconds: number }
         Returns: boolean
@@ -4183,6 +4272,11 @@ export type Database = {
           source: string
           tier: string
         }[]
+      }
+      my_friend_invite: { Args: never; Returns: Json }
+      record_friend_invite_visit: {
+        Args: { _browser_session: string; _token: string }
+        Returns: string
       }
       redeem_referral_code: { Args: { _code: string }; Returns: Json }
       stripe_entitlements: {

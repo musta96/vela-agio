@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SEO } from "@/components/SEO";
 import { TOS_VERSION, PRIVACY_VERSION } from "@/lib/legal-versions";
 import { rememberReferral, consumePendingReferral } from "@/pages/RedeemReferral";
+import { getPendingFriendInvite } from "@/lib/friendInvites";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -75,6 +76,7 @@ const Auth = () => {
           ack_not_advice: ackNotAdvice,
           ack_risk: ackRisk,
           consented_at: new Date().toISOString(),
+          friend_invite_visit: getPendingFriendInvite()?.receipt ?? null,
         },
       },
     });
@@ -143,7 +145,7 @@ const Auth = () => {
         </Link>
         <h1 className="text-2xl font-bold text-center mb-4">Sign in to Vela.ai</h1>
         <Card className="p-6 card-gradient border-border">
-          <Tabs defaultValue="signin">
+          <Tabs defaultValue={search.get("tab") === "signup" ? "signup" : "signin"}>
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="signin">Sign in</TabsTrigger>
               <TabsTrigger value="signup">Create account</TabsTrigger>

@@ -155,6 +155,20 @@
       "when": 1793868504534,
       "tag": "0021_apple_sandbox_review_accounts_and_atomic_ownership",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793901095834,
+      "tag": "0022_personal_friend_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793901370158,
+      "tag": "0023_friend_invites_independent_identity",
+      "breakpoints": true
     }
   ]
 }

@@ -327,6 +327,7 @@ const ACCOUNT: NavGroup = {
   items: [
     { title: "Plans & billing", url: "/plans-billing", icon: CreditCard },
     { title: "Profile", url: "/profile", icon: User },
+    { title: "Invite friends", url: "/referrals", icon: Users },
     { title: "Notes", url: "/notes", icon: StickyNote },
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "AI Usage", url: "/ai-usage", icon: Activity },

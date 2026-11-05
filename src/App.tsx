@@ -105,6 +105,9 @@ import JoinEnterpriseTeam from "./pages/JoinEnterpriseTeam";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
 import InvestorCalculator from "./pages/InvestorCalculator";
+import FriendInvite from "./pages/FriendInvite";
+import Referrals from "./pages/Referrals";
+import { FriendInviteAttribution } from "./components/FriendInviteAttribution";
 import BlogPost from "./pages/BlogPost";
 import SharedResearchNote from "./pages/SharedResearchNote";
 import OAuthConsent from "./pages/OAuthConsent";
@@ -147,6 +150,7 @@ const App = () => (
         <PortfoliosProvider>
         <PrivacyModeProvider>
         <NativePushRegistrar />
+        <FriendInviteAttribution />
         <ConsentBanner />
         <Routes>
           <Route path="/" element={<Home />} />
@@ -169,6 +173,7 @@ const App = () => (
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/calcolatore-pac" element={<InvestorCalculator />} />
+          <Route path="/invite/:token" element={<FriendInvite />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/features" element={<Features />} />
           <Route path="/contact-sales" element={<ContactSales />} />
@@ -250,6 +255,7 @@ const App = () => (
             <Route path="/blotter" element={<Navigate to="/trading?tab=journal" replace />} />
             <Route path="/orders" element={<Navigate to="/trading?tab=orders" replace />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/referrals" element={<Referrals />} />
             <Route path="/security" element={<Security />} />
             <Route path="/ai-scanner" element={<AIScanner />} />
             <Route path="/related" element={<RelatedInstruments />} />

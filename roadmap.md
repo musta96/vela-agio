@@ -19,6 +19,7 @@
 - [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
+- [ ] Align homepage, FAQ and feature comparison with verified plan limits without changing access.
 - [ ] Order flow & options microstructure page (Yahoo-derived + free open-source data only).
 - [ ] Italian regulatory source and "normative in arrivo" section on Regulatory Analysis.
 - [ ] Authenticated client-only portal (no admin login) with research reports, notes, portfolio.

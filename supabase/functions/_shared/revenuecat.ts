@@ -59,8 +59,10 @@ export async function reconcileApple(userId: string) {
   }
   const { error } = await admin.rpc("apple_reconcile_subscriptions", { _user_id: userId, _rows: rows, _verified_at: verifiedAt });
   if (error) throw new Error(error.message.includes("purchase_owned") ? "purchase_owned_by_another_account" : "subscription_save_failed");
-  // Live access only. TestFlight sandbox purchases never grant production web entitlements.
-  const { data: current, error: readError } = await admin.from("apple_subscriptions").select("expires_at,will_renew").eq("user_id", userId).eq("environment", "live").eq("gives_access", true).gt("expires_at", new Date().toISOString()).order("expires_at", { ascending: false }).limit(1).maybeSingle();
+  // Sandbox access is limited to a server-maintained review/test allowlist.
+  const { data: tester, error: testError } = await admin.from("apple_test_accounts").select("user_id").eq("user_id", userId).maybeSingle();
+  if (testError) throw new Error("subscription_read_failed");
+  const { data: current, error: readError } = await admin.from("apple_subscriptions").select("expires_at,will_renew,environment").eq("user_id", userId).in("environment", tester ? ["live", "sandbox"] : ["live"]).eq("gives_access", true).gt("expires_at", new Date().toISOString()).order("expires_at", { ascending: false }).limit(1).maybeSingle();
   if (readError) throw new Error("subscription_read_failed");
   return { active: !!current, expiresAt: current?.expires_at ?? null, willRenew: current?.will_renew ?? false };
 }

@@ -143,9 +143,10 @@ export async function resolveAiAccess(authHeader: string | null): Promise<AiAcce
       || (sub.status === "canceled" && sub.current_period_end && new Date(sub.current_period_end) > new Date())
     );
 
+    const { data: appleTester } = await admin.from("apple_test_accounts").select("user_id").eq("user_id", user.id).maybeSingle();
     const { data: appleSub, error: appleError } = await admin
       .from("apple_subscriptions").select("plan_slug")
-      .eq("user_id", user.id).eq("environment", "live").eq("gives_access", true)
+      .eq("user_id", user.id).in("environment", appleTester ? ["live", "sandbox"] : ["live"]).eq("gives_access", true)
       .gt("expires_at", new Date().toISOString()).limit(1).maybeSingle();
     if (appleError) return denied;
 

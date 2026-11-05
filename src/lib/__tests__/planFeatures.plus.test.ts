@@ -39,7 +39,7 @@ describe("PLAN_FEATURES · plus tier", () => {
       live_data: true,
       portfolio_sync: true,
       alerts: true,
-      backtesting: false,
+      backtesting: true,
       compliance_tools: false,
       report_export: false,
       api_access: false,
@@ -61,8 +61,8 @@ describe("PLAN_FEATURES · plus tier", () => {
     expect(requiredTierFor((f) => f.portfolio_sync)).toBe("plus");
     expect(requiredTierFor((f) => f.alerts)).toBe("plus");
     expect(requiredTierFor((f) => (f.ai_questions_per_day ?? 0) >= 50)).toBe("plus");
-    // Features plus does NOT include stay pinned to higher tiers.
-    expect(requiredTierFor((f) => f.backtesting)).toBe("pro");
+    expect(requiredTierFor((f) => f.backtesting)).toBe("plus");
+    // Unrelated advanced features stay pinned to higher tiers.
     expect(requiredTierFor((f) => f.api_access)).toBe("enterprise");
   });
 

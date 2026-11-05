@@ -646,6 +646,18 @@ export type Database = {
         }
         Relationships: []
       }
+      apple_test_accounts: {
+        Row: {
+          user_id: string
+        }
+        Insert: {
+          user_id: string
+        }
+        Update: {
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -4086,6 +4098,10 @@ export type Database = {
         }[]
       }
       ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
+      apple_environment_allowed: {
+        Args: { _environment: string; _user_id: string }
+        Returns: boolean
+      }
       apple_reconcile_subscriptions: {
         Args: { _rows: Json; _user_id: string; _verified_at: string }
         Returns: undefined

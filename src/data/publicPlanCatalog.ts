@@ -37,8 +37,8 @@ export const PUBLIC_PLAN_COMPARISON: Array<{ category: string; rows: ComparisonR
     { label: "Filings, earnings & insider feed", hint: "Availability follows the original source; no plan-specific filing delay is configured.", values: all() },
     { label: "Startup & private markets", hint: "Research pages are available on every plan. AI valuations require AI access; some registries require separate provider access.", values: all() },
     { label: "Options chains & futures pages", hint: "Public research pages; advanced options analytics are included with Pro and Enterprise.", values: all() },
-    { label: "Backtesting engine", hint: "Includes strategy previews. Backtests require the backtesting entitlement.", values: included(...advanced) },
-    { label: "Strategy Lab & walk-forward", values: included(...advanced) },
+    { label: "Backtesting engine", hint: "All paid plans include strategy previews, advanced backtests, trading costs and event tests.", values: included(...paid) },
+    { label: "Strategy Lab & walk-forward", values: included(...paid) },
   ] },
   { category: "AI copilot", rows: [
     { label: "Hosted AI allowance", hint: "Explorer and Enterprise currently have no standard hosted AI model configured. Beta access or your own provider is separate.", values: values(hostedAiAllowance) },
@@ -75,12 +75,14 @@ export const PUBLIC_PLAN_COMPARISON: Array<{ category: string; rows: ComparisonR
 
 export const PUBLIC_PLAN_BULLETS: Record<PlanSlug, string[]> = {
   explorer: ["5 watchlist items", "Manual tracking: 1 portfolio, 10 positions", "Public market quotes, filings and education", "Read-only broker connections via SnapTrade", "AI during beta or with your own provider"],
-  plus: ["Everything in Explorer, with no plan cap on watchlist items, portfolios or positions", "500 hosted AI requests per calendar month", "More frequent market data refresh", "Email alerts, including portfolio filings", "Screeners, paper trading, simulations and PDF export"],
+  plus: ["Everything in Explorer, with no plan cap on watchlist items, portfolios or positions", "500 hosted AI requests per calendar month", "Strategy Lab, previews and full backtesting", "More frequent market data refresh", "Email alerts, including portfolio filings", "Screeners, paper trading, simulations and PDF export"],
   pro: ["Everything in Plus", "2,000 hosted AI requests per calendar month", "Backtesting, strategy previews and optimizer", "Deep research and sentiment dashboard", "Risk stress tests, tax tools and push alert entitlement"],
   enterprise: ["Pro feature entitlements, with separate AI availability", "Hosted AI currently requires beta access or your own provider", "3 advisor seats per firm; extra seats via sales", "Client portal, MiFID II compliance and advisor KIDs", "API, bulk export, SSO and team management"],
 };
 
 export const PLAN_FAQ = [
+  { q: "Which plans include strategy and backtesting?", a: "Plus, Pro and Enterprise include Strategy Lab, strategy previews, walk-forward tests and advanced backtesting with trading costs and event tests. Explorer does not include these tools. Pro and Enterprise retain their separate optimizer and risk-tool entitlements." },
+  { q: "How do Apple subscriptions work?", a: "The iPhone app supports Apple Pro subscriptions when available in your App Store. Apple shows the localized price before confirmation. Restore purchases with the original Vela account. Cancellation stops renewal and keeps access through the paid period; existing website subscriptions do not require a second purchase." },
   { q: "What are the AI limits?", a: "Plus includes 500 hosted AI requests per calendar month and Pro includes 2,000, shared across AI tools. Explorer and Enterprise currently have no standard hosted AI model configured, so hosted AI requires temporary beta access or your own provider. Daily allowances and unlimited hosted AI are not standard plan promises." },
   { q: "Does beta access change my plan?", a: "No. Temporary AI beta access can make AI available beyond standard plan limits. Beta-tester accounts can also have broader feature access. These exceptions do not change the standard plan comparison; your own AI provider has its own costs and limits." },
   { q: "Do I need to connect a brokerage?", a: "No. Track holdings manually or import CSV. Signed-in users on every plan can connect supported brokers read-only via SnapTrade, subject to provider setup and broker availability." },

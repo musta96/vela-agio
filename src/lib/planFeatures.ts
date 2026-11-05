@@ -110,7 +110,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
       live_data: true,
       portfolio_sync: true,
       alerts: true,
-      backtesting: false,
+      backtesting: true,
       compliance_tools: false,
       report_export: false,
       api_access: false,

@@ -32,13 +32,9 @@ export function nativePlatform(): "ios" | "android" | "web" {
 export const isIosNative = () => nativePlatform() === "ios";
 
 /**
- * App Store Guideline 3.1.1 ("reader" model): the iOS build must not show
- * any purchase call-to-action, price that leads to a purchase, or link out
- * to our web checkout. Subscriptions are bought on the website; the app only
- * unlocks content the account already has.
- *
- * Everything purchase-related is wrapped in `hidePurchaseUi()` so there is a
- * single switch to flip if we ever ship StoreKit IAP instead.
+ * Hide website checkout in native shells. iOS uses a separate Apple purchase
+ * panel; this function must never expose Stripe purchase links in the app.
+ * No reader-app exception is assumed. Android IAP is not implemented.
  */
 export function hidePurchaseUi(): boolean {
   return isNativeApp();

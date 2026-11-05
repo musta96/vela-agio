@@ -20,8 +20,8 @@ describe("Verified public plan facts (presentation only)", () => {
   it("matches configured Explorer tracking allowances", () => {
     expect(PUBLIC_PLAN_LIMITS.explorer).toMatchObject({ portfolios: 1, positions: 10, watchlist: 5 });
   });
-  it("reflects the existing backtest entitlement without extending Plus access", () => {
+  it("includes backtesting on all paid plans and denies Explorer", () => {
     const row = PUBLIC_PLAN_COMPARISON.flatMap(group => group.rows).find(row => row.label === "Backtesting engine");
-    expect(row?.values).toEqual({ explorer: false, plus: false, pro: true, enterprise: true });
+    expect(row?.values).toEqual({ explorer: false, plus: true, pro: true, enterprise: true });
   });
 });

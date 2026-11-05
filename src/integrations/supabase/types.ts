@@ -556,6 +556,108 @@ export type Database = {
         }
         Relationships: []
       }
+      apple_purchase_config: {
+        Row: {
+          id: boolean
+          ios_sdk_key: string | null
+          project_id: string
+        }
+        Insert: {
+          id?: boolean
+          ios_sdk_key?: string | null
+          project_id?: string
+        }
+        Update: {
+          id?: boolean
+          ios_sdk_key?: string | null
+          project_id?: string
+        }
+        Relationships: []
+      }
+      apple_subscription_events: {
+        Row: {
+          customer_id: string
+          environment: string
+          event_timestamp_ms: number
+          event_type: string
+          id: string
+          processed_at: string
+        }
+        Insert: {
+          customer_id: string
+          environment: string
+          event_timestamp_ms: number
+          event_type: string
+          id: string
+          processed_at?: string
+        }
+        Update: {
+          customer_id?: string
+          environment?: string
+          event_timestamp_ms?: number
+          event_type?: string
+          id?: string
+          processed_at?: string
+        }
+        Relationships: []
+      }
+      apple_subscriptions: {
+        Row: {
+          current_period_start: string
+          environment: string
+          expires_at: string
+          gives_access: boolean
+          id: string
+          original_transaction_id: string
+          plan_slug: string
+          product_id: string
+          status: string
+          user_id: string
+          verified_at: string
+          will_renew: boolean
+        }
+        Insert: {
+          current_period_start: string
+          environment: string
+          expires_at: string
+          gives_access?: boolean
+          id: string
+          original_transaction_id: string
+          plan_slug?: string
+          product_id: string
+          status: string
+          user_id: string
+          verified_at: string
+          will_renew?: boolean
+        }
+        Update: {
+          current_period_start?: string
+          environment?: string
+          expires_at?: string
+          gives_access?: boolean
+          id?: string
+          original_transaction_id?: string
+          plan_slug?: string
+          product_id?: string
+          status?: string
+          user_id?: string
+          verified_at?: string
+          will_renew?: boolean
+        }
+        Relationships: []
+      }
+      apple_test_accounts: {
+        Row: {
+          user_id: string
+        }
+        Insert: {
+          user_id: string
+        }
+        Update: {
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -3996,6 +4098,14 @@ export type Database = {
         }[]
       }
       ai_usage_this_month: { Args: { _user_id: string }; Returns: number }
+      apple_environment_allowed: {
+        Args: { _environment: string; _user_id: string }
+        Returns: boolean
+      }
+      apple_reconcile_subscriptions: {
+        Args: { _rows: Json; _user_id: string; _verified_at: string }
+        Returns: undefined
+      }
       check_paid_plans_stripe_ids: {
         Args: never
         Returns: {
@@ -4075,6 +4185,25 @@ export type Database = {
         }[]
       }
       redeem_referral_code: { Args: { _code: string }; Returns: Json }
+      stripe_entitlements: {
+        Args: never
+        Returns: {
+          beta_active: boolean
+          feature_keys: string[]
+          max_ai_questions_per_month: number
+          max_portfolios: number
+          max_positions_per_portfolio: number
+          max_watchlist: number
+          plan_name: string
+          plan_slug: string
+          source: string
+          tier: string
+        }[]
+      }
+      stripe_has_feature: {
+        Args: { _key: string; _user_id: string }
+        Returns: boolean
+      }
       unlock_blog_post: {
         Args: { p_email: string; p_slug: string }
         Returns: string

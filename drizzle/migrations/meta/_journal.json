@@ -141,6 +141,20 @@
       "when": 1790096939695,
       "tag": "0019_tighten_shared_catalog_read_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793868265127,
+      "tag": "0020_apple_verified_subscription_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793868504534,
+      "tag": "0021_apple_sandbox_review_accounts_and_atomic_ownership",
+      "breakpoints": true
     }
   ]
 }

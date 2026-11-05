@@ -143,13 +143,24 @@ export async function resolveAiAccess(authHeader: string | null): Promise<AiAcce
       || (sub.status === "canceled" && sub.current_period_end && new Date(sub.current_period_end) > new Date())
     );
 
-    if (active && sub) {
+    const { data: appleSub, error: appleError } = await admin
+      .from("apple_subscriptions").select("plan_slug")
+      .eq("user_id", user.id).eq("environment", "live").eq("gives_access", true)
+      .gt("expires_at", new Date().toISOString()).limit(1).maybeSingle();
+    if (appleError) return denied;
+
+    if ((active && sub) || appleSub) {
       // Find the plan that matches this price_id (or fall back by tier name embedded in price_id).
-      const { data: plan } = await admin
+      const { data: stripePlan } = active && sub ? await admin
         .from("subscription_plans")
         .select("tier, ai_model_tier, ai_monthly_quota")
         .or(`stripe_monthly_price_id.eq.${sub.price_id},stripe_yearly_price_id.eq.${sub.price_id}`)
-        .maybeSingle();
+        .maybeSingle() : { data: null };
+      const { data: applePlan } = appleSub ? await admin.from("subscription_plans")
+        .select("tier, ai_model_tier, ai_monthly_quota").eq("slug", appleSub.plan_slug).maybeSingle() : { data: null };
+      // Higher paid plan wins; Apple Pro never downgrades Enterprise or legacy Elite.
+      const ranks: Record<string, number> = { plus: 1, pro: 2, elite: 3, enterprise: 4 };
+      const plan = applePlan && (!stripePlan || (ranks[applePlan.tier] ?? 0) > (ranks[stripePlan.tier] ?? 0)) ? applePlan : stripePlan;
 
       let cap: ModelCap = "flash";
       let quotaLimit = 500;
@@ -158,7 +169,7 @@ export async function resolveAiAccess(authHeader: string | null): Promise<AiAcce
         cap = (plan.ai_model_tier as ModelCap) ?? "flash";
         quotaLimit = plan.ai_monthly_quota ?? 500;
         tier = plan.tier ?? "plus";
-      } else if (typeof sub.price_id === "string") {
+      } else if (sub && typeof sub.price_id === "string") {
         // Heuristic fallback from price_id naming (e.g. "elite_monthly")
         if (sub.price_id.includes("elite")) { cap = "premium"; quotaLimit = 10000; tier = "elite"; }
         else if (sub.price_id.includes("pro")) { cap = "mid"; quotaLimit = 2000; tier = "pro"; }

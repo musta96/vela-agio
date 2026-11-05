@@ -24,7 +24,7 @@ import { useAbPriceVariant } from "@/hooks/useAbPriceVariant";
 import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 import { CancelSubscriptionDialog } from "@/components/billing/CancelSubscriptionDialog";
 import { ReaderModeNotice } from "@/components/PurchaseUi";
-import { hidePurchaseUi } from "@/lib/native";
+import { hidePurchaseUi, isIosNative } from "@/lib/native";
 
 type SubRow = {
   id: string;
@@ -123,7 +123,7 @@ function StatusBadge({ status, cancel }: { status: string; cancel?: boolean | nu
 }
 
 export default function PlansBilling() {
-  // App Store reader model: no prices or purchase CTAs inside the native shell.
+  // Native shells never render website checkout. iOS gets Apple purchases.
   const readerMode = hidePurchaseUi();
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -271,6 +271,7 @@ export default function PlansBilling() {
   // ---- Render -----------------------------------------------------------
 
   return (
+    isIosNative() ? <div className="mx-auto w-full max-w-xl p-4 sm:p-6 space-y-4"><PageHeader icon={CreditCard} title="Plans & Billing" /><ReaderModeNotice /></div> :
     <div className="p-4 sm:p-8 space-y-6 min-w-0">
       <SEO title="Plans & Billing | Vela.ai" description="Manage your Vela subscription, monitor AI credit usage, and upgrade your plan." path="/plans-billing" />
 

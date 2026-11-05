@@ -1,0 +1,21 @@
+import { describe, it, expect } from "vitest";
+import { appleSubscriptionGrantsAccess, approvedAppleProduct, type VerifiedAppleSubscription } from "../../../supabase/functions/_shared/apple-subscription-policy";
+import { PLAN_FEATURES } from "@/lib/planFeatures";
+import { applePurchaseError } from "@/lib/applePurchases";
+const now = 1000;
+const sub: VerifiedAppleSubscription = { id: "s", customer_id: "u", original_customer_id: "u", product_id: "p", store_subscription_identifier: "t", store: "app_store", environment: "production", ownership: "purchased", status: "active", gives_access: true, pending_payment: false, auto_renewal_status: "will_renew", current_period_starts_at: 0, current_period_ends_at: 2000 };
+describe("Apple paid subscription rules", () => {
+  it.each(["plus", "pro", "enterprise"] as const)("%s includes backtesting", slug => expect(PLAN_FEATURES[slug].features.backtesting).toBe(true));
+  it("Explorer has no backtesting", () => expect(PLAN_FEATURES.explorer.features.backtesting).toBe(false));
+  it("keeps access when renewal is cancelled before paid expiry", () => expect(appleSubscriptionGrantsAccess({ ...sub, auto_renewal_status: "will_not_renew" }, "u", "live", now)).toBe(true));
+  it("ends access at paid expiry", () => expect(appleSubscriptionGrantsAccess(sub, "u", "live", 2000)).toBe(false));
+  it("rejects revoked or refunded provider access", () => expect(appleSubscriptionGrantsAccess({ ...sub, gives_access: false }, "u", "live", now)).toBe(false));
+  it("sandbox never grants live access", () => expect(appleSubscriptionGrantsAccess({ ...sub, environment: "sandbox" }, "u", "live", now)).toBe(false));
+  it("rejects another account's purchase", () => expect(appleSubscriptionGrantsAccess({ ...sub, original_customer_id: "other" }, "u", "live", now)).toBe(false));
+  it("does not accept RevenueCat sample test-store purchases", () => expect(appleSubscriptionGrantsAccess({ ...sub, store: "test_store" }, "u", "live", now)).toBe(false));
+  it("does not grant pending payments", () => expect(appleSubscriptionGrantsAccess({ ...sub, pending_payment: true }, "u", "live", now)).toBe(false));
+  it("maps only approved monthly and yearly Pro products", () => { expect(approvedAppleProduct("vela_pro_monthly", "P1M")).toBe(true); expect(approvedAppleProduct("vela_pro_yearly", "P1Y")).toBe(true); expect(approvedAppleProduct("monthly", "P1M")).toBe(false); expect(approvedAppleProduct("vela_pro_yearly", "P1M")).toBe(false); });
+  it("matches Apple Pro requested base prices", () => { expect(PLAN_FEATURES.pro.priceMonthly).toBe(29); expect(PLAN_FEATURES.pro.priceAnnualTotal).toBe(288); });
+  it("treats dismissing Apple's sheet as cancellation not failure", () => expect(applePurchaseError({ code: "1" }).cancelled).toBe(true));
+  it("does not report a pending purchase as success", () => expect(applePurchaseError({ code: "20" }).cancelled).toBe(false));
+});

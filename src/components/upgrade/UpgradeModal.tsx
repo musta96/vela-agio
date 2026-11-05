@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpgradeFlow } from "./UpgradeFlow";
 import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
+import { isIosNative, hidePurchaseUi } from "@/lib/native";
+import { AppleSubscriptionPanel } from "@/components/billing/AppleSubscriptionPanel";
 
 interface Props {
   open: boolean;
@@ -51,12 +53,12 @@ export function UpgradeModal({ open, onOpenChange, featureKey, featureName, retu
         <div className="mb-3">
           <CurrentPlanBanner compact />
         </div>
-        <UpgradeFlow
+        {isIosNative() ? <AppleSubscriptionPanel /> : hidePurchaseUi() ? <p className="text-sm text-muted-foreground">Sign in to use the features included in your existing plan.</p> : <UpgradeFlow
           contextFeatureKey={featureKey}
           contextFeatureName={featureName}
           returnPath={returnPath}
           compact
-        />
+        />}
       </DialogContent>
     </Dialog>
   );

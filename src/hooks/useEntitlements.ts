@@ -142,9 +142,11 @@ export function useEntitlements() {
     const onFocus = () => { void refresh(); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("vela:entitlements-changed", onFocus);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("vela:entitlements-changed", onFocus);
     };
   }, [user, refresh]);
 

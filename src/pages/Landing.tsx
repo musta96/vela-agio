@@ -15,6 +15,7 @@ import { useFlag } from "@/hooks/useFeatureFlags";
 import { trackLandingEvent } from "@/lib/landingAnalytics";
 import { verifyFeaturesCtaBindings } from "@/lib/verifyFeaturesCta";
 import type { BlogPostRow } from "@/lib/blog";
+import { InvestorCalculatorLink } from "@/components/InvestorCalculatorLink";
 
 
 const Icon = ({ name, className }: { name?: string; className?: string }) => {
@@ -437,6 +438,7 @@ export default function Landing() {
       </section>
 
       {/* BLOGS */}
+      <section aria-label="Free investor calculator" className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6"><InvestorCalculatorLink /></section>
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <div className="text-center max-w-2xl mx-auto">
           <div className="text-[11px] font-bold tracking-[0.25em] uppercase" style={{ color: "#1D9E75" }}>{blogs.eyebrow || "From the journal"}</div>

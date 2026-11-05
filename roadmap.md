@@ -19,6 +19,7 @@
 - [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
+- [x] Add a free public Italian PAC calculator and practical guide, link from homepage/blog, and verify calculations, CSV download and mobile use.
 - [x] Recheck and unify current pricing, FAQs and upgrade displays; protect shared native pricing and subscription management from website checkout. Apple activation remains blocked as listed below.
 - [x] Implement Apple Pro purchase/restore/manage screens, verified provider-separated entitlements, all-paid strategy/backtesting access, and subscription setup checklist.
 - [ ] Activate and test Apple purchases: waiting for App Store Connect Pro products, real RevenueCat iOS app/public SDK key, webhook configuration, and Mac/iPhone sandbox validation; native sync requires a local web build.

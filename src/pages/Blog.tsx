@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BlogPostRow } from "@/lib/blog";
 import { ArrowRight, Clock, Lock } from "lucide-react";
 import VelaLogo from "@/components/VelaLogo";
+import { InvestorCalculatorLink } from "@/components/InvestorCalculatorLink";
 
 export default function Blog() {
   const [posts, setPosts] = useState<BlogPostRow[] | null>(null);
@@ -59,6 +60,8 @@ export default function Blog() {
           Deep dives on markets, product changes and methodology — written by the team building Vela.
         </p>
       </section>
+
+      <section aria-label="Free investor calculator" className="mx-auto max-w-6xl px-4 py-4 sm:px-6"><InvestorCalculatorLink /></section>
 
       {posts === null && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center" style={{ color: "#3d4f66" }}>Loading articles…</div>

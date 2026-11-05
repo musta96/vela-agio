@@ -104,6 +104,7 @@ import EnterpriseClientPortal from "./pages/EnterpriseClientPortal";
 import JoinEnterpriseTeam from "./pages/JoinEnterpriseTeam";
 import RedeemReferral from "./pages/RedeemReferral";
 import Blog from "./pages/Blog";
+import InvestorCalculator from "./pages/InvestorCalculator";
 import BlogPost from "./pages/BlogPost";
 import SharedResearchNote from "./pages/SharedResearchNote";
 import OAuthConsent from "./pages/OAuthConsent";
@@ -167,6 +168,7 @@ const App = () => (
           <Route path="/support" element={<Support />} />
           <Route path="/ai-stocks-to-watch" element={<AIStocksToWatch />} />
           <Route path="/blog" element={<Blog />} />
+          <Route path="/calcolatore-pac" element={<InvestorCalculator />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/features" element={<Features />} />
           <Route path="/contact-sales" element={<ContactSales />} />

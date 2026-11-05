@@ -1,4 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@4";
 import { billingAdmin, reconcileApple, RevenueCatError } from "../_shared/revenuecat.ts";
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -18,12 +19,13 @@ Deno.serve(async req => {
       return json({ iosSdkKey: data.ios_sdk_key }); // Public SDK key only, never secret API key.
     }
     const result = await reconcileApple(user.id);
-    const { data: paid, error } = await admin.rpc("has_feature", { _user_id: user.id, _key: "ai.copilot" });
+    const url = Deno.env.get("SUPABASE_URL"); const anon = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !anon) throw new Error("billing_not_configured");
+    const userClient = createClient(url, anon, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
+    const { data: entitlements, error } = await userClient.rpc("my_entitlements");
     if (error) throw new Error("entitlement_check_failed");
-    // Beta is not a paid subscription: query the caller-scoped snapshot.
-    const { data: stripe } = await admin.from("subscriptions").select("status,current_period_end,cancel_at_period_end").eq("user_id", user.id).in("status", ["active", "trialing", "past_due", "canceled"]);
-    const stripeActive = (stripe ?? []).some(s => (s.status !== "canceled" || s.cancel_at_period_end) && (!s.current_period_end || Date.parse(s.current_period_end) > Date.now()));
-    return json({ ...result, hasPaidAccess: result.active || (stripeActive && !!paid), provider: result.active ? "apple" : stripeActive ? "web" : null });
+    const hasPaidAccess = entitlements?.[0]?.source === "subscription";
+    return json({ ...result, hasPaidAccess, provider: result.active ? "apple" : hasPaidAccess ? "web" : null });
   } catch (error) {
     if (error instanceof RevenueCatError) return json({ error: "provider_unavailable", status: error.status, details: error.details }, error.status === 401 || error.status === 403 ? 503 : error.status);
     console.error("Apple subscription verification failed", error instanceof Error ? error.message : "unknown");

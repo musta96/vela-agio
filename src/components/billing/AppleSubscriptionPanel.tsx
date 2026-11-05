@@ -47,7 +47,7 @@ export function AppleSubscriptionPanel() {
     if (!user) return;
     setBusy(true); setMessage(null);
     try {
-      await withAppleAccount(user.id, async () => {
+      const status = await withAppleAccount(user.id, async () => {
         if (restore) await Purchases.restorePurchases();
         else {
           // Recheck on the server immediately before asking Apple to charge.
@@ -56,11 +56,11 @@ export function AppleSubscriptionPanel() {
           if (!selected) throw new Error(copy("This subscription is not available.", "Questo abbonamento non è disponibile."));
           await Purchases.purchasePackage({ aPackage: selected });
         }
+        return verifyApplePurchase();
       });
-      const status = await verifyApplePurchase();
       setVerified(status);
       await ent.refresh();
-      setMessage(status.active ? copy("Your Apple subscription is verified. Your paid features are available.", "Abbonamento Apple verificato. Le funzionalità del piano sono disponibili.") : copy("No active Apple subscription was found. If payment is pending, try Restore purchases after approval.", "Nessun abbonamento Apple attivo trovato. Se il pagamento è in attesa, riprova dopo l'approvazione."));
+      setMessage(status.active ? copy("Your Apple subscription is verified. Your paid features are available.", "Abbonamento Apple verificato. Le funzionalità del piano sono disponibili.") : status.hasPaidAccess ? copy("Your existing paid plan is active. No additional Apple subscription was found.", "Il tuo piano a pagamento è attivo. Nessun altro abbonamento Apple trovato.") : copy("No active Apple subscription was found. If payment is pending, try Restore purchases after approval.", "Nessun abbonamento Apple attivo trovato. Se il pagamento è in attesa, riprova dopo l'approvazione."));
     } catch (error) { const result = applePurchaseError(error); if (!result.cancelled) setMessage(result.message); }
     finally { setBusy(false); }
   };

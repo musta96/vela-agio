@@ -19,6 +19,7 @@
 - [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
+- [ ] Add Apple in-app Pro subscriptions, restore/manage purchases and verified paid-plan strategy/backtest entitlements; Apple/RevenueCat setup and device validation may require external credentials.
 - [x] Audit and correct Apple submission screenshots, legal documents and pricing against the published app; external release checks are listed in the v2 package.
 - [x] Align homepage, FAQ and feature comparison with verified plan limits without changing access.
 - [ ] Order flow & options microstructure page (Yahoo-derived + free open-source data only).

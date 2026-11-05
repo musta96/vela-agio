@@ -6,9 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Info } from "lucide-react";
 
 /**
- * App Store Guideline 3.1.1 (reader model): inside the native shell we never
- * show prices, upgrade buttons or links to web checkout. On the web everything
- * renders normally.
+ * Website checkout stays outside native shells. iOS uses Apple's localized
+ * subscriptions; no reader-app exception is assumed.
  */
 export function PurchaseUi({ children, fallback = null }: { children: ReactNode; fallback?: ReactNode }) {
   if (hidePurchaseUi()) return <>{fallback}</>;

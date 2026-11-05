@@ -25,6 +25,8 @@ import { logPaymentEvent } from "@/lib/paymentsTelemetry";
 import { CancelSubscriptionDialog } from "@/components/billing/CancelSubscriptionDialog";
 import { ReaderModeNotice } from "@/components/PurchaseUi";
 import { hidePurchaseUi, isIosNative } from "@/lib/native";
+import { PUBLIC_PLAN_BULLETS } from "@/data/publicPlanCatalog";
+import { normalizePlanSlug, PLAN_FEATURES, planPriceCaption } from "@/lib/planFeatures";
 
 type SubRow = {
   id: string;
@@ -627,13 +629,13 @@ export default function PlansBilling() {
               <div>
                 <CardTitle>Available plans</CardTitle>
                 <CardDescription>
-                  Pick the tier that matches how you invest. Switch between monthly and annual pricing — annual saves ~20% on most tiers.
+                   Pick the tier that matches how you invest. Annual prices show the monthly equivalent and the full yearly charge.
                 </CardDescription>
               </div>
               <Tabs value={billingFrequency} onValueChange={(v) => setBillingFrequency(v as "monthly" | "yearly")}>
                 <TabsList className="h-9">
                   <TabsTrigger value="monthly" className="text-xs">Monthly</TabsTrigger>
-                  <TabsTrigger value="yearly" className="text-xs">Annual · save ~20%</TabsTrigger>
+                  <TabsTrigger value="yearly" className="text-xs">Annual</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -708,6 +710,8 @@ function PlanCard({
   const variant = useAbPriceVariant(p.id, !!p.ab_test_enabled);
   const monthly = variant === "B" && p.ab_monthly_price_cents != null ? p.ab_monthly_price_cents : p.monthly_price_cents;
   const yearly = variant === "B" && p.ab_yearly_price_cents != null ? p.ab_yearly_price_cents : p.yearly_price_cents;
+  const publicSlug = normalizePlanSlug(p.slug || p.tier);
+  const features = PUBLIC_PLAN_BULLETS[publicSlug];
   const lookupKey = frequency === "yearly" ? p.stripe_yearly_price_id : p.stripe_monthly_price_id;
   // Paid tier (price > 0 on either cadence) but Stripe lookup key missing →
   // a misconfiguration we want to surface loudly instead of silently falling
@@ -726,7 +730,7 @@ function PlanCard({
         </div>
         <div className="text-2xl font-bold">{formatPrice(0, "mo")}</div>
         <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
-          {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
+          {features.map((f, i) => (
             <li key={i}>• {localizePlanFeature(String(f), i18n.resolvedLanguage)}</li>
           ))}
         </ul>
@@ -776,13 +780,11 @@ function PlanCard({
         </>
       )}
       <ul className="text-xs text-muted-foreground space-y-1 mt-3 flex-1">
-        {Array.isArray(p.features) && (p.features as any[]).slice(0, 5).map((f, i) => (
+        {features.map((f, i) => (
           <li key={i}>• {localizePlanFeature(String(f), i18n.resolvedLanguage)}</li>
         ))}
-        {p.ai_monthly_quota != null && (
-          <li>• {p.ai_monthly_quota === -1 ? t("plans.aiCreditsUnlimited") : t("plans.aiCredits", { count: p.ai_monthly_quota, formattedCount: p.ai_monthly_quota.toLocaleString(i18n.resolvedLanguage) })}</li>
-        )}
       </ul>
+      <p className="mt-2 text-xs text-muted-foreground">{planPriceCaption(PLAN_FEATURES[publicSlug])}</p>
       {missingKey && (
         <div
           role="alert"

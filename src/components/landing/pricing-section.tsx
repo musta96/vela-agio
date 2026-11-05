@@ -13,11 +13,20 @@ import { getStripeEnvironment } from "@/lib/stripe";
 import { PUBLIC_PLAN_BULLETS, PLAN_ACCESS_NOTE } from "@/data/publicPlanCatalog";
 import { PLAN_LIST, planPriceCaption, type PlanDefinition } from "@/lib/planFeatures";
 import { PlanConfirmDialog, type PendingSelection } from "@/components/pricing/PlanConfirmDialog";
+import { hidePurchaseUi, isIosNative } from "@/lib/native";
+import { AppleSubscriptionPanel } from "@/components/billing/AppleSubscriptionPanel";
+import { ReaderModeNotice } from "@/components/PurchaseUi";
 
 /** Plans rendered on the pricing section (single source of truth in planFeatures.ts). */
 const plans: PlanDefinition[] = PLAN_LIST;
 
 export function PricingSection({ confirmBeforeCheckout = true }: { confirmBeforeCheckout?: boolean } = {}) {
+  if (isIosNative()) return <AppleSubscriptionPanel />;
+  if (hidePurchaseUi()) return <ReaderModeNotice />;
+  return <WebPricingSection confirmBeforeCheckout={confirmBeforeCheckout} />;
+}
+
+function WebPricingSection({ confirmBeforeCheckout }: { confirmBeforeCheckout: boolean }) {
   const [frequency, setFrequency] = React.useState<FREQUENCY>("monthly");
   const { openCheckout, checkoutElement } = useStripeCheckout();
   const { user } = useAuth();
@@ -44,7 +53,7 @@ export function PricingSection({ confirmBeforeCheckout = true }: { confirmBefore
   }, [user, frequency, openCheckout]);
 
   /** Single entry point used by every PricingCard CTA. */
-  const onChoose = React.useCallback((plan: PlanDefinition) => {
+  const onChoose = React.useCallback((plan: PlanDefinition, selectedFrequency: FREQUENCY = frequency) => {
     // Free tier or "Contact sales" → simple navigation.
     if (!plan.lookupKey || plan.contactSales) {
       navigate(plan.ctaHref);
@@ -53,10 +62,10 @@ export function PricingSection({ confirmBeforeCheckout = true }: { confirmBefore
     // Stripe Embedded Checkout requires a logged-in user — bounce through /auth
     // and return to /pricing so the user can finish the flow without losing place.
     if (!user) {
-      navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.slug}&freq=${frequency}`)}`);
+      navigate(`/auth?next=${encodeURIComponent(`/pricing?plan=${plan.slug}&freq=${selectedFrequency}`)}`);
       return;
     }
-    const cadence = frequency === "yearly" ? "annual" : "monthly";
+    const cadence = selectedFrequency === "yearly" ? "annual" : "monthly";
     const lookupKey = plan.lookupKey[cadence];
     const selection: PendingSelection = { plan, cadence, priceId: lookupKey };
     if (confirmBeforeCheckout) {
@@ -87,7 +96,7 @@ export function PricingSection({ confirmBeforeCheckout = true }: { confirmBefore
     cleaned.delete("freq");
     setSearchParams(cleaned, { replace: true });
     // Defer to next tick so the frequency state is committed before opening.
-    setTimeout(() => onChoose(plan), 0);
+    onChoose(plan, freqParam === "yearly" ? "yearly" : "monthly");
   }, [user, searchParams, setSearchParams, onChoose]);
 
   return (

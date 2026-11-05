@@ -6,6 +6,7 @@ import { getStripeEnvironment } from "@/lib/stripe";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { hidePurchaseUi } from "@/lib/native";
 
 interface Props extends Omit<ButtonProps, "onClick"> {
   label?: string;
@@ -29,7 +30,7 @@ export function ManageSubscriptionButton({ label = "Manage subscription", trialF
   // Cheap pre-check so users without a subscription see a friendly CTA
   // instead of clicking and getting a "portal failed" toast.
   useEffect(() => {
-    if (!user) { setHasSub(false); return; }
+    if (!user || hidePurchaseUi()) { setHasSub(false); return; }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -46,6 +47,10 @@ export function ManageSubscriptionButton({ label = "Manage subscription", trialF
   }, [user]);
 
   const handleClick = async () => {
+    if (hidePurchaseUi()) {
+      navigate("/plans-billing");
+      return;
+    }
     // No subscription yet → send the user to the plans overview so they
     // can compare every tier, instead of dropping them straight into the
     // "Upgrade to Pro" flow with Pro preselected.

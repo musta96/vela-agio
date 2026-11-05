@@ -18,9 +18,6 @@ const COMPARISON = PUBLIC_PLAN_COMPARISON.flatMap(group => group.rows).map(row =
 
 const PRICING_FAQ = [
   ...PLAN_FAQ,
-  { q: "Can I upgrade or downgrade at any time?", a: "Yes. You can change plan from the billing page. Upgrades are pro-rated so you only pay the difference for the rest of the current period. Downgrades take effect at the end of the paid period, and your account moves to Explorer after that." },
-  { q: "How does annual billing work?", a: "Annual plans are charged once per year. The card on the pricing page shows the effective monthly price. Plus is €108 per year, Pro is €288 per year, Enterprise is €1,500 per year." },
-  { q: "What happens if I cancel?", a: "You keep access to all paid features until the end of the current period, then your account moves to Explorer. No further charges are taken." },
   { q: "Where is my data stored?", a: "Vela.ai data is hosted in the EU and encrypted at rest and in transit. You can export or delete it at any time under GDPR Article 17 and Article 20." },
 ];
 
@@ -82,7 +79,7 @@ export default function Pricing() {
           <span className="block hero-gradient-text">pricing.</span>
         </h1>
         <p className="mt-8 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed" style={{ color: "#3d4f66" }}>
-          Start on Explorer for free. Move up as you need live data, portfolio sync, backtesting, compliance tooling or advisor seats. Prices in euros.
+          Start on Explorer for free, including read-only broker connections. All paid plans include strategy and backtesting; Pro adds optimizer and risk tools, and Enterprise adds advisor seats. Prices in euros.
         </p>
       </section>
 

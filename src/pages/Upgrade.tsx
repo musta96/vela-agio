@@ -8,6 +8,7 @@ import { CurrentPlanBanner } from "@/components/pricing/CurrentPlanBanner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PLAN_FEATURES } from "@/lib/planFeatures";
+import { PUBLIC_PLAN_BULLETS } from "@/data/publicPlanCatalog";
 
 const PLAN_LABELS: Record<string, string> = {
   plus: "Plus",
@@ -167,7 +168,7 @@ export default function Upgrade() {
                     {/* Stacking line makes the tier order explicit: each card
                         names the tier it builds on, so Pro > Plus is obvious. */}
                     <p className="text-xs font-medium mt-2" data-testid={`upgrade-tier-stacking-${slug}`}>
-                      {plan.featureList[0]}
+                      {PUBLIC_PLAN_BULLETS[slug][0]}
                     </p>
                   </div>
                   <Button asChild className="mt-auto w-full" variant={plan.highlighted ? "default" : "outline"}>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Check, Info } from "lucide-react";
 import { PLAN_FEATURES, type PlanDefinition, type PlanSlug, normalizePlanSlug } from "@/lib/planFeatures";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { publicPlanDeltas } from "@/data/publicPlanCatalog";
 
 export type PendingSelection = {
   plan: PlanDefinition;
@@ -41,7 +42,7 @@ export function PlanConfirmDialog({ selection, onCancel, onConfirm }: Props) {
   const monthlyOverYear = plan ? plan.priceMonthly * 12 : 0;
   const annualSavings = plan && isAnnual ? Math.max(0, monthlyOverYear - plan.priceAnnualTotal) : 0;
 
-  const deltas = plan ? computeDeltas(currentSlug, plan.slug) : [];
+  const deltas = plan ? publicPlanDeltas(currentSlug, plan.slug) : [];
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
@@ -81,7 +82,7 @@ export function PlanConfirmDialog({ selection, onCancel, onConfirm }: Props) {
                   <span className="text-muted-foreground">No trial — access starts immediately</span>
                 </Row>
                 <Row label="Stripe price">
-                  <code className="text-[11px]" data-testid="confirm-price-id">{selection!.priceId}</code>
+                  <code className="text-[11px]" data-testid="confirm-price-id">{selection?.priceId}</code>
                 </Row>
               </div>
             </div>
@@ -131,31 +132,4 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-right">{children}</span>
     </div>
   );
-}
-
-/** Human-readable list of the features that unlock when moving current → target. */
-function computeDeltas(current: PlanSlug, target: PlanSlug): string[] {
-  const a = PLAN_FEATURES[current].features;
-  const b = PLAN_FEATURES[target].features;
-  const out: string[] = [];
-  if (b.live_data && !a.live_data) out.push("Live EU + US market data");
-  if (b.portfolio_sync && !a.portfolio_sync) out.push("Portfolio sync with your broker");
-  if (b.alerts && !a.alerts) out.push("Smart alerts on price, signal and events");
-  if (b.backtesting && !a.backtesting) out.push("Backtesting and portfolio optimizer");
-  if (b.compliance_tools && !a.compliance_tools) out.push("MiFID II suitability and KIDs");
-  if (b.report_export && !a.report_export) out.push("PDF report generation and export");
-  if (b.api_access && !a.api_access) out.push("REST API and WebSocket access");
-  if (b.advisor_seats > a.advisor_seats) {
-    out.push(`${b.advisor_seats} advisor seats included`);
-  }
-  if (b.ai_questions_per_day === null && a.ai_questions_per_day !== null) {
-    out.push("Unlimited AI research");
-  } else if (
-    b.ai_questions_per_day !== null &&
-    a.ai_questions_per_day !== null &&
-    b.ai_questions_per_day > a.ai_questions_per_day
-  ) {
-    out.push(`${b.ai_questions_per_day} AI questions / day (up from ${a.ai_questions_per_day})`);
-  }
-  return out;
 }

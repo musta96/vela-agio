@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { PromoCodeField, type PromoValidation } from "@/components/billing/PromoCodeField";
 import { CreditCard } from "lucide-react";
 import { UpgradeStepper, type UpgradeStepId } from "@/components/upgrade/UpgradeStepper";
-import { PLAN_ORDER, normalizePlanSlug } from "@/lib/planFeatures";
+import { PLAN_ORDER, PLAN_FEATURES, normalizePlanSlug } from "@/lib/planFeatures";
+import { PUBLIC_PLAN_BULLETS } from "@/data/publicPlanCatalog";
 
 type Cycle = "monthly" | "annual";
 
@@ -32,18 +33,6 @@ type UpgradePlan = {
   annual_lookup: string;
   ai_quota: number | null;
 };
-
-// Pro benefits framed against Free-tier gaps.
-const PRO_BENEFITS: { key: string; label: string; freeGap: string }[] = [
-  { key: "ai_unlimited", label: "Unlimited AI questions & scans", freeGap: "Free is capped at 5 AI questions/month" },
-  { key: "portfolios", label: "Unlimited portfolios & positions", freeGap: "Free allows 1 portfolio, 10 positions" },
-  { key: "watchlist", label: "Unlimited watchlist tickers", freeGap: "Free is capped at 5 tickers" },
-  { key: "advanced_analytics", label: "Backtesting, optimizer, Monte Carlo & VaR", freeGap: "Locked on Free" },
-  { key: "advisor", label: "Vela Advisor multi-strategy engine", freeGap: "Locked on Free" },
-  { key: "reports", label: "Institutional-grade PDF reports", freeGap: "Locked on Free" },
-  { key: "realtime", label: "Real-time market data & alerts", freeGap: "Free is delayed data" },
-  { key: "priority_support", label: "Priority support", freeGap: "Community support only" },
-];
 
 interface Props {
   /** Optional feature key the user just hit — used to reorder benefits + headline copy. */
@@ -109,8 +98,8 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
           name: (data as any).name ?? requestedPlanSlug,
           tier: (data as any).tier ?? null,
           features: (data as any).features,
-          monthly_cents: (data as any).monthly_price_cents ?? 2900,
-          annual_cents: (data as any).yearly_price_cents ?? 29000,
+          monthly_cents: (data as any).monthly_price_cents ?? PLAN_FEATURES[normalizePlanSlug(requestedPlanSlug)].priceMonthly * 100,
+          annual_cents: (data as any).yearly_price_cents ?? PLAN_FEATURES[normalizePlanSlug(requestedPlanSlug)].priceAnnualTotal * 100,
           monthly_lookup: (data as any).stripe_monthly_price_id ?? `${requestedPlanSlug}_monthly`,
           annual_lookup: (data as any).stripe_yearly_price_id ?? `${requestedPlanSlug}_annual`,
           ai_quota: (data as any).ai_monthly_quota ?? null,
@@ -156,8 +145,8 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
     return null;
   }, []);
 
-  const monthly = plan?.monthly_cents ?? 2900;
-  const annual = plan?.annual_cents ?? 29000;
+  const monthly = plan?.monthly_cents ?? PLAN_FEATURES[targetPlanSlug].priceMonthly * 100;
+  const annual = plan?.annual_cents ?? PLAN_FEATURES[targetPlanSlug].priceAnnualTotal * 100;
   const annualPerMonth = Math.round(annual / 12);
   const monthlyOverYear = monthly * 12;
   const annualSavings = Math.max(0, monthlyOverYear - annual);
@@ -168,13 +157,12 @@ export function UpgradeFlow({ contextFeatureKey, contextFeatureName, returnPath,
 
   // Reorder benefits so the context feature is first.
   const planBenefits = useMemo(() => {
-    if (!Array.isArray(plan?.features) || plan.features.length === 0) return PRO_BENEFITS;
-    return plan.features.slice(0, 8).map((feature, index) => ({
+    return PUBLIC_PLAN_BULLETS[targetPlanSlug].map((feature, index) => ({
       key: `${targetPlanSlug}_${index}`,
       label: String(feature),
       freeGap: `Included with ${planName}`,
     }));
-  }, [plan?.features, planName, targetPlanSlug]);
+  }, [planName, targetPlanSlug]);
 
   const orderedBenefits = useMemo(() => {
     if (!contextFeatureKey) return planBenefits;

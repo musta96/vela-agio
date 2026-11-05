@@ -1,3 +1,5 @@
+import { PUBLIC_PLAN_BULLETS } from "@/data/publicPlanBullets";
+
 /**
  * PLAN_FEATURES — single source of truth for tier entitlements.
  *
@@ -85,13 +87,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
       api_access: false,
       advisor_seats: 0,
     },
-    featureList: [
-      "Watchlist",
-      "Basic stock and ETF pages with delayed market data",
-      "Limited AI research: 5 questions per day",
-      "Educational content and the blog",
-      "No portfolio sync, no live data, no alerts",
-    ],
+    featureList: PUBLIC_PLAN_BULLETS.explorer,
   },
   plus: {
     slug: "plus",
@@ -116,14 +112,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
       api_access: false,
       advisor_seats: 0,
     },
-    featureList: [
-      "Everything in Explorer",
-      "Live EU and US market data",
-      "Portfolio tracking with read-only broker connect (Plaid / SnapTrade)",
-      "Generous AI research: 100 questions per day",
-      "Sentiment and news summaries",
-      "Smart alerts on price, signal and events",
-    ],
+    featureList: PUBLIC_PLAN_BULLETS.plus,
     lookupKey: { monthly: "plus_monthly", annual: "plus_annual" },
   },
   pro: {
@@ -150,14 +139,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
       api_access: false,
       advisor_seats: 0,
     },
-    featureList: [
-      "Everything in Plus",
-      "Backtesting and portfolio optimizer",
-      "MiFID II suitability checks and KID handling",
-      "Research report generation and PDF export",
-      "Tax and performance reports",
-      "Priority AI with higher limits and a faster model",
-    ],
+    featureList: PUBLIC_PLAN_BULLETS.pro,
     lookupKey: { monthly: "pro_monthly", annual: "pro_annual" },
   },
   enterprise: {
@@ -186,15 +168,7 @@ export const PLAN_FEATURES: Record<PlanSlug, PlanDefinition> = {
       api_access: true,
       advisor_seats: 3,
     },
-    featureList: [
-      "Everything in Pro",
-      "3 advisor seats included in the firm subscription (extra seats via sales)",
-      "Team management with seat invitations",
-      "Client-ready compliance and suitability documents",
-      "Bulk export",
-      "API access",
-      "Priority support",
-    ],
+    featureList: PUBLIC_PLAN_BULLETS.enterprise,
     lookupKey: { monthly: "enterprise_monthly", annual: "enterprise_annual" },
   },
 

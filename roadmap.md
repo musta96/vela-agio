@@ -19,6 +19,7 @@
 - [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
+- [x] Recheck and unify current pricing, FAQs and upgrade displays; protect shared native pricing and subscription management from website checkout. Apple activation remains blocked as listed below.
 - [x] Implement Apple Pro purchase/restore/manage screens, verified provider-separated entitlements, all-paid strategy/backtesting access, and subscription setup checklist.
 - [ ] Activate and test Apple purchases: waiting for App Store Connect Pro products, real RevenueCat iOS app/public SDK key, webhook configuration, and Mac/iPhone sandbox validation; native sync requires a local web build.
 - [x] Audit and correct Apple submission screenshots, legal documents and pricing against the published app; external release checks are listed in the v2 package.

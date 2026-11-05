@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { PUBLIC_PLAN_LIMITS, PUBLIC_PLAN_COMPARISON } from "@/data/publicPlanCatalog";
+import { PLAN_FEATURES } from "@/lib/planFeatures";
 
 describe("Verified public plan facts (presentation only)", () => {
+  it("charges Plus €12 monthly or €108 yearly", () => {
+    expect(PLAN_FEATURES.plus).toMatchObject({ priceMonthly: 12, priceAnnualMonthly: 9, priceAnnualTotal: 108 });
+  });
+  it("charges Pro €29 monthly or €288 yearly", () => {
+    expect(PLAN_FEATURES.pro).toMatchObject({ priceMonthly: 29, priceAnnualMonthly: 24, priceAnnualTotal: 288 });
+  });
+  it("charges Enterprise €149 per firm monthly or €1500 yearly with three seats", () => {
+    expect(PLAN_FEATURES.enterprise).toMatchObject({ priceMonthly: 149, priceAnnualMonthly: 125, priceAnnualTotal: 1500, seatsIncluded: 3, billingModel: "per_account" });
+  });
   it("uses Plus's enforced 500 monthly quota, not the 3000 entitlement metadata cap", () => {
     expect(PUBLIC_PLAN_LIMITS.plus.aiMonthlyQuota).toBe(500);
     expect(PUBLIC_PLAN_LIMITS.plus.hostedAi).toBe(true);

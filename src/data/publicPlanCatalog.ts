@@ -1,4 +1,4 @@
-import { PLAN_ORDER, type PlanSlug } from "@/lib/planFeatures";
+import { PLAN_ORDER, PLAN_LIST, type PlanSlug } from "@/lib/planFeatures";
 
 /** Presentation only. Verified against active plans and access checks on 2026-11-05.
  * Never use this catalog to authorize requests or change entitlements.
@@ -73,14 +73,12 @@ export const PUBLIC_PLAN_COMPARISON: Array<{ category: string; rows: ComparisonR
   ] },
 ];
 
-export const PUBLIC_PLAN_BULLETS: Record<PlanSlug, string[]> = {
-  explorer: ["5 watchlist items", "Manual tracking: 1 portfolio, 10 positions", "Public market quotes, filings and education", "Read-only broker connections via SnapTrade", "AI during beta or with your own provider"],
-  plus: ["Everything in Explorer, with no plan cap on watchlist items, portfolios or positions", "500 hosted AI requests per calendar month", "Strategy Lab, previews and full backtesting", "More frequent market data refresh", "Email alerts, including portfolio filings", "Screeners, paper trading, simulations and PDF export"],
-  pro: ["Everything in Plus", "2,000 hosted AI requests per calendar month", "Backtesting, strategy previews and optimizer", "Deep research and sentiment dashboard", "Risk stress tests, tax tools and push alert entitlement"],
-  enterprise: ["Pro feature entitlements, with separate AI availability", "Hosted AI currently requires beta access or your own provider", "3 advisor seats per firm; extra seats via sales", "Client portal, MiFID II compliance and advisor KIDs", "API, bulk export, SSO and team management"],
-};
+export { PUBLIC_PLAN_BULLETS } from "@/data/publicPlanBullets";
 
 export const PLAN_FAQ = [
+  { q: "How does annual billing work?", a: `Annual plans are charged once per year. Cards show the effective monthly price. ${PLAN_LIST.filter(plan => plan.priceAnnualTotal > 0).map(plan => `${plan.name}: €${plan.priceAnnualTotal.toLocaleString("en-US")} per year`).join("; ")}. Website prices are in euros; VAT applies where required. Apple displays its localized price before confirmation.` },
+  { q: "Can I upgrade or downgrade at any time?", a: "Manage changes with your original payment provider. Upgrades apply immediately; downgrades take effect at the next renewal. A downgrade to another paid plan keeps that plan's features; cancellation returns you to Explorer when paid access expires. Apple shows its billing adjustments before confirmation." },
+  { q: "What happens if I cancel?", a: "Cancellation stops renewal. You keep paid access until the paid period ends, then return to Explorer. Your portfolio data stays in your account." },
   { q: "Which plans include strategy and backtesting?", a: "Plus, Pro and Enterprise include Strategy Lab, strategy previews, walk-forward tests and advanced backtesting with trading costs and event tests. Explorer does not include these tools. Pro and Enterprise retain their separate optimizer and risk-tool entitlements." },
   { q: "How do Apple subscriptions work?", a: "The iPhone app supports Apple Pro subscriptions when available in your App Store. Apple shows the localized price before confirmation. Restore purchases with the original Vela account. Cancellation stops renewal and keeps access through the paid period; existing website subscriptions do not require a second purchase." },
   { q: "What are the AI limits?", a: "Plus includes 500 hosted AI requests per calendar month and Pro includes 2,000, shared across AI tools. Explorer and Enterprise currently have no standard hosted AI model configured, so hosted AI requires temporary beta access or your own provider. Daily allowances and unlimited hosted AI are not standard plan promises." },
@@ -88,3 +86,13 @@ export const PLAN_FAQ = [
   { q: "Do I need to connect a brokerage?", a: "No. Track holdings manually or import CSV. Signed-in users on every plan can connect supported brokers read-only via SnapTrade, subject to provider setup and broker availability." },
   { q: "How much can I track?", a: "Explorer has a configured allowance of 1 portfolio, 10 positions per portfolio and 5 watchlist items. Plus, Pro and Enterprise have no configured plan cap on those items." },
 ];
+
+/** Presentation-only feature differences, never an authorization check. */
+export function publicPlanDeltas(current: PlanSlug, target: PlanSlug): string[] {
+  return PUBLIC_PLAN_COMPARISON.flatMap(group => group.rows).flatMap(row => {
+    const before = row.values[current];
+    const after = row.values[target];
+    if (after === before || after === false) return [];
+    return [typeof after === "string" ? `${row.label}: ${after}` : row.label];
+  });
+}

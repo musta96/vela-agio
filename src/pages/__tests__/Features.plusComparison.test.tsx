@@ -87,7 +87,7 @@ describe("Features comparison table · plus tier", () => {
     const rowExpectations: Array<{ label: RegExp; expected: boolean; hint?: string }> = [
       { label: /^Market data$/,            expected: PLAN_FEATURES.plus.features.live_data,     hint: "Real-time for plus" },
       { label: /^Backtesting engine$/,     expected: PLAN_FEATURES.plus.features.backtesting },
-      { label: /^Broker connect/,          expected: PLAN_FEATURES.plus.features.portfolio_sync },
+      { label: /^Broker connect/,          expected: true, hint: "Existing broker endpoint requires sign-in, not a paid plan" },
       { label: /^Smart alerts/,            expected: PLAN_FEATURES.plus.features.alerts },
       { label: /REST API/,                 expected: PLAN_FEATURES.plus.features.api_access },
       { label: /Advisor seats/,            expected: PLAN_FEATURES.plus.features.advisor_seats > 0 },

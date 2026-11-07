@@ -19,7 +19,8 @@
 - [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
-- [ ] Add personal friend invite links, deduplicated tracked visits and confirmed-signup conversion counts; verify ownership and signup attribution.
+- [x] Add personal friend invite links, deduplicated tracked visits and signup conversion counts; verified authenticated link creation, repeat-visit deduplication and mobile layout.
+- [ ] Verify a complete referral signup and email confirmation: test domains were rejected by hosted email checks; transactional auth-trigger regression requires privileged database access unavailable to the test runner.
 - [x] Add a free public Italian PAC calculator and practical guide, link from homepage/blog, and verify calculations, CSV download and mobile use.
 - [x] Recheck and unify current pricing, FAQs and upgrade displays; protect shared native pricing and subscription management from website checkout. Apple activation remains blocked as listed below.
 - [x] Implement Apple Pro purchase/restore/manage screens, verified provider-separated entitlements, all-paid strategy/backtesting access, and subscription setup checklist.

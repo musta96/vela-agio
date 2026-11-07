@@ -19,6 +19,7 @@
 - [x] Orchestrated `/full-analysis` run and `run_full_analysis` Copilot tool.
 
 ## Open
+- [ ] Restore account and billing emails: confirmed missing sender; blocked on configuring a user-owned sending domain, then shared email setup, templates, secure triggers and delivery verification. Scheduled market digests/briefs need a separate suitable email service rather than built-in app emails.
 - [x] Add personal friend invite links, deduplicated tracked visits and signup conversion counts; verified authenticated link creation, repeat-visit deduplication and mobile layout.
 - [ ] Verify a complete referral signup and email confirmation: test domains were rejected by hosted email checks; transactional auth-trigger regression requires privileged database access unavailable to the test runner.
 - [x] Add a free public Italian PAC calculator and practical guide, link from homepage/blog, and verify calculations, CSV download and mobile use.

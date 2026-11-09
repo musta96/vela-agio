@@ -160,9 +160,9 @@ export default function Support() {
               <Mail className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors">
+              <h2 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors">
                 Email Support
-              </h3>
+              </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Reach us at{" "}
                 <span className="text-primary font-medium">support@vela.agio</span>
@@ -183,9 +183,9 @@ export default function Support() {
               <ExternalLink className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors">
+              <h2 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors">
                 Website
-              </h3>
+              </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Visit{" "}
                 <span className="text-primary font-medium">vela.agio</span>

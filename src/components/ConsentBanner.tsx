@@ -76,9 +76,9 @@ export function ConsentBanner() {
               <Cookie className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-foreground mb-1">
+              <p className="text-sm font-semibold text-foreground mb-1">
                 Cookies &amp; your privacy
-              </h3>
+              </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 We use essential cookies to make Vela.ai work. With your consent we also use
                 analytics cookies to improve the product. You can change your choice anytime in{" "}
